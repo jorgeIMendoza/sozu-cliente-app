@@ -49,6 +49,15 @@ final clienteNotificacionesProvider = FutureProvider<ClienteNotificaciones>((
   return fetchClienteNotificaciones(impersonate: imp);
 });
 
+/// Estado de cuenta por propiedad (id = cuenta de cobranza).
+final estadoCuentaProvider = FutureProvider.family<EstadoCuenta, int>((
+  ref,
+  idCuenta,
+) {
+  final imp = ref.watch(impersonationProvider).idPersona;
+  return fetchEstadoCuenta(idCuenta, impersonate: imp);
+});
+
 /// Clientes para el selector de impersonación (no depende del target).
 final adminClientesProvider = FutureProvider<AdminClientes>(
   (ref) => fetchAdminClientes(),

@@ -497,6 +497,84 @@ class ClienteNotificaciones {
       noLeidas = asInt(j['no_leidas']);
 }
 
+// ─── cliente-estado-cuenta (por propiedad) ──────────────────────────────────
+
+class AcuerdoPago {
+  final int orden;
+  final String concepto;
+  final String? fecha;
+  final double monto;
+  final double pagado;
+  final double pendiente;
+  final bool pagadoCompleto;
+
+  AcuerdoPago.fromJson(Map<String, dynamic> j)
+    : orden = asInt(j['orden']),
+      concepto = asString(j['concepto'], 'N/A'),
+      fecha = j['fecha'] as String?,
+      monto = asDouble(j['monto']),
+      pagado = asDouble(j['pagado']),
+      pendiente = asDouble(j['pendiente']),
+      pagadoCompleto = j['pagado_completo'] == true;
+}
+
+class MultaItem {
+  final String descripcion;
+  final double monto;
+  final double pagado;
+  final double pendiente;
+  final bool pagada;
+
+  MultaItem.fromJson(Map<String, dynamic> j)
+    : descripcion = asString(j['descripcion'], 'Multa'),
+      monto = asDouble(j['monto']),
+      pagado = asDouble(j['pagado']),
+      pendiente = asDouble(j['pendiente']),
+      pagada = j['pagada'] == true;
+}
+
+class PagoRealizado {
+  final String? fecha;
+  final String metodo;
+  final String? referencia;
+  final double monto;
+
+  PagoRealizado.fromJson(Map<String, dynamic> j)
+    : fecha = j['fecha'] as String?,
+      metodo = asString(j['metodo'], 'N/A'),
+      referencia = j['referencia'] as String?,
+      monto = asDouble(j['monto']);
+}
+
+class EstadoCuenta {
+  final double precioFinal;
+  final double totalPagado;
+  final double totalMultas;
+  final double saldoPendiente;
+  final String moneda;
+  final List<AcuerdoPago> acuerdos;
+  final List<MultaItem> multas;
+  final List<PagoRealizado> pagos;
+  final double totalPagos;
+
+  EstadoCuenta.fromJson(Map<String, dynamic> j)
+    : precioFinal = asDouble((j['resumen'] as Map?)?['precio_final']),
+      totalPagado = asDouble((j['resumen'] as Map?)?['total_pagado']),
+      totalMultas = asDouble((j['resumen'] as Map?)?['total_multas']),
+      saldoPendiente = asDouble((j['resumen'] as Map?)?['saldo_pendiente']),
+      moneda = asString((j['resumen'] as Map?)?['moneda'], 'MXN'),
+      acuerdos = ((j['acuerdos'] as List?) ?? [])
+          .map((e) => AcuerdoPago.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      multas = ((j['multas'] as List?) ?? [])
+          .map((e) => MultaItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      pagos = ((j['pagos'] as List?) ?? [])
+          .map((e) => PagoRealizado.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      totalPagos = asDouble(j['total_pagos']);
+}
+
 // ─── admin-clientes (selector de impersonación, solo web) ────────────────────
 
 class AdminCliente {

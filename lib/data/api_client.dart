@@ -100,6 +100,17 @@ Future<ClienteNotificaciones> fetchClienteNotificaciones({
   ),
 );
 
+Future<EstadoCuenta> fetchEstadoCuenta(
+  int idCuenta, {
+  int? impersonate,
+}) async => EstadoCuenta.fromJson(
+  await _invoke(
+    'cliente-estado-cuenta',
+    body: {'id': idCuenta},
+    impersonate: impersonate,
+  ),
+);
+
 /// Lista de clientes para el selector de impersonación (solo super admin).
 Future<AdminClientes> fetchAdminClientes() async =>
     AdminClientes.fromJson(await _invoke('admin-clientes'));
