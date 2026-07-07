@@ -37,5 +37,5 @@ jobs:
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SOZU_CLIENTE_PRD }}
-          projectId: sozu-cliente-prd
+          projectId: sozu-admin-prd
           channelId: live

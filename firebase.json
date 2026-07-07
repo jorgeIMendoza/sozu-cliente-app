@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "sozu-cliente-prd",
+    "site": "sozu-cliente-app",
     "public": "build/web",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
