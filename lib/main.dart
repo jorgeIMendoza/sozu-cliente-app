@@ -8,6 +8,7 @@ import 'core/secure_session_storage.dart';
 import 'core/theme.dart';
 import 'providers/theme_provider.dart';
 import 'router.dart';
+import 'widgets/inactivity_watcher.dart';
 
 /// SOZU — Portal del Cliente (Flutter).
 /// Seguridad: SOLO anon key + JWT; sesión en secure storage; todo dato
@@ -55,6 +56,8 @@ class SozuApp extends ConsumerWidget {
       darkTheme: sozuDarkTheme(),
       themeMode: themeMode,
       routerConfig: router,
+      builder: (context, child) =>
+          InactivityWatcher(child: child ?? const SizedBox.shrink()),
     );
   }
 }
