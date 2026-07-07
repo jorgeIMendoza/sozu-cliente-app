@@ -18,9 +18,10 @@ jobs:
 
       # Valores públicos por diseño (URL + anon key van embebidos en cualquier
       # app cliente). NUNCA poner aquí service_role ni credenciales de BD.
-      - name: Crear .env
+      - name: Crear assets/env
         run: |
-          cat > .env <<EOF
+          mkdir -p assets
+          cat > assets/env <<EOF
           SUPABASE_URL=https://tzmhgfjmddkfyffkkmto.supabase.co
           SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6bWhnZmptZGRrZnlmZmtrbXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNTU0NDUsImV4cCI6MjA3MjkzMTQ0NX0.8DaFtWO6zyJg14jFo_Zm2idYKwI-mvfmUtlixG2JDSE
           EOF

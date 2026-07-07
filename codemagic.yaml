@@ -18,9 +18,10 @@ definitions:
     SUPABASE_URL: https://tzmhgfjmddkfyffkkmto.supabase.co
     SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6bWhnZmptZGRrZnlmZmtrbXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNTU0NDUsImV4cCI6MjA3MjkzMTQ0NX0.8DaFtWO6zyJg14jFo_Zm2idYKwI-mvfmUtlixG2JDSE
   env_setup: &env_setup
-    name: Crear .env desde variables de entorno
+    name: Crear assets/env desde variables de entorno
     script: |
-      cat > .env <<EOF
+      mkdir -p assets
+      cat > assets/env <<EOF
       SUPABASE_URL=$SUPABASE_URL
       SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
       EOF

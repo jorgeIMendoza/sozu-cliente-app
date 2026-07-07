@@ -27,4 +27,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - .env
+    # NOTA: no usar un archivo con punto inicial (.env) como asset — Flutter lo
+    # excluye del AssetManifest en el build web release y dotenv falla (pantalla
+    # blanca). Se usa assets/env (sin punto). El archivo está gitignored.
+    - assets/env

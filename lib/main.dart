@@ -14,7 +14,7 @@ import 'router.dart';
 /// sensible vía Edge Functions (ver CLAUDE.md).
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
+  await dotenv.load(fileName: 'assets/env');
   await initializeDateFormatting('es_MX');
 
   final url = dotenv.env['SUPABASE_URL'];

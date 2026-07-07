@@ -46,6 +46,7 @@ app.*.map.json
 
 # Env / secretos - NUNCA commitear
 .env
+assets/env
 
 # Ejecuciones manuales (SQL/deploys que se corren a mano - no commitear el
 # contenido; el directorio se conserva vía su README)
