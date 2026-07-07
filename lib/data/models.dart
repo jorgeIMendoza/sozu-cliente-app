@@ -538,12 +538,16 @@ class PagoRealizado {
   final String metodo;
   final String? referencia;
   final double monto;
+  final String? urlRecibo;
+  final String? urlCep;
 
   PagoRealizado.fromJson(Map<String, dynamic> j)
     : fecha = j['fecha'] as String?,
       metodo = asString(j['metodo'], 'N/A'),
       referencia = j['referencia'] as String?,
-      monto = asDouble(j['monto']);
+      monto = asDouble(j['monto']),
+      urlRecibo = j['url_recibo'] as String?,
+      urlCep = j['url_cep'] as String?;
 }
 
 class EstadoCuenta {

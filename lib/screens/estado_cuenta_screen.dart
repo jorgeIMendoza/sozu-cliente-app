@@ -11,8 +11,8 @@ import '../providers/impersonation_provider.dart';
 import '../widgets/common.dart';
 
 /// Estado de cuenta POR PROPIEDAD (paridad con el portal admin):
-/// selector de propiedad → resumen (KPIs) + filtros (año/estatus) +
-/// acuerdos de pago + multas + pagos realizados.
+/// lista de propiedades (buscador) → detalle con resumen (KPIs), filtros
+/// (año/estatus), orden y pestañas de Acuerdos de pago / Pagos realizados.
 class EstadoCuentaScreen extends ConsumerStatefulWidget {
   const EstadoCuentaScreen({super.key});
 
@@ -21,10 +21,20 @@ class EstadoCuentaScreen extends ConsumerStatefulWidget {
 }
 
 class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
-  int? _cuentaId;
+  int? _selected; // propiedad elegida por el usuario
+  String _query = '';
   String _estatus = 'todos'; // todos | pagado | pendiente
   String _anio = 'todos';
+  int _tab = 0; // 0 = acuerdos, 1 = pagos
+  bool _ordenDesc = true; // más reciente primero
   bool _descargando = false;
+
+  Color _colorEstatus(SozuTone tone, String estatus) {
+    final e = estatus.toLowerCase();
+    if (e.contains('pendiente') || e.contains('vencid')) return tone.pending;
+    if (e.contains('liquidad') || e.contains('entregad')) return tone.positive;
+    return tone.primaryDark;
+  }
 
   Future<void> _descargarPdf(int cuentaId) async {
     setState(() => _descargando = true);
@@ -33,45 +43,85 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
       final url = await fetchEstadoCuentaPdfUrl(cuentaId, impersonate: imp);
       if (!mounted) return;
       if (url == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No pudimos generar el PDF. Intenta de nuevo.'),
-          ),
-        );
+        _snack('No pudimos generar el PDF. Intenta de nuevo.');
       } else {
         await openMedia(context, url, titulo: 'Estado de cuenta');
       }
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No pudimos generar el PDF. Intenta de nuevo.'),
-          ),
-        );
-      }
+      if (mounted) _snack('No pudimos generar el PDF. Intenta de nuevo.');
     } finally {
       if (mounted) setState(() => _descargando = false);
     }
   }
 
+  void _snack(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
     final props = ref.watch(clientePropiedadesProvider);
 
-    // Cuenta efectiva (para el botón de descarga del AppBar).
-    int? cuentaSel = _cuentaId;
-    final propsData = props.valueOrNull;
-    if (propsData != null) {
-      final todas = [...propsData.enAdquisicion, ...propsData.patrimonioActivo];
-      cuentaSel ??= todas.length == 1 ? todas.first.id : null;
-    }
+    return props.when(
+      loading: () => _scaffold(context, const _LoadingList(), null),
+      error: (_, __) => _scaffold(
+        context,
+        ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            ErrorCard(
+              title: 'No pudimos cargar tus propiedades',
+              onRetry: () => ref.invalidate(clientePropiedadesProvider),
+            ),
+          ],
+        ),
+        null,
+      ),
+      data: (data) {
+        final cuentas = <PropiedadCard>[
+          ...data.enAdquisicion,
+          ...data.patrimonioActivo,
+        ];
+        if (cuentas.isEmpty) {
+          return _scaffold(context, const _EmptyState(), null);
+        }
 
+        final single = cuentas.length == 1 ? cuentas.first : null;
+        final cuenta = _selected != null
+            ? cuentas.firstWhere(
+                (c) => c.id == _selected,
+                orElse: () => cuentas.first,
+              )
+            : single;
+
+        if (cuenta == null) {
+          return _scaffold(context, _lista(cuentas), null);
+        }
+        // Detalle. Si el usuario eligió de la lista, el back vuelve a la lista.
+        final volverALista = _selected != null && single == null;
+        return _scaffold(
+          context,
+          _detalle(cuenta),
+          cuenta.id,
+          onBack: volverALista ? () => setState(() => _selected = null) : null,
+        );
+      },
+    );
+  }
+
+  Widget _scaffold(
+    BuildContext context,
+    Widget body,
+    int? cuentaId, {
+    VoidCallback? onBack,
+  }) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Estado de cuenta'),
+        leading: onBack != null
+            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack)
+            : null,
         actions: [
-          if (cuentaSel != null)
+          if (cuentaId != null)
             _descargando
                 ? const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
@@ -86,209 +136,187 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                 : IconButton(
                     tooltip: 'Descargar PDF',
                     icon: const Icon(Icons.download_outlined),
-                    onPressed: () => _descargarPdf(cuentaSel!),
+                    onPressed: () => _descargarPdf(cuentaId),
                   ),
         ],
       ),
-      body: props.when(
-        loading: () => const _LoadingList(),
-        error: (_, __) => ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            ErrorCard(
-              title: 'No pudimos cargar tus propiedades',
-              onRetry: () => ref.invalidate(clientePropiedadesProvider),
-            ),
-          ],
-        ),
-        data: (data) {
-          final cuentas = <PropiedadCard>[
-            ...data.enAdquisicion,
-            ...data.patrimonioActivo,
-          ];
-          if (cuentas.isEmpty) {
-            return const _EmptyState();
-          }
-          // Autoseleccionar si hay una sola.
-          final cuentaId =
-              _cuentaId ?? (cuentas.length == 1 ? cuentas.first.id : null);
-
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            children: [
-              _selectorPropiedad(tone, cuentas, cuentaId),
-              const SizedBox(height: 8),
-              if (cuentaId == null)
-                const EmptyCard(
-                  icon: Icons.receipt_long_outlined,
-                  text: 'Elige una propiedad para ver su estado de cuenta.',
-                )
-              else
-                _detalle(cuentaId),
-            ],
-          );
-        },
-      ),
+      body: body,
     );
   }
 
-  Widget _selectorPropiedad(
-    SozuTone tone,
-    List<PropiedadCard> cuentas,
-    int? cuentaId,
-  ) {
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'PROPIEDAD',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 2,
-              color: tone.textMuted,
-            ),
+  // ── Lista de propiedades ──────────────────────────────────────────────────
+  Widget _lista(List<PropiedadCard> cuentas) {
+    final tone = SozuTone.of(context);
+    final q = _query.trim().toLowerCase();
+    final filtradas = q.isEmpty
+        ? cuentas
+        : cuentas
+              .where(
+                (c) =>
+                    c.nombre.toLowerCase().contains(q) ||
+                    c.proyecto.toLowerCase().contains(q),
+              )
+              .toList();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      children: [
+        Text(
+          'Selecciona una propiedad',
+          style: TextStyle(fontSize: 14, color: tone.textSecondary),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          onChanged: (v) => setState(() => _query = v),
+          decoration: const InputDecoration(
+            hintText: 'Buscar propiedad…',
+            prefixIcon: Icon(Icons.search),
           ),
-          const SizedBox(height: 8),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<int>(
-              isExpanded: true,
-              value: cuentaId,
-              hint: const Text('Selecciona una propiedad'),
-              items: [
-                for (final c in cuentas)
-                  DropdownMenuItem(
-                    value: c.id,
-                    child: Text(
-                      '${c.proyecto} · ${c.nombre}',
-                      overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 12),
+        if (filtradas.isEmpty)
+          EmptyCard(
+            icon: Icons.search_off_outlined,
+            text: 'Sin resultados para "$_query".',
+          )
+        else
+          for (final c in filtradas) ...[
+            _cardPropiedad(tone, c),
+            const SizedBox(height: 10),
+          ],
+      ],
+    );
+  }
+
+  Widget _cardPropiedad(SozuTone tone, PropiedadCard c) {
+    final color = _colorEstatus(tone, c.estatus);
+    return GestureDetector(
+      onTap: () => setState(() {
+        _selected = c.id;
+        _estatus = 'todos';
+        _anio = 'todos';
+        _tab = 0;
+        _ordenDesc = true;
+      }),
+      child: AppCard(
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                c.nombre,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${c.proyecto} · U${c.nombre}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: tone.textPrimary,
                     ),
                   ),
-              ],
-              onChanged: (v) => setState(() {
-                _cuentaId = v;
-                _estatus = 'todos';
-                _anio = 'todos';
-              }),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${c.estatus} · ${c.avancePago.round()}% pagado · ${formatMXN(c.monto)}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                  ),
+                ],
+              ),
             ),
+            Icon(Icons.chevron_right, color: tone.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Detalle ────────────────────────────────────────────────────────────────
+  Widget _detalle(PropiedadCard c) {
+    final tone = SozuTone.of(context);
+    final edo = ref.watch(estadoCuentaProvider(c.id));
+    return edo.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          ErrorCard(
+            title: 'No pudimos cargar el estado de cuenta',
+            onRetry: () => ref.invalidate(estadoCuentaProvider(c.id)),
           ),
         ],
       ),
+      data: (d) => _contenido(tone, c, d),
     );
   }
 
-  Widget _detalle(int cuentaId) {
-    final tone = SozuTone.of(context);
-    final edo = ref.watch(estadoCuentaProvider(cuentaId));
-    return edo.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.only(top: 24),
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (_, __) => Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: ErrorCard(
-          title: 'No pudimos cargar el estado de cuenta',
-          onRetry: () => ref.invalidate(estadoCuentaProvider(cuentaId)),
-        ),
-      ),
-      data: (d) => _contenido(tone, d),
-    );
-  }
-
-  Widget _contenido(SozuTone tone, EstadoCuenta d) {
-    // Años disponibles a partir de las fechas de acuerdos.
+  Widget _contenido(SozuTone tone, PropiedadCard c, EstadoCuenta d) {
+    // Años de acuerdos Y pagos (antes solo acuerdos → faltaba 2026).
     final anios = <String>{
       for (final a in d.acuerdos)
         if ((a.fecha ?? '').length >= 4) a.fecha!.substring(0, 4),
+      for (final p in d.pagos)
+        if ((p.fecha ?? '').length >= 4) p.fecha!.substring(0, 4),
     }.toList()..sort((a, b) => b.compareTo(a));
 
-    final acuerdos = d.acuerdos.where((a) {
-      if (_estatus == 'pagado' && !a.pagadoCompleto) return false;
-      if (_estatus == 'pendiente' && a.pagadoCompleto) return false;
-      if (_anio != 'todos' && !(a.fecha ?? '').startsWith(_anio)) return false;
-      return true;
-    }).toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
+        Text(
+          '${c.proyecto} · U${c.nombre}',
+          style: TextStyle(fontSize: 13, color: tone.textMuted),
+        ),
         const SizedBox(height: 8),
         _resumen(tone, d),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
+        _tabs(tone, d),
+        const SizedBox(height: 12),
         _filtros(tone, anios),
-        const SectionTitle(
-          icon: Icons.receipt_long_outlined,
-          text: 'Acuerdos de pago',
-        ),
-        if (acuerdos.isEmpty)
-          const EmptyCard(
-            icon: Icons.receipt_long_outlined,
-            text: 'Sin acuerdos para este filtro',
-          )
-        else
-          for (final a in acuerdos) ...[
-            _acuerdoRow(tone, a),
-            const SizedBox(height: 8),
-          ],
-        if (d.multas.isNotEmpty) ...[
-          const SectionTitle(icon: Icons.gavel_outlined, text: 'Multas'),
-          for (final m in d.multas) ...[
-            _multaRow(tone, m),
-            const SizedBox(height: 8),
-          ],
-        ],
-        const SectionTitle(
-          icon: Icons.payments_outlined,
-          text: 'Pagos realizados',
-        ),
-        if (d.pagos.isEmpty)
-          const EmptyCard(
-            icon: Icons.payments_outlined,
-            text: 'Sin pagos registrados',
-          )
-        else ...[
-          for (final p in d.pagos) ...[
-            _pagoRow(tone, p),
-            const SizedBox(height: 8),
-          ],
-          _totalPagos(tone, d.totalPagos),
-        ],
+        const SizedBox(height: 4),
+        if (_tab == 0) ..._listaAcuerdos(tone, d) else ..._listaPagos(tone, d),
       ],
     );
   }
 
   Widget _resumen(SozuTone tone, EstadoCuenta d) {
     return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
         children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _kpi(
-                tone,
-                'Valor del activo',
-                formatMXN(d.precioFinal),
-                tone.textPrimary,
-              ),
-              _kpi(
-                tone,
-                'Total pagado',
-                formatMXN(d.totalPagado),
-                tone.positive,
-              ),
-              if (d.totalMultas > 0)
-                _kpi(tone, 'Multas', formatMXN(d.totalMultas), tone.negative),
-              _kpi(
-                tone,
-                'Saldo pendiente',
-                formatMXN(d.saldoPendiente),
-                tone.pending,
-              ),
-            ],
+          _kpi(
+            tone,
+            'Valor del activo',
+            formatMXN(d.precioFinal),
+            tone.textPrimary,
+          ),
+          _kpi(tone, 'Total pagado', formatMXN(d.totalPagado), tone.positive),
+          if (d.totalMultas > 0)
+            _kpi(tone, 'Multas', formatMXN(d.totalMultas), tone.negative),
+          _kpi(
+            tone,
+            'Saldo pendiente',
+            formatMXN(d.saldoPendiente),
+            tone.pending,
           ),
         ],
       ),
@@ -320,53 +348,106 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  Widget _filtros(SozuTone tone, List<String> anios) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _chipRow('Estatus', [
-          _chip(
-            tone,
-            'Todos',
-            _estatus == 'todos',
-            () => setState(() => _estatus = 'todos'),
-          ),
-          _chip(
-            tone,
-            'Pagados',
-            _estatus == 'pagado',
-            () => setState(() => _estatus = 'pagado'),
-          ),
-          _chip(
-            tone,
-            'Pendientes',
-            _estatus == 'pendiente',
-            () => setState(() => _estatus = 'pendiente'),
-          ),
-        ]),
-        if (anios.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _chipRow('Período', [
-            _chip(
-              tone,
-              'Todos',
-              _anio == 'todos',
-              () => setState(() => _anio = 'todos'),
+  Widget _tabs(SozuTone tone, EstadoCuenta d) {
+    Widget tab(int i, String label, int count) {
+      final active = _tab == i;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _tab = i),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: active ? tone.primaryDark : tone.surfaceAlt,
+              borderRadius: BorderRadius.circular(10),
             ),
-            for (final y in anios)
-              _chip(tone, y, _anio == y, () => setState(() => _anio = y)),
-          ]),
-        ],
-        const SizedBox(height: 8),
+            alignment: Alignment.center,
+            child: Text(
+              '$label ($count)',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: active ? Colors.white : tone.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        tab(0, 'Acuerdos', d.acuerdos.length),
+        const SizedBox(width: 8),
+        tab(1, 'Pagos', d.pagos.length),
       ],
     );
   }
 
-  Widget _chipRow(String label, List<Widget> chips) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+  Widget _filtros(SozuTone tone, List<String> anios) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: Wrap(spacing: 8, runSpacing: 8, children: chips)),
+        // Estatus solo aplica a acuerdos.
+        if (_tab == 0)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip(
+                tone,
+                'Todos',
+                _estatus == 'todos',
+                () => setState(() => _estatus = 'todos'),
+              ),
+              _chip(
+                tone,
+                'Pagados',
+                _estatus == 'pagado',
+                () => setState(() => _estatus = 'pagado'),
+              ),
+              _chip(
+                tone,
+                'Pendientes',
+                _estatus == 'pendiente',
+                () => setState(() => _estatus = 'pendiente'),
+              ),
+            ],
+          ),
+        if (_tab == 0 && anios.isNotEmpty) const SizedBox(height: 8),
+        if (anios.isNotEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip(
+                tone,
+                'Todos los años',
+                _anio == 'todos',
+                () => setState(() => _anio = 'todos'),
+              ),
+              for (final y in anios)
+                _chip(tone, y, _anio == y, () => setState(() => _anio = y)),
+            ],
+          ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Icon(Icons.swap_vert, size: 18, color: tone.textMuted),
+            const SizedBox(width: 4),
+            TextButton(
+              onPressed: () => setState(() => _ordenDesc = !_ordenDesc),
+              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+              child: Text(
+                _ordenDesc ? 'Más reciente' : 'Más antiguo',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: tone.primaryDark,
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -390,6 +471,62 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         ),
       ),
     );
+  }
+
+  int _cmpFecha(String? a, String? b) {
+    final r = (a ?? '').compareTo(b ?? '');
+    return _ordenDesc ? -r : r;
+  }
+
+  List<Widget> _listaAcuerdos(SozuTone tone, EstadoCuenta d) {
+    final acuerdos = d.acuerdos.where((a) {
+      if (_estatus == 'pagado' && !a.pagadoCompleto) return false;
+      if (_estatus == 'pendiente' && a.pagadoCompleto) return false;
+      if (_anio != 'todos' && !(a.fecha ?? '').startsWith(_anio)) return false;
+      return true;
+    }).toList()..sort((a, b) => _cmpFecha(a.fecha, b.fecha));
+
+    if (acuerdos.isEmpty) {
+      return [
+        const EmptyCard(
+          icon: Icons.receipt_long_outlined,
+          text: 'Sin acuerdos para este filtro',
+        ),
+      ];
+    }
+    return [
+      for (final a in acuerdos) ...[
+        _acuerdoRow(tone, a),
+        const SizedBox(height: 8),
+      ],
+      if (d.multas.isNotEmpty) ...[
+        const SectionTitle(icon: Icons.gavel_outlined, text: 'Multas'),
+        for (final m in d.multas) ...[
+          _multaRow(tone, m),
+          const SizedBox(height: 8),
+        ],
+      ],
+    ];
+  }
+
+  List<Widget> _listaPagos(SozuTone tone, EstadoCuenta d) {
+    final pagos = d.pagos.where((p) {
+      if (_anio != 'todos' && !(p.fecha ?? '').startsWith(_anio)) return false;
+      return true;
+    }).toList()..sort((a, b) => _cmpFecha(a.fecha, b.fecha));
+
+    if (pagos.isEmpty) {
+      return [
+        const EmptyCard(
+          icon: Icons.payments_outlined,
+          text: 'Sin pagos para este filtro',
+        ),
+      ];
+    }
+    return [
+      for (final p in pagos) ...[_pagoRow(tone, p), const SizedBox(height: 8)],
+      _totalPagos(tone, pagos.fold<double>(0, (s, p) => s + p.monto)),
+    ];
   }
 
   Widget _acuerdoRow(SozuTone tone, AcuerdoPago a) {
@@ -482,53 +619,114 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   }
 
   Widget _pagoRow(SozuTone tone, PagoRealizado p) {
+    final tieneRecibo = (p.urlRecibo ?? '').isNotEmpty;
+    final tieneCep = (p.urlCep ?? '').isNotEmpty;
     return AppCard(
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: tone.primarySoft,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.arrow_downward,
-              size: 16,
-              color: SozuColors.emerald600,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: tone.primarySoft,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.arrow_downward,
+                  size: 16,
+                  color: SozuColors.emerald600,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      p.metodo,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: tone.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      '${formatDate(p.fecha)}${p.referencia != null ? ' · ${p.referencia}' : ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '+${formatMXN(p.monto)}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: tone.positive,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          if (tieneRecibo || tieneCep) ...[
+            const SizedBox(height: 8),
+            Row(
               children: [
-                Text(
-                  p.metodo,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: tone.textPrimary,
+                if (tieneRecibo)
+                  _docBtn(
+                    tone,
+                    Icons.description_outlined,
+                    'Recibo',
+                    () => openMedia(context, p.urlRecibo, titulo: 'Recibo'),
                   ),
-                ),
-                Text(
-                  '${formatDate(p.fecha)}${p.referencia != null ? ' · ${p.referencia}' : ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
-                ),
+                if (tieneRecibo && tieneCep) const SizedBox(width: 8),
+                if (tieneCep)
+                  _docBtn(
+                    tone,
+                    Icons.receipt_long_outlined,
+                    'CEP',
+                    () => openMedia(context, p.urlCep, titulo: 'CEP'),
+                  ),
               ],
             ),
-          ),
-          Text(
-            '+${formatMXN(p.monto)}',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: tone.positive,
-            ),
-          ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _docBtn(
+    SozuTone tone,
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: tone.surfaceAlt,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: tone.primaryDark),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: tone.primaryDark,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
