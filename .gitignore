@@ -47,5 +47,7 @@ app.*.map.json
 # Env / secretos - NUNCA commitear
 .env
 
-# Ejecuciones manuales (SQL/deploys que se corren a mano - no commitear)
+# Ejecuciones manuales (SQL/deploys que se corren a mano - no commitear el
+# contenido; el directorio se conserva vía su README)
 Ejecuciones_manuales/*
+!Ejecuciones_manuales/README.md
