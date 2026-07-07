@@ -1,0 +1,41 @@
+name: Deploy Web a Firebase Hosting
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Valores públicos por diseño (URL + anon key van embebidos en cualquier
+      # app cliente). NUNCA poner aquí service_role ni credenciales de BD.
+      - name: Crear .env
+        run: |
+          cat > .env <<EOF
+          SUPABASE_URL=https://tzmhgfjmddkfyffkkmto.supabase.co
+          SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6bWhnZmptZGRrZnlmZmtrbXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNTU0NDUsImV4cCI6MjA3MjkzMTQ0NX0.8DaFtWO6zyJg14jFo_Zm2idYKwI-mvfmUtlixG2JDSE
+          EOF
+
+      - name: Build web (versión con hora de México)
+        run: |
+          BUILD_TIMESTAMP=$(TZ=America/Mexico_City date +%y%m%d.%H%M)
+          flutter pub get
+          flutter analyze
+          flutter build web --release --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP
+
+      - name: Deploy a Firebase Hosting (live)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SOZU_CLIENTE_PRD }}
+          projectId: sozu-cliente-prd
+          channelId: live
