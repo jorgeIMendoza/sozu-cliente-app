@@ -1,0 +1,119 @@
+# CI/CD Codemagic — SOZU Portal del Cliente (Flutter)
+# ---------------------------------------------------------------------------
+# Requisitos de configuración en la UI de Codemagic (una sola vez):
+# 1. Environment variable group "sozu_cliente" con:
+#      SUPABASE_URL       (URL del proyecto Supabase PRD)
+#      SUPABASE_ANON_KEY  (anon key pública)
+#    El script "Crear .env" las vuelca al archivo que flutter_dotenv carga
+#    como asset (el .env NUNCA se commitea).
+# 2. Android: keystore subido en Codemagic → Code signing identities, con
+#    reference name "sozu_keystore" (Codemagic puede generarlo).
+# 3. iOS: integración App Store Connect (API key) con nombre
+#    "sozu_app_store_connect" + certificados automáticos.
+# ---------------------------------------------------------------------------
+
+definitions:
+  env_setup: &env_setup
+    name: Crear .env desde variables de entorno
+    script: |
+      cat > .env <<EOF
+      SUPABASE_URL=$SUPABASE_URL
+      SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+      EOF
+  build_stamp: &build_stamp
+    name: Timestamp de versión (hora México, estilo sozu-admin)
+    script: |
+      echo "BUILD_TIMESTAMP=$(TZ=America/Mexico_City date +%y%m%d.%H%M)" >> $CM_ENV
+
+workflows:
+  android-release:
+    name: Android (.apk pruebas + .aab Play Store)
+    max_build_duration: 45
+    instance_type: linux_x2
+    environment:
+      groups:
+        - sozu_cliente
+      android_signing:
+        - sozu_keystore
+      flutter: stable
+    scripts:
+      - *env_setup
+      - *build_stamp
+      - name: Dependencias y análisis
+        script: |
+          flutter pub get
+          flutter analyze
+      - name: Build APK (pruebas en dispositivo)
+        script: |
+          flutter build apk --release \
+            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP
+      - name: Build AAB (Google Play)
+        script: |
+          flutter build appbundle --release \
+            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/bundle/release/*.aab
+    # Publicación automática a Google Play: descomentar cuando exista el
+    # service account (Google Play Console → API access).
+    # publishing:
+    #   google_play:
+    #     credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+    #     track: internal
+
+  ios-release:
+    name: iOS (.ipa TestFlight/App Store)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: sozu_app_store_connect
+    environment:
+      groups:
+        - sozu_cliente
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.sozu.sozuClienteApp
+      flutter: stable
+    scripts:
+      - *env_setup
+      - *build_stamp
+      - name: Dependencias y análisis
+        script: |
+          flutter pub get
+          flutter analyze
+      - name: Build IPA firmado
+        script: |
+          flutter build ipa --release \
+            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+
+  web-release:
+    name: Web (build estático para hosting)
+    max_build_duration: 30
+    instance_type: linux_x2
+    environment:
+      groups:
+        - sozu_cliente
+      flutter: stable
+    scripts:
+      - *env_setup
+      - *build_stamp
+      - name: Dependencias y análisis
+        script: |
+          flutter pub get
+          flutter analyze
+      - name: Build web
+        script: |
+          flutter build web --release \
+            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP
+      - name: Empaquetar
+        script: |
+          cd build/web && zip -r ../web-release.zip .
+    artifacts:
+      - build/web-release.zip
