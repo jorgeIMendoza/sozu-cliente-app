@@ -1,18 +1,22 @@
 # CI/CD Codemagic — SOZU Portal del Cliente (Flutter)
 # ---------------------------------------------------------------------------
+# Variables Supabase: inline en `vars` (abajo). Son valores PÚBLICOS por
+# diseño (URL + anon key van embebidos en cualquier app cliente; la seguridad
+# real está en las Edge Functions/RLS) y el repo es privado. NUNCA poner aquí
+# service_role ni credenciales de BD. El script "Crear .env" las vuelca al
+# archivo que flutter_dotenv carga como asset (el .env NUNCA se commitea).
+#
 # Requisitos de configuración en la UI de Codemagic (una sola vez):
-# 1. Environment variable group "sozu_cliente" con:
-#      SUPABASE_URL       (URL del proyecto Supabase PRD)
-#      SUPABASE_ANON_KEY  (anon key pública)
-#    El script "Crear .env" las vuelca al archivo que flutter_dotenv carga
-#    como asset (el .env NUNCA se commitea).
-# 2. Android: keystore subido en Codemagic → Code signing identities, con
+# 1. Android: keystore subido en Codemagic → Code signing identities, con
 #    reference name "sozu_keystore" (Codemagic puede generarlo).
-# 3. iOS: integración App Store Connect (API key) con nombre
+# 2. iOS: integración App Store Connect (API key) con nombre
 #    "sozu_app_store_connect" + certificados automáticos.
 # ---------------------------------------------------------------------------
 
 definitions:
+  supabase_env: &supabase_env
+    SUPABASE_URL: https://tzmhgfjmddkfyffkkmto.supabase.co
+    SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6bWhnZmptZGRrZnlmZmtrbXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNTU0NDUsImV4cCI6MjA3MjkzMTQ0NX0.8DaFtWO6zyJg14jFo_Zm2idYKwI-mvfmUtlixG2JDSE
   env_setup: &env_setup
     name: Crear .env desde variables de entorno
     script: |
@@ -31,8 +35,8 @@ workflows:
     max_build_duration: 45
     instance_type: linux_x2
     environment:
-      groups:
-        - sozu_cliente
+      vars:
+        <<: *supabase_env
       android_signing:
         - sozu_keystore
       flutter: stable
@@ -68,8 +72,8 @@ workflows:
     integrations:
       app_store_connect: sozu_app_store_connect
     environment:
-      groups:
-        - sozu_cliente
+      vars:
+        <<: *supabase_env
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.sozu.sozuClienteApp
@@ -98,8 +102,8 @@ workflows:
     max_build_duration: 30
     instance_type: linux_x2
     environment:
-      groups:
-        - sozu_cliente
+      vars:
+        <<: *supabase_env
       flutter: stable
     scripts:
       - *env_setup
