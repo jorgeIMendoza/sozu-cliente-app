@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/format.dart';
-import '../core/open_doc.dart';
+import '../core/open_media.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
@@ -120,7 +120,7 @@ class _DocRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
     return GestureDetector(
-      onTap: () => openDoc(context, d.urlFirmada),
+      onTap: () => openMedia(context, d.urlFirmada, titulo: d.nombre),
       child: AppCard(
         child: Row(
           children: [

@@ -18,6 +18,11 @@ dependencies:
   shared_preferences: ^2.3.3
   intl: ^0.20.0
   url_launcher: ^6.3.1
+  cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
+  photo_view: ^0.15.0
+  pdfx: ^2.9.2
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

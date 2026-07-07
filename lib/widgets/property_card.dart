@@ -5,6 +5,7 @@ import '../core/theme.dart';
 import '../data/models.dart';
 import 'common.dart';
 import 'fx.dart';
+import 'network_image.dart';
 
 /// Tarjeta de propiedad: imagen, proyecto, monto y barra de avance.
 class PropertyCardWidget extends StatelessWidget {
@@ -40,13 +41,7 @@ class PropertyCardWidget extends StatelessWidget {
                 SizedBox(
                   height: 160,
                   width: double.infinity,
-                  child: item.urlImagen != null
-                      ? Image.network(
-                          item.urlImagen!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _placeholder(tone),
-                        )
-                      : _placeholder(tone),
+                  child: SozuNetworkImage(url: item.urlImagen),
                 ),
                 Positioned(
                   top: 8,
@@ -131,9 +126,4 @@ class PropertyCardWidget extends StatelessWidget {
     );
   }
 
-  Widget _placeholder(SozuTone tone) => Container(
-        color: tone.surfaceAlt,
-        alignment: Alignment.center,
-        child: Icon(Icons.business_outlined, size: 40, color: tone.textMuted),
-      );
 }

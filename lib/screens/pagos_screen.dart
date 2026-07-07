@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
-import '../core/open_doc.dart';
+import '../core/open_media.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
@@ -270,7 +270,7 @@ class _HistorialRow extends StatelessWidget {
   Widget _docChip(BuildContext context, SozuTone tone, IconData icon,
       String label, String? url) {
     return GestureDetector(
-      onTap: () => openDoc(context, url),
+      onTap: () => openMedia(context, url, titulo: label),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(

@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/format.dart';
-import '../core/open_doc.dart';
+import '../core/open_media.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
 import '../widgets/common.dart';
 import '../widgets/level_map.dart';
+import '../widgets/network_image.dart';
 
 const _cronoLimit = 5;
 
@@ -62,13 +63,7 @@ class _PropiedadDetalleScreenState
             SizedBox(
               height: 200,
               width: double.infinity,
-              child: d.urlImagen != null
-                  ? Image.network(
-                      d.urlImagen!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _heroPlaceholder(tone),
-                    )
-                  : _heroPlaceholder(tone),
+              child: SozuNetworkImage(url: d.urlImagen),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -246,12 +241,6 @@ class _PropiedadDetalleScreenState
       ),
     );
   }
-
-  Widget _heroPlaceholder(SozuTone tone) => Container(
-        color: tone.surfaceAlt,
-        alignment: Alignment.center,
-        child: Icon(Icons.business_outlined, size: 48, color: tone.textMuted),
-      );
 
   Widget _dato(SozuTone tone, String label, String value) {
     return FractionallySizedBox(
@@ -605,14 +594,18 @@ class _FichaTecnica extends StatelessWidget {
                 color: tone.textMuted)),
         const SizedBox(height: 8),
         GestureDetector(
-          onTap: () => openDoc(context, url),
+          onTap: () => openMedia(context, url, titulo: label),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: Container(
               color: tone.surfaceAlt,
               height: 200,
               width: double.infinity,
-              child: Image.network(url, fit: BoxFit.contain),
+              child: SozuNetworkImage(
+                url: url,
+                fit: BoxFit.contain,
+                placeholderIcon: Icons.image_outlined,
+              ),
             ),
           ),
         ),
@@ -630,7 +623,7 @@ class _DocRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
     return GestureDetector(
-      onTap: () => openDoc(context, d.urlFirmada),
+      onTap: () => openMedia(context, d.urlFirmada, titulo: d.nombre),
       child: AppCard(
         child: Row(
           children: [
