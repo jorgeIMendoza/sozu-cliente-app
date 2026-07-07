@@ -111,6 +111,20 @@ Future<EstadoCuenta> fetchEstadoCuenta(
   ),
 );
 
+/// URL temporal del PDF del estado de cuenta de una propiedad (wrapper seguro).
+Future<String?> fetchEstadoCuentaPdfUrl(
+  int idCuenta, {
+  int? impersonate,
+}) async {
+  final res = await _invoke(
+    'cliente-estado-cuenta-pdf',
+    body: {'id': idCuenta},
+    impersonate: impersonate,
+  );
+  final url = res['url'];
+  return url is String && url.isNotEmpty ? url : null;
+}
+
 /// Lista de clientes para el selector de impersonación (solo super admin).
 Future<AdminClientes> fetchAdminClientes() async =>
     AdminClientes.fromJson(await _invoke('admin-clientes'));

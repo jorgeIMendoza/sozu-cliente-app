@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/format.dart';
+import '../core/open_media.dart';
 import '../core/theme.dart';
+import '../data/api_client.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
+import '../providers/impersonation_provider.dart';
 import '../widgets/common.dart';
 
 /// Estado de cuenta POR PROPIEDAD (paridad con el portal admin):
@@ -21,14 +24,72 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   int? _cuentaId;
   String _estatus = 'todos'; // todos | pagado | pendiente
   String _anio = 'todos';
+  bool _descargando = false;
+
+  Future<void> _descargarPdf(int cuentaId) async {
+    setState(() => _descargando = true);
+    try {
+      final imp = ref.read(impersonationProvider).idPersona;
+      final url = await fetchEstadoCuentaPdfUrl(cuentaId, impersonate: imp);
+      if (!mounted) return;
+      if (url == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No pudimos generar el PDF. Intenta de nuevo.'),
+          ),
+        );
+      } else {
+        await openMedia(context, url, titulo: 'Estado de cuenta');
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No pudimos generar el PDF. Intenta de nuevo.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _descargando = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
     final props = ref.watch(clientePropiedadesProvider);
 
+    // Cuenta efectiva (para el botón de descarga del AppBar).
+    int? cuentaSel = _cuentaId;
+    final propsData = props.valueOrNull;
+    if (propsData != null) {
+      final todas = [...propsData.enAdquisicion, ...propsData.patrimonioActivo];
+      cuentaSel ??= todas.length == 1 ? todas.first.id : null;
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Estado de cuenta')),
+      appBar: AppBar(
+        title: const Text('Estado de cuenta'),
+        actions: [
+          if (cuentaSel != null)
+            _descargando
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Center(
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                : IconButton(
+                    tooltip: 'Descargar PDF',
+                    icon: const Icon(Icons.download_outlined),
+                    onPressed: () => _descargarPdf(cuentaSel!),
+                  ),
+        ],
+      ),
       body: props.when(
         loading: () => const _LoadingList(),
         error: (_, __) => ListView(
