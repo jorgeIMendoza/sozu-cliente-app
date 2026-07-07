@@ -497,6 +497,27 @@ class ClienteNotificaciones {
       noLeidas = asInt(j['no_leidas']);
 }
 
+// ─── cliente-datos-pago (drawer "Datos para pago") ──────────────────────────
+
+class DatosPago {
+  final String concepto;
+  final double monto;
+  final double saldoPendiente;
+  final String? fechaPago;
+  final String propiedad;
+  final String? clabe;
+  final String? beneficiario;
+
+  DatosPago.fromJson(Map<String, dynamic> j)
+    : concepto = asString(j['concepto'], 'Pago'),
+      monto = asDouble(j['monto']),
+      saldoPendiente = asDouble(j['saldo_pendiente']),
+      fechaPago = j['fecha_pago'] as String?,
+      propiedad = asString(j['propiedad'], '—'),
+      clabe = j['clabe'] as String?,
+      beneficiario = j['beneficiario'] as String?;
+}
+
 // ─── cliente-estado-cuenta (por propiedad) ──────────────────────────────────
 
 class AcuerdoPago {

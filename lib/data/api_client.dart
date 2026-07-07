@@ -111,6 +111,16 @@ Future<EstadoCuenta> fetchEstadoCuenta(
   ),
 );
 
+/// Datos para pagar un acuerdo (CLABE/beneficiario/concepto/monto/vencimiento).
+Future<DatosPago> fetchDatosPago(int idAcuerdo, {int? impersonate}) async =>
+    DatosPago.fromJson(
+      await _invoke(
+        'cliente-datos-pago',
+        body: {'id': idAcuerdo},
+        impersonate: impersonate,
+      ),
+    );
+
 /// URL temporal del PDF del estado de cuenta de una propiedad (wrapper seguro).
 Future<String?> fetchEstadoCuentaPdfUrl(
   int idCuenta, {
