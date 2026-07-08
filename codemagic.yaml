@@ -207,6 +207,102 @@ workflows:
             --target-track production \
             --credentials "@env:GCLOUD_SERVICE_ACCOUNT_CREDENTIALS"
 
+  # Sincroniza la lista de testers del dashboard con el grupo externo de
+  # TestFlight "SOZU Testers" (lo crea si no existe). Lo dispara el dashboard
+  # al agregar/quitar correos, pasando TESTER_EMAILS separados por coma.
+  # Deja el grupo EXACTAMENTE igual a la lista (agrega faltantes, quita sobrantes).
+  sync-testflight-testers:
+    name: Sync testers → TestFlight
+    max_build_duration: 15
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: sozu_app_store_connect
+    scripts:
+      - name: Sincronizar testers con TestFlight
+        script: |
+          set -euo pipefail
+          if [ -z "${TESTER_EMAILS:-}" ]; then
+            echo "ERROR: falta TESTER_EMAILS (lista separada por comas)."
+            exit 1
+          fi
+          pip3 install --quiet pyjwt cryptography requests
+          python3 <<'PY'
+          import os, time, jwt, requests
+
+          ISSUER = os.environ["APP_STORE_CONNECT_ISSUER_ID"]
+          KEY_ID = os.environ["APP_STORE_CONNECT_KEY_IDENTIFIER"]
+          PRIVATE_KEY = os.environ["APP_STORE_CONNECT_PRIVATE_KEY"]
+          BUNDLE_ID = "com.sozu.sozuClienteApp"
+          GROUP_NAME = "SOZU Testers"
+          desired = {e.strip().lower() for e in os.environ["TESTER_EMAILS"].split(",") if e.strip()}
+
+          token = jwt.encode(
+              {"iss": ISSUER, "iat": int(time.time()), "exp": int(time.time()) + 1200,
+               "aud": "appstoreconnect-v1"},
+              PRIVATE_KEY, algorithm="ES256", headers={"kid": KEY_ID})
+          API = "https://api.appstoreconnect.apple.com/v1"
+          H = {"Authorization": f"Bearer {token}"}
+          HJ = {**H, "Content-Type": "application/json"}
+
+          r = requests.get(f"{API}/apps", headers=H, params={"filter[bundleId]": BUNDLE_ID})
+          r.raise_for_status()
+          app_id = r.json()["data"][0]["id"]
+
+          r = requests.get(f"{API}/betaGroups", headers=H,
+                           params={"filter[app]": app_id, "filter[name]": GROUP_NAME})
+          r.raise_for_status()
+          groups = r.json()["data"]
+          if groups:
+              gid = groups[0]["id"]
+          else:
+              r = requests.post(f"{API}/betaGroups", headers=HJ, json={"data": {
+                  "type": "betaGroups",
+                  "attributes": {"name": GROUP_NAME},
+                  "relationships": {"app": {"data": {"type": "apps", "id": app_id}}}}})
+              r.raise_for_status()
+              gid = r.json()["data"]["id"]
+              print(f"Grupo '{GROUP_NAME}' creado.")
+
+          current = {}
+          url = f"{API}/betaGroups/{gid}/betaTesters?limit=200"
+          while url:
+              r = requests.get(url, headers=H)
+              r.raise_for_status()
+              d = r.json()
+              for t in d["data"]:
+                  em = (t["attributes"].get("email") or "").lower()
+                  if em:
+                      current[em] = t["id"]
+              url = d.get("links", {}).get("next")
+
+          errores = 0
+          for em in sorted(desired - set(current)):
+              r = requests.post(f"{API}/betaTesters", headers=HJ, json={"data": {
+                  "type": "betaTesters",
+                  "attributes": {"email": em},
+                  "relationships": {"betaGroups": {"data": [{"type": "betaGroups", "id": gid}]}}}})
+              if r.status_code >= 400:
+                  print(f"ERROR al agregar {em}: {r.text}")
+                  errores += 1
+              else:
+                  print(f"+ {em} (invitado)")
+
+          extras = {em: tid for em, tid in current.items() if em not in desired}
+          if extras:
+              r = requests.delete(f"{API}/betaGroups/{gid}/relationships/betaTesters",
+                                  headers=HJ,
+                                  json={"data": [{"type": "betaTesters", "id": t} for t in extras.values()]})
+              if r.status_code >= 400:
+                  print(f"ERROR al quitar testers: {r.text}")
+                  errores += 1
+              else:
+                  for em in extras:
+                      print(f"- {em} (removido)")
+
+          print(f"Sync terminado: {len(desired)} testers en '{GROUP_NAME}'.")
+          raise SystemExit(1 if errores else 0)
+          PY
+
   web-release:
     name: Web (build estático para hosting)
     max_build_duration: 30
