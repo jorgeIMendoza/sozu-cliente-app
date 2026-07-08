@@ -154,6 +154,59 @@ workflows:
         auth: integration
         submit_to_testflight: true
 
+  # Promueve el ÚLTIMO build ya subido a TestFlight hacia revisión de App
+  # Store (sin reconstruir). Requiere RELEASE_NOTES (lo pasa el dashboard).
+  ios-appstore:
+    name: iOS → App Store (promover desde TestFlight)
+    max_build_duration: 20
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: sozu_app_store_connect
+    scripts:
+      - name: Validar release notes
+        script: |
+          if [ -z "${RELEASE_NOTES:-}" ]; then
+            echo "ERROR: falta RELEASE_NOTES (comentario obligatorio de la actualización)."
+            exit 1
+          fi
+          echo "Release notes: $RELEASE_NOTES"
+      - name: Promover último build de TestFlight a App Store
+        script: |
+          set -e
+          APP_ID=$(app-store-connect apps list \
+            --bundle-id-identifier com.sozu.sozuClienteApp --json | jq -r '.[0].id')
+          echo "Apple app id: $APP_ID"
+          BUILD_ID=$(app-store-connect builds list \
+            --app-id "$APP_ID" --processing-state VALID --limit 1 --json | jq -r '.[0].id')
+          echo "Build a promover: $BUILD_ID"
+          app-store-connect builds submit-to-app-store "$BUILD_ID" \
+            --release-type AFTER_APPROVAL \
+            --whats-new "$RELEASE_NOTES"
+
+  # Promueve el release del track internal a production en Google Play.
+  # Requiere RELEASE_NOTES (trazabilidad; Play Console toma las notas del
+  # release — editarlas ahí si se requiere ajustar) y el service account
+  # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS configurado en Codemagic.
+  android-production:
+    name: Android → Play Store (producción)
+    max_build_duration: 15
+    instance_type: mac_mini_m2
+    scripts:
+      - name: Validar release notes
+        script: |
+          if [ -z "${RELEASE_NOTES:-}" ]; then
+            echo "ERROR: falta RELEASE_NOTES (comentario obligatorio de la actualización)."
+            exit 1
+          fi
+          echo "Release notes: $RELEASE_NOTES"
+      - name: Promover internal → production
+        script: |
+          google-play tracks promote-release \
+            --package-name com.sozu.sozuClienteApp \
+            --source-track internal \
+            --target-track production \
+            --credentials "@env:GCLOUD_SERVICE_ACCOUNT_CREDENTIALS"
+
   web-release:
     name: Web (build estático para hosting)
     max_build_duration: 30
