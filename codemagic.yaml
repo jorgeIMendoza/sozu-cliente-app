@@ -59,15 +59,71 @@ workflows:
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
       - build/app/outputs/bundle/release/*.aab
-    # Publicación automática a Google Play: descomentar cuando exista el
-    # service account (Google Play Console → API access).
-    # publishing:
-    #   google_play:
-    #     credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-    #     track: internal
+    # Solo construye. La publicación a Google Play vive en `android-publish`.
+
+  # Construye el .aab Y lo publica en Google Play (track internal).
+  # Requiere el service account de Play Console configurado en Codemagic
+  # (env var GCLOUD_SERVICE_ACCOUNT_CREDENTIALS); sin él, el build falla.
+  android-publish:
+    name: Android → Play Store (internal)
+    max_build_duration: 45
+    instance_type: mac_mini_m2
+    environment:
+      vars:
+        <<: *supabase_env
+      android_signing:
+        - sozu_keystore
+      flutter: stable
+    scripts:
+      - *env_setup
+      - *build_stamp
+      - name: Dependencias y análisis
+        script: |
+          flutter pub get
+          flutter analyze
+      - name: Build AAB (Google Play)
+        script: |
+          flutter build appbundle --release \
+            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP
+    artifacts:
+      - build/app/outputs/bundle/release/*.aab
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
 
   ios-release:
-    name: iOS (.ipa TestFlight/App Store)
+    name: iOS (.ipa — solo artefacto)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: sozu_app_store_connect
+    environment:
+      vars:
+        <<: *supabase_env
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.sozu.sozuClienteApp
+      flutter: stable
+    scripts:
+      - *env_setup
+      - *build_stamp
+      - name: Dependencias y análisis
+        script: |
+          flutter pub get
+          flutter analyze
+      - name: Build IPA firmado
+        script: |
+          flutter build ipa --release \
+            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    # Solo construye. El envío a TestFlight vive en `ios-publish`.
+
+  # Construye el .ipa Y lo envía a TestFlight.
+  ios-publish:
+    name: iOS → TestFlight
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:
