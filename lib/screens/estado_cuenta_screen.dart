@@ -28,6 +28,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   int _tab = 0; // 0 = acuerdos, 1 = pagos
   bool _ordenDesc = true; // más reciente primero
   bool _descargando = false;
+  int? _generandoRecibo; // id del pago cuyo recibo se está generando
 
   Color _colorEstatus(SozuTone tone, String estatus) {
     final e = estatus.toLowerCase();
@@ -538,7 +539,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
             children: [
               Expanded(
                 child: Text(
-                  '${a.orden}. ${a.concepto}',
+                  a.concepto == 'Parcialidad'
+                      ? 'Parcialidad ${a.orden}'
+                      : a.concepto,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -618,8 +621,31 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
+  Future<void> _abrirRecibo(PagoRealizado p) async {
+    // Recibo ya firmado en la respuesta: abrir directo.
+    if ((p.urlRecibo ?? '').isNotEmpty) {
+      await openMedia(context, p.urlRecibo, titulo: 'Recibo');
+      return;
+    }
+    // No existe: pedir al backend que lo genere.
+    setState(() => _generandoRecibo = p.id);
+    try {
+      final imp = ref.read(impersonationProvider).idPersona;
+      final url = await fetchReciboPagoUrl(p.id, impersonate: imp);
+      if (!mounted) return;
+      if (url == null) {
+        _snack('No pudimos generar el recibo. Intenta de nuevo.');
+      } else {
+        await openMedia(context, url, titulo: 'Recibo');
+      }
+    } catch (_) {
+      if (mounted) _snack('No pudimos generar el recibo. Intenta de nuevo.');
+    } finally {
+      if (mounted) setState(() => _generandoRecibo = null);
+    }
+  }
+
   Widget _pagoRow(SozuTone tone, PagoRealizado p) {
-    final tieneRecibo = (p.urlRecibo ?? '').isNotEmpty;
     final tieneCep = (p.urlCep ?? '').isNotEmpty;
     return AppCard(
       child: Column(
@@ -671,28 +697,36 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
               ),
             ],
           ),
-          if (tieneRecibo || tieneCep) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                if (tieneRecibo)
-                  _docBtn(
-                    tone,
-                    Icons.description_outlined,
-                    'Recibo',
-                    () => openMedia(context, p.urlRecibo, titulo: 'Recibo'),
-                  ),
-                if (tieneRecibo && tieneCep) const SizedBox(width: 8),
-                if (tieneCep)
-                  _docBtn(
-                    tone,
-                    Icons.receipt_long_outlined,
-                    'CEP',
-                    () => openMedia(context, p.urlCep, titulo: 'CEP'),
-                  ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              // Recibo: siempre disponible; si no existe, el backend lo genera.
+              _generandoRecibo == p.id
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : _docBtn(
+                      tone,
+                      Icons.description_outlined,
+                      'Recibo',
+                      () => _abrirRecibo(p),
+                    ),
+              if (tieneCep) ...[
+                const SizedBox(width: 8),
+                _docBtn(
+                  tone,
+                  Icons.receipt_long_outlined,
+                  'CEP',
+                  () => openMedia(context, p.urlCep, titulo: 'CEP'),
+                ),
               ],
-            ),
-          ],
+            ],
+          ),
         ],
       ),
     );

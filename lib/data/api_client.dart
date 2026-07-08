@@ -121,6 +121,17 @@ Future<DatosPago> fetchDatosPago(int idAcuerdo, {int? impersonate}) async =>
       ),
     );
 
+/// URL del recibo de un pago; el backend lo genera si aún no existe.
+Future<String?> fetchReciboPagoUrl(int idPago, {int? impersonate}) async {
+  final res = await _invoke(
+    'cliente-recibo-pago',
+    body: {'id': idPago},
+    impersonate: impersonate,
+  );
+  final url = res['url'];
+  return url is String && url.isNotEmpty ? url : null;
+}
+
 /// URL temporal del PDF del estado de cuenta de una propiedad (wrapper seguro).
 Future<String?> fetchEstadoCuentaPdfUrl(
   int idCuenta, {

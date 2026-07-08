@@ -555,6 +555,7 @@ class MultaItem {
 }
 
 class PagoRealizado {
+  final int id;
   final String? fecha;
   final String metodo;
   final String? referencia;
@@ -563,7 +564,8 @@ class PagoRealizado {
   final String? urlCep;
 
   PagoRealizado.fromJson(Map<String, dynamic> j)
-    : fecha = j['fecha'] as String?,
+    : id = asInt(j['id']),
+      fecha = j['fecha'] as String?,
       metodo = asString(j['metodo'], 'N/A'),
       referencia = j['referencia'] as String?,
       monto = asDouble(j['monto']),
