@@ -6,6 +6,7 @@ import 'core/theme.dart';
 import 'core/version.dart';
 import 'providers/auth_provider.dart';
 import 'providers/impersonation_provider.dart';
+import 'screens/admin_avisos_screen.dart';
 import 'screens/adquisicion_screen.dart';
 import 'screens/cambiar_password_screen.dart';
 import 'screens/change_password_forced_screen.dart';
@@ -55,8 +56,11 @@ CustomTransitionPage<void> _slidePage(GoRouterState state, Widget child) {
 /// - Secundarias: pagos, estado-cuenta, pagar, notificaciones,
 ///   cambiar-password, propiedad/:id.
 final routerProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authProvider);
-  // read: Listenable.merge escucha los notify; watch reconstruiría el router.
+  // read (NO watch) para ambos: Listenable.merge ya re-evalúa el redirect en
+  // cada notify; watch reconstruiría el GoRouter completo en cada cambio de
+  // sesión/perfil, remontando las pantallas (p.ej. el login perdería su
+  // estado y el mensaje de error al validar rol).
+  final auth = ref.read(authProvider);
   final imp = ref.read(impersonationProvider);
 
   return GoRouter(
@@ -66,6 +70,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       final inAuthArea = loc == '/login' || loc == '/forgot-password';
 
+      // Login validando rol: no salir de /login (ni a /splash) hasta que
+      // la pantalla decida; si no, el signOut por rol inválido desmonta el
+      // login y el mensaje de error se pierde.
+      if (auth.loginEnCurso && loc == '/login') return null;
       if (auth.isLoading) return loc == '/splash' ? null : '/splash';
       if (loc == '/splash') {
         // Sesión resuelta: salir del splash.
@@ -78,16 +86,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (auth.mustChangePassword) {
         return loc == '/change-password' ? null : '/change-password';
       }
-      // Super admin: sin cliente seleccionado solo puede estar en el selector.
+      // Super admin: sin cliente seleccionado solo selector o envío de avisos.
       if (auth.isSuperAdmin) {
         if (!imp.active) {
-          return loc == '/seleccionar-cliente' ? null : '/seleccionar-cliente';
+          const permitidas = {'/seleccionar-cliente', '/admin-avisos'};
+          return permitidas.contains(loc) ? null : '/seleccionar-cliente';
         }
-        if (loc == '/seleccionar-cliente') return null; // cambiar de cliente
+        if (loc == '/seleccionar-cliente' || loc == '/admin-avisos') {
+          return null; // cambiar de cliente / enviar avisos
+        }
         if (inAuthArea || loc == '/change-password') return '/inicio';
         return null;
       }
-      if (loc == '/seleccionar-cliente') return '/inicio';
+      if (loc == '/seleccionar-cliente' || loc == '/admin-avisos') {
+        return '/inicio';
+      }
       if (inAuthArea || loc == '/change-password') return '/inicio';
       return null;
     },
@@ -141,6 +154,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/seleccionar-cliente',
         pageBuilder: (context, state) =>
             _slidePage(state, const SeleccionarClienteScreen()),
+      ),
+      GoRoute(
+        path: '/admin-avisos',
+        pageBuilder: (context, state) =>
+            _slidePage(state, const AdminAvisosScreen()),
       ),
       GoRoute(
         path: '/propiedad/:id',

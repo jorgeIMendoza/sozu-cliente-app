@@ -31,7 +31,7 @@ jobs:
           BUILD_TIMESTAMP=$(TZ=America/Mexico_City date +%y%m%d.%H%M)
           flutter pub get
           flutter analyze
-          flutter build web --release --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP
+          flutter build web --release --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP --dart-define=APP_ENV=prod
 
       - name: Deploy a Firebase Hosting (live)
         uses: FirebaseExtended/action-hosting-deploy@v0

@@ -149,3 +149,122 @@ Future<String?> fetchEstadoCuentaPdfUrl(
 /// Lista de clientes para el selector de impersonación (solo super admin).
 Future<AdminClientes> fetchAdminClientes() async =>
     AdminClientes.fromJson(await _invoke('admin-clientes'));
+
+/// Guarda la decisión de pago final de una cuenta (flujo "Pago final").
+/// metodo: RECURSOS_PROPIOS | CREDITO_HIPOTECARIO. idBanco: 1 BBVA, 2
+/// Santander, 3 Banorte (solo crédito con banco preferente).
+Future<void> setPagoFinal(
+  int idCuenta,
+  String metodo, {
+  int? idBanco,
+  int? impersonate,
+}) async {
+  await _invoke(
+    'cliente-pago-final',
+    body: {
+      'id': idCuenta,
+      'metodo': metodo,
+      if (idBanco != null) 'id_banco': idBanco,
+    },
+    impersonate: impersonate,
+  );
+}
+
+// ─── admin-avisos-app (solo super admin) ─────────────────────────────────────
+
+List<CatalogoItem> _parseCatalogo(Map<String, dynamic> res, String key) =>
+    ((res[key] as List?) ?? [])
+        .map((e) => CatalogoItem.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+
+/// Proyectos activos comercializados por SOZU (para el filtro de avisos).
+Future<List<CatalogoItem>> fetchAvisosProyectos() async {
+  final res = await _invoke('admin-avisos-app', body: {'action': 'catalogos'});
+  return _parseCatalogo(res, 'proyectos');
+}
+
+/// Modelos disponibles dentro de los proyectos seleccionados.
+Future<List<CatalogoItem>> fetchAvisosModelos(List<int> idsProyectos) async {
+  final res = await _invoke(
+    'admin-avisos-app',
+    body: {'action': 'modelos', 'ids_proyectos': idsProyectos},
+  );
+  return _parseCatalogo(res, 'modelos');
+}
+
+/// Propiedades de los proyectos seleccionados, acotadas a los modelos si hay.
+Future<List<CatalogoItem>> fetchAvisosPropiedades(
+  List<int> idsProyectos, {
+  List<int> idsModelos = const [],
+}) async {
+  final res = await _invoke(
+    'admin-avisos-app',
+    body: {
+      'action': 'propiedades',
+      'ids_proyectos': idsProyectos,
+      if (idsModelos.isNotEmpty) 'ids_modelos': idsModelos,
+    },
+  );
+  return _parseCatalogo(res, 'propiedades');
+}
+
+Future<List<AvisoApp>> fetchAvisosApp() async {
+  final res = await _invoke('admin-avisos-app', body: {'action': 'listar'});
+  return ((res['avisos'] as List?) ?? [])
+      .map((e) => AvisoApp.fromJson(Map<String, dynamic>.from(e)))
+      .toList();
+}
+
+Future<AvisoApp> crearAvisoApp({
+  required String titulo,
+  required String mensaje,
+  required String tipo,
+  required String categoria,
+  required List<String> canales,
+  List<int> idsProyectos = const [],
+  List<int> idsModelos = const [],
+  List<int> idsPropiedades = const [],
+  DateTime? programadoPara,
+}) async {
+  final res = await _invoke(
+    'admin-avisos-app',
+    body: {
+      'action': 'crear',
+      'titulo': titulo,
+      'mensaje': mensaje,
+      'tipo': tipo,
+      'categoria': categoria,
+      'canales': canales,
+      if (idsProyectos.isNotEmpty) 'ids_proyectos': idsProyectos,
+      if (idsModelos.isNotEmpty) 'ids_modelos': idsModelos,
+      if (idsPropiedades.isNotEmpty) 'ids_propiedades': idsPropiedades,
+      if (programadoPara != null)
+        'programado_para': programadoPara.toUtc().toIso8601String(),
+    },
+  );
+  return AvisoApp.fromJson(Map<String, dynamic>.from(res['aviso'] as Map));
+}
+
+Future<bool> cancelarAvisoApp(int id) async {
+  final res = await _invoke(
+    'admin-avisos-app',
+    body: {'action': 'cancelar', 'id': id},
+  );
+  return res['cancelado'] == true;
+}
+
+/// Registra el token FCM del dispositivo para recibir push (solo móvil).
+Future<void> registrarPushToken(String token, String plataforma) async {
+  await _invoke(
+    'cliente-push-token',
+    body: {'action': 'register', 'token': token, 'plataforma': plataforma},
+  );
+}
+
+/// Da de baja el token FCM (al cerrar sesión). Best-effort.
+Future<void> eliminarPushToken(String token) async {
+  await _invoke(
+    'cliente-push-token',
+    body: {'action': 'unregister', 'token': token},
+  );
+}

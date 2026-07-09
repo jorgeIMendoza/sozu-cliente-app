@@ -2,6 +2,11 @@
     <!-- Requerido para llamar a Supabase (Auth + Edge Functions). Sin esto el
          APK release no tiene red y el login falla como "credenciales incorrectas". -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- GPS para "Cómo llegar" en el detalle de propiedad (geolocator). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Notificaciones push (Android 13+ pide permiso en runtime). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="sozu_cliente_app"
         android:name="${applicationName}"

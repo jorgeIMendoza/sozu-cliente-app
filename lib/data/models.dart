@@ -366,6 +366,18 @@ class DocumentoItem {
       urlFirmada = j['url_firmada'] as String?;
 }
 
+/// Ubicación geográfica del proyecto (para el mapa "cómo llegar").
+class PropiedadUbicacion {
+  final double latitud;
+  final double longitud;
+  final String? direccion;
+
+  PropiedadUbicacion.fromJson(Map<String, dynamic> j)
+    : latitud = asDouble(j['latitud']),
+      longitud = asDouble(j['longitud']),
+      direccion = j['direccion'] as String?;
+}
+
 class PropiedadDetalle {
   final int id;
   final String nombre;
@@ -388,6 +400,11 @@ class PropiedadDetalle {
   final int? numeroPiso;
   final int? totalPisos;
   final String? urlImagen;
+  final PropiedadUbicacion? ubicacion;
+
+  /// Método de pago final elegido: RECURSOS_PROPIOS | CREDITO_HIPOTECARIO
+  /// (null hasta que el cliente decide, solo aplica en etapa pago_final).
+  final String? tipoFinanciamiento;
   final String etapaActiva;
   final List<EtapaStage> stages;
   final List<EsquemaPagoItem> esquemaPago;
@@ -417,6 +434,12 @@ class PropiedadDetalle {
       numeroPiso = asIntOrNull(j['numero_piso']),
       totalPisos = asIntOrNull(j['total_pisos']),
       urlImagen = j['url_imagen'] as String?,
+      ubicacion = j['ubicacion'] is Map
+          ? PropiedadUbicacion.fromJson(
+              Map<String, dynamic>.from(j['ubicacion'] as Map),
+            )
+          : null,
+      tipoFinanciamiento = j['tipo_financiamiento'] as String?,
       etapaActiva = asString((j['etapa'] as Map?)?['activa'], 'preventa'),
       stages = (((j['etapa'] as Map?)?['stages'] as List?) ?? [])
           .map((e) => EtapaStage.fromJson(Map<String, dynamic>.from(e)))
@@ -433,6 +456,64 @@ class PropiedadDetalle {
       documentos = ((j['documentos'] as List?) ?? [])
           .map((e) => DocumentoItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
+}
+
+// ─── admin-avisos-app ────────────────────────────────────────────────────────
+
+/// Item genérico de catálogo (proyecto, modelo, propiedad) para filtros.
+class CatalogoItem {
+  final int id;
+  final String nombre;
+
+  CatalogoItem.fromJson(Map<String, dynamic> j)
+    : id = asInt(j['id']),
+      nombre = asString(j['nombre'], '—');
+}
+
+/// Aviso enviado (o programado) desde el acceso admin a clientes del app.
+class AvisoApp {
+  final int id;
+  final String titulo;
+  final String mensaje;
+  final String tipo;
+  final String categoria;
+  final List<String> canales;
+  final List<int> idsProyectos;
+  final List<int> idsModelos;
+  final List<int> idsPropiedades;
+  final String? programadoPara;
+  final String estado; // pendiente | enviado | cancelado | error
+  final int? totalDestinatarios;
+  final int? totalPush;
+  final int? totalEmail;
+  final int? totalWa;
+  final String? creadoPor;
+  final String? fechaCreacion;
+
+  AvisoApp.fromJson(Map<String, dynamic> j)
+    : id = asInt(j['id']),
+      titulo = asString(j['titulo'], '—'),
+      mensaje = asString(j['mensaje'], ''),
+      tipo = asString(j['tipo'], 'informativa'),
+      categoria = asString(j['categoria'], 'pagos'),
+      canales = ((j['canales'] as List?) ?? []).map((e) => '$e').toList(),
+      idsProyectos = ((j['ids_proyectos'] as List?) ?? [])
+          .map((e) => asInt(e))
+          .toList(),
+      idsModelos = ((j['ids_modelos'] as List?) ?? [])
+          .map((e) => asInt(e))
+          .toList(),
+      idsPropiedades = ((j['ids_propiedades'] as List?) ?? [])
+          .map((e) => asInt(e))
+          .toList(),
+      programadoPara = j['programado_para'] as String?,
+      estado = asString(j['estado'], 'pendiente'),
+      totalDestinatarios = asIntOrNull(j['total_destinatarios']),
+      totalPush = asIntOrNull(j['total_push']),
+      totalEmail = asIntOrNull(j['total_email']),
+      totalWa = asIntOrNull(j['total_wa']),
+      creadoPor = j['creado_por'] as String?,
+      fechaCreacion = j['fecha_creacion'] as String?;
 }
 
 // ─── cliente-perfil ──────────────────────────────────────────────────────────

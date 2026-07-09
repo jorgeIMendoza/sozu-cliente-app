@@ -26,6 +26,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _submitting = false;
   String? _formError;
   bool _adminMode = false;
+  bool _obscurePassword = true;
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (kIsWeb &&
@@ -49,14 +50,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    ref.read(inactivityLogoutProvider.notifier).state = false;
     setState(() {
       _submitting = true;
       _formError = null;
     });
     final auth = ref.read(authProvider);
+    auth.loginEnCurso = true;
     try {
       await auth.signIn(_email.text, _password.text);
     } catch (_) {
+      auth.loginEnCurso = false;
       setState(() {
         _formError = 'Correo o contraseña incorrectos.';
         _submitting = false;
@@ -70,6 +74,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           (perfil?.rolNombre ?? '').trim().toLowerCase() ==
           'super administrador';
       if (_adminMode && esAdmin) {
+        auth.loginEnCurso = false;
         if (!mounted) return;
         context.go(
           perfil!.debeCambiarPassword
@@ -79,13 +84,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return;
       }
       if (perfil?.rolNombre != 'Cliente') {
+        // Rol no permitido en este acceso (incluye admin sin modo admin):
+        // mensaje genérico para no revelar cuentas existentes.
         await auth.signOut();
+        auth.loginEnCurso = false;
+        if (!mounted) return;
         setState(() {
-          _formError = 'Esta app es solo para clientes SOZU.';
+          _formError = 'Correo o contraseña incorrectos.';
           _submitting = false;
         });
         return;
       }
+      auth.loginEnCurso = false;
       if (!mounted) return;
       if (perfil!.debeCambiarPassword) {
         context.go('/change-password');
@@ -94,6 +104,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } catch (_) {
       await auth.signOut();
+      auth.loginEnCurso = false;
+      if (!mounted) return;
       setState(() {
         _formError = 'No pudimos verificar tu cuenta. Intenta de nuevo.';
         _submitting = false;
@@ -104,6 +116,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
+    final porInactividad = ref.watch(inactivityLogoutProvider);
     return Scaffold(
       backgroundColor: tone.surface,
       body: Focus(
@@ -178,6 +191,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 40),
 
+                      if (porInactividad) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: tone.primarySoft,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.timer_off_outlined,
+                                size: 18,
+                                color: tone.primaryDark,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Tu sesión se cerró por inactividad. '
+                                  'Vuelve a iniciar sesión.',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: tone.primaryDark,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
                       Text('Correo electrónico', style: _labelStyle(tone)),
                       const SizedBox(height: 6),
                       TextFormField(
@@ -204,9 +248,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _password,
-                        obscureText: true,
+                        obscureText: _obscurePassword,
                         autofillHints: const [AutofillHints.password],
-                        decoration: const InputDecoration(hintText: '••••••••'),
+                        decoration: InputDecoration(
+                          hintText: '••••••••',
+                          suffixIcon: IconButton(
+                            tooltip: _obscurePassword
+                                ? 'Mostrar contraseña'
+                                : 'Ocultar contraseña',
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              size: 20,
+                              color: tone.textMuted,
+                            ),
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                          ),
+                        ),
                         onFieldSubmitted: (_) => _submit(),
                         validator: (v) => (v == null || v.isEmpty)
                             ? 'Ingresa tu contraseña'
