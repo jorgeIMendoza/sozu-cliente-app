@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/push_service.dart';
+
 /// Estado de sesión/JWT + perfil (espejo de src/providers/AuthProvider.tsx).
 /// - Perfil vía RPC SECURITY DEFINER `get_current_user_profile` (por auth.uid()).
 ///   NO se consultan tablas directamente.
@@ -35,6 +37,12 @@ class AuthController extends ChangeNotifier {
 
   Session? session;
   UserProfile? profile;
+
+  /// true mientras el login valida el rol tras autenticar; el router no debe
+  /// sacar al usuario de /login (evita que el signOut por rol inválido borre
+  /// el mensaje de error al desmontar la pantalla).
+  bool loginEnCurso = false;
+
   bool _authReady = false;
   bool _profileReady = false;
   String? _profileForUserId;
@@ -151,6 +159,8 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    // Antes de perder el JWT: dar de baja el token push del dispositivo.
+    await PushService.desactivarDispositivo();
     await _sb.auth.signOut();
     profile = null;
     notifyListeners();
@@ -166,3 +176,7 @@ class AuthController extends ChangeNotifier {
 final authProvider = ChangeNotifierProvider<AuthController>((ref) {
   return AuthController();
 });
+
+/// Se enciende cuando InactivityWatcher cierra la sesión por inactividad;
+/// el login lo lee para explicar el cierre y lo apaga al reintentar.
+final inactivityLogoutProvider = StateProvider<bool>((ref) => false);

@@ -9,7 +9,7 @@ library;
 
 const String appVersionBase = '1.0.0';
 
-const String _buildTimestampDefault = '260707.1824';
+const String _buildTimestampDefault = '260708.2256';
 
 const String buildTimestamp = String.fromEnvironment(
   'BUILD_TIMESTAMP',
@@ -18,3 +18,14 @@ const String buildTimestamp = String.fromEnvironment(
 
 /// Etiqueta completa, ej. `v1.0.0-260706.1729`.
 const String appVersionLabel = 'v$appVersionBase-$buildTimestamp';
+
+/// Entorno del build. Los pipelines productivos (deploy web a Firebase y
+/// builds de tiendas en Codemagic) compilan con `--dart-define=APP_ENV=prod`;
+/// cualquier otro build (local, ramas de prueba) queda como "preview" y
+/// muestra el cintillo de desarrollo.
+const String appEnv = String.fromEnvironment(
+  'APP_ENV',
+  defaultValue: 'preview',
+);
+
+const bool isPreviewBuild = appEnv != 'prod';

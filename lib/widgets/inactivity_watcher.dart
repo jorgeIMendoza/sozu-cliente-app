@@ -30,6 +30,7 @@ class _InactivityWatcherState extends ConsumerState<InactivityWatcher> {
   Future<void> _logout() async {
     final auth = ref.read(authProvider);
     if (auth.session == null) return;
+    ref.read(inactivityLogoutProvider.notifier).state = true;
     await auth.signOut();
   }
 

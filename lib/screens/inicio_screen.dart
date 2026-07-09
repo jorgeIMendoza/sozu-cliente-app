@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
 import '../widgets/common.dart';
 import '../widgets/fx.dart';
+import '../widgets/notification_bell.dart';
 import '../widgets/property_card.dart';
 
 const _actividadMax = 3;
@@ -30,9 +31,7 @@ class InicioScreen extends ConsumerWidget {
     final tone = SozuTone.of(context);
     final resumen = ref.watch(clienteResumenProvider);
     final props = ref.watch(clientePropiedadesProvider);
-    final notif = ref.watch(clienteNotificacionesProvider);
     final auth = ref.watch(authProvider);
-    final hasUnread = (notif.valueOrNull?.noLeidas ?? 0) > 0;
 
     final misPropiedades = <PropiedadCard>[
       ...?props.valueOrNull?.enAdquisicion,
@@ -101,29 +100,7 @@ class InicioScreen extends ConsumerWidget {
                             ],
                           ),
                   ),
-                  Stack(
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.notifications_outlined,
-                            color: tone.textSecondary),
-                        onPressed: () => context.push('/notificaciones'),
-                      ),
-                      if (hasUnread)
-                        Positioned(
-                          right: 12,
-                          top: 12,
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: tone.negative,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: tone.surface),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                  const NotificationBell(),
                 ],
               ),
               const SizedBox(height: 12),

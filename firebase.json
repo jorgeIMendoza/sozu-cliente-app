@@ -23,5 +23,25 @@
         ]
       }
     ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "sozu-admin-prd",
+          "appId": "1:334194000163:android:0ef2d32f5637bc219a8c96",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "sozu-admin-prd",
+          "configurations": {
+            "android": "1:334194000163:android:0ef2d32f5637bc219a8c96",
+            "ios": "1:334194000163:ios:c1972723d94e278e9a8c96"
+          }
+        }
+      }
+    }
   }
 }

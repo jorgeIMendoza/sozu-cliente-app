@@ -60,6 +60,21 @@ class _SeleccionarClienteScreenState
         title: const Text('Selecciona un cliente'),
         automaticallyImplyLeading: false,
         actions: [
+          TextButton.icon(
+            onPressed: () => context.push('/admin-avisos'),
+            icon: Icon(
+              Icons.campaign_outlined,
+              size: 18,
+              color: tone.primaryDark,
+            ),
+            label: Text(
+              'Enviar avisos',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: tone.primaryDark,
+              ),
+            ),
+          ),
           if (imp.active)
             TextButton(
               onPressed: () => context.go('/inicio'),
