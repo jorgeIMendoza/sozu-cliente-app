@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "334194000163",
+    "project_id": "sozu-admin-prd",
+    "storage_bucket": "sozu-admin-prd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:334194000163:android:0ef2d32f5637bc219a8c96",
+        "android_client_info": {
+          "package_name": "com.sozu.sozu_cliente_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBi_e43N8DiR34RwAYaAJKeTlNzGoVCAzk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

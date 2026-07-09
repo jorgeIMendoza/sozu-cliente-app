@@ -1,5 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/format.dart';
 import '../core/open_media.dart';
@@ -9,6 +14,8 @@ import '../providers/data_providers.dart';
 import '../widgets/common.dart';
 import '../widgets/level_map.dart';
 import '../widgets/network_image.dart';
+import 'como_llegar_screen.dart';
+import 'pago_final_screen.dart';
 
 const _cronoLimit = 5;
 
@@ -139,6 +146,17 @@ class _PropiedadDetalleScreenState
                     ),
                   ),
 
+                  // CTA de pago (solo etapa pago_final con saldo).
+                  if (d.etapaActiva == 'pago_final' &&
+                      d.saldoPendiente > 0) ...[
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: () => _pagar(context, d),
+                      icon: const Icon(Icons.payments_outlined, size: 18),
+                      label: Text('Pagar ${formatMXN(d.saldoPendiente)}'),
+                    ),
+                  ],
+
                   // Datos técnicos
                   const SectionTitle(
                       icon: Icons.construction_outlined,
@@ -164,6 +182,13 @@ class _PropiedadDetalleScreenState
                       ],
                     ),
                   ),
+
+                  // Ubicación del proyecto (solo si tiene coordenadas)
+                  if (d.ubicacion != null)
+                    _UbicacionSection(
+                      ubicacion: d.ubicacion!,
+                      proyecto: d.proyecto,
+                    ),
 
                   // Productos adicionales
                   if (d.productos.isNotEmpty) ...[
@@ -242,6 +267,33 @@ class _PropiedadDetalleScreenState
     );
   }
 
+  /// Routing del botón Pagar (espejo del portal admin): primera vez en el
+  /// último pago → panel "Pago final" (elegir método); crédito hipotecario ya
+  /// elegido → estatus del crédito; en cualquier otro caso → instrucciones
+  /// STP del siguiente acuerdo pendiente.
+  void _pagar(BuildContext context, PropiedadDetalle d) {
+    final pendientes = d.esquemaPago.where((e) => !e.pagoCompletado).toList();
+    final siguiente = pendientes.firstOrNull;
+    final esUltimoPago = pendientes.length == 1;
+    if ((esUltimoPago && d.tipoFinanciamiento == null) ||
+        d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO') {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PagoFinalScreen(
+            cuentaId: widget.cuentaId,
+            unidad: d.unidad,
+            proyecto: d.proyecto,
+            saldo: d.saldoPendiente,
+            acuerdoId: siguiente?.id,
+            tipoFinanciamiento: d.tipoFinanciamiento,
+          ),
+        ),
+      );
+    } else if (siguiente != null) {
+      context.push('/pagar?id=${siguiente.id}');
+    }
+  }
+
   Widget _dato(SozuTone tone, String label, String value) {
     return FractionallySizedBox(
       widthFactor: 0.5,
@@ -278,6 +330,122 @@ class _PropiedadDetalleScreenState
               '$visibles de ${d.esquemaPago.length} · $pagados pagados',
               style: TextStyle(fontSize: 12, color: tone.textMuted),
             ),
+    );
+  }
+}
+
+class _UbicacionSection extends StatelessWidget {
+  final PropiedadUbicacion ubicacion;
+  final String proyecto;
+
+  const _UbicacionSection({required this.ubicacion, required this.proyecto});
+
+  LatLng get _punto => LatLng(ubicacion.latitud, ubicacion.longitud);
+
+  Future<void> _abrirEnGoogleMaps() async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1'
+      '&query=${ubicacion.latitud},${ubicacion.longitud}',
+    );
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionTitle(icon: Icons.place_outlined, text: 'Ubicación'),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  height: 180,
+                  width: double.infinity,
+                  child: FlutterMap(
+                    options: MapOptions(
+                      initialCenter: _punto,
+                      initialZoom: 15,
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.none,
+                      ),
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.sozu.sozuClienteApp',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: _punto,
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.topCenter,
+                            child: const Icon(
+                              Icons.location_pin,
+                              size: 40,
+                              color: SozuColors.emerald600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SimpleAttributionWidget(
+                        source: Text('© OpenStreetMap contributors'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (ubicacion.direccion != null &&
+                  ubicacion.direccion!.trim().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  ubicacion.direccion!,
+                  style: TextStyle(fontSize: 13, color: tone.textSecondary),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  // GPS solo en móvil: en web no se muestra "Cómo llegar".
+                  if (!kIsWeb) ...[
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ComoLlegarScreen(
+                              destinoLat: ubicacion.latitud,
+                              destinoLng: ubicacion.longitud,
+                              nombre: proyecto,
+                              direccion: ubicacion.direccion,
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.directions_outlined, size: 18),
+                        label: const Text('Cómo llegar'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _abrirEnGoogleMaps,
+                      icon: const Icon(Icons.map_outlined, size: 18),
+                      label: const Text('Abrir en Maps'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -51,11 +51,13 @@ workflows:
       - name: Build APK (pruebas en dispositivo)
         script: |
           flutter build apk --release \
-            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP
+            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
+            --dart-define=APP_ENV=prod
       - name: Build AAB (Google Play)
         script: |
           flutter build appbundle --release \
-            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP
+            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
+            --dart-define=APP_ENV=prod
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
       - build/app/outputs/bundle/release/*.aab
@@ -146,6 +148,7 @@ workflows:
         script: |
           flutter build ipa --release \
             --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
+            --dart-define=APP_ENV=prod \
             --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
@@ -172,7 +175,8 @@ workflows:
       - name: Build web
         script: |
           flutter build web --release \
-            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP
+            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
+            --dart-define=APP_ENV=prod
       - name: Empaquetar
         script: |
           cd build/web && zip -r ../web-release.zip .
