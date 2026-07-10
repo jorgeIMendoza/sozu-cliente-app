@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -11,15 +12,25 @@ import '../core/theme.dart';
 /// Modo de viaje para la ruta, trazada con OSRM (servidores públicos de
 /// FOSSGIS/OpenStreetMap, sin API key).
 enum _TravelMode {
-  caminar('A pie', Icons.directions_walk, 'routed-foot', 'walking'),
-  auto('En auto', Icons.directions_car_outlined, 'routed-car', 'driving');
+  caminar('A pie', Icons.directions_walk, '🚶', 'routed-foot', 'walking'),
+  bici('En bici', Icons.directions_bike, '🚴', 'routed-bike', 'cycling'),
+  auto('En auto', Icons.directions_car, '🚗', 'routed-car', 'driving');
 
   final String label;
   final IconData icon;
+
+  /// Avatar que avanza por el mapa (estilo Uber: figura, no iconito).
+  final String emoji;
   final String osrmServer;
   final String osrmProfile;
 
-  const _TravelMode(this.label, this.icon, this.osrmServer, this.osrmProfile);
+  const _TravelMode(
+    this.label,
+    this.icon,
+    this.emoji,
+    this.osrmServer,
+    this.osrmProfile,
+  );
 }
 
 class _Ruta {
@@ -31,9 +42,11 @@ class _Ruta {
 }
 
 /// Pantalla "Cómo llegar" (embebida, todas las plataformas): al abrir ubica
-/// al usuario con el GPS del dispositivo (en web, geolocalización del
-/// navegador) y traza automáticamente la ruta hasta el proyecto en un mapa
-/// OSM; modos a pie / en auto.
+/// al usuario con el GPS (en web, geolocalización del navegador), traza la
+/// ruta hasta el proyecto (a pie / bici / auto) y SIGUE el movimiento en
+/// vivo: stream de posición por eventos (distanceFilter, no polling) que
+/// mueve el marcador según el modo, con cámara que sigue al usuario y
+/// recálculo de ruta si se desvía.
 class ComoLlegarScreen extends StatefulWidget {
   final double destinoLat;
   final double destinoLng;
@@ -53,12 +66,24 @@ class ComoLlegarScreen extends StatefulWidget {
 }
 
 class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
+  /// Metros de movimiento para que el GPS emita una nueva posición.
+  static const _metrosPorEvento = 8;
+
+  /// Desvío respecto al origen de la ruta actual que dispara recálculo.
+  static const _metrosRecalculo = 120.0;
+
   final _mapController = MapController();
   _TravelMode _mode = _TravelMode.auto;
   LatLng? _origen;
+  LatLng? _origenRuta; // origen con el que se calculó la ruta vigente
   _Ruta? _ruta;
+
+  /// Duración estimada (seg) por modo, para mostrarla en el selector.
+  final Map<_TravelMode, double> _duraciones = {};
   bool _cargando = true;
   String? _error;
+  bool _seguir = false; // cámara siguiendo al usuario
+  StreamSubscription<Position>? _posSub;
 
   LatLng get _destino => LatLng(widget.destinoLat, widget.destinoLng);
 
@@ -66,6 +91,12 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
   void initState() {
     super.initState();
     _iniciar();
+  }
+
+  @override
+  void dispose() {
+    _posSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _iniciar() async {
@@ -77,6 +108,8 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
       final pos = await _obtenerPosicion();
       _origen = LatLng(pos.latitude, pos.longitude);
       await _trazarRuta();
+      _escucharMovimiento();
+      _cargarDuraciones(); // ETAs de los otros modos, en segundo plano
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -86,6 +119,41 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
             : 'No pudimos calcular la ruta. Revisa tu conexión e intenta de nuevo.';
       });
     }
+  }
+
+  /// Rastreo en vivo: el stream emite por EVENTOS del GPS (cada
+  /// [_metrosPorEvento] m de movimiento), no por timer — el sistema
+  /// operativo avisa solo, con mejor precisión y menor batería.
+  void _escucharMovimiento() {
+    _posSub?.cancel();
+    _posSub =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: _metrosPorEvento,
+          ),
+        ).listen((pos) {
+          if (!mounted) return;
+          final nueva = LatLng(pos.latitude, pos.longitude);
+          setState(() => _origen = nueva);
+          if (_seguir) {
+            _mapController.move(nueva, _mapController.camera.zoom);
+          }
+          // Desvío grande respecto a la ruta vigente: recalcular.
+          final base = _origenRuta;
+          if (base != null && !_cargando) {
+            final desvio = Geolocator.distanceBetween(
+              base.latitude,
+              base.longitude,
+              nueva.latitude,
+              nueva.longitude,
+            );
+            if (desvio > _metrosRecalculo) {
+              _trazarRuta(ajustarCamara: false).catchError((_) {});
+              _cargarDuraciones();
+            }
+          }
+        }, onError: (_) {/* GPS intermitente: se conserva la última posición */});
   }
 
   Future<Position> _obtenerPosicion() async {
@@ -114,7 +182,36 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
     );
   }
 
-  Future<void> _trazarRuta() async {
+  /// Consulta en paralelo la duración de los 3 modos (overview=false: solo
+  /// resumen, sin geometría) para pintar el ETA en el selector.
+  Future<void> _cargarDuraciones() async {
+    final origen = _origen;
+    if (origen == null) return;
+    await Future.wait(_TravelMode.values.map((m) async {
+      try {
+        final url = Uri.parse(
+          'https://routing.openstreetmap.de/${m.osrmServer}/route/v1/${m.osrmProfile}/'
+          '${origen.longitude},${origen.latitude};${_destino.longitude},${_destino.latitude}'
+          '?overview=false',
+        );
+        final res = await http.get(url).timeout(const Duration(seconds: 15));
+        if (res.statusCode != 200) return;
+        final routes =
+            (jsonDecode(res.body) as Map<String, dynamic>)['routes'] as List?;
+        if (routes == null || routes.isEmpty) return;
+        final dur = ((routes.first as Map)['duration'] as num).toDouble();
+        if (mounted) setState(() => _duraciones[m] = dur);
+      } catch (_) {/* sin ETA para ese modo */}
+    }));
+  }
+
+  String _fmtDuracion(double seg) {
+    final min = (seg / 60).round();
+    if (min < 1) return '1 min';
+    return min >= 60 ? '${min ~/ 60} h ${min % 60}' : '$min min';
+  }
+
+  Future<void> _trazarRuta({bool ajustarCamara = true}) async {
     final origen = _origen;
     if (origen == null) return;
     setState(() {
@@ -147,9 +244,12 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
         (route['distance'] as num).toDouble(),
         (route['duration'] as num).toDouble(),
       );
+      _origenRuta = origen;
       _cargando = false;
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _ajustarVista());
+    if (ajustarCamara) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _ajustarVista());
+    }
   }
 
   void _ajustarVista() {
@@ -188,7 +288,14 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
         children: [
           FlutterMap(
             mapController: _mapController,
-            options: MapOptions(initialCenter: _destino, initialZoom: 15),
+            options: MapOptions(
+              initialCenter: _destino,
+              initialZoom: 15,
+              onPositionChanged: (camera, hasGesture) {
+                // Si el usuario mueve el mapa a mano, dejar de seguirlo.
+                if (hasGesture && _seguir) setState(() => _seguir = false);
+              },
+            ),
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -206,16 +313,27 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                 ),
               MarkerLayer(
                 markers: [
+                  // Usuario: avatar según el modo (carrito/personita/bici,
+                  // estilo Uber) que avanza en vivo con el stream del GPS.
                   if (_origen != null)
                     Marker(
                       point: _origen!,
-                      width: 22,
-                      height: 22,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade600,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
+                      width: 44,
+                      height: 44,
+                      child: Center(
+                        child: Text(
+                          _mode.emoji,
+                          style: const TextStyle(
+                            fontSize: 32,
+                            height: 1,
+                            shadows: [
+                              Shadow(color: Colors.black38, blurRadius: 6),
+                              Shadow(
+                                color: Colors.white,
+                                blurRadius: 12,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -286,7 +404,15 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                             ButtonSegment(
                               value: m,
                               icon: Icon(m.icon, size: 18),
-                              label: Text(m.label),
+                              // Modo + ETA propio (ej. "En auto · 12 min").
+                              label: Text(
+                                _duraciones[m] == null
+                                    ? m.label
+                                    : '${m.label} · ${_fmtDuracion(_duraciones[m]!)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12),
+                              ),
                             ),
                         ],
                         selected: {_mode},
@@ -363,6 +489,24 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                                 fontWeight: FontWeight.w700,
                                 color: tone.textPrimary,
                               ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: _seguir
+                                ? 'Dejar de seguirme'
+                                : 'Seguir mi posición',
+                            onPressed: () {
+                              setState(() => _seguir = !_seguir);
+                              final o = _origen;
+                              if (_seguir && o != null) {
+                                _mapController.move(o, 16);
+                              }
+                            },
+                            icon: Icon(
+                              _seguir
+                                  ? Icons.my_location
+                                  : Icons.location_searching,
+                              color: _seguir ? tone.primaryDark : null,
                             ),
                           ),
                           IconButton(
