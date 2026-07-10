@@ -41,7 +41,9 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
       ref.invalidate(clienteNotificacionesProvider);
     });
     await PushService.onNotificationTap((_) {
-      ref.read(routerProvider).go('/notificaciones');
+      // push (no go): apila sobre la pantalla actual para que exista
+      // "regresar"; con go se reemplazaba el stack y no había flecha.
+      ref.read(routerProvider).push('/notificaciones');
     });
   }
 
