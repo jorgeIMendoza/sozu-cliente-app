@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
 import '../core/theme.dart';
@@ -28,6 +29,13 @@ class NotificacionesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notificaciones'),
+        // Flecha siempre presente: si no hay stack (se llegó por deep link o
+        // notificación en frío) regresa a Inicio en lugar de desaparecer.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/inicio'),
+        ),
         actions: [
           if (noLeidas > 0)
             TextButton(
