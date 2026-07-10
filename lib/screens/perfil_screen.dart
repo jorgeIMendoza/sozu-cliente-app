@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
+import '../core/push_service.dart';
 import '../core/theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
@@ -106,6 +107,37 @@ class PerfilScreen extends ConsumerWidget {
 
           _sectionLabel(tone, 'Apariencia'),
           AppCard(child: _ThemeSelector(tone: tone)),
+
+          _sectionLabel(tone, 'Notificaciones'),
+          AppCard(
+            child: Row(
+              children: [
+                const Icon(Icons.notifications_active_outlined,
+                    size: 20, color: SozuColors.emerald600),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Notificaciones push',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: tone.textPrimary)),
+                      const SizedBox(height: 2),
+                      // Estado de diagnóstico (útil para soporte en campo).
+                      ValueListenableBuilder<String>(
+                        valueListenable: PushService.estado,
+                        builder: (_, estado, __) => Text(estado,
+                            style: TextStyle(
+                                fontSize: 12, color: tone.textSecondary)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
 
           _sectionLabel(tone, 'Seguridad'),
           GestureDetector(
