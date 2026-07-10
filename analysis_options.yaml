@@ -9,6 +9,13 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # Artefactos de build: en CI (Codemagic) el build iOS deja los checkouts
+    # de SwiftPM en build/ios/SourcePackages y `flutter analyze` intentaba
+    # analizar los tests de esos paquetes (mockito inexistente → build roto).
+    - build/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
