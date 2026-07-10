@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -413,26 +412,25 @@ class _UbicacionSection extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  // GPS solo en móvil: en web no se muestra "Cómo llegar".
-                  if (!kIsWeb) ...[
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => ComoLlegarScreen(
-                              destinoLat: ubicacion.latitud,
-                              destinoLng: ubicacion.longitud,
-                              nombre: proyecto,
-                              direccion: ubicacion.direccion,
-                            ),
+                  // Mapa embebido con GPS + ruta (todas las plataformas; en
+                  // web usa la geolocalización del navegador).
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ComoLlegarScreen(
+                            destinoLat: ubicacion.latitud,
+                            destinoLng: ubicacion.longitud,
+                            nombre: proyecto,
+                            direccion: ubicacion.direccion,
                           ),
                         ),
-                        icon: const Icon(Icons.directions_outlined, size: 18),
-                        label: const Text('Cómo llegar'),
                       ),
+                      icon: const Icon(Icons.directions_outlined, size: 18),
+                      label: const Text('Cómo llegar'),
                     ),
-                    const SizedBox(width: 10),
-                  ],
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _abrirEnGoogleMaps,
