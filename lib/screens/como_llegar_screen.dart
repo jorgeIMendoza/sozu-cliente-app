@@ -5,23 +5,19 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../core/theme.dart';
 
-/// Modo de viaje para la ruta. Los tres primeros se trazan con OSRM
-/// (servidores públicos de FOSSGIS/OpenStreetMap, sin API key); transporte
-/// público no existe en OSRM, así que abre Google Maps en modo transit.
+/// Modo de viaje para la ruta, trazada con OSRM (servidores públicos de
+/// FOSSGIS/OpenStreetMap, sin API key).
 enum _TravelMode {
   caminar('A pie', Icons.directions_walk, 'routed-foot', 'walking'),
-  auto('Auto', Icons.directions_car_outlined, 'routed-car', 'driving'),
-  bici('Bici', Icons.directions_bike_outlined, 'routed-bike', 'cycling'),
-  transporte('Transporte', Icons.directions_bus_outlined, null, null);
+  auto('En auto', Icons.directions_car_outlined, 'routed-car', 'driving');
 
   final String label;
   final IconData icon;
-  final String? osrmServer;
-  final String? osrmProfile;
+  final String osrmServer;
+  final String osrmProfile;
 
   const _TravelMode(this.label, this.icon, this.osrmServer, this.osrmProfile);
 }
@@ -34,9 +30,10 @@ class _Ruta {
   const _Ruta(this.puntos, this.distanciaM, this.duracionSeg);
 }
 
-/// Pantalla "Cómo llegar" (solo móvil): ubica al usuario con el GPS del
-/// dispositivo y traza la ruta hasta el proyecto en un mapa OSM según el
-/// modo seleccionado.
+/// Pantalla "Cómo llegar" (embebida, todas las plataformas): al abrir ubica
+/// al usuario con el GPS del dispositivo (en web, geolocalización del
+/// navegador) y traza automáticamente la ruta hasta el proyecto en un mapa
+/// OSM; modos a pie / en auto.
 class ComoLlegarScreen extends StatefulWidget {
   final double destinoLat;
   final double destinoLng;
@@ -105,7 +102,8 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
     if (permiso == LocationPermission.denied ||
         permiso == LocationPermission.deniedForever) {
       throw _UbicacionError(
-        'Sin permiso de ubicación. Autorízalo en los ajustes del teléfono para trazar la ruta.',
+        'Sin permiso de ubicación. Autorízalo en el navegador o en los '
+        'ajustes del dispositivo para trazar la ruta.',
       );
     }
     return Geolocator.getCurrentPosition(
@@ -119,14 +117,6 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
   Future<void> _trazarRuta() async {
     final origen = _origen;
     if (origen == null) return;
-    if (_mode == _TravelMode.transporte) {
-      // OSRM no calcula transporte público: se abre Google Maps en transit.
-      setState(() {
-        _ruta = null;
-        _cargando = false;
-      });
-      return;
-    }
     setState(() {
       _cargando = true;
       _error = null;
@@ -175,14 +165,6 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
         padding: const EdgeInsets.fromLTRB(40, 60, 40, 120),
       ),
     );
-  }
-
-  Future<void> _abrirGoogleMapsTransit() async {
-    final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1'
-      '&destination=${widget.destinoLat},${widget.destinoLng}&travelmode=transit',
-    );
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   String _resumenRuta() {
@@ -304,7 +286,7 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                             ButtonSegment(
                               value: m,
                               icon: Icon(m.icon, size: 18),
-                              tooltip: m.label,
+                              label: Text(m.label),
                             ),
                         ],
                         selected: {_mode},
@@ -366,25 +348,6 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                           TextButton(
                             onPressed: _iniciar,
                             child: const Text('Reintentar'),
-                          ),
-                        ],
-                      )
-                    : _mode == _TravelMode.transporte
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Las rutas de transporte público se consultan en Google Maps.',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: tone.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          FilledButton.icon(
-                            onPressed: _abrirGoogleMapsTransit,
-                            icon: const Icon(Icons.directions_bus_outlined),
-                            label: const Text('Abrir en Google Maps'),
                           ),
                         ],
                       )
