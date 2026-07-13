@@ -571,11 +571,15 @@ class ClienteNotificaciones {
   final List<Notificacion> notificaciones;
   final int noLeidas;
 
+  /// Animación de llegada configurada por el admin: sobre | gol | cohete.
+  final String animacionCampana;
+
   ClienteNotificaciones.fromJson(Map<String, dynamic> j)
     : notificaciones = ((j['notificaciones'] as List?) ?? [])
           .map((e) => Notificacion.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
-      noLeidas = asInt(j['no_leidas']);
+      noLeidas = asInt(j['no_leidas']),
+      animacionCampana = asString(j['animacion_campana'], 'gol');
 }
 
 // ─── cliente-datos-pago (drawer "Datos para pago") ──────────────────────────

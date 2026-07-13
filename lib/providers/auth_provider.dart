@@ -22,12 +22,17 @@ class UserProfile {
   final int? idPersona;
   final bool debeCambiarPassword;
 
+  /// roles.administrar_app_clientes: habilita el acceso administrador del app
+  /// (selector de clientes, envío de avisos, configuración).
+  final bool administrarAppClientes;
+
   const UserProfile({
     this.nombre,
     this.email,
     this.rolNombre,
     this.idPersona,
     this.debeCambiarPassword = false,
+    this.administrarAppClientes = false,
   });
 }
 
@@ -47,13 +52,12 @@ class AuthController extends ChangeNotifier {
   bool _profileReady = false;
   String? _profileForUserId;
 
-  static const _adminRol = 'super administrador';
-
   bool get isLoading => !_authReady || !_profileReady;
   bool get mustChangePassword => profile?.debeCambiarPassword ?? false;
   bool get isCliente => profile?.rolNombre == 'Cliente';
-  bool get isSuperAdmin =>
-      (profile?.rolNombre ?? '').trim().toLowerCase() == _adminRol;
+
+  /// Acceso administrador del app: por permiso del rol (no por nombre).
+  bool get isSuperAdmin => profile?.administrarAppClientes ?? false;
 
   AuthController() {
     _init();
@@ -113,6 +117,7 @@ class AuthController extends ChangeNotifier {
             ? row['id_persona'] as int
             : int.tryParse('${row['id_persona']}'),
         debeCambiarPassword: row['debe_cambiar_password'] == true,
+        administrarAppClientes: row['administrar_app_clientes'] == true,
       );
       _profileForUserId = session?.user.id;
       notifyListeners();
@@ -159,8 +164,10 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    // Antes de perder el JWT: dar de baja el token push del dispositivo.
-    await PushService.desactivarDispositivo();
+    // El token push NO se da de baja: las notificaciones siguen llegando
+    // deslogeado (el cierre por inactividad no debe cortar los push). Solo
+    // se olvida el registro local para re-registrar si entra otro cliente.
+    PushService.olvidarSesion();
     await _sb.auth.signOut();
     profile = null;
     notifyListeners();
