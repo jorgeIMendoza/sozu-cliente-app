@@ -245,6 +245,19 @@ Future<AvisoApp> crearAvisoApp({
   return AvisoApp.fromJson(Map<String, dynamic>.from(res['aviso'] as Map));
 }
 
+/// Animación de llegada de notificaciones configurada (sobre | gol | cohete).
+Future<String> fetchAnimacionCampana() async {
+  final res = await _invoke('admin-avisos-app', body: {'action': 'config_get'});
+  return (res['animacion_campana'] as String?) ?? 'gol';
+}
+
+Future<void> setAnimacionCampana(String animacion) async {
+  await _invoke(
+    'admin-avisos-app',
+    body: {'action': 'config_set', 'animacion_campana': animacion},
+  );
+}
+
 Future<bool> cancelarAvisoApp(int id) async {
   final res = await _invoke(
     'admin-avisos-app',

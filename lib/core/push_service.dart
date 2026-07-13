@@ -95,7 +95,17 @@ class PushService {
     }
   }
 
-  /// Da de baja el token al cerrar sesión (el dispositivo deja de recibir).
+  /// Al cerrar sesión NO se da de baja el token: las notificaciones deben
+  /// seguir llegando aunque el usuario esté deslogeado (p. ej. tras el cierre
+  /// por inactividad). Solo se resetea el flag local para que, si otro
+  /// cliente inicia sesión en este dispositivo, el token se re-registre y el
+  /// upsert por token lo reasigne a su email.
+  static void olvidarSesion() {
+    _tokenRegistrado = false;
+  }
+
+  /// Baja explícita del token (no se usa en el logout; disponible para un
+  /// futuro ajuste "dejar de recibir en este dispositivo").
   static Future<void> desactivarDispositivo() async {
     final token = _ultimoToken;
     _tokenRegistrado = false;
