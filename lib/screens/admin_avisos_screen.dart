@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../data/api_client.dart';
 import '../data/models.dart';
+import '../widgets/animacion_llegada.dart';
 import '../widgets/common.dart';
 import '../widgets/fx.dart';
 
@@ -54,11 +55,41 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
   bool _cargandoAvisos = true;
   List<AvisoApp> _avisos = [];
 
+  // Configuración general: animación de llegada en la campana.
+  String _animacion = 'gol';
+  bool _guardandoAnimacion = false;
+
   @override
   void initState() {
     super.initState();
     _cargarCatalogos();
     _cargarAvisos();
+    _cargarAnimacion();
+  }
+
+  Future<void> _cargarAnimacion() async {
+    try {
+      final anim = await fetchAnimacionCampana();
+      if (mounted) setState(() => _animacion = anim);
+    } catch (_) {/* queda el default */}
+  }
+
+  Future<void> _guardarAnimacion(String? valor) async {
+    if (valor == null || valor == _animacion) return;
+    final previa = _animacion;
+    setState(() {
+      _animacion = valor;
+      _guardandoAnimacion = true;
+    });
+    try {
+      await setAnimacionCampana(valor);
+      _snack('Animación actualizada para todos los clientes.');
+    } catch (_) {
+      if (mounted) setState(() => _animacion = previa);
+      _snack('No se pudo guardar la animación.');
+    } finally {
+      if (mounted) setState(() => _guardandoAnimacion = false);
+    }
   }
 
   @override
@@ -271,16 +302,37 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
-    return Scaffold(
-      backgroundColor: tone.surface,
-      appBar: AppBar(title: const Text('Enviar avisos')),
-      body: WebFrame(
-        maxWidth: 760,
-        child: RefreshIndicator(
-          onRefresh: _cargarAvisos,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: tone.surface,
+        appBar: AppBar(
+          title: const Text('Enviar avisos'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Nuevo aviso'),
+              Tab(text: 'Configuración'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _tabNuevoAviso(tone),
+            _tabConfiguracion(tone),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _tabNuevoAviso(SozuTone tone) {
+    return WebFrame(
+      maxWidth: 760,
+      child: RefreshIndicator(
+        onRefresh: _cargarAvisos,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
               Form(
                 key: _formKey,
                 child: AppCard(
@@ -482,9 +534,74 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
                   _AvisoRow(a: a, onCancelar: () => _cancelar(a)),
                   const SizedBox(height: 10),
                 ],
-            ],
-          ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _tabConfiguracion(SozuTone tone) {
+    return WebFrame(
+      maxWidth: 760,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          AppCard(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Animación al llegar una notificación',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: tone.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Aplica a todos los clientes (configuración general, '
+                        'no por notificación).',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: tone.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                if (_guardandoAnimacion)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  )
+                else
+                  DropdownButton<String>(
+                    value: _animacion,
+                    underline: const SizedBox.shrink(),
+                    items: [
+                      for (final a in AnimacionCampana.values)
+                        DropdownMenuItem(
+                          value: a.clave,
+                          child: Text(
+                            a.etiqueta,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                    ],
+                    onChanged: _guardarAnimacion,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Vista previa en vivo de la animación seleccionada.
+          _DemoAnimacion(variante: AnimacionCampana.desde(_animacion)),
+        ],
       ),
     );
   }
@@ -531,6 +648,127 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
           ),
       ],
       onChanged: onChanged,
+    );
+  }
+}
+
+/// Vista previa en vivo de la animación de llegada: reproduce el mismo motor
+/// que usa la campana real dentro de un lienzo, con la campana en la esquina
+/// superior derecha como destino. Se reproduce al cambiar de variante y con
+/// el botón de replay.
+class _DemoAnimacion extends StatefulWidget {
+  final AnimacionCampana variante;
+
+  const _DemoAnimacion({required this.variante});
+
+  @override
+  State<_DemoAnimacion> createState() => _DemoAnimacionState();
+}
+
+class _DemoAnimacionState extends State<_DemoAnimacion>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _vuelo = AnimationController(
+    vsync: this,
+    duration: kDuracionAnimacion,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reproducir());
+  }
+
+  @override
+  void didUpdateWidget(covariant _DemoAnimacion oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.variante != widget.variante) _reproducir();
+  }
+
+  @override
+  void dispose() {
+    _vuelo.dispose();
+    super.dispose();
+  }
+
+  void _reproducir() {
+    _vuelo
+      ..reset()
+      ..forward();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Vista previa · ${widget.variante.etiqueta}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: tone.textSecondary,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Reproducir de nuevo',
+                onPressed: _reproducir,
+                icon: Icon(Icons.replay, color: tone.primaryDark),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              height: 300,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: tone.surface,
+                border: Border.all(color: tone.border),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final w = constraints.maxWidth;
+                  final destino = Offset(w - 36, 30); // centro de la campana
+                  final centro = Offset(w / 2, 175);
+                  return AnimatedBuilder(
+                    animation: _vuelo,
+                    builder: (_, __) => Stack(
+                      children: [
+                        // Campana destino (portería durante el gol).
+                        Positioned(
+                          right: 20,
+                          top: 16,
+                          child: CampanaDestino(
+                            variante: widget.variante,
+                            animando: _vuelo.isAnimating,
+                            v: _vuelo.value,
+                            color: tone.textSecondary,
+                          ),
+                        ),
+                        if (_vuelo.isAnimating)
+                          frameAnimacionLlegada(
+                            variante: widget.variante,
+                            v: _vuelo.value,
+                            centro: centro,
+                            destino: destino,
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

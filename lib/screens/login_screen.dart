@@ -70,9 +70,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final perfil = await auth.refreshProfile();
-      final esAdmin =
-          (perfil?.rolNombre ?? '').trim().toLowerCase() ==
-          'super administrador';
+      // Acceso administrador: por permiso del rol (administrar_app_clientes),
+      // ya no por el nombre "super administrador".
+      final esAdmin = perfil?.administrarAppClientes ?? false;
       if (_adminMode && esAdmin) {
         auth.loginEnCurso = false;
         if (!mounted) return;
