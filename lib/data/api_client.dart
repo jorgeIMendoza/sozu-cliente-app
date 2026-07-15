@@ -236,10 +236,27 @@ Future<List<CatalogoItem>> fetchAvisosModelos(List<int> idsProyectos) async {
   return _parseCatalogo(res, 'modelos');
 }
 
-/// Propiedades de los proyectos seleccionados, acotadas a los modelos si hay.
+/// Niveles (numero_piso) existentes en los proyectos/modelos seleccionados.
+Future<List<CatalogoItem>> fetchAvisosNiveles(
+  List<int> idsProyectos, {
+  List<int> idsModelos = const [],
+}) async {
+  final res = await _invoke(
+    'admin-avisos-app',
+    body: {
+      'action': 'niveles',
+      'ids_proyectos': idsProyectos,
+      if (idsModelos.isNotEmpty) 'ids_modelos': idsModelos,
+    },
+  );
+  return _parseCatalogo(res, 'niveles');
+}
+
+/// Propiedades de los proyectos seleccionados, acotadas a modelos/niveles.
 Future<List<CatalogoItem>> fetchAvisosPropiedades(
   List<int> idsProyectos, {
   List<int> idsModelos = const [],
+  List<int> idsNiveles = const [],
 }) async {
   final res = await _invoke(
     'admin-avisos-app',
@@ -247,6 +264,7 @@ Future<List<CatalogoItem>> fetchAvisosPropiedades(
       'action': 'propiedades',
       'ids_proyectos': idsProyectos,
       if (idsModelos.isNotEmpty) 'ids_modelos': idsModelos,
+      if (idsNiveles.isNotEmpty) 'ids_niveles': idsNiveles,
     },
   );
   return _parseCatalogo(res, 'propiedades');
@@ -267,6 +285,7 @@ Future<AvisoApp> crearAvisoApp({
   required List<String> canales,
   List<int> idsProyectos = const [],
   List<int> idsModelos = const [],
+  List<int> idsNiveles = const [],
   List<int> idsPropiedades = const [],
   DateTime? programadoPara,
 }) async {
@@ -281,6 +300,7 @@ Future<AvisoApp> crearAvisoApp({
       'canales': canales,
       if (idsProyectos.isNotEmpty) 'ids_proyectos': idsProyectos,
       if (idsModelos.isNotEmpty) 'ids_modelos': idsModelos,
+      if (idsNiveles.isNotEmpty) 'ids_niveles': idsNiveles,
       if (idsPropiedades.isNotEmpty) 'ids_propiedades': idsPropiedades,
       if (programadoPara != null)
         'programado_para': programadoPara.toUtc().toIso8601String(),
