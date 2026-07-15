@@ -79,12 +79,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (auth.isLoading) return loc == '/splash' ? null : '/splash';
       if (loc == '/splash') {
         // Sesión resuelta: salir del splash.
-        if (auth.session == null) return '/login';
+        if (auth.session == null || auth.locked) return '/login';
         if (auth.mustChangePassword) return '/change-password';
         if (auth.isSuperAdmin && !imp.active) return '/seleccionar-cliente';
         return '/inicio';
       }
-      if (auth.session == null) return inAuthArea ? null : '/login';
+      // Candado biométrico puesto: la sesión sigue viva por debajo pero la
+      // app se comporta como deslogueada hasta desbloquear.
+      if (auth.session == null || auth.locked) {
+        return inAuthArea ? null : '/login';
+      }
       if (auth.mustChangePassword) {
         return loc == '/change-password' ? null : '/change-password';
       }

@@ -37,10 +37,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _prepararBiometria();
   }
 
-  /// Si la biometría está habilitada y hay token guardado, muestra el botón
-  /// y dispara el prompt automáticamente (el botón queda como reintento).
+  /// true si se puede ofrecer la entrada biométrica: con el candado puesto
+  /// basta que esté habilitada (la sesión sigue viva, no se necesita token);
+  /// sin sesión se requiere además el refresh token guardado.
+  Future<bool> _bioParaLogin() async {
+    if (ref.read(authProvider).locked) {
+      return BiometricService.instance.habilitada();
+    }
+    return BiometricService.instance.disponibleParaLogin();
+  }
+
+  /// Si la biometría está habilitada, muestra el botón y dispara el prompt
+  /// automáticamente (el botón queda como reintento).
   Future<void> _prepararBiometria() async {
-    final disponible = await BiometricService.instance.disponibleParaLogin();
+    final disponible = await _bioParaLogin();
     if (!disponible || !mounted) return;
     setState(() => _bioDisponible = true);
     _loginBiometrico(auto: true);
@@ -229,12 +239,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
     final auth = ref.read(authProvider);
     auth.loginEnCurso = true;
-    final ok = await BiometricService.instance.loginBiometrico();
+    // Con candado la sesión nunca se cerró: solo se desbloquea. El camino
+    // con setSession (token guardado) queda como fallback cuando la sesión
+    // local ya no existe (p.ej. Supabase no pudo restaurarla al arrancar).
+    final ok = auth.locked
+        ? await auth.unlockConBiometria()
+        : await BiometricService.instance.loginBiometrico();
     if (!ok) {
       auth.loginEnCurso = false;
       // El token pudo haberse invalidado: re-evaluar si el botón sigue.
-      final disponible =
-          await BiometricService.instance.disponibleParaLogin();
+      final disponible = await _bioParaLogin();
       if (!mounted) return;
       setState(() {
         _bioEnCurso = false;
