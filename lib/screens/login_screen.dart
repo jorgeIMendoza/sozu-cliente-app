@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/biometric_service.dart';
 import '../core/theme.dart';
 import '../core/version.dart';
 import '../providers/auth_provider.dart';
@@ -27,6 +28,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _formError;
   bool _adminMode = false;
   bool _obscurePassword = true;
+  bool _bioDisponible = false;
+  bool _bioEnCurso = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _prepararBiometria();
+  }
+
+  /// Si la biometría está habilitada y hay token guardado, muestra el botón
+  /// y dispara el prompt automáticamente (el botón queda como reintento).
+  Future<void> _prepararBiometria() async {
+    final disponible = await BiometricService.instance.disponibleParaLogin();
+    if (!disponible || !mounted) return;
+    setState(() => _bioDisponible = true);
+    _loginBiometrico(auto: true);
+  }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (kIsWeb &&
@@ -95,13 +113,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         });
         return;
       }
+      if (perfil!.debeCambiarPassword) {
+        auth.loginEnCurso = false;
+        if (!mounted) return;
+        context.go('/change-password');
+        return;
+      }
+      // Oferta de biometría ANTES de navegar y con loginEnCurso aún true:
+      // el router no debe sacar al usuario de /login mientras el sheet está
+      // abierto (cualquier notify re-evaluaría el redirect).
+      if (await auth.debeOfrecerBiometria()) {
+        if (mounted) await _ofrecerActivarBiometria();
+      }
       auth.loginEnCurso = false;
       if (!mounted) return;
-      if (perfil!.debeCambiarPassword) {
-        context.go('/change-password');
-      } else {
-        context.go('/inicio');
-      }
+      context.go('/inicio');
     } catch (_) {
       await auth.signOut();
       auth.loginEnCurso = false;
@@ -109,6 +135,139 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() {
         _formError = 'No pudimos verificar tu cuenta. Intenta de nuevo.';
         _submitting = false;
+      });
+    }
+  }
+
+  /// Bottom sheet post-login: activar el acceso con huella/rostro.
+  /// "Ahora no" (o cerrar el sheet) no vuelve a insistir en esta ejecución.
+  Future<void> _ofrecerActivarBiometria() async {
+    final tone = SozuTone.of(context);
+    final activar = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: tone.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          28,
+          24,
+          24 + MediaQuery.of(ctx).padding.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Icon(
+              Icons.fingerprint,
+              size: 48,
+              color: SozuColors.emerald500,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Entra más rápido',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: tone.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '¿Quieres usar tu huella o rostro para entrar más rápido '
+              'la próxima vez?',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: tone.textSecondary),
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Activar'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(
+                'Ahora no',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: tone.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (activar == true) {
+      final ok = await BiometricService.instance.habilitar();
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo activar la biometría. Puedes hacerlo desde Perfil.',
+            ),
+          ),
+        );
+      }
+    } else {
+      BiometricService.instance.ofertaRechazada = true;
+    }
+  }
+
+  /// Login con huella/rostro. [auto] = disparado al montar: si falla o se
+  /// cancela no muestra error (queda el form y el botón como reintento).
+  Future<void> _loginBiometrico({bool auto = false}) async {
+    if (_bioEnCurso || _submitting) return;
+    ref.read(inactivityLogoutProvider.notifier).state = false;
+    setState(() {
+      _bioEnCurso = true;
+      _formError = null;
+    });
+    final auth = ref.read(authProvider);
+    auth.loginEnCurso = true;
+    final ok = await BiometricService.instance.loginBiometrico();
+    if (!ok) {
+      auth.loginEnCurso = false;
+      // El token pudo haberse invalidado: re-evaluar si el botón sigue.
+      final disponible =
+          await BiometricService.instance.disponibleParaLogin();
+      if (!mounted) return;
+      setState(() {
+        _bioEnCurso = false;
+        _bioDisponible = disponible;
+        if (!auto) {
+          _formError = 'No pudimos validar tu identidad. '
+              'Ingresa tu contraseña.';
+        }
+      });
+      return;
+    }
+    try {
+      final perfil = await auth.refreshProfile();
+      if (perfil?.rolNombre != 'Cliente') {
+        await auth.signOut();
+        auth.loginEnCurso = false;
+        if (!mounted) return;
+        setState(() {
+          _bioEnCurso = false;
+          _formError = 'Correo o contraseña incorrectos.';
+        });
+        return;
+      }
+      auth.loginEnCurso = false;
+      if (!mounted) return;
+      context.go(perfil!.debeCambiarPassword ? '/change-password' : '/inicio');
+    } catch (_) {
+      await auth.signOut();
+      auth.loginEnCurso = false;
+      if (!mounted) return;
+      setState(() {
+        _bioEnCurso = false;
+        _formError = 'No pudimos verificar tu cuenta. Intenta de nuevo.';
       });
     }
   }
@@ -306,6 +465,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               )
                             : const Text('Iniciar sesión'),
                       ),
+                      if (_bioDisponible) ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: (_submitting || _bioEnCurso)
+                              ? null
+                              : _loginBiometrico,
+                          icon: _bioEnCurso
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: SozuColors.emerald500,
+                                  ),
+                                )
+                              : const Icon(Icons.fingerprint, size: 24),
+                          label: const Text('Entrar con huella o rostro'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: tone.primaryDark,
+                            side: const BorderSide(
+                              color: SozuColors.emerald500,
+                              width: 1.5,
+                            ),
+                            minimumSize: const Size.fromHeight(52),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 20),
                       TextButton(
                         onPressed: () => context.push('/forgot-password'),
