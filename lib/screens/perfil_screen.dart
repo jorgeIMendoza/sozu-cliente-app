@@ -52,7 +52,9 @@ class PerfilScreen extends ConsumerWidget {
         ),
       );
       if (ok == true) {
-        await ref.read(authProvider).signOut();
+        // Con biometría habilitada solo bloquea (la huella re-entra sin
+        // contraseña); sin biometría es un signOut real.
+        await ref.read(authProvider).lockOrSignOut();
         if (context.mounted) context.go('/login');
       }
     }

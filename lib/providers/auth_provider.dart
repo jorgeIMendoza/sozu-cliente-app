@@ -50,6 +50,11 @@ class AuthController extends ChangeNotifier {
   /// el mensaje de error al desmontar la pantalla).
   bool loginEnCurso = false;
 
+  /// Candado biométrico: la sesión de Supabase sigue viva (nunca se revocó)
+  /// pero la app se comporta como deslogueada hasta desbloquear con
+  /// huella/rostro o contraseña. El router lo trata como "sin sesión".
+  bool locked = false;
+
   bool _authReady = false;
   bool _profileReady = false;
   String? _profileForUserId;
@@ -67,8 +72,15 @@ class AuthController extends ChangeNotifier {
 
   Future<void> _init() async {
     session = _sb.auth.currentSession;
+    // Arranque en frío con candado activo: la app abre bloqueada (login con
+    // prompt biométrico) aunque la sesión siga viva por debajo.
+    if (session != null &&
+        await BiometricService.instance.habilitada() &&
+        await BiometricService.instance.bloqueada()) {
+      locked = true;
+    }
     _authReady = true;
-    if (session != null) {
+    if (session != null && !locked) {
       await refreshProfile();
     }
     _profileReady = true;
@@ -89,7 +101,8 @@ class AuthController extends ChangeNotifier {
         _profileForUserId = null;
         _profileReady = true;
         notifyListeners();
-      } else if (changedUser || _profileForUserId != next.user.id) {
+      } else if (!locked && (changedUser || _profileForUserId != next.user.id)) {
+        // Bloqueada: no cargar perfil (se carga al desbloquear).
         _loadProfileFor(next.user.id);
       } else {
         notifyListeners();
@@ -140,6 +153,9 @@ class AuthController extends ChangeNotifier {
   Future<void> signIn(String email, String password) async {
     final res = await _sb.auth
         .signInWithPassword(email: email.trim(), password: password);
+    // Entrar por contraseña también levanta el candado biométrico.
+    locked = false;
+    await BiometricService.instance.desmarcarBloqueada();
     // Si la biometría ya está habilitada, refresca el token guardado con el
     // de esta sesión (además del listener, para no depender de su orden).
     await BiometricService.instance.persistirSesion(res.session);
@@ -185,6 +201,9 @@ class AuthController extends ChangeNotifier {
     await refreshProfile();
   }
 
+  /// Cierre REAL de sesión (revoca la sesión actual en el servidor). Usar
+  /// solo cuando la sesión no debe sobrevivir (rol inválido en el login,
+  /// desactivar biometría). Para el cierre normal usa [lockOrSignOut].
   Future<void> signOut() async {
     // El token push NO se da de baja: las notificaciones siguen llegando
     // deslogeado (el cierre por inactividad no debe cortar los push). Solo
@@ -192,18 +211,41 @@ class AuthController extends ChangeNotifier {
     PushService.olvidarSesion();
     // Cierra la sesión de mediciones ANTES de perder el JWT.
     await PortalTracking.cerrar();
-    // Con biometría habilitada el signOut es SOLO local: el refresh token
-    // guardado en secure storage debe seguir siendo válido en el servidor
-    // para re-entrar con huella/rostro (incluye el logout por inactividad).
-    // El token guardado NO se borra aquí: solo al deshabilitar biometría o
-    // si setSession lo rechaza.
-    if (await BiometricService.instance.habilitada()) {
-      await _sb.auth.signOut(scope: SignOutScope.local);
-    } else {
-      await _sb.auth.signOut();
-    }
+    await _sb.auth.signOut();
+    locked = false;
     profile = null;
     notifyListeners();
+  }
+
+  /// Cierre iniciado por el usuario o por inactividad. Con biometría
+  /// habilitada NO se toca el servidor: gotrue revoca la sesión actual en
+  /// cualquier signOut (aun scope local), lo que invalidaría el refresh
+  /// token guardado y mataría el acceso con huella. En su lugar la app se
+  /// BLOQUEA (candado persistido): la sesión sigue viva por debajo y la
+  /// huella/rostro (o la contraseña) la desbloquea.
+  Future<void> lockOrSignOut() async {
+    if (session != null && await BiometricService.instance.habilitada()) {
+      PushService.olvidarSesion();
+      await PortalTracking.cerrar();
+      await BiometricService.instance.marcarBloqueada();
+      locked = true;
+      profile = null;
+      _profileForUserId = null;
+      notifyListeners();
+      return;
+    }
+    await signOut();
+  }
+
+  /// Desbloqueo con huella/rostro: la sesión nunca se cerró, solo se
+  /// re-valida la identidad y se recarga el perfil.
+  Future<bool> unlockConBiometria() async {
+    if (!locked || session == null) return false;
+    if (!await BiometricService.instance.autenticar()) return false;
+    await BiometricService.instance.desmarcarBloqueada();
+    locked = false;
+    notifyListeners();
+    return true;
   }
 
   @override

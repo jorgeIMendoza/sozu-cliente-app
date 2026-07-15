@@ -41,11 +41,14 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
 
   List<CatalogoItem> _proyectos = [];
   List<CatalogoItem> _modelos = [];
+  List<CatalogoItem> _niveles = [];
   List<CatalogoItem> _propiedades = [];
   final Set<int> _proyectosSel = {};
   final Set<int> _modelosSel = {};
+  final Set<int> _nivelesSel = {};
   final Set<int> _propiedadesSel = {};
   bool _cargandoModelos = false;
+  bool _cargandoNiveles = false;
   bool _cargandoPropiedades = false;
 
   bool _programar = false;
@@ -121,47 +124,90 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
     }
   }
 
-  /// Cascada: al cambiar proyectos se recargan modelos y propiedades y se
-  /// limpian las selecciones dependientes.
+  /// Cascada: al cambiar proyectos se recargan modelos, niveles y propiedades
+  /// y se limpian las selecciones dependientes.
   Future<void> _onProyectosChanged(Set<int> sel) async {
     setState(() {
       _proyectosSel
         ..clear()
         ..addAll(sel);
       _modelosSel.clear();
+      _nivelesSel.clear();
       _propiedadesSel.clear();
       _modelos = [];
+      _niveles = [];
       _propiedades = [];
     });
     if (sel.isEmpty) return;
     setState(() {
       _cargandoModelos = true;
+      _cargandoNiveles = true;
       _cargandoPropiedades = true;
     });
     try {
       final res = await Future.wait([
         fetchAvisosModelos(sel.toList()),
+        // Tolerante: si el backend aún no expone "niveles" no debe tumbar
+        // la carga de modelos/propiedades.
+        fetchAvisosNiveles(sel.toList())
+            .catchError((_) => <CatalogoItem>[]),
         fetchAvisosPropiedades(sel.toList()),
       ]);
       if (!mounted) return;
       setState(() {
         _modelos = res[0];
-        _propiedades = res[1];
+        _niveles = res[1];
+        _propiedades = res[2];
       });
     } catch (_) {/* filtros finos no disponibles */} finally {
       if (mounted) {
         setState(() {
           _cargandoModelos = false;
+          _cargandoNiveles = false;
           _cargandoPropiedades = false;
         });
       }
     }
   }
 
-  /// Cascada: con modelos seleccionados solo se listan sus propiedades.
+  /// Cascada: con modelos seleccionados se recalculan niveles y propiedades.
   Future<void> _onModelosChanged(Set<int> sel) async {
     setState(() {
       _modelosSel
+        ..clear()
+        ..addAll(sel);
+      _nivelesSel.clear();
+      _propiedadesSel.clear();
+      _niveles = [];
+      _propiedades = [];
+      _cargandoNiveles = true;
+      _cargandoPropiedades = true;
+    });
+    try {
+      final res = await Future.wait([
+        fetchAvisosNiveles(_proyectosSel.toList(), idsModelos: sel.toList())
+            .catchError((_) => <CatalogoItem>[]),
+        fetchAvisosPropiedades(_proyectosSel.toList(), idsModelos: sel.toList()),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _niveles = res[0];
+        _propiedades = res[1];
+      });
+    } catch (_) {/* filtro fino no disponible */} finally {
+      if (mounted) {
+        setState(() {
+          _cargandoNiveles = false;
+          _cargandoPropiedades = false;
+        });
+      }
+    }
+  }
+
+  /// Cascada: con niveles seleccionados solo se listan sus propiedades.
+  Future<void> _onNivelesChanged(Set<int> sel) async {
+    setState(() {
+      _nivelesSel
         ..clear()
         ..addAll(sel);
       _propiedadesSel.clear();
@@ -171,7 +217,8 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
     try {
       final props = await fetchAvisosPropiedades(
         _proyectosSel.toList(),
-        idsModelos: sel.toList(),
+        idsModelos: _modelosSel.toList(),
+        idsNiveles: sel.toList(),
       );
       if (mounted) setState(() => _propiedades = props);
     } catch (_) {/* filtro fino no disponible */} finally {
@@ -216,6 +263,7 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
     return [
       nombres(_proyectos, _proyectosSel),
       if (_modelosSel.isNotEmpty) 'Modelos: ${nombres(_modelos, _modelosSel)}',
+      if (_nivelesSel.isNotEmpty) 'Niveles: ${nombres(_niveles, _nivelesSel)}',
       if (_propiedadesSel.isNotEmpty)
         'Unidades: ${nombres(_propiedades, _propiedadesSel, 'U-')}',
     ].join(' · ');
@@ -265,6 +313,7 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
         canales: _canales.toList(),
         idsProyectos: _proyectosSel.toList(),
         idsModelos: _modelosSel.toList(),
+        idsNiveles: _nivelesSel.toList(),
         idsPropiedades: _propiedadesSel.toList(),
         programadoPara: _programar ? _fechaHora : null,
       );
@@ -430,6 +479,21 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
                             : 'Todos los modelos',
                         enabled: _proyectosSel.isNotEmpty && !_cargandoModelos,
                         onChanged: _onModelosChanged,
+                      ),
+                      const SizedBox(height: 8),
+                      _MultiSelectField(
+                        label: 'Niveles',
+                        items: _niveles,
+                        selected: _nivelesSel,
+                        placeholder: _proyectosSel.isEmpty
+                            ? 'Primero elige proyecto'
+                            : _cargandoNiveles
+                            ? 'Cargando…'
+                            : _niveles.isEmpty
+                            ? 'Niveles no disponibles'
+                            : 'Todos los niveles',
+                        enabled: _proyectosSel.isNotEmpty && !_cargandoNiveles,
+                        onChanged: _onNivelesChanged,
                       ),
                       const SizedBox(height: 8),
                       _MultiSelectField(
