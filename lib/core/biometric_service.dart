@@ -22,6 +22,7 @@ class BiometricService {
 
   static const _keyHabilitada = 'sozu_biometria_habilitada';
   static const _keyRefreshToken = 'sozu_biometria_refresh_token';
+  static const _keyBloqueada = 'sozu_biometria_bloqueada';
 
   final LocalAuthentication _localAuth = LocalAuthentication();
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
@@ -98,6 +99,26 @@ class BiometricService {
     if (!_esMovil) return;
     await _storage.delete(key: _keyRefreshToken);
     await _storage.delete(key: _keyHabilitada);
+    await _storage.delete(key: _keyBloqueada);
+  }
+
+  /// Candado persistido: el "logout" con biometría habilitada NO cierra la
+  /// sesión en el servidor (gotrue revoca la sesión actual en cualquier
+  /// signOut, incluso scope local, lo que invalidaría el refresh token
+  /// guardado). Solo se marca bloqueada; sobrevive al cierre del app.
+  Future<void> marcarBloqueada() async {
+    if (!_esMovil) return;
+    await _storage.write(key: _keyBloqueada, value: 'true');
+  }
+
+  Future<void> desmarcarBloqueada() async {
+    if (!_esMovil) return;
+    await _storage.delete(key: _keyBloqueada);
+  }
+
+  Future<bool> bloqueada() async {
+    if (!_esMovil) return false;
+    return await _storage.read(key: _keyBloqueada) == 'true';
   }
 
   /// Re-guarda el refresh token rotado. Llamar en cada evento de

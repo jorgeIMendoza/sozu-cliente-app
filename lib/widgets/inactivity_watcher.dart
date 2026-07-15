@@ -34,26 +34,35 @@ class _InactivityWatcherState extends ConsumerState<InactivityWatcher>
     WidgetsBinding.instance.addObserver(this);
   }
 
+  /// Sesión "usable": con el candado biométrico puesto la sesión de Supabase
+  /// sigue viva pero la app ya está bloqueada — no hay nada que vigilar.
+  bool get _activa {
+    final auth = ref.read(authProvider);
+    return auth.session != null && !auth.locked;
+  }
+
   void _reset() {
     _timer?.cancel();
-    if (ref.read(authProvider).session == null) return;
+    if (!_activa) return;
     _ultimaActividad = DateTime.now();
     _timer = Timer(_timeout, _logout);
   }
 
   Future<void> _logout() async {
     final auth = ref.read(authProvider);
-    if (auth.session == null) return;
+    if (!_activa) return;
     _timer?.cancel();
     ref.read(inactivityLogoutProvider.notifier).state = true;
-    await auth.signOut();
+    // Con biometría habilitada solo bloquea (la sesión sigue viva para
+    // re-entrar con huella); sin biometría cierra sesión de verdad.
+    await auth.lockOrSignOut();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
     final ultima = _ultimaActividad;
-    if (ultima == null || ref.read(authProvider).session == null) return;
+    if (ultima == null || !_activa) return;
     final transcurrido = DateTime.now().difference(ultima);
     if (transcurrido >= _timeout) {
       _logout();
@@ -74,8 +83,10 @@ class _InactivityWatcherState extends ConsumerState<InactivityWatcher>
 
   @override
   Widget build(BuildContext context) {
-    // Re-arma o cancela el timer cuando cambia el estado de sesión.
-    final hasSession = ref.watch(authProvider.select((a) => a.session != null));
+    // Re-arma o cancela el timer cuando cambia el estado de sesión/candado.
+    final hasSession = ref.watch(
+      authProvider.select((a) => a.session != null && !a.locked),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (hasSession) {
