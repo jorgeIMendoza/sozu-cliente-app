@@ -32,6 +32,11 @@ final propiedadDetalleProvider = FutureProvider.family<PropiedadDetalle, int>((
   return fetchPropiedadDetalle(id, impersonate: imp);
 });
 
+final clienteProductosProvider = FutureProvider<ClienteProductos>((ref) {
+  final imp = ref.watch(impersonationProvider).idPersona;
+  return fetchClienteProductos(impersonate: imp);
+});
+
 final clientePerfilProvider = FutureProvider<ClientePerfil>((ref) {
   final imp = ref.watch(impersonationProvider).idPersona;
   return fetchClientePerfil(impersonate: imp);
@@ -68,6 +73,7 @@ void invalidateAllData(Ref ref) {
   ref.invalidate(clienteResumenProvider);
   ref.invalidate(clientePagosProvider);
   ref.invalidate(clientePropiedadesProvider);
+  ref.invalidate(clienteProductosProvider);
   ref.invalidate(propiedadDetalleProvider);
   ref.invalidate(clientePerfilProvider);
   ref.invalidate(clienteDocumentosProvider);

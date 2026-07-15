@@ -20,6 +20,8 @@ import 'screens/pagar_screen.dart';
 import 'screens/pagos_screen.dart';
 import 'screens/patrimonio_screen.dart';
 import 'screens/perfil_screen.dart';
+import 'screens/producto_detalle_screen.dart';
+import 'screens/productos_screen.dart';
 import 'screens/propiedad_detalle_screen.dart';
 import 'screens/seleccionar_cliente_screen.dart';
 import 'widgets/fx.dart';
@@ -159,6 +161,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/admin-avisos',
         pageBuilder: (context, state) =>
             _slidePage(state, const AdminAvisosScreen()),
+      ),
+      GoRoute(
+        path: '/productos',
+        pageBuilder: (context, state) =>
+            _slidePage(state, const ProductosScreen()),
+      ),
+      GoRoute(
+        path: '/productos/:id',
+        pageBuilder: (context, state) => _slidePage(
+          state,
+          ProductoDetalleScreen(
+            cuentaId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+          ),
+        ),
       ),
       GoRoute(
         path: '/propiedad/:id',

@@ -88,6 +88,9 @@ class ResumenFinanciero {
   final double adquisicionValor;
   final int adquisicionUnidades;
 
+  /// Mensaje contextual de la etapa activa para "Estás al día" (Fase C).
+  final String? mensajeContexto;
+
   ResumenFinanciero.fromJson(Map<String, dynamic> j)
     : patrimonioTotal = asDouble(j['patrimonio_total']),
       invertidoTotal = asDouble(j['invertido_total']),
@@ -100,7 +103,8 @@ class ResumenFinanciero {
       activoValor = asDouble(j['activo_valor']),
       activoUnidades = asInt(j['activo_unidades']),
       adquisicionValor = asDouble(j['adquisicion_valor']),
-      adquisicionUnidades = asInt(j['adquisicion_unidades']);
+      adquisicionUnidades = asInt(j['adquisicion_unidades']),
+      mensajeContexto = j['mensaje_contexto'] as String?;
 }
 
 class ClienteResumen {
@@ -131,13 +135,43 @@ class ClienteResumen {
 
 // ─── cliente-pagos ───────────────────────────────────────────────────────────
 
+/// Pago aplicado a un acuerdo (abono): permite ver desglose, recibo y CEP por
+/// aplicación. Contrato compartido por cliente-estado-cuenta, cliente-pagos y
+/// cliente-propiedad-detalle (campo `aplicaciones` de cada acuerdo).
+class AplicacionPago {
+  final int idPago;
+  final double monto;
+  final String? fecha;
+  final String? metodo;
+  final String? claveRastreo;
+  final String? urlCep;
+  final String? urlRecibo;
+
+  AplicacionPago.fromJson(Map<String, dynamic> j)
+    : idPago = asInt(j['id_pago']),
+      monto = asDouble(j['monto']),
+      fecha = j['fecha'] as String?,
+      metodo = j['metodo'] as String?,
+      claveRastreo = j['clave_rastreo'] as String?,
+      urlCep = j['url_cep'] as String?,
+      urlRecibo = j['url_recibo'] as String?;
+}
+
+List<AplicacionPago> _parseAplicaciones(dynamic v) => ((v as List?) ?? [])
+    .map((e) => AplicacionPago.fromJson(Map<String, dynamic>.from(e)))
+    .toList();
+
 class ProximoPago {
   final int id;
   final String concepto;
   final String propiedad;
   final String? fechaPago;
   final double monto;
+
+  /// Abonado hasta ahora (para badge "Parcial" y "Faltan $X").
+  final double pagado;
   final bool vencido;
+  final List<AplicacionPago> aplicaciones;
 
   ProximoPago.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
@@ -145,7 +179,23 @@ class ProximoPago {
       propiedad = asString(j['propiedad'], '—'),
       fechaPago = j['fecha_pago'] as String?,
       monto = asDouble(j['monto']),
-      vencido = j['vencido'] == true;
+      pagado = asDouble(j['pagado']),
+      vencido = j['vencido'] == true,
+      aplicaciones = _parseAplicaciones(j['aplicaciones']);
+}
+
+/// Cuota de mantenimiento en el historial de pagos (por propiedad).
+class MantenimientoPago {
+  final String propiedad;
+  final String mes; // YYYY-MM
+  final double monto;
+  final String estatus; // pagado | pendiente | vencido
+
+  MantenimientoPago.fromJson(Map<String, dynamic> j)
+    : propiedad = asString(j['propiedad'], '—'),
+      mes = asString(j['mes'], ''),
+      monto = asDouble(j['monto']),
+      estatus = asString(j['estatus'], 'pendiente');
 }
 
 class HistorialPago {
@@ -175,6 +225,7 @@ class ClientePagos {
   final double saldoPendiente;
   final List<ProximoPago> proximosPagos;
   final List<HistorialPago> historial;
+  final List<MantenimientoPago> historialMantenimiento;
 
   ClientePagos.fromJson(Map<String, dynamic> j)
     : saldoTotal = asDouble((j['saldo'] as Map?)?['total']),
@@ -185,6 +236,9 @@ class ClientePagos {
           .toList(),
       historial = ((j['historial'] as List?) ?? [])
           .map((e) => HistorialPago.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      historialMantenimiento = ((j['historial_mantenimiento'] as List?) ?? [])
+          .map((e) => MantenimientoPago.fromJson(Map<String, dynamic>.from(e)))
           .toList();
 }
 
@@ -200,6 +254,19 @@ class PropiedadCard {
   final String estatus;
   final String? urlImagen;
 
+  // — Extensión Fase C (opcional en backend; degradan a null/0/false) —
+  /// Valor de mercado estimado (m2 × precio_m2_actual del proyecto).
+  final double? valorActual;
+  final double? plusvaliaPct;
+  final double? plusvaliaMonto;
+  final String? ubicacion;
+  final bool pagoPendiente;
+  final String? etapaActiva;
+  final double saldoPendiente;
+  final String? proximaFecha;
+  final int docsPendientes;
+  final String? entregadaDesde;
+
   PropiedadCard.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
       nombre = asString(j['nombre'], '—'),
@@ -208,7 +275,17 @@ class PropiedadCard {
       monto = asDouble(j['monto']),
       avancePago = asDouble(j['avance_pago']),
       estatus = asString(j['estatus'], '—'),
-      urlImagen = j['url_imagen'] as String?;
+      urlImagen = j['url_imagen'] as String?,
+      valorActual = asDoubleOrNull(j['valor_actual']),
+      plusvaliaPct = asDoubleOrNull(j['plusvalia_pct']),
+      plusvaliaMonto = asDoubleOrNull(j['plusvalia_monto']),
+      ubicacion = j['ubicacion'] as String?,
+      pagoPendiente = j['pago_pendiente'] == true,
+      etapaActiva = j['etapa_activa'] as String?,
+      saldoPendiente = asDouble(j['saldo_pendiente']),
+      proximaFecha = j['proxima_fecha'] as String?,
+      docsPendientes = asInt(j['docs_pendientes']),
+      entregadaDesde = j['entregada_desde'] as String?;
 }
 
 class ProductoCard {
@@ -265,7 +342,107 @@ class ClientePropiedades {
           .toList(),
       totalAdquisicion = asDouble((j['totales'] as Map?)?['en_adquisicion']),
       totalActivo = asDouble((j['totales'] as Map?)?['activo']),
-      totalProductos = asDouble((j['totales'] as Map?)?['productos']);
+      totalProductos = asDouble((j['totales'] as Map?)?['productos']),
+      // Fase C: valor de mercado y plusvalía del patrimonio (opcionales).
+      totalActivoValorActual = asDoubleOrNull(
+        (j['totales'] as Map?)?['activo_valor_actual'],
+      ),
+      totalPlusvalia = asDoubleOrNull((j['totales'] as Map?)?['plusvalia']);
+
+  final double? totalActivoValorActual;
+  final double? totalPlusvalia;
+}
+
+// ─── cliente-productos ───────────────────────────────────────────────────────
+
+/// Acuerdo de pago de un producto adicional.
+class ProductoAcuerdo {
+  final int id;
+  final String concepto;
+  final String? fecha;
+  final double monto;
+  final double pagado;
+  final bool completado;
+  final String? fechaPago;
+  final String? urlCep;
+  final String? urlRecibo;
+
+  ProductoAcuerdo.fromJson(Map<String, dynamic> j)
+    : id = asInt(j['id']),
+      concepto = asString(j['concepto'], 'Pago'),
+      fecha = j['fecha'] as String?,
+      monto = asDouble(j['monto']),
+      pagado = asDouble(j['pagado']),
+      completado = j['completado'] == true,
+      fechaPago = j['fecha_pago'] as String?,
+      urlCep = j['url_cep'] as String?,
+      urlRecibo = j['url_recibo'] as String?;
+}
+
+/// Producto adicional contratado (cajón, bodega, etc.) con su plan de pagos.
+class ProductoCliente {
+  final int cuentaId;
+  final String nombre;
+  final String? descripcion;
+  final double precioFinal;
+  final double totalPagado;
+  final double saldoPendiente;
+  final String estatus; // Pendiente | En curso | Pagado
+  final String? clabe;
+  final String? proximaFecha;
+  final List<ProductoAcuerdo> acuerdos;
+
+  double get avancePct =>
+      precioFinal > 0 ? (totalPagado / precioFinal * 100).clamp(0, 100) : 0;
+
+  ProductoCliente.fromJson(Map<String, dynamic> j)
+    : cuentaId = asInt(j['cuenta_id']),
+      nombre = asString(j['nombre'], 'Producto adicional'),
+      descripcion = j['descripcion'] as String?,
+      precioFinal = asDouble(j['precio_final']),
+      totalPagado = asDouble(j['total_pagado']),
+      saldoPendiente = asDouble(j['saldo_pendiente']),
+      estatus = asString(j['estatus'], 'Pendiente'),
+      clabe = j['clabe'] as String?,
+      proximaFecha = j['proxima_fecha'] as String?,
+      acuerdos = ((j['acuerdos'] as List?) ?? [])
+          .map((e) => ProductoAcuerdo.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+}
+
+/// Productos agrupados por propiedad.
+class ProductosPropiedad {
+  final String propiedad;
+  final String proyecto;
+  final int? cuentaPropiedadId;
+  final List<ProductoCliente> productos;
+
+  ProductosPropiedad.fromJson(Map<String, dynamic> j)
+    : propiedad = asString(j['propiedad'], '—'),
+      proyecto = asString(j['proyecto'], '—'),
+      cuentaPropiedadId = asIntOrNull(j['id_cuenta_propiedad']),
+      productos = ((j['productos'] as List?) ?? [])
+          .map((e) => ProductoCliente.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+}
+
+class ClienteProductos {
+  final List<ProductosPropiedad> propiedades;
+
+  ClienteProductos.fromJson(Map<String, dynamic> j)
+    : propiedades = ((j['propiedades'] as List?) ?? [])
+          .map((e) => ProductosPropiedad.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+
+  /// Busca un producto por su cuenta (para el detalle por ruta).
+  ProductoCliente? productoPorCuenta(int cuentaId) {
+    for (final p in propiedades) {
+      for (final prod in p.productos) {
+        if (prod.cuentaId == cuentaId) return prod;
+      }
+    }
+    return null;
+  }
 }
 
 // ─── cliente-propiedad-detalle ───────────────────────────────────────────────
@@ -289,6 +466,7 @@ class EsquemaPagoItem {
   final double pagado;
   final double saldo;
   final bool pagoCompletado;
+  final List<AplicacionPago> aplicaciones;
 
   EsquemaPagoItem.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
@@ -297,7 +475,8 @@ class EsquemaPagoItem {
       monto = asDouble(j['monto']),
       pagado = asDouble(j['pagado']),
       saldo = asDouble(j['saldo']),
-      pagoCompletado = j['pago_completado'] == true;
+      pagoCompletado = j['pago_completado'] == true,
+      aplicaciones = _parseAplicaciones(j['aplicaciones']);
 }
 
 class ProductoDetalle {
@@ -366,6 +545,40 @@ class DocumentoItem {
       urlFirmada = j['url_firmada'] as String?;
 }
 
+/// Banco con convenio para crédito hipotecario (catálogo dinámico).
+class BancoConvenio {
+  final int id;
+  final String nombre;
+  final String? producto;
+  final double? tasaDesde;
+  final String? color;
+
+  BancoConvenio.fromJson(Map<String, dynamic> j)
+    : id = asInt(j['id']),
+      nombre = asString(j['nombre'], '—'),
+      producto = j['producto'] as String?,
+      tasaDesde = asDoubleOrNull(j['tasa_desde']),
+      color = j['color'] as String?;
+}
+
+/// Solicitud de crédito hipotecario del cliente (estatus real).
+class SolicitudCredito {
+  final int id;
+  final String bancoNombre;
+  final String estatus;
+  final String? fechaSolicitud;
+  final String? fechaExpiracion;
+  final bool puedeCambiar;
+
+  SolicitudCredito.fromJson(Map<String, dynamic> j)
+    : id = asInt(j['id']),
+      bancoNombre = asString(j['banco_nombre'], '—'),
+      estatus = asString(j['estatus'], 'en_revision'),
+      fechaSolicitud = j['fecha_solicitud'] as String?,
+      fechaExpiracion = j['fecha_expiracion'] as String?,
+      puedeCambiar = j['puede_cambiar'] == true;
+}
+
 /// Ubicación geográfica del proyecto (para el mapa "cómo llegar").
 class PropiedadUbicacion {
   final double latitud;
@@ -405,6 +618,12 @@ class PropiedadDetalle {
   /// Método de pago final elegido: RECURSOS_PROPIOS | CREDITO_HIPOTECARIO
   /// (null hasta que el cliente decide, solo aplica en etapa pago_final).
   final String? tipoFinanciamiento;
+
+  /// Solicitud de crédito hipotecario vigente (null si no hay).
+  final SolicitudCredito? solicitudCredito;
+
+  /// Propiedad en proceso legal: modo solo lectura (sin CTAs de pago).
+  final bool enDemanda;
   final String etapaActiva;
   final List<EtapaStage> stages;
   final List<EsquemaPagoItem> esquemaPago;
@@ -440,6 +659,12 @@ class PropiedadDetalle {
             )
           : null,
       tipoFinanciamiento = j['tipo_financiamiento'] as String?,
+      solicitudCredito = j['solicitud_credito'] is Map
+          ? SolicitudCredito.fromJson(
+              Map<String, dynamic>.from(j['solicitud_credito'] as Map),
+            )
+          : null,
+      enDemanda = j['en_demanda'] == true,
       etapaActiva = asString((j['etapa'] as Map?)?['activa'], 'preventa'),
       stages = (((j['etapa'] as Map?)?['stages'] as List?) ?? [])
           .map((e) => EtapaStage.fromJson(Map<String, dynamic>.from(e)))
@@ -613,6 +838,7 @@ class AcuerdoPago {
   final double pagado;
   final double pendiente;
   final bool pagadoCompleto;
+  final List<AplicacionPago> aplicaciones;
 
   AcuerdoPago.fromJson(Map<String, dynamic> j)
     : orden = asInt(j['orden']),
@@ -621,7 +847,22 @@ class AcuerdoPago {
       monto = asDouble(j['monto']),
       pagado = asDouble(j['pagado']),
       pendiente = asDouble(j['pendiente']),
-      pagadoCompleto = j['pagado_completo'] == true;
+      pagadoCompleto = j['pagado_completo'] == true,
+      aplicaciones = _parseAplicaciones(j['aplicaciones']);
+}
+
+/// Instrucciones de transferencia STP del estado de cuenta.
+class InstruccionesPago {
+  final String? clabe;
+  final String? banco;
+  final String? beneficiario;
+  final String referencia;
+
+  InstruccionesPago.fromJson(Map<String, dynamic> j)
+    : clabe = j['clabe'] as String?,
+      banco = j['banco'] as String?,
+      beneficiario = j['beneficiario'] as String?,
+      referencia = asString(j['referencia'], '');
 }
 
 class MultaItem {
@@ -668,6 +909,7 @@ class EstadoCuenta {
   final List<MultaItem> multas;
   final List<PagoRealizado> pagos;
   final double totalPagos;
+  final InstruccionesPago? instrucciones;
 
   EstadoCuenta.fromJson(Map<String, dynamic> j)
     : precioFinal = asDouble((j['resumen'] as Map?)?['precio_final']),
@@ -675,6 +917,11 @@ class EstadoCuenta {
       totalMultas = asDouble((j['resumen'] as Map?)?['total_multas']),
       saldoPendiente = asDouble((j['resumen'] as Map?)?['saldo_pendiente']),
       moneda = asString((j['resumen'] as Map?)?['moneda'], 'MXN'),
+      instrucciones = j['instrucciones_pago'] is Map
+          ? InstruccionesPago.fromJson(
+              Map<String, dynamic>.from(j['instrucciones_pago'] as Map),
+            )
+          : null,
       acuerdos = ((j['acuerdos'] as List?) ?? [])
           .map((e) => AcuerdoPago.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
