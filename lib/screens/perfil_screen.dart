@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../core/format.dart';
 import '../core/push_service.dart';
 import '../core/theme.dart';
+import '../data/api_client.dart';
 import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
 import '../providers/theme_provider.dart';
+import '../widgets/biometric_tile.dart';
 import '../widgets/common.dart';
 import '../widgets/fx.dart';
 
@@ -110,31 +112,40 @@ class PerfilScreen extends ConsumerWidget {
 
           _sectionLabel(tone, 'Notificaciones'),
           AppCard(
-            child: Row(
+            child: Column(
               children: [
-                const Icon(Icons.notifications_active_outlined,
-                    size: 20, color: SozuColors.emerald600),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Notificaciones push',
-                          style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: tone.textPrimary)),
-                      const SizedBox(height: 2),
-                      // Estado de diagnóstico (útil para soporte en campo).
-                      ValueListenableBuilder<String>(
-                        valueListenable: PushService.estado,
-                        builder: (_, estado, __) => Text(estado,
-                            style: TextStyle(
-                                fontSize: 12, color: tone.textSecondary)),
+                Row(
+                  children: [
+                    const Icon(Icons.notifications_active_outlined,
+                        size: 20, color: SozuColors.emerald600),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Notificaciones push',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: tone.textPrimary)),
+                          const SizedBox(height: 2),
+                          // Estado de diagnóstico (útil para soporte en campo).
+                          ValueListenableBuilder<String>(
+                            valueListenable: PushService.estado,
+                            builder: (_, estado, __) => Text(estado,
+                                style: TextStyle(
+                                    fontSize: 12, color: tone.textSecondary)),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                // Preferencia solo donde hay push (en web vive la campana).
+                if (PushService.soportado) ...[
+                  Divider(color: tone.border, height: 24),
+                  const _PushPrefSwitch(),
+                ],
               ],
             ),
           ),
@@ -160,6 +171,8 @@ class PerfilScreen extends ConsumerWidget {
               ),
             ),
           ),
+          // Solo móvil con biometría disponible; en web se colapsa sola.
+          const BiometricSettingTile(),
 
           const SizedBox(height: 24),
           GestureDetector(
@@ -194,6 +207,95 @@ class PerfilScreen extends ConsumerWidget {
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: tone.textSecondary)),
+    );
+  }
+}
+
+/// Switch "Recibir notificaciones push": la preferencia vive en BD y el
+/// dispatch de push la respeta (los tokens NO se dan de baja al desactivar).
+class _PushPrefSwitch extends StatefulWidget {
+  const _PushPrefSwitch();
+
+  @override
+  State<_PushPrefSwitch> createState() => _PushPrefSwitchState();
+}
+
+class _PushPrefSwitchState extends State<_PushPrefSwitch> {
+  bool _activo = true;
+  bool _cargando = true;
+  // false si pref_get falló (p. ej. backend sin la acción): switch visible
+  // con el default pero deshabilitado — degradación limpia.
+  bool _disponible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  Future<void> _cargar() async {
+    try {
+      final activo = await fetchPushPref();
+      if (!mounted) return;
+      setState(() {
+        _activo = activo;
+        _cargando = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _cargando = false;
+        _disponible = false;
+      });
+    }
+  }
+
+  Future<void> _cambiar(bool valor) async {
+    final anterior = _activo;
+    setState(() => _activo = valor); // optimista
+    try {
+      await setPushPref(valor);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(valor
+            ? 'Notificaciones activadas'
+            : 'Notificaciones desactivadas'),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _activo = anterior);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('No se pudo guardar la preferencia. Intenta de nuevo.'),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: Text('Recibir notificaciones push',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: tone.textPrimary)),
+        ),
+        if (_cargando)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+          )
+        else
+          Switch(
+            value: _activo,
+            onChanged: _disponible ? _cambiar : null,
+          ),
+      ],
     );
   }
 }

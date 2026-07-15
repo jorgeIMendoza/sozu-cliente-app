@@ -325,3 +325,18 @@ Future<void> eliminarPushToken(String token) async {
     body: {'action': 'unregister', 'token': token},
   );
 }
+
+/// Preferencia de push del cliente (sin fila en BD = true).
+Future<bool> fetchPushPref() async {
+  final res = await _invoke('cliente-push-token', body: {'action': 'pref_get'});
+  return (res['push_activo'] as bool?) ?? true;
+}
+
+/// Activa/desactiva los push. No da de baja tokens: el dispatch filtra por
+/// esta preferencia, así reactivar es instantáneo.
+Future<void> setPushPref(bool activo) async {
+  await _invoke(
+    'cliente-push-token',
+    body: {'action': 'pref_set', 'push_activo': activo},
+  );
+}

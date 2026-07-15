@@ -6,6 +6,8 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Usamos tu ubicación para trazar la ruta desde tu posición actual hasta tu propiedad.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>SOZU usa Face ID para iniciar sesión de forma segura.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

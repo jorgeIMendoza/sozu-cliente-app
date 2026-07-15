@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/biometric_service.dart';
 import '../core/portal_tracking.dart';
 import '../core/push_service.dart';
 
@@ -77,6 +78,12 @@ class AuthController extends ChangeNotifier {
       final next = data.session;
       final changedUser = next?.user.id != session?.user.id;
       session = next;
+      // Supabase ROTA el refresh token en cada signedIn/tokenRefreshed: si el
+      // login biométrico está habilitado hay que re-guardar el token nuevo o
+      // el guardado queda invalidado.
+      if (next != null) {
+        unawaited(BiometricService.instance.persistirSesion(next));
+      }
       if (next == null) {
         profile = null;
         _profileForUserId = null;
@@ -131,8 +138,22 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> signIn(String email, String password) async {
-    await _sb.auth.signInWithPassword(email: email.trim(), password: password);
+    final res = await _sb.auth
+        .signInWithPassword(email: email.trim(), password: password);
+    // Si la biometría ya está habilitada, refresca el token guardado con el
+    // de esta sesión (además del listener, para no depender de su orden).
+    await BiometricService.instance.persistirSesion(res.session);
     await refreshProfile();
+  }
+
+  /// Hook para el login: ofrecer activar biometría tras un login por
+  /// contraseña (solo móvil soportado, aún no habilitada y sin "Ahora no"
+  /// previo en esta ejecución).
+  Future<bool> debeOfrecerBiometria() async {
+    final bio = BiometricService.instance;
+    if (bio.ofertaRechazada) return false;
+    if (!await bio.soportado()) return false;
+    return !await bio.habilitada();
   }
 
   Future<void> resetPassword(String email) async {
@@ -171,7 +192,16 @@ class AuthController extends ChangeNotifier {
     PushService.olvidarSesion();
     // Cierra la sesión de mediciones ANTES de perder el JWT.
     await PortalTracking.cerrar();
-    await _sb.auth.signOut();
+    // Con biometría habilitada el signOut es SOLO local: el refresh token
+    // guardado en secure storage debe seguir siendo válido en el servidor
+    // para re-entrar con huella/rostro (incluye el logout por inactividad).
+    // El token guardado NO se borra aquí: solo al deshabilitar biometría o
+    // si setSession lo rechaza.
+    if (await BiometricService.instance.habilitada()) {
+      await _sb.auth.signOut(scope: SignOutScope.local);
+    } else {
+      await _sb.auth.signOut();
+    }
     profile = null;
     notifyListeners();
   }
