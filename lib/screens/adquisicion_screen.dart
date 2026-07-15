@@ -11,13 +11,31 @@ import '../widgets/fx.dart';
 import '../widgets/portal_top_bar.dart';
 import '../widgets/property_card.dart';
 
-/// En adquisición: propiedades en proceso de compra + productos adicionales
-/// (con nombre real) + mantenimiento, en secciones separadas.
-class AdquisicionScreen extends ConsumerWidget {
+/// En adquisición: propiedades en proceso de compra (con buscador en vivo) +
+/// productos adicionales (con nombre real) + mantenimiento, en secciones
+/// separadas.
+class AdquisicionScreen extends ConsumerStatefulWidget {
   const AdquisicionScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdquisicionScreen> createState() => _AdquisicionScreenState();
+}
+
+class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
+  String _busqueda = '';
+
+  List<PropiedadCard> _filtrar(List<PropiedadCard> items) {
+    final q = _busqueda.trim().toLowerCase();
+    if (q.isEmpty) return items;
+    return items
+        .where((p) => '${p.proyecto} ${p.nombre} ${p.ubicacion ?? ''}'
+            .toLowerCase()
+            .contains(q))
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
     final props = ref.watch(clientePropiedadesProvider);
 
@@ -65,11 +83,17 @@ class AdquisicionScreen extends ConsumerWidget {
               ),
             ],
           ),
-          data: (data) => ContentFrame(
+          data: (data) {
+            final n = data.enAdquisicion.length;
+            final filtradas = _filtrar(data.enAdquisicion);
+            return ContentFrame(
             child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
             children: [
-              Text('Propiedades en proceso de compra',
+              Text(
+                  n > 0
+                      ? 'Propiedades en proceso de compra · $n ${n == 1 ? 'unidad activa' : 'unidades activas'}'
+                      : 'Propiedades en proceso de compra',
                   style: TextStyle(fontSize: 14, color: tone.textSecondary)),
               const SizedBox(height: 16),
               AppCard(
@@ -104,22 +128,45 @@ class AdquisicionScreen extends ConsumerWidget {
                   icon: Icons.shopping_bag_outlined,
                   text: 'No tienes propiedades en proceso de compra.',
                 )
-              else
-                ResponsiveCardGrid(
-                  children: [
-                    for (final it in data.enAdquisicion)
-                      PropertyCardWidget(
-                          item: it,
-                          onTap: () => context.push('/propiedad/${it.id}')),
-                  ],
+              else ...[
+                TextField(
+                  onChanged: (v) => setState(() => _busqueda = v),
+                  textInputAction: TextInputAction.search,
+                  style: TextStyle(fontSize: 14, color: tone.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: 'Buscar propiedad…',
+                    prefixIcon:
+                        Icon(Icons.search, size: 20, color: tone.textMuted),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
                 ),
+                const SizedBox(height: 16),
+                if (filtradas.isEmpty)
+                  const EmptyCard(
+                    icon: Icons.search_off_outlined,
+                    text: 'Sin resultados',
+                  )
+                else
+                  ResponsiveCardGrid(
+                    children: [
+                      for (final it in filtradas)
+                        PropertyCardWidget(
+                            item: it,
+                            onTap: () => context.push('/propiedad/${it.id}')),
+                    ],
+                  ),
+              ],
 
               if (data.productos.isNotEmpty) ...[
                 SectionTitle(
                     icon: Icons.inventory_2_outlined,
                     text: 'Productos adicionales (${data.productos.length})'),
                 for (final p in data.productos) ...[
-                  _ProductoRow(p: p),
+                  _ProductoRow(
+                      p: p,
+                      onTap: () => context.push('/productos/${p.id}')),
                   const SizedBox(height: 10),
                 ],
               ],
@@ -134,7 +181,8 @@ class AdquisicionScreen extends ConsumerWidget {
               ],
             ],
             ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -143,13 +191,16 @@ class AdquisicionScreen extends ConsumerWidget {
 
 class _ProductoRow extends StatelessWidget {
   final ProductoCard p;
+  final VoidCallback? onTap;
 
-  const _ProductoRow({required this.p});
+  const _ProductoRow({required this.p, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
-    return AppCard(
+    return GestureDetector(
+      onTap: onTap,
+      child: AppCard(
       child: Row(
         children: [
           Container(
@@ -184,7 +235,12 @@ class _ProductoRow extends StatelessWidget {
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: tone.textPrimary)),
+          if (onTap != null) ...[
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 18, color: tone.textMuted),
+          ],
         ],
+      ),
       ),
     );
   }

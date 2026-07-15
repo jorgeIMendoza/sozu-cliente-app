@@ -13,6 +13,7 @@ import '../providers/data_providers.dart';
 import '../widgets/common.dart';
 import '../widgets/level_map.dart';
 import '../widgets/network_image.dart';
+import '../widgets/payment_method_badge.dart';
 import 'como_llegar_screen.dart';
 import 'pago_final_screen.dart';
 
@@ -34,6 +35,9 @@ class _PropiedadDetalleScreenState
     extends ConsumerState<PropiedadDetalleScreen> {
   bool _cronoExpanded = false;
 
+  /// Ancla del cronograma para el fallback de "Confirmar plan de pagos".
+  final GlobalKey _cronoKey = GlobalKey();
+
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
@@ -41,6 +45,9 @@ class _PropiedadDetalleScreenState
 
     return Scaffold(
       appBar: AppBar(title: Text(detalle.valueOrNull?.nombre ?? 'Propiedad')),
+      // CTA sticky de pago solo en pantallas angostas (patrón del portal:
+      // AcquisitionStickyCTA es md:hidden).
+      bottomNavigationBar: _stickyCta(context, detalle.valueOrNull),
       body: detalle.when(
         loading: () => ListView(
           padding: const EdgeInsets.all(16),
@@ -77,6 +84,13 @@ class _PropiedadDetalleScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
+
+                  // Propiedad en proceso legal → modo solo lectura (paso 17):
+                  // banner arriba y sin CTAs de pago en toda la pantalla.
+                  if (d.enDemanda) ...[
+                    const _DemandaBanner(),
+                    const SizedBox(height: 16),
+                  ],
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -112,6 +126,16 @@ class _PropiedadDetalleScreenState
                   ),
                   const SizedBox(height: 16),
 
+                  // Método de pago final elegido (espejo del portal); el badge
+                  // no renderiza nada si tipoFinanciamiento es null.
+                  if (d.tipoFinanciamiento != null) ...[
+                    PaymentMethodBadge(
+                      tipoFinanciamiento: d.tipoFinanciamiento,
+                      solicitud: d.solicitudCredito,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
                   // Avance
                   AppCard(
                     child: Column(
@@ -145,14 +169,37 @@ class _PropiedadDetalleScreenState
                     ),
                   ),
 
-                  // CTA de pago (solo etapa pago_final con saldo).
-                  if (d.etapaActiva == 'pago_final' &&
+                  // CTA de pago (etapa pago_final con saldo; oculto en
+                  // demanda → solo lectura).
+                  if (!d.enDemanda &&
+                      d.etapaActiva == 'pago_final' &&
                       d.saldoPendiente > 0) ...[
                     const SizedBox(height: 12),
                     FilledButton.icon(
                       onPressed: () => _pagar(context, d),
-                      icon: const Icon(Icons.payments_outlined, size: 18),
-                      label: Text('Pagar ${formatMXN(d.saldoPendiente)}'),
+                      icon: Icon(
+                          d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO'
+                              ? Icons.account_balance_outlined
+                              : Icons.payments_outlined,
+                          size: 18),
+                      label: Text(d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO'
+                          ? 'Ver crédito hipotecario'
+                          : 'Pagar ${formatMXN(d.saldoPendiente)}'),
+                    ),
+                  ],
+
+                  // CTA de preventa (paso 15, espejo de getContextualCTA del
+                  // portal): botón secundario que lleva a pagar el siguiente
+                  // acuerdo pendiente (o al cronograma si no hay pendientes).
+                  if (!d.enDemanda &&
+                      d.etapaActiva == 'preventa' &&
+                      d.saldoPendiente > 0) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () => _confirmarPlan(context, d),
+                      icon: const Icon(Icons.event_available_outlined,
+                          size: 18),
+                      label: const Text('Confirmar plan de pagos'),
                     ),
                   ],
 
@@ -209,7 +256,8 @@ class _PropiedadDetalleScreenState
                   ),
 
                   // Cronograma de pagos
-                  _cronogramaHeader(tone, d),
+                  KeyedSubtree(
+                      key: _cronoKey, child: _cronogramaHeader(tone, d)),
                   if (d.esquemaPago.isEmpty)
                     const EmptyCard(
                         icon: Icons.calendar_today_outlined,
@@ -285,12 +333,71 @@ class _PropiedadDetalleScreenState
             saldo: d.saldoPendiente,
             acuerdoId: siguiente?.id,
             tipoFinanciamiento: d.tipoFinanciamiento,
+            solicitud: d.solicitudCredito,
           ),
         ),
       );
     } else if (siguiente != null) {
       context.push('/pagar?id=${siguiente.id}');
     }
+  }
+
+  /// CTA de preventa: lleva a las instrucciones de pago del siguiente acuerdo
+  /// pendiente (lo mismo que hace el portal al confirmar el plan); si no hay
+  /// acuerdos pendientes, hace scroll al cronograma para revisarlo.
+  void _confirmarPlan(BuildContext context, PropiedadDetalle d) {
+    final siguiente =
+        d.esquemaPago.where((e) => !e.pagoCompletado).firstOrNull;
+    if (siguiente != null) {
+      context.push('/pagar?id=${siguiente.id}');
+    } else if (_cronoKey.currentContext != null) {
+      Scrollable.ensureVisible(
+        _cronoKey.currentContext!,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  /// Barra sticky inferior con el CTA principal (solo pantallas angostas,
+  /// espejo de AcquisitionStickyCTA del portal). Null si no aplica: pantalla
+  /// ancha, sin datos, en demanda o etapa sin CTA de pago.
+  Widget? _stickyCta(BuildContext context, PropiedadDetalle? d) {
+    if (d == null || d.enDemanda) return null;
+    if (MediaQuery.of(context).size.width >= 700) return null;
+
+    Widget? boton;
+    if (d.etapaActiva == 'pago_final' && d.saldoPendiente > 0) {
+      final esCredito = d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO';
+      boton = FilledButton.icon(
+        onPressed: () => _pagar(context, d),
+        icon: Icon(
+            esCredito
+                ? Icons.account_balance_outlined
+                : Icons.payments_outlined,
+            size: 18),
+        label: Text(esCredito
+            ? 'Ver crédito hipotecario'
+            : 'Pagar ${formatMXN(d.saldoPendiente)}'),
+      );
+    } else if (d.etapaActiva == 'preventa' && d.saldoPendiente > 0) {
+      boton = FilledButton.icon(
+        onPressed: () => _confirmarPlan(context, d),
+        icon: const Icon(Icons.event_available_outlined, size: 18),
+        label: const Text('Confirmar plan de pagos'),
+      );
+    }
+    if (boton == null) return null;
+
+    final tone = SozuTone.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: tone.surface,
+        border: Border(top: BorderSide(color: tone.border)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: SafeArea(top: false, child: boton),
+    );
   }
 
   Widget _dato(SozuTone tone, String label, String value) {
@@ -329,6 +436,46 @@ class _PropiedadDetalleScreenState
               '$visibles de ${d.esquemaPago.length} · $pagados pagados',
               style: TextStyle(fontSize: 12, color: tone.textMuted),
             ),
+    );
+  }
+}
+
+/// Banner de propiedad en proceso legal (paso 17, espejo del overlay
+/// "En demanda · Modo solo lectura" del portal): informa y acompaña la
+/// ocultación de todos los CTAs de pago.
+class _DemandaBanner extends StatelessWidget {
+  const _DemandaBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: tone.pendingSoft,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: SozuColors.amber500.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.gavel_outlined,
+              size: 18, color: SozuColors.amber600),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Propiedad en proceso legal — modo solo lectura',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: tone.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -461,40 +608,45 @@ class _ProductoRow extends StatelessWidget {
       'En curso' => BadgeTone.neutral,
       _ => BadgeTone.pending,
     };
-    return AppCard(
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration:
-                BoxDecoration(color: tone.primarySoft, shape: BoxShape.circle),
-            child: const Icon(Icons.inventory_2_outlined,
-                size: 18, color: SozuColors.emerald600),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(p.nombre,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: tone.textPrimary)),
-                const SizedBox(height: 4),
-                StatusBadge(label: p.estatus, tone: badgeTone),
-              ],
+    return GestureDetector(
+      onTap: () => context.push('/productos/${p.id}'),
+      child: AppCard(
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration:
+                  BoxDecoration(color: tone.primarySoft, shape: BoxShape.circle),
+              child: const Icon(Icons.inventory_2_outlined,
+                  size: 18, color: SozuColors.emerald600),
             ),
-          ),
-          Text(formatMXN(p.monto),
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: tone.textPrimary)),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(p.nombre,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: tone.textPrimary)),
+                  const SizedBox(height: 4),
+                  StatusBadge(label: p.estatus, tone: badgeTone),
+                ],
+              ),
+            ),
+            Text(formatMXN(p.monto),
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: tone.textPrimary)),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, color: tone.textMuted),
+          ],
+        ),
       ),
     );
   }

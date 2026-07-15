@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/format.dart';
@@ -29,6 +30,23 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   bool _ordenDesc = true; // más reciente primero
   bool _descargando = false;
   int? _generandoRecibo; // id del pago cuyo recibo se está generando
+  // Acuerdos con desglose de pagos expandido (clave = orden-concepto-fecha).
+  final Set<String> _acuerdosExpandidos = {};
+
+  static const _meses = [
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre',
+  ];
 
   Color _colorEstatus(SozuTone tone, String estatus) {
     final e = estatus.toLowerCase();
@@ -198,6 +216,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         _anio = 'todos';
         _tab = 0;
         _ordenDesc = true;
+        _acuerdosExpandidos.clear();
       }),
       child: AppCard(
         child: Row(
@@ -294,35 +313,163 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         _filtros(tone, anios),
         const SizedBox(height: 4),
         if (_tab == 0) ..._listaAcuerdos(tone, d) else ..._listaPagos(tone, d),
+        if (d.instrucciones != null &&
+            (d.instrucciones!.clabe ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _instruccionesPago(tone, d.instrucciones!),
+        ],
+        const SizedBox(height: 16),
+        Text(
+          'Estado de cuenta generado automáticamente por SOZU.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 11, color: tone.textMuted),
+        ),
       ],
     );
   }
 
   Widget _resumen(SozuTone tone, EstadoCuenta d) {
+    final now = DateTime.now();
+    final periodo = '${_meses[now.month - 1]} ${now.year}';
+    final hoy =
+        '${now.year}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+
+    // Próxima parcialidad: primer acuerdo no completado por fecha ascendente.
+    final pendientes = d.acuerdos.where((a) => !a.pagadoCompleto).toList()
+      ..sort((a, b) => (a.fecha ?? '').compareTo(b.fecha ?? ''));
+    final proxima = pendientes.isEmpty ? null : pendientes.first;
+
+    // Con adeudo si hay saldo y algún acuerdo pendiente ya venció.
+    final vencidos = d.acuerdos.any(
+      (a) =>
+          !a.pagadoCompleto &&
+          (a.fecha ?? '').isNotEmpty &&
+          a.fecha!.compareTo(hoy) < 0,
+    );
+    final conAdeudo = d.saldoPendiente > 0.01 && vencidos;
+
+    final progreso = d.precioFinal > 0
+        ? (d.totalPagado / d.precioFinal).clamp(0.0, 1.0).toDouble()
+        : 0.0;
+
     return AppCard(
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _kpi(
-            tone,
-            'Valor del activo',
-            formatMXN(d.precioFinal),
-            tone.textPrimary,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Periodo · $periodo',
+                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                ),
+              ),
+              StatusBadge(
+                label: conAdeudo ? 'Con adeudo' : 'Al corriente',
+                tone: conAdeudo ? BadgeTone.negative : BadgeTone.positive,
+              ),
+            ],
           ),
-          _kpi(tone, 'Total pagado', formatMXN(d.totalPagado), tone.positive),
-          if (d.totalMultas > 0)
-            _kpi(tone, 'Multas', formatMXN(d.totalMultas), tone.negative),
-          _kpi(
-            tone,
-            'Saldo pendiente',
-            formatMXN(d.saldoPendiente),
-            tone.pending,
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _kpi(
+                tone,
+                'Valor del activo',
+                formatMXN(d.precioFinal),
+                tone.textPrimary,
+              ),
+              _kpi(
+                tone,
+                'Total pagado',
+                formatMXN(d.totalPagado),
+                tone.positive,
+              ),
+              if (d.totalMultas > 0)
+                _kpi(tone, 'Multas', formatMXN(d.totalMultas), tone.negative),
+              _kpi(
+                tone,
+                'Saldo pendiente',
+                formatMXN(d.saldoPendiente),
+                tone.pending,
+              ),
+            ],
+          ),
+          if (proxima != null) ...[
+            Divider(color: tone.border, height: 24),
+            Text(
+              'PRÓXIMA PARCIALIDAD',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.5,
+                color: tone.textMuted,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  _conceptoAcuerdo(proxima),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: tone.textPrimary,
+                  ),
+                ),
+                Text(
+                  '${formatMXN(proxima.monto)} · vence ${formatDate(proxima.fecha)}',
+                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                ),
+              ],
+            ),
+          ],
+          Divider(color: tone.border, height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Progreso de pago',
+                  style: TextStyle(fontSize: 11, color: tone.textMuted),
+                ),
+              ),
+              Text(
+                '${(progreso * 100).round()}%',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: tone.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              height: 8,
+              color: tone.surfaceAlt,
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: progreso,
+                child: Container(color: tone.primaryDark),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
+
+  String _conceptoAcuerdo(AcuerdoPago a) =>
+      a.concepto == 'Parcialidad' ? 'Parcialidad ${a.orden}' : a.concepto;
 
   Widget _kpi(SozuTone tone, String label, String value, Color color) {
     return SizedBox(
@@ -495,10 +642,22 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         ),
       ];
     }
+
+    // Agrupación por mes (YYYY-MM) respetando el orden elegido.
+    final grupos = <String, List<AcuerdoPago>>{};
+    for (final a in acuerdos) {
+      final f = a.fecha ?? '';
+      final key = f.length >= 7 ? f.substring(0, 7) : '';
+      grupos.putIfAbsent(key, () => []).add(a);
+    }
+
     return [
-      for (final a in acuerdos) ...[
-        _acuerdoRow(tone, a),
-        const SizedBox(height: 8),
+      for (final g in grupos.entries) ...[
+        _mesHeader(tone, g.key, g.value),
+        for (final a in g.value) ...[
+          _acuerdoRow(tone, a),
+          const SizedBox(height: 8),
+        ],
       ],
       if (d.multas.isNotEmpty) ...[
         const SectionTitle(icon: Icons.gavel_outlined, text: 'Multas'),
@@ -530,27 +689,74 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     ];
   }
 
+  Widget _mesHeader(SozuTone tone, String ym, List<AcuerdoPago> items) {
+    final pagadoMes = items.fold<double>(0, (s, a) => s + a.pagado);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              _mesLabel(ym),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: tone.textPrimary,
+              ),
+            ),
+          ),
+          Text(
+            '${formatMXN(pagadoMes)} pagado',
+            style: TextStyle(fontSize: 12, color: tone.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _mesLabel(String ym) {
+    if (ym.length < 7) return 'Sin fecha';
+    final mes = int.tryParse(ym.substring(5, 7));
+    if (mes == null || mes < 1 || mes > 12) return ym;
+    return '${_meses[mes - 1]} ${ym.substring(0, 4)}';
+  }
+
   Widget _acuerdoRow(SozuTone tone, AcuerdoPago a) {
+    final parcial = !a.pagadoCompleto && a.pagado > 0.01;
+    final apps = a.aplicaciones;
+    final key = '${a.orden}-${a.concepto}-${a.fecha ?? ''}';
+    final expanded = _acuerdosExpandidos.contains(key);
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  a.concepto == 'Parcialidad'
-                      ? 'Parcialidad ${a.orden}'
-                      : a.concepto,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: tone.textPrimary,
-                  ),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      _conceptoAcuerdo(a),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: tone.textPrimary,
+                      ),
+                    ),
+                    if (apps.isNotEmpty) _pagosBadge(tone, apps.length),
+                  ],
                 ),
               ),
               StatusBadge(
-                label: a.pagadoCompleto ? 'Pagado' : 'Pendiente',
+                label: a.pagadoCompleto
+                    ? 'Pagado'
+                    : parcial
+                    ? 'Parcial'
+                    : 'Pendiente',
                 tone: a.pagadoCompleto ? BadgeTone.positive : BadgeTone.pending,
               ),
             ],
@@ -574,9 +780,186 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
               ),
             ],
           ),
+          if (parcial) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Faltan ${formatMXN(a.pendiente)}',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: SozuColors.amber600,
+              ),
+            ),
+          ],
+          if (apps.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() {
+                if (!_acuerdosExpandidos.remove(key)) {
+                  _acuerdosExpandidos.add(key);
+                }
+              }),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                    color: tone.primaryDark,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    expanded
+                        ? 'Ocultar pagos'
+                        : 'Ver ${apps.length} ${apps.length == 1 ? 'pago' : 'pagos'}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: tone.primaryDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (expanded)
+              for (final app in apps) _aplicacionRow(tone, app),
+          ],
         ],
       ),
     );
+  }
+
+  Widget _pagosBadge(SozuTone tone, int n) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: tone.primarySoft,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.layers_outlined, size: 12, color: tone.primaryDark),
+          const SizedBox(width: 4),
+          Text(
+            n == 1 ? '1 pago' : '$n pagos',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: tone.primaryDark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _aplicacionRow(SozuTone tone, AplicacionPago app) {
+    final clave = (app.claveRastreo ?? '').trim();
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.only(left: 10),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: tone.border, width: 2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${app.metodo ?? 'Pago'} · ${formatMXN(app.monto)}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: tone.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            formatDate(app.fecha),
+            style: TextStyle(fontSize: 12, color: tone.textSecondary),
+          ),
+          if (clave.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _copiar(clave, 'Clave de rastreo'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      'Clave $clave',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: tone.textSecondary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.copy_outlined, size: 13, color: tone.textMuted),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _generandoRecibo == app.idPago
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : _docBtn(
+                      tone,
+                      Icons.description_outlined,
+                      'Recibo',
+                      () => _abrirReciboAplicacion(app),
+                    ),
+              if ((app.urlCep ?? '').isNotEmpty)
+                _docBtn(
+                  tone,
+                  Icons.receipt_long_outlined,
+                  'CEP',
+                  () => openMedia(context, app.urlCep, titulo: 'CEP'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _abrirReciboAplicacion(AplicacionPago app) async {
+    // Recibo ya firmado en la respuesta: abrir directo.
+    if ((app.urlRecibo ?? '').isNotEmpty) {
+      await openMedia(context, app.urlRecibo, titulo: 'Recibo');
+      return;
+    }
+    // No existe: pedir al backend que lo genere.
+    setState(() => _generandoRecibo = app.idPago);
+    try {
+      final imp = ref.read(impersonationProvider).idPersona;
+      final url = await fetchReciboPagoUrl(app.idPago, impersonate: imp);
+      if (!mounted) return;
+      if (url == null) {
+        _snack('No pudimos generar el recibo. Intenta de nuevo.');
+      } else {
+        await openMedia(context, url, titulo: 'Recibo');
+      }
+    } catch (_) {
+      if (mounted) _snack('No pudimos generar el recibo. Intenta de nuevo.');
+    } finally {
+      if (mounted) setState(() => _generandoRecibo = null);
+    }
   }
 
   Widget _multaRow(SozuTone tone, MultaItem m) {
@@ -806,6 +1189,125 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         ),
       ],
     );
+  }
+
+  // ── Instrucciones de pago ─────────────────────────────────────────────────
+  Widget _instruccionesPago(SozuTone tone, InstruccionesPago i) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'INSTRUCCIONES DE PAGO',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 2,
+              color: tone.textMuted,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if ((i.banco ?? '').isNotEmpty) ...[
+            _filaInfo(tone, 'Banco receptor', i.banco!),
+            Divider(color: tone.border, height: 20),
+          ],
+          _filaCopiable(tone, 'CLABE', i.clabe!, mono: true),
+          if ((i.beneficiario ?? '').isNotEmpty) ...[
+            Divider(color: tone.border, height: 20),
+            _filaInfo(tone, 'Beneficiario', i.beneficiario!),
+          ],
+          if (i.referencia.isNotEmpty) ...[
+            Divider(color: tone.border, height: 20),
+            _filaCopiable(tone, 'Referencia', i.referencia, mono: true),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.shield_outlined, size: 16, color: tone.primaryDark),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Realiza tu transferencia solo a esta cuenta. '
+                  'CLABE vinculada exclusivamente a tu propiedad.',
+                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filaInfo(SozuTone tone, String label, String value) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 13, color: tone.textSecondary),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: tone.textPrimary,
+            ),
+          ),
+        ),
+        // Alineación con las filas copiables (ancho del IconButton).
+        const SizedBox(width: 48),
+      ],
+    );
+  }
+
+  Widget _filaCopiable(
+    SozuTone tone,
+    String label,
+    String value, {
+    bool mono = false,
+  }) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 13, color: tone.textSecondary),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              fontFamily: mono ? 'monospace' : null,
+              color: tone.textPrimary,
+            ),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Copiar',
+          iconSize: 16,
+          icon: Icon(Icons.copy_outlined, color: tone.textMuted),
+          onPressed: () => _copiar(value, label),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _copiar(String value, String label) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    _snack('$label copiado.');
   }
 }
 

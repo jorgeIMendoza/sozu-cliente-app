@@ -126,8 +126,8 @@ class InicioScreen extends ConsumerWidget {
                     onRetry: () => ref.invalidate(clienteResumenProvider),
                   ),
                 ],
-                data: (data) => _content(
-                    context, ref, tone, data, misPropiedades, abrirProp),
+                data: (data) => _content(context, ref, tone, data,
+                    misPropiedades, props.hasValue, abrirProp),
               ),
             ],
             ),
@@ -143,6 +143,7 @@ class InicioScreen extends ConsumerWidget {
     SozuTone tone,
     ClienteResumen data,
     List<PropiedadCard> misPropiedades,
+    bool propiedadesCargadas,
     void Function(int) abrirProp,
   ) {
     final r = data.resumen;
@@ -246,6 +247,50 @@ class InicioScreen extends ConsumerWidget {
         ),
       ),
 
+      // Accesos rápidos (justo después del hero financiero)
+      const FadeSlideIn(
+        delayMs: 80,
+        child: SectionTitle(
+            icon: Icons.grid_view_outlined, text: 'Accesos rápidos'),
+      ),
+      FadeSlideIn(
+        delayMs: 100,
+        child: Column(
+          children: [
+            _QuickAccess(
+              icon: Icons.bar_chart_outlined,
+              label: 'Estado de cuenta',
+              subtitle: 'Saldo y movimientos',
+              destacado: true,
+              onTap: () => context.push('/estado-cuenta'),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _QuickAccess(
+                    icon: Icons.schedule_outlined,
+                    label: 'Historial de pagos',
+                    subtitle: 'Todos tus pagos',
+                    onTap: () => context.push('/pagos'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickAccess(
+                    icon: Icons.folder_outlined,
+                    label: 'Documentos',
+                    subtitle: 'Tu expediente',
+                    onTap: () => context.go('/documentos'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+
       // Tu actividad
       const FadeSlideIn(
         delayMs: 120,
@@ -258,18 +303,22 @@ class InicioScreen extends ConsumerWidget {
               const Icon(Icons.check_circle,
                   color: SozuColors.emerald500, size: 28),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Estás al día',
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: tone.textPrimary)),
-                  Text('Sin pagos pendientes',
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Estás al día',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: tone.textPrimary)),
+                    Text(
+                      data.resumen.mensajeContexto ?? 'Sin pagos pendientes',
                       style:
-                          TextStyle(fontSize: 12, color: tone.textSecondary)),
-                ],
+                          TextStyle(fontSize: 12, color: tone.textSecondary),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -334,7 +383,12 @@ class InicioScreen extends ConsumerWidget {
         ],
       ],
 
-      // Mis propiedades
+      // Mis propiedades (o estado vacío si no hay ninguna con data cargada)
+      if (propiedadesCargadas && misPropiedades.isEmpty)
+        const Padding(
+          padding: EdgeInsets.only(top: 24),
+          child: _PortafolioVacio(),
+        ),
       if (misPropiedades.isNotEmpty) ...[
         const SectionTitle(icon: Icons.home_outlined, text: 'Mis propiedades'),
         ResponsiveCardGrid(
@@ -356,43 +410,6 @@ class InicioScreen extends ConsumerWidget {
             ),
           ),
       ],
-
-      // Accesos rápidos
-      const FadeSlideIn(
-        delayMs: 200,
-        child: SectionTitle(
-            icon: Icons.grid_view_outlined, text: 'Accesos rápidos'),
-      ),
-      FadeSlideIn(
-        delayMs: 260,
-        child: Row(
-        children: [
-          Expanded(
-            child: _QuickAccess(
-              icon: Icons.bar_chart_outlined,
-              label: 'Estado de cuenta',
-              onTap: () => context.push('/estado-cuenta'),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _QuickAccess(
-              icon: Icons.schedule_outlined,
-              label: 'Historial de pagos',
-              onTap: () => context.push('/pagos'),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _QuickAccess(
-              icon: Icons.folder_outlined,
-              label: 'Documentos',
-              onTap: () => context.go('/documentos'),
-            ),
-          ),
-        ],
-        ),
-      ),
     ];
   }
 
@@ -435,12 +452,16 @@ class _ActividadCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
     final pagar = a.accion == 'pagar' && a.monto > 0;
+    // Borde por urgencia: urgente (rojo), próximo (ámbar), futuro (verde).
+    final borde = switch (a.urgencia) {
+      'urgent' => tone.negative,
+      'upcoming' => SozuColors.amber600,
+      _ => SozuColors.emerald500,
+    };
     return GestureDetector(
       onTap: onTap,
       child: AppCard(
-        borderColor: a.urgencia == 'urgent'
-            ? tone.negative.withValues(alpha: 0.3)
-            : null,
+        borderColor: borde.withValues(alpha: 0.35),
         child: Row(
           children: [
             Expanded(
@@ -571,38 +592,137 @@ class _PendienteRow extends StatelessWidget {
   }
 }
 
-class _QuickAccess extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _QuickAccess(
-      {required this.icon, required this.label, required this.onTap});
+/// Estado vacío del portafolio: el cliente aún no tiene propiedades.
+class _PortafolioVacio extends StatelessWidget {
+  const _PortafolioVacio();
 
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
+    return AppCard(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: tone.surfaceAlt,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(Icons.apartment_outlined,
+                size: 32, color: tone.textMuted),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Aún no tienes propiedades',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: tone.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Cuando adquieras una propiedad con SOZU '
+            'aparecerá aquí con toda su información.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: tone.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickAccess extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final bool destacado;
+  final VoidCallback onTap;
+
+  const _QuickAccess({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    this.destacado = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+
+    final iconBox = Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: destacado ? tone.primarySoft : tone.surfaceAlt,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(
+        icon,
+        size: 20,
+        color: destacado ? SozuColors.emerald600 : tone.textSecondary,
+      ),
+    );
+
+    final textos = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: tone.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 11, color: tone.textMuted),
+        ),
+      ],
+    );
+
     return GestureDetector(
       onTap: onTap,
-      child: AppCard(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        child: Column(
-          children: [
-            Icon(icon, size: 26, color: SozuColors.emerald500),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: tone.textSecondary,
+      child: destacado
+          // Tarjeta destacada de ancho completo (Estado de cuenta).
+          ? AppCard(
+              child: Row(
+                children: [
+                  iconBox,
+                  const SizedBox(width: 12),
+                  Expanded(child: textos),
+                  Text(
+                    'Ver →',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: tone.primaryDark,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  iconBox,
+                  const SizedBox(height: 10),
+                  textos,
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }

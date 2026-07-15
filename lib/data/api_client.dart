@@ -78,6 +78,12 @@ Future<PropiedadDetalle> fetchPropiedadDetalle(
   ),
 );
 
+/// Productos adicionales del cliente agrupados por propiedad.
+Future<ClienteProductos> fetchClienteProductos({int? impersonate}) async =>
+    ClienteProductos.fromJson(
+      await _invoke('cliente-productos', impersonate: impersonate),
+    );
+
 Future<ClientePerfil> fetchClientePerfil({int? impersonate}) async =>
     ClientePerfil.fromJson(
       await _invoke('cliente-perfil', impersonate: impersonate),
@@ -149,6 +155,44 @@ Future<String?> fetchEstadoCuentaPdfUrl(
 /// Lista de clientes para el selector de impersonación (solo super admin).
 Future<AdminClientes> fetchAdminClientes() async =>
     AdminClientes.fromJson(await _invoke('admin-clientes'));
+
+/// Bancos con convenio para crédito hipotecario (catálogo dinámico).
+Future<List<BancoConvenio>> fetchBancosConvenio({int? impersonate}) async {
+  final res = await _invoke(
+    'cliente-pago-final',
+    body: {'action': 'bancos'},
+    impersonate: impersonate,
+  );
+  return ((res['bancos'] as List?) ?? [])
+      .map((e) => BancoConvenio.fromJson(Map<String, dynamic>.from(e)))
+      .toList();
+}
+
+/// Crea la solicitud de crédito hipotecario (precalificación).
+Future<SolicitudCredito?> crearSolicitudCredito({
+  required int idCuenta,
+  required int idBanco,
+  double? montoCredito,
+  int? plazoMeses,
+  int? impersonate,
+}) async {
+  final res = await _invoke(
+    'cliente-pago-final',
+    body: {
+      'action': 'crear_solicitud',
+      'id': idCuenta,
+      'id_banco': idBanco,
+      if (montoCredito != null) 'monto_credito': montoCredito,
+      if (plazoMeses != null) 'plazo_meses': plazoMeses,
+    },
+    impersonate: impersonate,
+  );
+  return res['solicitud'] is Map
+      ? SolicitudCredito.fromJson(
+          Map<String, dynamic>.from(res['solicitud'] as Map),
+        )
+      : null;
+}
 
 /// Guarda la decisión de pago final de una cuenta (flujo "Pago final").
 /// metodo: RECURSOS_PROPIOS | CREDITO_HIPOTECARIO. idBanco: 1 BBVA, 2
