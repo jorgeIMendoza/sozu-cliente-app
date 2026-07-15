@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/portal_tracking.dart';
 import '../core/push_service.dart';
 
 /// Estado de sesión/JWT + perfil (espejo de src/providers/AuthProvider.tsx).
@@ -168,6 +169,8 @@ class AuthController extends ChangeNotifier {
     // deslogeado (el cierre por inactividad no debe cortar los push). Solo
     // se olvida el registro local para re-registrar si entra otro cliente.
     PushService.olvidarSesion();
+    // Cierra la sesión de mediciones ANTES de perder el JWT.
+    await PortalTracking.cerrar();
     await _sb.auth.signOut();
     profile = null;
     notifyListeners();
