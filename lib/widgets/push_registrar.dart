@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/portal_tracking.dart';
 import '../core/push_service.dart';
 import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
@@ -117,6 +118,9 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
       if (esClienteConSesion && PushService.soportado) _registrar();
       _sincronizarRealtime(activo: esClienteConSesion, email: email);
       _sincronizarPolling(activo: auth.session != null);
+      // Mediciones "Uso por portal": sesión del portal clientes (solo
+      // clientes reales; la impersonación de admin no cuenta).
+      if (esClienteConSesion) PortalTracking.iniciar();
     });
     return widget.child;
   }
