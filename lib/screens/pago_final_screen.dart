@@ -58,9 +58,8 @@ enum _Paso { seleccion, banco, precalificacion, estatusCredito }
 class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
   _Paso _paso = _Paso.seleccion;
   String? _metodo; // RECURSOS_PROPIOS | CREDITO_HIPOTECARIO
-  int? _idBanco; // null = otro banco
+  int? _idBanco;
   BancoConvenio? _bancoSel;
-  bool _otroBanco = false;
   bool _guardando = false;
 
   /// Catálogo dinámico de bancos con convenio (se carga al entrar al selector).
@@ -68,6 +67,12 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
 
   /// Solicitud mostrada en el estatus: la creada en esta sesión o la recibida.
   SolicitudCredito? _solicitud;
+
+  /// Resumen de la precalificación enviada en ESTA sesión (monto/plazo y
+  /// estimación), para mostrarlo en el estatus — espejo del bloque
+  /// "Estimación enviada a {banco}" del portal.
+  ({double monto, int plazoAnios, double? mensualidad, double? tasa})?
+  _resumenEnviado;
 
   // — Precalificación —
   late final TextEditingController _montoCtrl;
@@ -86,8 +91,18 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
       text: widget.saldo > 0 ? widget.saldo.round().toString() : '',
     );
     if (widget.tipoFinanciamiento == 'CREDITO_HIPOTECARIO') {
-      _paso = _Paso.estatusCredito;
       _metodo = 'CREDITO_HIPOTECARIO';
+      if (widget.solicitud != null) {
+        // Con solicitud vigente → estatus (el cambio de banco queda bloqueado
+        // hasta respuesta del banco vía solicitud.puedeCambiar).
+        _paso = _Paso.estatusCredito;
+      } else {
+        // Ya eligió crédito pero aún no envía solicitud al banco (espejo del
+        // hydrate del portal: tipo CREDITO_HIPOTECARIO sin proceso → selector
+        // de banco, nunca datos de pago).
+        _paso = _Paso.banco;
+        _cargarBancos();
+      }
     }
   }
 
@@ -129,13 +144,9 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
     await _guardar();
   }
 
-  /// Confirma el banco elegido: "otro banco" solo persiste el tipo (flujo
-  /// actual); banco preferente persiste tipo+banco y sigue a precalificación.
+  /// Confirma el banco elegido (solo bancos con convenio, espejo del portal):
+  /// persiste tipo+banco y sigue a precalificación.
   Future<void> _confirmarBanco() async {
-    if (_otroBanco) {
-      await _guardar();
-      return;
-    }
     final banco = _bancoSel;
     if (banco == null) return;
     setState(() => _guardando = true);
@@ -159,7 +170,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
     }
   }
 
-  /// Envía la solicitud de precalificación al banco preferente.
+  /// Envía la solicitud de precalificación al banco con convenio.
   Future<void> _enviarSolicitud() async {
     final banco = _bancoSel;
     if (banco == null || !_montoValido) return;
@@ -176,9 +187,28 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
       if (!mounted) return;
       setState(() {
         _solicitud = solicitud ?? _solicitud;
+        _resumenEnviado = (
+          monto: _monto,
+          plazoAnios: _plazoAnios,
+          mensualidad: banco.tasaDesde != null
+              ? _mensualidad(_monto, banco.tasaDesde!, _plazoAnios)
+              : null,
+          tasa: banco.tasaDesde,
+        );
         _paso = _Paso.estatusCredito;
         _enviando = false;
       });
+    } on ApiError catch (e) {
+      if (!mounted) return;
+      setState(() => _enviando = false);
+      // El banco es dueño del cambio: hay una solicitud vigente que aún no
+      // puede cambiarse (misma regla que el portal).
+      _snack(
+        e.code == 'solicitud_vigente'
+            ? 'Tu solicitud sigue vigente con el banco. Podrás cambiar '
+                  'cuando el banco responda o venza el plazo.'
+            : 'No pudimos enviar tu solicitud. Intenta de nuevo.',
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _enviando = false);
@@ -193,9 +223,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
       await setPagoFinal(
         widget.cuentaId,
         _metodo!,
-        idBanco: _metodo == 'CREDITO_HIPOTECARIO' && !_otroBanco
-            ? _idBanco
-            : null,
+        idBanco: _metodo == 'CREDITO_HIPOTECARIO' ? _idBanco : null,
         impersonate: imp,
       );
       ref.invalidate(propiedadDetalleProvider(widget.cuentaId));
@@ -476,9 +504,20 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
     );
   }
 
-  // ── Paso 2: selector de banco (catálogo dinámico) ──
+  // ── Paso 2: selector de banco (catálogo dinámico, solo bancos con
+  // convenio — espejo de MortgageBankSelector del portal) ──
 
   List<Widget> _bancoSelector(SozuTone tone) => [
+    Text(
+      'BANCOS ALIADOS CON SOZU',
+      style: TextStyle(
+        fontSize: 11,
+        letterSpacing: 1,
+        fontWeight: FontWeight.w600,
+        color: tone.primaryDark,
+      ),
+    ),
+    const SizedBox(height: 4),
     Text(
       '¿Con qué banco tramitarás tu crédito?',
       style: TextStyle(
@@ -486,11 +525,6 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         fontWeight: FontWeight.w700,
         color: tone.textPrimary,
       ),
-    ),
-    const SizedBox(height: 4),
-    Text(
-      'Con bancos preferentes el seguimiento es más ágil.',
-      style: TextStyle(fontSize: 13, color: tone.textSecondary),
     ),
     const SizedBox(height: 12),
     FutureBuilder<List<BancoConvenio>>(
@@ -517,9 +551,8 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                 child: Text(
                   snap.hasError
                       ? 'No pudimos cargar los bancos con convenio. '
-                            'Puedes continuar con otro banco.'
-                      : 'Por ahora no hay bancos con convenio disponibles. '
-                            'Puedes continuar con otro banco.',
+                            'Intenta de nuevo más tarde.'
+                      : 'No hay bancos con convenio disponibles por ahora.',
                   style: TextStyle(fontSize: 13, color: tone.textSecondary),
                 ),
               ),
@@ -533,52 +566,9 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         );
       },
     ),
-    GestureDetector(
-      onTap: () => setState(() {
-        _otroBanco = true;
-        _idBanco = null;
-        _bancoSel = null;
-      }),
-      child: AppCard(
-        borderColor: _otroBanco ? tone.primaryDark : null,
-        child: Row(
-          children: [
-            Icon(
-              _otroBanco
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              size: 20,
-              color: _otroBanco ? tone.primaryDark : tone.textMuted,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Otro banco',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: tone.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    'Tu asesor te contactará para dar seguimiento.',
-                    style: TextStyle(fontSize: 12, color: tone.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-    const SizedBox(height: 16),
+    const SizedBox(height: 6),
     FilledButton(
-      onPressed: (_bancoSel == null && !_otroBanco) || _guardando
-          ? null
-          : _confirmarBanco,
+      onPressed: _bancoSel == null || _guardando ? null : _confirmarBanco,
       child: _guardando
           ? const SizedBox(
               width: 20,
@@ -593,18 +583,17 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
     const SizedBox(height: 8),
     OutlinedButton(
       onPressed: () => setState(() => _paso = _Paso.seleccion),
-      child: const Text('Regresar'),
+      child: const Text('Cambiar método de pago'),
     ),
   ];
 
   Widget _bancoCard(SozuTone tone, BancoConvenio b) {
-    final activo = !_otroBanco && _idBanco == b.id;
+    final activo = _idBanco == b.id;
     final color = _parseColor(b.color);
     return GestureDetector(
       onTap: () => setState(() {
         _idBanco = b.id;
         _bancoSel = b;
-        _otroBanco = false;
       }),
       child: AppCard(
         borderColor: activo ? tone.primaryDark : null,
@@ -670,7 +659,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   const Wrap(
                     children: [
                       StatusBadge(
-                        label: 'Preferente',
+                        label: 'Aliado SOZU',
                         tone: BadgeTone.positive,
                       ),
                     ],
@@ -857,9 +846,9 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         contentPadding: EdgeInsets.zero,
         dense: true,
         title: Text(
-          'Autorizo a SOZU a compartir mis datos de contacto y de esta '
-          'operación con el banco seleccionado para tramitar mi solicitud '
-          'de crédito.',
+          'Autorizo a SOZU compartir mis datos con ${banco.nombre} para '
+          'iniciar mi crédito hipotecario, conforme al Aviso de Privacidad '
+          '(LFPDPPP).',
           style: TextStyle(fontSize: 12, color: tone.textSecondary),
         ),
       ),
@@ -877,7 +866,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   color: Colors.white,
                 ),
               )
-            : const Text('Enviar solicitud'),
+            : Text('Enviar a ${banco.nombre}'),
       ),
       const SizedBox(height: 8),
       OutlinedButton(
@@ -966,6 +955,10 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
           ],
         ),
       ),
+      if (_resumenEnviado != null) ...[
+        const SizedBox(height: 12),
+        _resumenEnviadoCard(tone, bancoNombre),
+      ],
       const SizedBox(height: 12),
       AppCard(
         child: Column(
@@ -982,11 +975,17 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
             ),
             const SizedBox(height: 8),
             for (final paso in [
-              bancoNombre != null
+              s != null
+                  ? 'Tu solicitud de crédito fue enviada a '
+                        '${bancoNombre ?? 'tu banco'}'
+                        '${s.fechaSolicitud != null ? ' el ${formatDate(s.fechaSolicitud)}' : ''}.'
+                  : bancoNombre != null
                   ? '$bancoNombre evalúa y autoriza tu crédito.'
                   : 'El banco evalúa y autoriza tu crédito.',
-              'SOZU coordina con el banco el pago de tu unidad.',
-              'Agendamos tu cita de escrituración y entrega.',
+              'El banco revisará tu solicitud y te contactará con un broker '
+                  'dedicado.',
+              'SOZU coordinará con ${bancoNombre ?? 'el banco'} y el notario '
+                  'para tu escrituración.',
             ]) ...[
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1017,7 +1016,6 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
             _cargarBancos();
             _idBanco = null;
             _bancoSel = null;
-            _otroBanco = false;
             _paso = _Paso.banco;
           }),
           child: const Text('Cambiar banco'),
@@ -1029,6 +1027,60 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         child: const Text('Volver a mi propiedad'),
       ),
     ];
+  }
+
+  /// Resumen de la precalificación enviada en esta sesión (espejo del bloque
+  /// "Estimación enviada a {banco}" del portal).
+  Widget _resumenEnviadoCard(SozuTone tone, String? bancoNombre) {
+    final r = _resumenEnviado!;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            bancoNombre != null
+                ? 'RESUMEN ENVIADO A ${bancoNombre.toUpperCase()}'
+                : 'RESUMEN ENVIADO',
+            style: TextStyle(
+              fontSize: 11,
+              letterSpacing: 1,
+              fontWeight: FontWeight.w600,
+              color: tone.textMuted,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (r.mensualidad != null) ...[
+            Text(
+              'Mensualidad estimada',
+              style: TextStyle(fontSize: 11, color: tone.textMuted),
+            ),
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'desde ${formatMXN(r.mensualidad!)} MXN/mes',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: tone.textPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          Wrap(
+            spacing: 24,
+            runSpacing: 8,
+            children: [
+              _fechaDato(tone, 'Monto a financiar', formatMXN(r.monto)),
+              _fechaDato(tone, 'Plazo', '${r.plazoAnios} años'),
+              if (r.tasa != null)
+                _fechaDato(tone, 'Tasa fija anual', 'desde ${_pct(r.tasa!)}%'),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _fechaDato(SozuTone tone, String label, String valor) {
@@ -1052,66 +1104,67 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
   // ── Helpers ──
 
   /// Estatus de bancos_solicitudes → etiqueta legible + tono del badge
-  /// (espejo de getPreValidationStatusInfo del portal).
+  /// (espejo de ESTATUS_LINEA / getPreValidationStatusInfo del portal).
   ({String label, String descripcion, BadgeTone tone}) _estatusInfo(
     String estatus,
   ) => switch (estatus) {
     'nuevo' => (
       label: 'Solicitud enviada',
       descripcion:
-          'El banco está revisando tu solicitud. Un broker te contactará '
-          'pronto.',
+          'Solicitud enviada. El broker se pondrá en contacto contigo lo '
+          'antes posible.',
       tone: BadgeTone.pending,
     ),
-    'asignado' || 'contactado' => (
-      label: 'Broker asignado',
-      descripcion:
-          'Un broker del banco está dando seguimiento a tu solicitud.',
+    'asignado' => (
+      label: 'Ejecutivo asignado',
+      descripcion: 'Un ejecutivo del banco fue asignado a tu solicitud.',
+      tone: BadgeTone.pending,
+    ),
+    'contactado' => (
+      label: 'Contactado',
+      descripcion: 'El banco ya hizo el primer contacto contigo.',
       tone: BadgeTone.pending,
     ),
     'en_evaluacion' || 'en_revision' => (
       label: 'En evaluación',
-      descripcion: 'El banco está evaluando tu perfil crediticio.',
+      descripcion: 'El banco está evaluando tu solicitud.',
       tone: BadgeTone.pending,
     ),
     'pre_aprobado' => (
       label: 'Pre-aprobado',
       descripcion:
-          'Tu broker dedicado se pondrá en contacto para los siguientes '
-          'pasos.',
+          '¡Pre-aprobado! El banco continuará con los siguientes pasos.',
       tone: BadgeTone.positive,
     ),
     'oferta_vinculante' => (
       label: 'Oferta vinculante',
-      descripcion: 'El banco emitió una oferta formal para tu crédito.',
+      descripcion: 'El banco emitió tu oferta vinculante.',
       tone: BadgeTone.positive,
     ),
     'en_coordinacion' => (
       label: 'En coordinación',
-      descripcion:
-          'SOZU coordina con el banco y el notario tu escrituración.',
+      descripcion: 'Coordinando notario y fecha de firma con el banco.',
       tone: BadgeTone.positive,
     ),
     'formalizado' => (
       label: 'Crédito formalizado',
-      descripcion:
-          'Listo para coordinar la firma de escrituración con el notario.',
+      descripcion: 'Crédito formalizado. Listo para escriturar.',
       tone: BadgeTone.positive,
     ),
     'rechazado' => (
       label: 'Solicitud rechazada',
-      descripcion: 'Puedes elegir otro banco o comunicarte con SOZU.',
+      descripcion: 'El banco declinó la solicitud. Puedes elegir otro banco.',
       tone: BadgeTone.negative,
     ),
     'expirada' => (
       label: 'Solicitud expirada',
       descripcion:
-          'El plazo de respuesta del banco venció. Puedes elegir otro banco.',
+          'Venció el plazo de respuesta del banco. Puedes elegir otro banco.',
       tone: BadgeTone.negative,
     ),
     'desistido' => (
       label: 'Solicitud desistida',
-      descripcion: 'Cancelaste esta solicitud. Puedes elegir otro banco.',
+      descripcion: 'Solicitud cancelada. Puedes elegir otro banco.',
       tone: BadgeTone.neutral,
     ),
     _ => (
