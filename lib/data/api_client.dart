@@ -156,6 +156,27 @@ Future<String?> fetchEstadoCuentaPdfUrl(
 Future<AdminClientes> fetchAdminClientes() async =>
     AdminClientes.fromJson(await _invoke('admin-clientes'));
 
+/// Dueños/copropietarios de una unidad (proyecto + número de propiedad) para
+/// el filtro "Ver como" del selector de impersonación. Requiere la versión de
+/// admin-clientes con action=propietarios; con la versión previa el backend
+/// regresa {clientes} y esto devuelve lista vacía (degrada sin romperse).
+Future<List<AdminCliente>> fetchAdminPropietarios({
+  required int idProyecto,
+  required String numeroPropiedad,
+}) async {
+  final res = await _invoke(
+    'admin-clientes',
+    body: {
+      'action': 'propietarios',
+      'id_proyecto': idProyecto,
+      'numero_propiedad': numeroPropiedad,
+    },
+  );
+  return ((res['propietarios'] as List?) ?? [])
+      .map((e) => AdminCliente.fromJson(Map<String, dynamic>.from(e)))
+      .toList();
+}
+
 /// Bancos con convenio para crédito hipotecario (catálogo dinámico).
 Future<List<BancoConvenio>> fetchBancosConvenio({int? impersonate}) async {
   final res = await _invoke(

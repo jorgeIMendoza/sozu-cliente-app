@@ -30,10 +30,10 @@ class PaymentMethodBadge extends StatelessWidget {
         return _card(
           tone,
           icon: Icons.account_balance_wallet_outlined,
-          titulo: 'Recursos propios · STP',
+          titulo: 'Recursos propios',
           cuerpo: Text(
-            'Liquidarás el saldo restante por transferencia. '
-            'Tu selección quedó registrada.',
+            'Liquidarás el saldo restante con transferencia. '
+            'Tu selección quedó registrada. Todo listo.',
             style: TextStyle(fontSize: 12, color: tone.textSecondary),
           ),
         );
@@ -47,8 +47,14 @@ class PaymentMethodBadge extends StatelessWidget {
   Widget _credito(SozuTone tone) {
     final banco = solicitud?.bancoNombre;
     final titulo = (banco != null && banco != '—')
-        ? 'Crédito · $banco'
+        ? 'Crédito hipotecario · $banco'
         : 'Crédito hipotecario';
+    // Línea de seguimiento por estatus (ESTATUS_LINEA del portal); sin
+    // solicitud aún → mensaje genérico de seguimiento del banco.
+    final linea = solicitud != null
+        ? _estatusLinea(solicitud!.estatus)
+        : 'El banco dará seguimiento y te contactará para continuar con el '
+              'proceso.';
     final (estatusLabel, estatusTone) = _estatusBadge(
       solicitud?.estatus ?? 'en_revision',
     );
@@ -59,19 +65,35 @@ class PaymentMethodBadge extends StatelessWidget {
       cuerpo: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              StatusBadge(label: estatusLabel, tone: estatusTone),
-              if (solicitud?.fechaExpiracion != null)
-                Text(
-                  'Vence ${formatDate(solicitud!.fechaExpiracion)}',
-                  style: TextStyle(fontSize: 11, color: tone.textMuted),
+              Icon(Icons.schedule, size: 12, color: tone.textMuted),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  linea,
+                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
                 ),
+              ),
             ],
           ),
+          if (solicitud != null) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                StatusBadge(label: estatusLabel, tone: estatusTone),
+                if (solicitud?.fechaExpiracion != null)
+                  Text(
+                    'Vence ${formatDate(solicitud!.fechaExpiracion)}',
+                    style: TextStyle(fontSize: 11, color: tone.textMuted),
+                  ),
+              ],
+            ),
+          ],
           if (solicitud != null && !solicitud!.puedeCambiar) ...[
             const SizedBox(height: 4),
             Text(
@@ -83,6 +105,30 @@ class PaymentMethodBadge extends StatelessWidget {
       ),
     );
   }
+
+  /// Línea de seguimiento por estatus — espejo de ESTATUS_LINEA del portal.
+  String _estatusLinea(String estatus) => switch (estatus.toLowerCase()) {
+    'nuevo' =>
+      'Solicitud enviada. El broker se pondrá en contacto contigo lo antes '
+          'posible.',
+    'asignado' => 'Un ejecutivo del banco fue asignado a tu solicitud.',
+    'contactado' => 'El banco ya hizo el primer contacto contigo.',
+    'en_evaluacion' ||
+    'en_revision' => 'El banco está evaluando tu solicitud.',
+    'pre_aprobado' =>
+      '¡Pre-aprobado! El banco continuará con los siguientes pasos.',
+    'oferta_vinculante' => 'El banco emitió tu oferta vinculante.',
+    'en_coordinacion' =>
+      'Coordinando notario y fecha de firma con el banco.',
+    'formalizado' => 'Crédito formalizado. Listo para escriturar.',
+    'rechazado' => 'El banco declinó la solicitud. Puedes elegir otro banco.',
+    'desistido' => 'Solicitud cancelada. Puedes elegir otro banco.',
+    'expirada' || 'expirado' =>
+      'Venció el plazo de respuesta del banco. Puedes elegir otro banco.',
+    _ =>
+      'El banco dará seguimiento y te contactará para continuar con el '
+          'proceso.',
+  };
 
   Widget _card(
     SozuTone tone, {
@@ -111,7 +157,7 @@ class PaymentMethodBadge extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'FORMA DE PAGO FINAL',
+                  'FORMA DE PAGO FINAL ELEGIDA',
                   style: TextStyle(
                     fontSize: 10,
                     letterSpacing: 0.8,
