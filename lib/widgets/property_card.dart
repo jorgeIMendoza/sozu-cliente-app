@@ -68,7 +68,7 @@ class PropertyCardWidget extends StatelessWidget {
                 Positioned(
                   top: 8,
                   right: 8,
-                  child: StatusBadge(label: item.estatus),
+                  child: _estatusBadge(item),
                 ),
               ],
             ),
@@ -238,6 +238,17 @@ class PropertyCardWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Badge de estatus con la etiqueta derivada de la etapa activa
+  /// (PropiedadCard.estatusDerivado), mismo mapeo que el chip del detalle.
+  Widget _estatusBadge(PropiedadCard item) {
+    final tone = switch (item.etapaActiva) {
+      'pago_final' => BadgeTone.pending,
+      'entrega' || 'post_entrega' => BadgeTone.positive,
+      _ => BadgeTone.neutral,
+    };
+    return StatusBadge(label: item.estatusDerivado, tone: tone);
   }
 }
 

@@ -271,12 +271,12 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
     PropiedadCard? c,
     ClientePagos data,
   ) {
-    final color = _colorEstatus(tone, c?.estatus ?? '');
+    final color = _colorEstatus(tone, c?.estatusDerivado ?? '');
     final pendientes = data.proximosPagos
         .where((p) => p.propiedad == numero)
         .length;
     final subtitulo = c != null
-        ? '${c.estatus} · ${c.avancePago.round()}% pagado · ${formatMXN(c.monto)}'
+        ? '${c.estatusDerivado} · ${c.avancePago.round()}% pagado · ${formatMXN(c.monto)}'
         : '$pendientes pagos pendientes';
     return GestureDetector(
       onTap: () => _seleccionar(numero),
