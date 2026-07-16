@@ -68,6 +68,22 @@ final adminClientesProvider = FutureProvider<AdminClientes>(
   (ref) => fetchAdminClientes(),
 );
 
+/// Proyectos SOZU para el filtro "Ver como" del selector de impersonación
+/// (mismo catálogo que los avisos: proyectos activos comercializados).
+final adminProyectosProvider = FutureProvider<List<CatalogoItem>>(
+  (ref) => fetchAvisosProyectos(),
+);
+
+/// Dueños/copropietarios de una unidad (proyecto + número de propiedad) para
+/// el filtro "Ver como". Key = record (idProyecto, numero).
+final adminPropietariosProvider = FutureProvider.autoDispose
+    .family<List<AdminCliente>, ({int idProyecto, String numero})>(
+      (ref, q) => fetchAdminPropietarios(
+        idProyecto: q.idProyecto,
+        numeroPropiedad: q.numero,
+      ),
+    );
+
 /// Invalida todos los datos del cliente (p.ej. al cerrar sesión).
 void invalidateAllData(Ref ref) {
   ref.invalidate(clienteResumenProvider);

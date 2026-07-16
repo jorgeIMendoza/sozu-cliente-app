@@ -452,6 +452,12 @@ class EtapaStage {
   final String label;
   final String status; // completed | active | pending
 
+  const EtapaStage({
+    required this.id,
+    required this.label,
+    required this.status,
+  });
+
   EtapaStage.fromJson(Map<String, dynamic> j)
     : id = asString(j['id']),
       label = asString(j['label']),
@@ -591,6 +597,19 @@ class PropiedadUbicacion {
       direccion = j['direccion'] as String?;
 }
 
+/// Copropietario de una cuenta (compradores + personas): nombre, email y
+/// porcentaje de copropiedad.
+class Copropietario {
+  final String nombre;
+  final String? email;
+  final double porcentaje;
+
+  Copropietario.fromJson(Map<String, dynamic> j)
+    : nombre = asString(j['nombre'], '—'),
+      email = j['email'] as String?,
+      porcentaje = asDouble(j['porcentaje']);
+}
+
 class PropiedadDetalle {
   final int id;
   final String nombre;
@@ -630,6 +649,9 @@ class PropiedadDetalle {
   final List<ProductoDetalle> productos;
   final FichaTecnica ficha;
   final List<DocumentoItem> documentos;
+
+  /// Copropietarios de la cuenta (la sección solo se muestra si hay > 1).
+  final List<Copropietario> copropietarios;
 
   PropiedadDetalle.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
@@ -680,7 +702,74 @@ class PropiedadDetalle {
       ),
       documentos = ((j['documentos'] as List?) ?? [])
           .map((e) => DocumentoItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      copropietarios = ((j['copropietarios'] as List?) ?? [])
+          .map((e) => Copropietario.fromJson(Map<String, dynamic>.from(e)))
           .toList();
+
+  // ── Montos efectivos (espejo del portal, use-portfolio.ts) ────────────────
+  // El portal cae a propiedades.precio_lista cuando cuentas_cobranza tiene
+  // precio_final = 0 (cuentas legacy). El backend del app aún puede mandar
+  // monto = 0 en ese caso; como fallback local usamos la suma del plan de
+  // pagos (acuerdos), que representa el precio contractual.
+
+  /// Precio total efectivo: `monto` del backend o, si viene en 0, la suma
+  /// del cronograma de pagos.
+  double get montoEfectivo => monto > 0
+      ? monto
+      : esquemaPago.fold<double>(0, (s, e) => s + e.monto);
+
+  /// Pagado efectivo: `pagado` del backend (Σ pagos activos) o, si viene en
+  /// 0 pero hay abonos en el plan, la suma de lo aplicado por acuerdo.
+  double get pagadoEfectivo => pagado > 0
+      ? pagado
+      : esquemaPago.fold<double>(0, (s, e) => s + e.pagado);
+
+  /// Saldo pendiente efectivo (max 0, nunca negativo).
+  double get saldoPendienteEfectivo => montoEfectivo > 0
+      ? (montoEfectivo - pagadoEfectivo).clamp(0, montoEfectivo).toDouble()
+      : saldoPendiente;
+
+  /// % de avance de pago efectivo (0-100).
+  double get avancePagoEfectivo => montoEfectivo > 0
+      ? (pagadoEfectivo / montoEfectivo * 100).clamp(0, 100).toDouble()
+      : avancePago;
+
+  /// Etapa activa efectiva. Solo cuando el backend mandó monto = 0 (cuenta
+  /// legacy sin precio_final) su saldo/etapa se calcularon con precio 0 y la
+  /// cuenta salta a "escrituración" aunque deba dinero; en ese caso se
+  /// corrige a `pago_final` (criterio byPaymentProgress del portal:
+  /// saldo > 0 → pago final). Con monto > 0 la etapa del backend ya es
+  /// idéntica a la del portal y se respeta.
+  String get etapaActivaEfectiva {
+    if (monto <= 0 &&
+        saldoPendienteEfectivo > 0 &&
+        etapaActiva == 'escrituracion') {
+      return 'pago_final';
+    }
+    return etapaActiva;
+  }
+
+  /// Stages con el status recalculado cuando aplica la corrección de etapa
+  /// (mantiene ids/labels del backend; solo mueve la etapa activa).
+  List<EtapaStage> get stagesEfectivos {
+    final activa = etapaActivaEfectiva;
+    if (activa == etapaActiva) return stages;
+    final activeIdx = stages.indexWhere((s) => s.id == activa);
+    if (activeIdx < 0) return stages;
+    return [
+      for (var i = 0; i < stages.length; i++)
+        EtapaStage(
+          id: stages[i].id,
+          label: stages[i].label,
+          status: i < activeIdx
+              ? 'completed'
+              : i == activeIdx
+                  ? 'active'
+                  : 'pending',
+        ),
+    ];
+  }
 }
 
 // ─── admin-avisos-app ────────────────────────────────────────────────────────

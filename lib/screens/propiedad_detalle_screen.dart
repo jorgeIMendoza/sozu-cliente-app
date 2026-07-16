@@ -11,16 +11,18 @@ import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
 import '../widgets/common.dart';
+import '../widgets/copropietarios_section.dart';
+import '../widgets/cronograma_pagos.dart';
+import '../widgets/etapa_actual_stepper.dart';
 import '../widgets/level_map.dart';
 import '../widgets/network_image.dart';
 import '../widgets/payment_method_badge.dart';
 import 'como_llegar_screen.dart';
 import 'pago_final_screen.dart';
 
-const _cronoLimit = 5;
-
 /// Detalle de propiedad: datos técnicos, productos adicionales, etapa actual,
-/// cronograma de pagos (5 + ver más), ficha técnica (LevelMap) y documentos.
+/// cronograma de pagos (tarjeta colapsable con pagos aplicados y CEP), ficha
+/// técnica (LevelMap) y documentos.
 class PropiedadDetalleScreen extends ConsumerStatefulWidget {
   final int cuentaId;
 
@@ -33,8 +35,6 @@ class PropiedadDetalleScreen extends ConsumerStatefulWidget {
 
 class _PropiedadDetalleScreenState
     extends ConsumerState<PropiedadDetalleScreen> {
-  bool _cronoExpanded = false;
-
   /// Ancla del cronograma para el fallback de "Confirmar plan de pagos".
   final GlobalKey _cronoKey = GlobalKey();
 
@@ -116,12 +116,7 @@ class _PropiedadDetalleScreenState
                           ],
                         ),
                       ),
-                      StatusBadge(
-                        label: d.estatus,
-                        tone: d.categoria == 'patrimonio'
-                            ? BadgeTone.positive
-                            : BadgeTone.neutral,
-                      ),
+                      _estatusChip(d),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -144,24 +139,25 @@ class _PropiedadDetalleScreenState
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Avance de pago · ${d.avancePago}%',
+                            Text(
+                                'Avance de pago · ${d.avancePagoEfectivo.round()}%',
                                 style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                     color: tone.textPrimary)),
                             Text(
-                                '${formatMXN(d.pagado)} de ${formatMXN(d.monto)}',
+                                '${formatMXN(d.pagadoEfectivo)} de ${formatMXN(d.montoEfectivo)}',
                                 style: TextStyle(
                                     fontSize: 12, color: tone.textSecondary)),
                           ],
                         ),
                         const SizedBox(height: 6),
-                        SozuProgressBar(percent: d.avancePago),
-                        if (d.saldoPendiente > 0)
+                        SozuProgressBar(percent: d.avancePagoEfectivo),
+                        if (d.saldoPendienteEfectivo > 0)
                           Padding(
                             padding: const EdgeInsets.only(top: 8),
                             child: Text(
-                                'Saldo pendiente: ${formatMXN(d.saldoPendiente)}',
+                                'Saldo pendiente: ${formatMXN(d.saldoPendienteEfectivo)}',
                                 style: TextStyle(
                                     fontSize: 12, color: tone.pending)),
                           ),
@@ -172,8 +168,8 @@ class _PropiedadDetalleScreenState
                   // CTA de pago (etapa pago_final con saldo; oculto en
                   // demanda → solo lectura).
                   if (!d.enDemanda &&
-                      d.etapaActiva == 'pago_final' &&
-                      d.saldoPendiente > 0) ...[
+                      d.etapaActivaEfectiva == 'pago_final' &&
+                      d.saldoPendienteEfectivo > 0) ...[
                     const SizedBox(height: 12),
                     FilledButton.icon(
                       onPressed: () => _pagar(context, d),
@@ -184,7 +180,7 @@ class _PropiedadDetalleScreenState
                           size: 18),
                       label: Text(d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO'
                           ? 'Ver crédito hipotecario'
-                          : 'Pagar ${formatMXN(d.saldoPendiente)}'),
+                          : 'Pagar ${formatMXN(d.saldoPendienteEfectivo)}'),
                     ),
                   ],
 
@@ -192,8 +188,8 @@ class _PropiedadDetalleScreenState
                   // portal): botón secundario que lleva a pagar el siguiente
                   // acuerdo pendiente (o al cronograma si no hay pendientes).
                   if (!d.enDemanda &&
-                      d.etapaActiva == 'preventa' &&
-                      d.saldoPendiente > 0) ...[
+                      d.etapaActivaEfectiva == 'preventa' &&
+                      d.saldoPendienteEfectivo > 0) ...[
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: () => _confirmarPlan(context, d),
@@ -229,6 +225,10 @@ class _PropiedadDetalleScreenState
                     ),
                   ),
 
+                  // Copropietarios (solo si la cuenta tiene más de un
+                  // propietario; el widget se oculta solo en caso contrario).
+                  CopropietariosSection(copropietarios: d.copropietarios),
+
                   // Ubicación del proyecto (solo si tiene coordenadas)
                   if (d.ubicacion != null)
                     _UbicacionSection(
@@ -247,44 +247,19 @@ class _PropiedadDetalleScreenState
                     ],
                   ],
 
-                  // Etapa actual
-                  const SectionTitle(
-                      icon: Icons.flag_outlined, text: 'Etapa actual'),
-                  AppCard(
-                    child: _StageTracker(
-                        stages: d.stages, activa: d.etapaActiva),
+                  // Etapa actual (stepper estilo portal del cliente)
+                  EtapaActualStepper(
+                    stages: d.stagesEfectivos,
+                    activa: d.etapaActivaEfectiva,
+                    saldoPendiente: d.saldoPendienteEfectivo,
                   ),
 
-                  // Cronograma de pagos
+                  // Cronograma de pagos (tarjeta colapsable estilo portal
+                  // del cliente, con pagos aplicados y CEP por concepto).
                   KeyedSubtree(
-                      key: _cronoKey, child: _cronogramaHeader(tone, d)),
-                  if (d.esquemaPago.isEmpty)
-                    const EmptyCard(
-                        icon: Icons.calendar_today_outlined,
-                        text: 'Sin plan de pagos')
-                  else ...[
-                    for (final e in _cronoExpanded
-                        ? d.esquemaPago
-                        : d.esquemaPago.take(_cronoLimit)) ...[
-                      _CronoRow(e: e),
-                      const SizedBox(height: 10),
-                    ],
-                    if (d.esquemaPago.length > _cronoLimit)
-                      Center(
-                        child: TextButton(
-                          onPressed: () => setState(
-                              () => _cronoExpanded = !_cronoExpanded),
-                          child: Text(
-                            _cronoExpanded
-                                ? 'Mostrar menos'
-                                : 'Ver ${d.esquemaPago.length - _cronoLimit} más',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: tone.primaryDark),
-                          ),
-                        ),
-                      ),
-                  ],
+                    key: _cronoKey,
+                    child: CronogramaPagos(esquemaPago: d.esquemaPago),
+                  ),
 
                   // Ficha técnica
                   if (d.ficha.numeroPiso != null ||
@@ -330,7 +305,7 @@ class _PropiedadDetalleScreenState
             cuentaId: widget.cuentaId,
             unidad: d.unidad,
             proyecto: d.proyecto,
-            saldo: d.saldoPendiente,
+            saldo: d.saldoPendienteEfectivo,
             acuerdoId: siguiente?.id,
             tipoFinanciamiento: d.tipoFinanciamiento,
             solicitud: d.solicitudCredito,
@@ -367,7 +342,8 @@ class _PropiedadDetalleScreenState
     if (MediaQuery.of(context).size.width >= 700) return null;
 
     Widget? boton;
-    if (d.etapaActiva == 'pago_final' && d.saldoPendiente > 0) {
+    if (d.etapaActivaEfectiva == 'pago_final' &&
+        d.saldoPendienteEfectivo > 0) {
       final esCredito = d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO';
       boton = FilledButton.icon(
         onPressed: () => _pagar(context, d),
@@ -378,9 +354,10 @@ class _PropiedadDetalleScreenState
             size: 18),
         label: Text(esCredito
             ? 'Ver crédito hipotecario'
-            : 'Pagar ${formatMXN(d.saldoPendiente)}'),
+            : 'Pagar ${formatMXN(d.saldoPendienteEfectivo)}'),
       );
-    } else if (d.etapaActiva == 'preventa' && d.saldoPendiente > 0) {
+    } else if (d.etapaActivaEfectiva == 'preventa' &&
+        d.saldoPendienteEfectivo > 0) {
       boton = FilledButton.icon(
         onPressed: () => _confirmarPlan(context, d),
         icon: const Icon(Icons.event_available_outlined, size: 18),
@@ -398,6 +375,26 @@ class _PropiedadDetalleScreenState
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       child: SafeArea(top: false, child: boton),
     );
+  }
+
+  /// Chip de estatus de la cabecera derivado de la etapa activa, como el
+  /// portal (getStageInfo de PropertyAcquisitionDetail): NUNCA el estatus
+  /// crudo de disponibilidad de la BD, que puede decir "Pagada completamente"
+  /// o "Vendida" aunque la cuenta tenga saldo pendiente.
+  Widget _estatusChip(PropiedadDetalle d) {
+    final (label, tone) = switch (d.etapaActivaEfectiva) {
+      'preventa' => ('En Preventa', BadgeTone.neutral),
+      // Ámbar, como el chip "Pago Pendiente" del portal.
+      'pago_final' => ('Pago Pendiente', BadgeTone.pending),
+      'escrituracion' => ('En Escrituración', BadgeTone.neutral),
+      'entrega' => ('Por Entregar', BadgeTone.positive),
+      'post_entrega' => ('Entregada', BadgeTone.positive),
+      _ => (
+          d.estatus,
+          d.categoria == 'patrimonio' ? BadgeTone.positive : BadgeTone.neutral,
+        ),
+    };
+    return StatusBadge(label: label, tone: tone);
   }
 
   Widget _dato(SozuTone tone, String label, String value) {
@@ -422,22 +419,6 @@ class _PropiedadDetalleScreenState
     );
   }
 
-  Widget _cronogramaHeader(SozuTone tone, PropiedadDetalle d) {
-    final pagados = d.esquemaPago.where((e) => e.pagoCompletado).length;
-    final visibles = _cronoExpanded
-        ? d.esquemaPago.length
-        : d.esquemaPago.length.clamp(0, _cronoLimit);
-    return SectionTitle(
-      icon: Icons.calendar_month_outlined,
-      text: 'Cronograma de pagos',
-      trailing: d.esquemaPago.isEmpty
-          ? null
-          : Text(
-              '$visibles de ${d.esquemaPago.length} · $pagados pagados',
-              style: TextStyle(fontSize: 12, color: tone.textMuted),
-            ),
-    );
-  }
 }
 
 /// Banner de propiedad en proceso legal (paso 17, espejo del overlay
@@ -647,164 +628,6 @@ class _ProductoRow extends StatelessWidget {
             Icon(Icons.chevron_right, color: tone.textMuted),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _StageTracker extends StatelessWidget {
-  final List<EtapaStage> stages;
-  final String activa;
-
-  const _StageTracker({required this.stages, required this.activa});
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
-    final activeLabel = stages
-            .where((s) => s.status == 'active')
-            .map((s) => s.label)
-            .firstOrNull ??
-        (activa == 'post_entrega' ? 'Entregada' : stages.lastOrNull?.label ?? '');
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            for (var i = 0; i < stages.length; i++) ...[
-              if (i > 0)
-                Expanded(
-                  child: Container(
-                    height: 2,
-                    color: stages[i].status == 'pending'
-                        ? tone.border
-                        : SozuColors.emerald500,
-                  ),
-                ),
-              _dot(tone, stages[i], i),
-            ],
-          ],
-        ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            for (final s in stages)
-              SizedBox(
-                width: 70,
-                child: Text(
-                  s.label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  style: TextStyle(
-                    fontSize: 9,
-                    color: s.status == 'pending'
-                        ? tone.textMuted
-                        : tone.textSecondary,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: tone.primarySoft,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            'Ahora estás aquí · $activeLabel',
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: tone.primaryDark),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _dot(SozuTone tone, EtapaStage s, int index) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: switch (s.status) {
-          'completed' => SozuColors.emerald500,
-          'active' => tone.primarySoft,
-          _ => tone.surfaceAlt,
-        },
-        border: s.status == 'active'
-            ? Border.all(color: SozuColors.emerald500, width: 2)
-            : null,
-      ),
-      alignment: Alignment.center,
-      child: s.status == 'completed'
-          ? const Icon(Icons.check, size: 16, color: Colors.white)
-          : Text(
-              '${index + 1}',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: s.status == 'active' ? tone.primaryDark : tone.textMuted,
-              ),
-            ),
-    );
-  }
-}
-
-class _CronoRow extends StatelessWidget {
-  final EsquemaPagoItem e;
-
-  const _CronoRow({required this.e});
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
-    final parcial = !e.pagoCompletado && e.saldo < e.monto;
-    final (label, badgeTone) = e.pagoCompletado
-        ? ('Pagado', BadgeTone.positive)
-        : parcial
-            ? ('Parcial', BadgeTone.pending)
-            : ('Pendiente', BadgeTone.neutral);
-    return AppCard(
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(e.concepto,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: tone.textPrimary)),
-                Text(formatDate(e.fechaPago),
-                    style: TextStyle(fontSize: 12, color: tone.textSecondary)),
-                const SizedBox(height: 6),
-                StatusBadge(label: label, tone: badgeTone),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(formatMXN(e.monto),
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: tone.textPrimary)),
-              if (!e.pagoCompletado && e.saldo > 0)
-                Text('Falta ${formatMXN(e.saldo)}',
-                    style: TextStyle(fontSize: 11, color: tone.pending)),
-            ],
-          ),
-        ],
       ),
     );
   }
