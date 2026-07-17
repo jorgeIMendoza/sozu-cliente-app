@@ -331,24 +331,15 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   Widget _resumen(SozuTone tone, EstadoCuenta d) {
     final now = DateTime.now();
     final periodo = '${_meses[now.month - 1]} ${now.year}';
-    final hoy =
-        '${now.year}-'
-        '${now.month.toString().padLeft(2, '0')}-'
-        '${now.day.toString().padLeft(2, '0')}';
 
     // Próxima parcialidad: primer acuerdo no completado por fecha ascendente.
     final pendientes = d.acuerdos.where((a) => !a.pagadoCompleto).toList()
       ..sort((a, b) => (a.fecha ?? '').compareTo(b.fecha ?? ''));
     final proxima = pendientes.isEmpty ? null : pendientes.first;
 
-    // Con adeudo si hay saldo y algún acuerdo pendiente ya venció.
-    final vencidos = d.acuerdos.any(
-      (a) =>
-          !a.pagadoCompleto &&
-          (a.fecha ?? '').isNotEmpty &&
-          a.fecha!.compareTo(hoy) < 0,
-    );
-    final conAdeudo = d.saldoPendiente > 0.01 && vencidos;
+    // Chip como el portal: "Pago Pendiente" (ámbar) con saldo, si no
+    // "Al corriente". (Antes decía "Con adeudo" solo con vencidos.)
+    final conAdeudo = d.saldoPendiente > 0.01;
 
     final progreso = d.precioFinal > 0
         ? (d.totalPagado / d.precioFinal).clamp(0.0, 1.0).toDouble()
@@ -367,8 +358,8 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                 ),
               ),
               StatusBadge(
-                label: conAdeudo ? 'Con adeudo' : 'Al corriente',
-                tone: conAdeudo ? BadgeTone.negative : BadgeTone.positive,
+                label: conAdeudo ? 'Pago Pendiente' : 'Al corriente',
+                tone: conAdeudo ? BadgeTone.pending : BadgeTone.positive,
               ),
             ],
           ),
@@ -1212,10 +1203,6 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
             Divider(color: tone.border, height: 20),
           ],
           _filaCopiable(tone, 'CLABE', i.clabe!, mono: true),
-          if ((i.beneficiario ?? '').isNotEmpty) ...[
-            Divider(color: tone.border, height: 20),
-            _filaInfo(tone, 'Beneficiario', i.beneficiario!),
-          ],
           if (i.referencia.isNotEmpty) ...[
             Divider(color: tone.border, height: 20),
             _filaCopiable(tone, 'Referencia', i.referencia, mono: true),
