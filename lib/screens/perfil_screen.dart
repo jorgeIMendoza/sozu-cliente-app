@@ -6,15 +6,23 @@ import '../core/format.dart';
 import '../core/push_service.dart';
 import '../core/theme.dart';
 import '../data/api_client.dart';
+import '../data/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
+import '../providers/impersonation_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/biometric_tile.dart';
 import '../widgets/common.dart';
+import '../widgets/expediente_card.dart';
 import '../widgets/fx.dart';
+import '../widgets/perfil_section_card.dart';
+import '../widgets/perfil_sheets.dart';
+import 'perfil_detalle_screens.dart';
 
-/// Perfil: datos del cliente (nombre, email, teléfono), tema, cambio de
-/// contraseña y cierre de sesión.
+/// Perfil del cliente (espejo de ClientePerfil.tsx del portal web): identidad
+/// con % de perfil completado y estatus de verificación, tarjetas de
+/// información personal / fiscal / cuentas bancarias / seguridad, más las
+/// secciones propias del app (tema, push, biometría).
 class PerfilScreen extends ConsumerWidget {
   const PerfilScreen({super.key});
 
@@ -23,14 +31,13 @@ class PerfilScreen extends ConsumerWidget {
     final tone = SozuTone.of(context);
     final auth = ref.watch(authProvider);
     final perfil = ref.watch(clientePerfilProvider);
+    final impersonating = ref.watch(impersonationProvider).active;
 
-    final nombre =
-        perfil.valueOrNull?.nombreLegal ?? auth.profile?.nombre ?? 'Cliente';
-    final email = perfil.valueOrNull?.email ??
-        auth.profile?.email ??
-        auth.session?.user.email ??
-        '—';
-    final telefono = perfil.valueOrNull?.telefono;
+    final p = perfil.valueOrNull;
+    final nombre = p?.nombreLegal ?? auth.profile?.nombre ?? 'Cliente';
+    final cuentas = p?.cuentasBancarias ?? const <CuentaBancariaPerfil>[];
+    final completado = p?.perfilCompletado ?? 0;
+    final estatus = p?.estatusPerfil ?? 'incomplete';
 
     Future<void> confirmarSalir() async {
       final ok = await showDialog<bool>(
@@ -59,146 +66,334 @@ class PerfilScreen extends ConsumerWidget {
       }
     }
 
+    void pushDetalle(Widget screen) {
+      Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => screen));
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Perfil')),
       body: ContentFrame(
-        maxWidth: 720,
+        maxWidth: 920,
         child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-        children: [
-          AppCard(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Column(
-              children: [
-                SozuAvatar(
-                    iniciales:
-                        perfil.valueOrNull?.iniciales ?? initials(nombre),
-                    size: 72),
-                const SizedBox(height: 12),
-                Text(nombre,
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: tone.textPrimary)),
-                if (auth.profile?.rolNombre != null) ...[
-                  const SizedBox(height: 8),
-                  StatusBadge(
-                      label: auth.profile!.rolNombre!,
-                      tone: BadgeTone.positive),
-                ],
-              ],
-            ),
-          ),
-
-          _sectionLabel(tone, 'Contacto'),
-          AppCard(
-            child: Column(
-              children: [
-                _InfoRow(
-                    icon: Icons.mail_outline,
-                    label: 'Correo',
-                    value: email,
-                    loading: perfil.isLoading),
-                Divider(color: tone.border, height: 24),
-                _InfoRow(
-                    icon: Icons.call_outlined,
-                    label: 'Teléfono',
-                    value: telefono ?? 'No registrado',
-                    loading: perfil.isLoading),
-              ],
-            ),
-          ),
-
-          _sectionLabel(tone, 'Apariencia'),
-          AppCard(child: _ThemeSelector(tone: tone)),
-
-          _sectionLabel(tone, 'Notificaciones'),
-          AppCard(
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.notifications_active_outlined,
-                        size: 20, color: SozuColors.emerald600),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+          children: [
+            // ── Identidad: avatar, nombre, estatus, % completado ─────────────
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  LayoutBuilder(
+                    builder: (context, c) {
+                      final wide = c.maxWidth >= 560;
+                      final identity = Row(
                         children: [
-                          Text('Notificaciones push',
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: tone.textPrimary)),
-                          const SizedBox(height: 2),
-                          // Estado de diagnóstico (útil para soporte en campo).
-                          ValueListenableBuilder<String>(
-                            valueListenable: PushService.estado,
-                            builder: (_, estado, __) => Text(estado,
-                                style: TextStyle(
-                                    fontSize: 12, color: tone.textSecondary)),
+                          SozuAvatar(
+                              iniciales: p?.iniciales ?? initials(nombre),
+                              size: 52),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  nombre,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: wide ? 20 : 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: tone.textPrimary),
+                                ),
+                                const SizedBox(height: 4),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  crossAxisAlignment:
+                                      WrapCrossAlignment.center,
+                                  children: [
+                                    _estatusBadge(estatus),
+                                    Text(
+                                      p?.tipoPersonaLabel ??
+                                          'Persona física',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: tone.textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ],
+                      );
+                      final progreso = Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Perfil completado',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: tone.textSecondary)),
+                              perfil.isLoading
+                                  ? const Skeleton(width: 32, height: 12)
+                                  : Text('$completado%',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: tone.textPrimary)),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          SozuProgressBar(percent: completado.toDouble()),
+                        ],
+                      );
+                      if (wide) {
+                        return Row(
+                          children: [
+                            Expanded(child: identity),
+                            const SizedBox(width: 24),
+                            SizedBox(width: 220, child: progreso),
+                          ],
+                        );
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          identity,
+                          const SizedBox(height: 14),
+                          progreso,
+                        ],
+                      );
+                    },
+                  ),
+                  // Banner ámbar "completa tu perfil" (igual que el portal,
+                  // se oculta con el perfil verificado ≥85 %).
+                  if (p != null && completado < 85) ...[
+                    const SizedBox(height: 14),
+                    PerfilBannerCompletar(
+                      perfilCompletado: completado,
+                      // "Completar" lleva al expediente (subir documentos).
+                      onCompletar: () => context.push('/expediente'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // EXPEDIENTE_CARD_SLOT — tarjeta "Tu expediente" (se auto-oculta si
+            // el backend aún no expone cliente-expediente).
+            const ExpedienteCard(),
+
+            const SizedBox(height: 16),
+
+            // ── Tarjetas de sección (2 columnas en ancho, 1 en angosto) ─────
+            ResponsiveCardGrid(
+              minCardWidth: 330,
+              children: [
+                PerfilSectionCard(
+                  title: 'Información personal',
+                  subtitle: 'Identificación y contacto',
+                  icon: Icons.person_outline,
+                  statusOk: (p?.nombreLegal ?? '').isNotEmpty && p != null,
+                  statusLabel: (p?.nombreLegal ?? '').isNotEmpty && p != null
+                      ? 'Completo'
+                      : 'Pendiente',
+                  rows: [
+                    PerfilInfoRow(label: 'Nombre', value: p?.nombreLegal),
+                    PerfilInfoRow(label: 'RFC', value: p?.rfc, mono: true),
+                    PerfilInfoRow(
+                        label: 'CURP', value: p?.curp, mono: true, isLast: true),
+                  ],
+                  actions: [
+                    if (!impersonating && p != null)
+                      PerfilCardAction(
+                        label: 'Editar',
+                        style: PerfilActionStyle.secondary,
+                        onTap: () => showEditPersonalSheet(context, p),
                       ),
+                    PerfilCardAction(
+                      label: 'Ver todo',
+                      onTap: () =>
+                          pushDetalle(const PerfilPersonalScreen()),
                     ),
                   ],
                 ),
-                // Preferencia solo donde hay push (en web vive la campana).
-                if (PushService.soportado) ...[
-                  Divider(color: tone.border, height: 24),
-                  const _PushPrefSwitch(),
-                ],
+                PerfilSectionCard(
+                  title: 'Información fiscal',
+                  subtitle: 'Régimen, CFDI y dirección',
+                  icon: Icons.business_outlined,
+                  statusOk: p?.regimen != null,
+                  statusLabel: p?.regimen != null ? 'Completo' : 'Pendiente',
+                  rows: [
+                    PerfilInfoRow(
+                        label: 'Régimen', value: p?.regimenDisplay),
+                    PerfilInfoRow(
+                        label: 'Uso CFDI', value: p?.usoCfdiDisplay),
+                    PerfilInfoRow(
+                        label: 'CP', value: p?.cp, mono: true, isLast: true),
+                  ],
+                  actions: [
+                    if (!impersonating && p != null)
+                      PerfilCardAction(
+                        label: 'Editar',
+                        style: PerfilActionStyle.secondary,
+                        onTap: () => showEditFiscalSheet(context, p),
+                      ),
+                    PerfilCardAction(
+                      label: 'Ver todo',
+                      onTap: () => pushDetalle(const PerfilFiscalScreen()),
+                    ),
+                  ],
+                ),
+                PerfilSectionCard(
+                  title: 'Cuentas bancarias',
+                  subtitle: 'Cuentas de dispersión',
+                  icon: Icons.credit_card_outlined,
+                  statusOk: cuentas.isNotEmpty,
+                  statusLabel: cuentas.isNotEmpty
+                      ? '${cuentas.length} cuenta${cuentas.length > 1 ? 's' : ''}'
+                      : 'Sin cuentas',
+                  rows: [
+                    if (cuentas.isEmpty)
+                      const PerfilInfoRow(
+                          label: 'Cuentas registradas',
+                          value: null,
+                          isLast: true)
+                    else
+                      for (var i = 0; i < cuentas.length && i < 3; i++)
+                        PerfilInfoRow(
+                          label: cuentas[i].banco,
+                          value: cuentas[i].clabeMasked,
+                          mono: true,
+                          isLast:
+                              i == cuentas.length - 1 || i == 2,
+                        ),
+                  ],
+                  actions: [
+                    if (!impersonating)
+                      PerfilCardAction(
+                        label: 'Agregar cuenta',
+                        style: PerfilActionStyle.secondary,
+                        onTap: () => showCuentaBancariaSheet(context),
+                      ),
+                    PerfilCardAction(
+                      label: 'Ver cuentas',
+                      onTap: () => pushDetalle(const PerfilCuentasScreen()),
+                    ),
+                  ],
+                ),
+                PerfilSectionCard(
+                  title: 'Seguridad',
+                  subtitle: 'Contraseña y sesión',
+                  icon: Icons.shield_outlined,
+                  statusOk: true,
+                  statusLabel: 'Activo',
+                  rows: [
+                    const PerfilInfoRow(
+                        label: 'Contraseña', value: '•••••••••', mono: true),
+                    PerfilInfoRow(
+                        label: 'Sesión',
+                        value: 'Activa',
+                        isLast: true),
+                  ],
+                  actions: [
+                    if (!impersonating)
+                      PerfilCardAction(
+                        label: 'Cambiar contraseña',
+                        style: PerfilActionStyle.secondary,
+                        onTap: () => context.push('/cambiar-password'),
+                      ),
+                    PerfilCardAction(
+                      label: 'Cerrar sesión',
+                      style: PerfilActionStyle.danger,
+                      icon: Icons.logout,
+                      onTap: confirmarSalir,
+                    ),
+                  ],
+                ),
               ],
             ),
-          ),
 
-          _sectionLabel(tone, 'Seguridad'),
-          GestureDetector(
-            onTap: () => context.push('/cambiar-password'),
-            child: AppCard(
-              child: Row(
+            if (perfil.hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: ErrorCard(
+                  title: 'No pudimos cargar tu perfil',
+                  onRetry: () => ref.invalidate(clientePerfilProvider),
+                ),
+              ),
+
+            // ── Secciones propias del app (no existen en el portal) ─────────
+            _sectionLabel(tone, 'Apariencia'),
+            AppCard(child: _ThemeSelector(tone: tone)),
+
+            _sectionLabel(tone, 'Notificaciones'),
+            AppCard(
+              child: Column(
                 children: [
-                  const Icon(Icons.lock_outline,
-                      size: 20, color: SozuColors.emerald600),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text('Cambiar contraseña',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: tone.textPrimary)),
+                  Row(
+                    children: [
+                      const Icon(Icons.notifications_active_outlined,
+                          size: 20, color: SozuColors.emerald600),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Notificaciones push',
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: tone.textPrimary)),
+                            const SizedBox(height: 2),
+                            // Estado de diagnóstico (útil para soporte en campo).
+                            ValueListenableBuilder<String>(
+                              valueListenable: PushService.estado,
+                              builder: (_, estado, __) => Text(estado,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: tone.textSecondary)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  Icon(Icons.chevron_right, size: 20, color: tone.textMuted),
+                  // Preferencia solo donde hay push (en web vive la campana).
+                  if (PushService.soportado) ...[
+                    Divider(color: tone.border, height: 24),
+                    const _PushPrefSwitch(),
+                  ],
                 ],
               ),
             ),
-          ),
-          // Solo móvil con biometría disponible; en web se colapsa sola.
-          const BiometricSettingTile(),
 
-          const SizedBox(height: 24),
-          GestureDetector(
-            onTap: confirmarSalir,
-            child: AppCard(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.logout, size: 20, color: tone.negative),
-                  const SizedBox(width: 8),
-                  Text('Cerrar sesión',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: tone.negative)),
-                ],
-              ),
-            ),
-          ),
-        ],
+            // Solo móvil con biometría disponible; en web se colapsa sola.
+            const SizedBox(height: 8),
+            const BiometricSettingTile(),
+          ],
         ),
       ),
     );
+  }
+
+  /// Chip de verificación (mismos umbrales que el portal: ≥85 verificado,
+  /// ≥50 en revisión, resto incompleto).
+  Widget _estatusBadge(String estatus) {
+    return switch (estatus) {
+      'verified' =>
+        const StatusBadge(label: 'Perfil verificado', tone: BadgeTone.positive),
+      'review' =>
+        const StatusBadge(label: 'En revisión', tone: BadgeTone.pending),
+      _ => const StatusBadge(
+          label: 'Información incompleta', tone: BadgeTone.negative),
+    };
   }
 
   Widget _sectionLabel(SozuTone tone, String text) {
@@ -297,47 +492,6 @@ class _PushPrefSwitchState extends State<_PushPrefSwitch> {
             value: _activo,
             onChanged: _disponible ? _cambiar : null,
           ),
-      ],
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool loading;
-
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.loading,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: tone.textMuted),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: TextStyle(fontSize: 11, color: tone.textMuted)),
-              const SizedBox(height: 2),
-              loading
-                  ? const Skeleton(width: 160, height: 14)
-                  : Text(value,
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: tone.textPrimary)),
-            ],
-          ),
-        ),
       ],
     );
   }

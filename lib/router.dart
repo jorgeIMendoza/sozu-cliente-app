@@ -12,6 +12,7 @@ import 'screens/cambiar_password_screen.dart';
 import 'screens/change_password_forced_screen.dart';
 import 'screens/documentos_screen.dart';
 import 'screens/estado_cuenta_screen.dart';
+import 'screens/expediente_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/inicio_screen.dart';
 import 'screens/login_screen.dart';
@@ -150,6 +151,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/notificaciones',
         pageBuilder: (context, state) =>
             _slidePage(state, const NotificacionesScreen()),
+      ),
+      GoRoute(
+        path: '/expediente',
+        pageBuilder: (context, state) =>
+            _slidePage(state, const ExpedienteScreen()),
       ),
       GoRoute(
         path: '/cambiar-password',

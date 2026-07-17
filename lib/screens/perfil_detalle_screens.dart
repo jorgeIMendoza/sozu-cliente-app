@@ -1,0 +1,415 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../core/theme.dart';
+import '../data/models.dart';
+import '../providers/data_providers.dart';
+import '../providers/impersonation_provider.dart';
+import '../widgets/common.dart';
+import '../widgets/fx.dart';
+import '../widgets/perfil_section_card.dart';
+import '../widgets/perfil_sheets.dart';
+
+/// Vistas de detalle del Perfil (espejo de las vistas personal/fiscal/cuentas
+/// de ClientePerfil.tsx del portal). Se abren con Navigator.push desde la
+/// pantalla de Perfil ("Ver todo" / "Ver cuentas").
+
+/// Detalle de información personal: identificación y contacto.
+class PerfilPersonalScreen extends ConsumerWidget {
+  const PerfilPersonalScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tone = SozuTone.of(context);
+    final perfil = ref.watch(clientePerfilProvider);
+    final impersonating = ref.watch(impersonationProvider).active;
+    final p = perfil.valueOrNull;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Información personal')),
+      body: ContentFrame(
+        maxWidth: 720,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          children: [
+            AppCard(
+              child: perfil.isLoading
+                  ? const _DetalleSkeleton()
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _DetalleHeader(
+                          title: 'Información personal',
+                          subtitle: 'Identificación y datos de contacto',
+                          onEdit: (!impersonating && p != null)
+                              ? () => showEditPersonalSheet(context, p)
+                              : null,
+                        ),
+                        const SizedBox(height: 8),
+                        PerfilInfoRow(
+                            label: 'Tipo de persona',
+                            value: p?.tipoPersonaLabel),
+                        PerfilInfoRow(
+                            label: 'Nombre completo',
+                            value: p?.nombreLegal),
+                        PerfilInfoRow(
+                            label: 'RFC con homoclave',
+                            value: p?.rfc,
+                            mono: true),
+                        PerfilInfoRow(label: 'CURP', value: p?.curp, mono: true),
+                        PerfilInfoRow(
+                            label: 'Teléfono',
+                            value: p?.telefono != null
+                                ? '${p?.clavePaisTelefono ?? '+52'} ${p?.telefono}'
+                                : null),
+                        PerfilInfoRow(
+                            label: 'Correo electrónico',
+                            value: p?.email,
+                            note: 'No editable',
+                            isLast: true),
+                      ],
+                    ),
+            ),
+            if (perfil.hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: ErrorCard(
+                  title: 'No pudimos cargar tu información',
+                  onRetry: () => ref.invalidate(clientePerfilProvider),
+                ),
+              ),
+            const SizedBox(height: 8),
+            Text(
+              'Tus datos serán validados por el área correspondiente.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: tone.textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Detalle de información fiscal: régimen, CFDI y dirección fiscal.
+class PerfilFiscalScreen extends ConsumerWidget {
+  const PerfilFiscalScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final perfil = ref.watch(clientePerfilProvider);
+    final impersonating = ref.watch(impersonationProvider).active;
+    final p = perfil.valueOrNull;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Información fiscal')),
+      body: ContentFrame(
+        maxWidth: 720,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          children: [
+            const _AmberInfoBanner(
+                text: 'Tus datos serán validados por el área correspondiente.'),
+            const SizedBox(height: 12),
+            AppCard(
+              child: perfil.isLoading
+                  ? const _DetalleSkeleton()
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _DetalleHeader(
+                          title: 'Información fiscal',
+                          subtitle: 'Régimen, CFDI y dirección fiscal',
+                          onEdit: (!impersonating && p != null)
+                              ? () => showEditFiscalSheet(context, p)
+                              : null,
+                        ),
+                        const SizedBox(height: 8),
+                        PerfilInfoRow(
+                            label: 'Régimen fiscal',
+                            value: p?.regimenDisplay),
+                        PerfilInfoRow(
+                            label: 'Uso CFDI', value: p?.usoCfdiDisplay),
+                        PerfilInfoRow(
+                            label: 'Código postal', value: p?.cp, mono: true),
+                        PerfilInfoRow(label: 'Calle', value: p?.calle),
+                        PerfilInfoRow(
+                            label: 'Núm. exterior', value: p?.numExt),
+                        PerfilInfoRow(
+                            label: 'Núm. interior', value: p?.numInt),
+                        PerfilInfoRow(
+                            label: 'Colonia', value: p?.colonia, isLast: true),
+                      ],
+                    ),
+            ),
+            if (perfil.hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: ErrorCard(
+                  title: 'No pudimos cargar tu información',
+                  onRetry: () => ref.invalidate(clientePerfilProvider),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Detalle de cuentas bancarias de dispersión.
+class PerfilCuentasScreen extends ConsumerWidget {
+  const PerfilCuentasScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tone = SozuTone.of(context);
+    final perfil = ref.watch(clientePerfilProvider);
+    final impersonating = ref.watch(impersonationProvider).active;
+    final cuentas = perfil.valueOrNull?.cuentasBancarias ?? [];
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Cuentas bancarias')),
+      body: ContentFrame(
+        maxWidth: 720,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+              decoration: BoxDecoration(
+                color: tone.primarySoft,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: SozuColors.emerald500.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.shield_outlined,
+                      size: 15, color: tone.primaryDark),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Por tu seguridad, toda alta o cambio de cuenta se notifica de inmediato.',
+                      style: TextStyle(
+                          fontSize: 12.5, color: tone.primaryDark),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (perfil.isLoading)
+              const AppCard(child: _DetalleSkeleton())
+            else if (cuentas.isEmpty)
+              const EmptyCard(
+                icon: Icons.credit_card_off_outlined,
+                text:
+                    'Sin cuentas registradas.\nAgrega tu primera cuenta bancaria.',
+              )
+            else
+              for (final c in cuentas) ...[
+                _CuentaCard(
+                  cuenta: c,
+                  onEdit: impersonating
+                      ? null
+                      : () => showCuentaBancariaSheet(context, cuenta: c),
+                ),
+                const SizedBox(height: 10),
+              ],
+            if (perfil.hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 12),
+                child: ErrorCard(
+                  title: 'No pudimos cargar tus cuentas',
+                  onRetry: () => ref.invalidate(clientePerfilProvider),
+                ),
+              ),
+            const SizedBox(height: 6),
+            if (!impersonating)
+              FilledButton(
+                onPressed: () => showCuentaBancariaSheet(context),
+                child: const Text('Agregar cuenta bancaria'),
+              ),
+            const SizedBox(height: 12),
+            Text(
+              'SOZU deposita directamente a estas cuentas.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: tone.textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Piezas internas ─────────────────────────────────────────────────────────
+
+class _DetalleHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final VoidCallback? onEdit;
+
+  const _DetalleHeader({
+    required this.title,
+    required this.subtitle,
+    this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: tone.textPrimary)),
+              const SizedBox(height: 2),
+              Text(subtitle,
+                  style:
+                      TextStyle(fontSize: 13, color: tone.textSecondary)),
+            ],
+          ),
+        ),
+        if (onEdit != null)
+          OutlinedButton(
+            onPressed: onEdit,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: tone.textPrimary,
+              side: BorderSide(color: tone.border),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              minimumSize: Size.zero,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              textStyle:
+                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            ),
+            child: const Text('Editar'),
+          ),
+      ],
+    );
+  }
+}
+
+class _AmberInfoBanner extends StatelessWidget {
+  final String text;
+  const _AmberInfoBanner({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: tone.pendingSoft,
+        borderRadius: BorderRadius.circular(10),
+        border:
+            Border.all(color: SozuColors.amber500.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline,
+              size: 15, color: SozuColors.amber600),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text,
+                style: const TextStyle(
+                    fontSize: 12.5, color: SozuColors.amber600)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CuentaCard extends StatelessWidget {
+  final CuentaBancariaPerfil cuenta;
+  final VoidCallback? onEdit;
+
+  const _CuentaCard({required this.cuenta, this.onEdit});
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    return AppCard(
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: tone.primarySoft,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.credit_card_outlined,
+                size: 19, color: tone.primaryDark),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(cuenta.banco,
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: tone.textPrimary)),
+                if (cuenta.clabeMasked != null)
+                  Text(cuenta.clabeMasked!,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontFamily: 'monospace',
+                          color: tone.textSecondary)),
+                if (cuenta.titular != null)
+                  Text(cuenta.titular!,
+                      style: TextStyle(
+                          fontSize: 12, color: tone.textMuted)),
+              ],
+            ),
+          ),
+          const StatusBadge(label: 'Activa', tone: BadgeTone.positive),
+          if (onEdit != null) ...[
+            const SizedBox(width: 8),
+            IconButton(
+              icon: Icon(Icons.edit_outlined,
+                  size: 18, color: tone.textSecondary),
+              onPressed: onEdit,
+              tooltip: 'Editar cuenta',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DetalleSkeleton extends StatelessWidget {
+  const _DetalleSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Skeleton(width: 180, height: 18),
+        SizedBox(height: 16),
+        Skeleton(height: 14),
+        SizedBox(height: 12),
+        Skeleton(height: 14),
+        SizedBox(height: 12),
+        Skeleton(height: 14),
+        SizedBox(height: 12),
+        Skeleton(width: 200, height: 14),
+      ],
+    );
+  }
+}

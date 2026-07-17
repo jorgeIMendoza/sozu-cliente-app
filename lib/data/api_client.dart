@@ -89,6 +89,106 @@ Future<ClientePerfil> fetchClientePerfil({int? impersonate}) async =>
       await _invoke('cliente-perfil', impersonate: impersonate),
     );
 
+/// Catálogos para editar el perfil (régimen fiscal, uso CFDI y bancos).
+Future<PerfilCatalogos> fetchPerfilCatalogos({int? impersonate}) async =>
+    PerfilCatalogos.fromJson(
+      await _invoke(
+        'cliente-perfil',
+        body: {'action': 'catalogos'},
+        impersonate: impersonate,
+      ),
+    );
+
+/// Actualiza los datos personales del cliente (nombre, RFC, CURP, teléfono).
+Future<void> updatePerfilPersonal({
+  required String nombreLegal,
+  String? rfc,
+  String? curp,
+  String? clavePaisTelefono,
+  String? telefono,
+  int? impersonate,
+}) async {
+  await _invoke(
+    'cliente-perfil',
+    body: {
+      'action': 'update_personal',
+      'nombre_legal': nombreLegal,
+      'rfc': rfc,
+      'curp': curp,
+      'clave_pais_telefono': clavePaisTelefono,
+      'telefono': telefono,
+    },
+    impersonate: impersonate,
+  );
+}
+
+/// Actualiza los datos fiscales (régimen, uso CFDI y dirección fiscal).
+Future<void> updatePerfilFiscal({
+  String? regimen,
+  String? usoCfdi,
+  String? codigoPostal,
+  String? calle,
+  String? numExt,
+  String? numInt,
+  String? colonia,
+  int? impersonate,
+}) async {
+  await _invoke(
+    'cliente-perfil',
+    body: {
+      'action': 'update_fiscal',
+      'regimen': regimen,
+      'uso_cfdi': usoCfdi,
+      'codigo_postal': codigoPostal,
+      'calle': calle,
+      'num_ext': numExt,
+      'num_int': numInt,
+      'colonia': colonia,
+    },
+    impersonate: impersonate,
+  );
+}
+
+/// Alta de cuenta bancaria de dispersión (CLABE de 18 dígitos).
+Future<void> addCuentaBancaria({
+  required int idBanco,
+  required String cuentaClabe,
+  required String titular,
+  int? impersonate,
+}) async {
+  await _invoke(
+    'cliente-perfil',
+    body: {
+      'action': 'cuenta_add',
+      'id_banco': idBanco,
+      'cuenta_clabe': cuentaClabe,
+      'titular': titular,
+    },
+    impersonate: impersonate,
+  );
+}
+
+/// Edición de una cuenta bancaria propia.
+Future<void> updateCuentaBancaria({
+  required int id,
+  required int idBanco,
+  required String cuentaClabe,
+  required String titular,
+  int? impersonate,
+}) async {
+  await _invoke(
+    'cliente-perfil',
+    body: {
+      'action': 'cuenta_update',
+      'id': id,
+      'id_banco': idBanco,
+      'cuenta_clabe': cuentaClabe,
+      'titular': titular,
+    },
+    impersonate: impersonate,
+  );
+}
+
 Future<ClienteDocumentos> fetchClienteDocumentos({int? impersonate}) async =>
     ClienteDocumentos.fromJson(
       await _invoke('cliente-documentos', impersonate: impersonate),
@@ -380,4 +480,75 @@ Future<void> setPushPref(bool activo) async {
     'cliente-push-token',
     body: {'action': 'pref_set', 'push_activo': activo},
   );
+}
+
+// ─── cliente-expediente ──────────────────────────────────────────────────────
+
+/// El documento subido no pasó la validación del backend (razón en español,
+/// lista para mostrar al usuario).
+class DocumentoInvalidoError implements Exception {
+  final String reason;
+  DocumentoInvalidoError(this.reason);
+
+  @override
+  String toString() => 'DocumentoInvalidoError($reason)';
+}
+
+/// Expediente de identidad del cliente (slots con estatus del portal).
+Future<ClienteExpediente> fetchClienteExpediente({int? impersonate}) async =>
+    ClienteExpediente.fromJson(
+      await _invoke(
+        'cliente-expediente',
+        body: {'action': 'listar'},
+        impersonate: impersonate,
+      ),
+    );
+
+/// Sube un documento del expediente. El backend valida el PDF (CURP/CSF/
+/// domicilio/actas), lo guarda en Storage y registra el documento. Devuelve
+/// el estatus resultante: 'aprobado' | 'revision'. Lanza
+/// [DocumentoInvalidoError] si el archivo no pasa la validación.
+Future<String> subirDocumentoExpediente({
+  required int tipoId,
+  required String nombreArchivo,
+  required String archivoBase64,
+  String? contentType,
+  int? impersonate,
+}) async {
+  try {
+    final res = await _sb.functions.invoke(
+      'cliente-expediente',
+      body: {
+        'action': 'subir',
+        'tipo_id': tipoId,
+        'nombre_archivo': nombreArchivo,
+        'archivo_base64': archivoBase64,
+        if (contentType != null) 'content_type': contentType,
+      },
+      headers: impersonate != null
+          ? {'x-impersonate-id-persona': '$impersonate'}
+          : null,
+    );
+    final data = res.data;
+    if (data is Map) return (data['estatus'] as String?) ?? 'revision';
+    throw ApiError(500, 'empty_response');
+  } on FunctionException catch (e) {
+    final details = e.details;
+    if (details is Map) {
+      final reason = details['reason'];
+      if (reason is String && reason.isNotEmpty) {
+        throw DocumentoInvalidoError(reason);
+      }
+      if (details['error'] != null) {
+        throw ApiError(e.status, details['error'].toString());
+      }
+    }
+    throw ApiError(e.status, 'internal_error');
+  } on ApiError {
+    rethrow;
+  } on DocumentoInvalidoError {
+    rethrow;
+  } catch (_) {
+    throw ApiError(0, 'network_error');
+  }
 }
