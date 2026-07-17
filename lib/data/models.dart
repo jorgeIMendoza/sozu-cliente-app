@@ -557,12 +557,58 @@ class DocumentoItem {
   final String? fecha;
   final String? urlFirmada;
 
+  // — Extensión paridad portal (opcionales en backend; degradan a defaults) —
+  /// Estatus de verificación: recibido | validado | rechazado.
+  final String estatus;
+
+  /// Categoría del portal: contrato | escritura | comprobante | cfdi |
+  /// identificacion | garantia | otro.
+  final String categoria;
+
+  /// Cuenta de cobranza asociada (null = documento personal).
+  final int? idCuenta;
+
+  /// Etiqueta "Proyecto · U-número" (null = documento personal).
+  final String? propiedad;
+
   DocumentoItem.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
       nombre = asString(j['nombre'], 'Documento'),
       tipo = asString(j['tipo'], 'Documento'),
       fecha = j['fecha'] as String?,
-      urlFirmada = j['url_firmada'] as String?;
+      urlFirmada = j['url_firmada'] as String?,
+      estatus = asString(j['estatus'], 'recibido'),
+      categoria = asString(j['categoria'], 'otro'),
+      idCuenta = asIntOrNull(j['id_cuenta']),
+      propiedad = j['propiedad'] as String?;
+}
+
+/// Factura CFDI de una propiedad (PDF + XML firmados), como el portal.
+class FacturaDocumento {
+  final int idCuenta;
+  final String? propiedad;
+  final String? pdf;
+  final String? xml;
+
+  FacturaDocumento.fromJson(Map<String, dynamic> j)
+    : idCuenta = asInt(j['id_cuenta']),
+      propiedad = j['propiedad'] as String?,
+      pdf = j['pdf'] as String?,
+      xml = j['xml'] as String?;
+}
+
+/// Factura CFDI de un pago de mantenimiento.
+class FacturaMantenimientoDoc {
+  final int idPago;
+  final String? fecha;
+  final String? pdf;
+  final String? xml;
+
+  FacturaMantenimientoDoc.fromJson(Map<String, dynamic> j)
+    : idPago = asInt(j['id_pago']),
+      fecha = j['fecha'] as String?,
+      pdf = j['pdf'] as String?,
+      xml = j['xml'] as String?;
 }
 
 /// Banco con convenio para crédito hipotecario (catálogo dinámico).
@@ -853,23 +899,158 @@ class ClientePerfil {
   final String tipo;
   final String iniciales;
 
+  // Perfil extendido (espejo de ClientePerfil.tsx del portal). Con un backend
+  // previo estos campos llegan null/vacíos y la UI degrada a "Sin dato".
+  final String? clavePaisTelefono;
+  final String? tipoPersona; // pf | pm | pe (o variantes largas)
+  final String? rfc;
+  final String? curp;
+  final String? regimen;
+  final String? regimenNombre;
+  final String? usoCfdi;
+  final String? usoCfdiNombre;
+  final String? cp;
+  final String? calle;
+  final String? numExt;
+  final String? numInt;
+  final String? colonia;
+  final List<CuentaBancariaPerfil> cuentasBancarias;
+  final List<int> docsTipos;
+  final int perfilCompletado; // 0–100
+  final String estatusPerfil; // verified | review | incomplete
+
+  /// Etiqueta "Persona física/moral/extranjera" (espejo de tipo-persona.ts).
+  String get tipoPersonaLabel {
+    final v = (tipoPersona ?? '').toLowerCase().trim();
+    if (v == 'pm' || v.contains('moral')) return 'Persona moral';
+    if (v == 'pe' || v.contains('extranjer')) return 'Persona extranjera';
+    return 'Persona física';
+  }
+
+  /// "601 - General de Ley..." o solo la clave si no hay nombre de catálogo.
+  String? get regimenDisplay => regimen == null
+      ? null
+      : (regimenNombre != null ? '$regimen - $regimenNombre' : regimen);
+
+  String? get usoCfdiDisplay => usoCfdi == null
+      ? null
+      : (usoCfdiNombre != null ? '$usoCfdi - $usoCfdiNombre' : usoCfdi);
+
   ClientePerfil.fromJson(Map<String, dynamic> j)
     : nombreLegal = asString(j['nombre_legal'], 'Cliente'),
       email = j['email'] as String?,
       telefono = j['telefono'] as String?,
       tipo = asString(j['tipo'], 'Inversionista'),
-      iniciales = asString(j['iniciales'], '?');
+      iniciales = asString(j['iniciales'], '?'),
+      clavePaisTelefono = j['clave_pais_telefono'] as String?,
+      tipoPersona = j['tipo_persona'] as String?,
+      rfc = j['rfc'] as String?,
+      curp = j['curp'] as String?,
+      regimen = j['regimen'] as String?,
+      regimenNombre = j['regimen_nombre'] as String?,
+      usoCfdi = j['uso_cfdi'] as String?,
+      usoCfdiNombre = j['uso_cfdi_nombre'] as String?,
+      cp = (j['direccion_fiscal'] is Map)
+          ? (j['direccion_fiscal'] as Map)['codigo_postal'] as String?
+          : null,
+      calle = (j['direccion_fiscal'] is Map)
+          ? (j['direccion_fiscal'] as Map)['calle'] as String?
+          : null,
+      numExt = (j['direccion_fiscal'] is Map)
+          ? (j['direccion_fiscal'] as Map)['num_ext'] as String?
+          : null,
+      numInt = (j['direccion_fiscal'] is Map)
+          ? (j['direccion_fiscal'] as Map)['num_int'] as String?
+          : null,
+      colonia = (j['direccion_fiscal'] is Map)
+          ? (j['direccion_fiscal'] as Map)['colonia'] as String?
+          : null,
+      cuentasBancarias = ((j['cuentas_bancarias'] as List?) ?? [])
+          .map(
+            (e) => CuentaBancariaPerfil.fromJson(Map<String, dynamic>.from(e)),
+          )
+          .toList(),
+      docsTipos = ((j['docs_tipos'] as List?) ?? [])
+          .map((e) => asInt(e))
+          .toList(),
+      perfilCompletado = asInt(j['perfil_completado']),
+      estatusPerfil = asString(j['estatus_perfil'], 'incomplete');
+}
+
+/// Cuenta bancaria de dispersión del cliente (cliente-perfil).
+class CuentaBancariaPerfil {
+  final int id;
+  final int idBanco;
+  final String banco;
+  final String? clabe;
+  final String? titular;
+
+  CuentaBancariaPerfil.fromJson(Map<String, dynamic> j)
+    : id = asInt(j['id']),
+      idBanco = asInt(j['id_banco']),
+      banco = asString(j['banco'], 'Banco'),
+      clabe = j['clabe'] as String?,
+      titular = j['titular'] as String?;
+
+  /// Últimos 4 dígitos enmascarados ("****1234") o null.
+  String? get clabeMasked {
+    final c = clabe;
+    if (c == null || c.length < 4) return null;
+    return '****${c.substring(c.length - 4)}';
+  }
+}
+
+/// Catálogos para editar el perfil (cliente-perfil action=catalogos).
+class PerfilCatalogos {
+  final List<({String id, String nombre})> regimen;
+  final List<({String codigo, String nombre})> usoCfdi;
+  final List<({int id, String nombre})> bancos;
+
+  PerfilCatalogos.fromJson(Map<String, dynamic> j)
+    : regimen = ((j['regimen'] as List?) ?? [])
+          .map(
+            (e) => (
+              id: asString((e as Map)['id']),
+              nombre: asString(e['nombre']),
+            ),
+          )
+          .toList(),
+      usoCfdi = ((j['uso_cfdi'] as List?) ?? [])
+          .map(
+            (e) => (
+              codigo: asString((e as Map)['codigo']),
+              nombre: asString(e['nombre']),
+            ),
+          )
+          .toList(),
+      bancos = ((j['bancos'] as List?) ?? [])
+          .map(
+            (e) =>
+                (id: asInt((e as Map)['id']), nombre: asString(e['nombre'])),
+          )
+          .toList();
 }
 
 // ─── cliente-documentos ──────────────────────────────────────────────────────
 
 class ClienteDocumentos {
   final List<DocumentoItem> documentos;
+  final List<FacturaDocumento> facturas;
+  final List<FacturaMantenimientoDoc> facturasMantenimiento;
   final int total;
 
   ClienteDocumentos.fromJson(Map<String, dynamic> j)
     : documentos = ((j['documentos'] as List?) ?? [])
           .map((e) => DocumentoItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      facturas = ((j['facturas'] as List?) ?? [])
+          .map((e) => FacturaDocumento.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      facturasMantenimiento = ((j['facturas_mantenimiento'] as List?) ?? [])
+          .map(
+            (e) =>
+                FacturaMantenimientoDoc.fromJson(Map<String, dynamic>.from(e)),
+          )
           .toList(),
       total = asInt(j['total']);
 }
@@ -1057,4 +1238,49 @@ class AdminClientes {
     : clientes = ((j['clientes'] as List?) ?? [])
           .map((e) => AdminCliente.fromJson(Map<String, dynamic>.from(e)))
           .toList();
+}
+
+// ─── cliente-expediente ──────────────────────────────────────────────────────
+
+/// Slot del expediente de identidad (espejo del Expediente del Perfil del
+/// portal web). `estatus`: aprobado | revision | rechazado | expirado |
+/// pendiente | opcional.
+class ExpedienteSlot {
+  final String key;
+  final int tipoId;
+  final String nombre;
+  final bool requerido;
+  final String estatus;
+  final String? fecha;
+  final String? urlFirmada;
+  final bool puedeSubir;
+
+  /// true si el backend solo acepta el PDF original (CURP, CSF, etc.).
+  final bool soloPdf;
+
+  ExpedienteSlot.fromJson(Map<String, dynamic> j)
+    : key = asString(j['key']),
+      tipoId = asInt(j['tipo_id']),
+      nombre = asString(j['nombre'], 'Documento'),
+      requerido = j['requerido'] == true,
+      estatus = asString(j['estatus'], 'pendiente'),
+      fecha = j['fecha'] as String?,
+      urlFirmada = j['url_firmada'] as String?,
+      puedeSubir = j['puede_subir'] == true,
+      soloPdf = j['solo_pdf'] == true;
+}
+
+class ClienteExpediente {
+  final List<ExpedienteSlot> slots;
+  final int requeridosTotal;
+  final int requeridosAprobados;
+  final int subidos;
+
+  ClienteExpediente.fromJson(Map<String, dynamic> j)
+    : slots = ((j['slots'] as List?) ?? [])
+          .map((e) => ExpedienteSlot.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      requeridosTotal = asInt(j['requeridos_total']),
+      requeridosAprobados = asInt(j['requeridos_aprobados']),
+      subidos = asInt(j['subidos']);
 }
