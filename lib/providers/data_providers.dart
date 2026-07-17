@@ -47,6 +47,12 @@ final clienteDocumentosProvider = FutureProvider<ClienteDocumentos>((ref) {
   return fetchClienteDocumentos(impersonate: imp);
 });
 
+/// Expediente de identidad (tarjeta del Perfil + pantalla Expediente).
+final clienteExpedienteProvider = FutureProvider<ClienteExpediente>((ref) {
+  final imp = ref.watch(impersonationProvider).idPersona;
+  return fetchClienteExpediente(impersonate: imp);
+});
+
 final clienteNotificacionesProvider = FutureProvider<ClienteNotificaciones>((
   ref,
 ) {
@@ -93,5 +99,6 @@ void invalidateAllData(Ref ref) {
   ref.invalidate(propiedadDetalleProvider);
   ref.invalidate(clientePerfilProvider);
   ref.invalidate(clienteDocumentosProvider);
+  ref.invalidate(clienteExpedienteProvider);
   ref.invalidate(clienteNotificacionesProvider);
 }
