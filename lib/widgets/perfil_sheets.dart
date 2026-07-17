@@ -184,8 +184,16 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      messenger.showSnackBar(
-          const SnackBar(content: Text('Datos personales actualizados')));
+      messenger.showSnackBar(const SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle_outline,
+                size: 18, color: SozuColors.emerald400),
+            SizedBox(width: 8),
+            Expanded(child: Text('Datos personales actualizados')),
+          ],
+        ),
+      ));
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);
@@ -366,8 +374,16 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      messenger.showSnackBar(
-          const SnackBar(content: Text('Datos fiscales actualizados')));
+      messenger.showSnackBar(const SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle_outline,
+                size: 18, color: SozuColors.emerald400),
+            SizedBox(width: 8),
+            Expanded(child: Text('Datos fiscales actualizados')),
+          ],
+        ),
+      ));
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);

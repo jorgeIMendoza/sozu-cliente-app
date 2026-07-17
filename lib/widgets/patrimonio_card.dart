@@ -59,13 +59,16 @@ class PatrimonioCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Imagen con badge "Entregada".
+            // Imagen con badge "Entregada" (Hero: transición al detalle).
             Stack(
               children: [
-                SizedBox(
-                  height: 160,
-                  width: double.infinity,
-                  child: SozuNetworkImage(url: item.urlImagen),
+                Hero(
+                  tag: 'prop-img-${item.id}',
+                  child: SizedBox(
+                    height: 160,
+                    width: double.infinity,
+                    child: SozuNetworkImage(url: item.urlImagen),
+                  ),
                 ),
                 const Positioned(
                   top: 8,

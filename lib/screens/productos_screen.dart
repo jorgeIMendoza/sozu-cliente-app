@@ -188,7 +188,7 @@ class _ProductoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
     final descripcion = p.descripcion?.trim();
-    return GestureDetector(
+    return PressableScale(
       onTap: () => context.push('/productos/${p.cuentaId}'),
       child: AppCard(
         child: Column(

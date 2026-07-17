@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/portal_theme.dart';
 import 'core/theme.dart';
 import 'core/version.dart';
 import 'providers/auth_provider.dart';
@@ -26,13 +27,25 @@ import 'screens/productos_screen.dart';
 import 'screens/propiedad_detalle_screen.dart';
 import 'screens/seleccionar_cliente_screen.dart';
 import 'widgets/fx.dart';
+import 'widgets/portal_shell.dart';
 
 /// Página secundaria con transición sutil (fade + deslizamiento) y contenido
 /// responsive (WebFrame) para web/desktop.
-CustomTransitionPage<void> _slidePage(GoRouterState state, Widget child) {
+///
+/// [portalFullWidth]: pantallas con layout de portal propio (p.ej. estado de
+/// cuenta) no se limitan a los 900px del WebFrame en modo portal — el shell
+/// ya acota el contenido a 1280px; fuera del portal se comportan igual que
+/// siempre.
+CustomTransitionPage<void> _slidePage(
+  GoRouterState state,
+  Widget child, {
+  bool portalFullWidth = false,
+}) {
   return CustomTransitionPage(
     key: state.pageKey,
-    child: WebFrame(child: child),
+    child: portalFullWidth
+        ? _PortalAwareFrame(child: child)
+        : WebFrame(child: child),
     transitionDuration: const Duration(milliseconds: 280),
     transitionsBuilder: (context, animation, secondary, child) {
       final curved = CurvedAnimation(
@@ -130,38 +143,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             _slidePage(state, const ChangePasswordForcedScreen()),
       ),
-      // Secundarias (fuera del shell, con back).
-      GoRoute(
-        path: '/pagos',
-        pageBuilder: (context, state) => _slidePage(state, const PagosScreen()),
-      ),
-      GoRoute(
-        path: '/estado-cuenta',
-        pageBuilder: (context, state) =>
-            _slidePage(state, const EstadoCuentaScreen()),
-      ),
-      GoRoute(
-        path: '/pagar',
-        pageBuilder: (context, state) => _slidePage(
-          state,
-          PagarScreen(referencia: state.uri.queryParameters['id']),
-        ),
-      ),
-      GoRoute(
-        path: '/notificaciones',
-        pageBuilder: (context, state) =>
-            _slidePage(state, const NotificacionesScreen()),
-      ),
-      GoRoute(
-        path: '/expediente',
-        pageBuilder: (context, state) =>
-            _slidePage(state, const ExpedienteScreen()),
-      ),
-      GoRoute(
-        path: '/cambiar-password',
-        pageBuilder: (context, state) =>
-            _slidePage(state, const CambiarPasswordScreen()),
-      ),
+      // Admin sin cliente seleccionado (fuera del shell del portal).
       GoRoute(
         path: '/seleccionar-cliente',
         pageBuilder: (context, state) =>
@@ -172,70 +154,118 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             _slidePage(state, const AdminAvisosScreen()),
       ),
-      GoRoute(
-        path: '/productos',
-        pageBuilder: (context, state) =>
-            _slidePage(state, const ProductosScreen()),
-      ),
-      GoRoute(
-        path: '/productos/:id',
-        pageBuilder: (context, state) => _slidePage(
-          state,
-          ProductoDetalleScreen(
-            cuentaId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+      // Modo portal (web ≥1024px): PortalShellWrapper envuelve TODAS las
+      // pantallas del cliente con el shell del portal (sidebar 256 + topbar
+      // 64, ruta activa marcada); en móvil/angosto devuelve el hijo tal cual
+      // y el layout actual no cambia.
+      ShellRoute(
+        builder: (context, state, child) =>
+            PortalShellWrapper(currentPath: state.uri.path, child: child),
+        routes: [
+          // Secundarias (con back; en modo portal se muestran dentro del shell).
+          GoRoute(
+            path: '/pagos',
+            pageBuilder: (context, state) =>
+                _slidePage(state, const PagosScreen()),
           ),
-        ),
-      ),
-      GoRoute(
-        path: '/propiedad/:id',
-        pageBuilder: (context, state) => _slidePage(
-          state,
-          PropiedadDetalleScreen(
-            cuentaId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+          GoRoute(
+            path: '/estado-cuenta',
+            // Con layout de portal propio (grid 1fr+300 y tabla con min-width
+            // 680): sin el tope de 900px del WebFrame en modo portal.
+            pageBuilder: (context, state) => _slidePage(
+              state,
+              const EstadoCuentaScreen(),
+              portalFullWidth: true,
+            ),
           ),
-        ),
-      ),
-      // Shell de tabs.
-      StatefulShellRoute.indexedStack(
-        builder: (context, state, shell) => _TabsShell(shell: shell),
-        branches: [
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/inicio',
-                builder: (context, state) => const InicioScreen(),
+          GoRoute(
+            path: '/pagar',
+            pageBuilder: (context, state) => _slidePage(
+              state,
+              PagarScreen(referencia: state.uri.queryParameters['id']),
+            ),
+          ),
+          GoRoute(
+            path: '/notificaciones',
+            pageBuilder: (context, state) =>
+                _slidePage(state, const NotificacionesScreen()),
+          ),
+          GoRoute(
+            path: '/expediente',
+            pageBuilder: (context, state) =>
+                _slidePage(state, const ExpedienteScreen()),
+          ),
+          GoRoute(
+            path: '/cambiar-password',
+            pageBuilder: (context, state) =>
+                _slidePage(state, const CambiarPasswordScreen()),
+          ),
+          GoRoute(
+            path: '/productos',
+            pageBuilder: (context, state) =>
+                _slidePage(state, const ProductosScreen()),
+          ),
+          GoRoute(
+            path: '/productos/:id',
+            pageBuilder: (context, state) => _slidePage(
+              state,
+              ProductoDetalleScreen(
+                cuentaId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
               ),
-            ],
+            ),
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/adquisicion',
-                builder: (context, state) => const AdquisicionScreen(),
+          GoRoute(
+            path: '/propiedad/:id',
+            pageBuilder: (context, state) => _slidePage(
+              state,
+              PropiedadDetalleScreen(
+                cuentaId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
               ),
-            ],
+            ),
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/patrimonio',
-                builder: (context, state) => const PatrimonioScreen(),
+          // Shell de tabs.
+          StatefulShellRoute.indexedStack(
+            builder: (context, state, shell) => _TabsShell(shell: shell),
+            branches: [
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: '/inicio',
+                    builder: (context, state) => const InicioScreen(),
+                  ),
+                ],
               ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/documentos',
-                builder: (context, state) => const DocumentosScreen(),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: '/adquisicion',
+                    builder: (context, state) => const AdquisicionScreen(),
+                  ),
+                ],
               ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/perfil',
-                builder: (context, state) => const PerfilScreen(),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: '/patrimonio',
+                    builder: (context, state) => const PatrimonioScreen(),
+                  ),
+                ],
+              ),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: '/documentos',
+                    builder: (context, state) => const DocumentosScreen(),
+                  ),
+                ],
+              ),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: '/perfil',
+                    builder: (context, state) => const PerfilScreen(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -266,6 +296,12 @@ class _TabsShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Modo portal (web ≥1024px): el PortalShellWrapper del router ya pinta
+    // sidebar, topbar e impersonación; aquí solo va el contenido de las tabs,
+    // sin bottom nav ni _SideNav.
+    if (isPortalMode(context)) {
+      return Scaffold(body: shell);
+    }
     final auth = ref.watch(authProvider);
     final imp = ref.watch(impersonationProvider);
     final banner = auth.isSuperAdmin && imp.active
@@ -491,6 +527,18 @@ class _SideNav extends StatelessWidget {
       ),
     );
   }
+}
+
+/// En modo portal devuelve el hijo tal cual (el shell ya limita el ancho a
+/// 1280px); en cualquier otro caso aplica el WebFrame de 900px de siempre.
+class _PortalAwareFrame extends StatelessWidget {
+  final Widget child;
+
+  const _PortalAwareFrame({required this.child});
+
+  @override
+  Widget build(BuildContext context) =>
+      isPortalMode(context) ? child : WebFrame(child: child);
 }
 
 class _SplashScreen extends StatelessWidget {

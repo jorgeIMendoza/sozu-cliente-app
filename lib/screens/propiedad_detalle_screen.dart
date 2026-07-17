@@ -14,9 +14,11 @@ import '../widgets/common.dart';
 import '../widgets/copropietarios_section.dart';
 import '../widgets/cronograma_pagos.dart';
 import '../widgets/etapa_actual_stepper.dart';
+import '../widgets/fx.dart';
 import '../widgets/level_map.dart';
 import '../widgets/network_image.dart';
 import '../widgets/payment_method_badge.dart';
+import '../widgets/pulsing_pin.dart';
 import 'como_llegar_screen.dart';
 import 'pago_final_screen.dart';
 
@@ -48,7 +50,29 @@ class _PropiedadDetalleScreenState
       // CTA sticky de pago solo en pantallas angostas (patrón del portal:
       // AcquisitionStickyCTA es md:hidden).
       bottomNavigationBar: _stickyCta(context, detalle.valueOrNull),
-      body: detalle.when(
+      // Fade suave entre skeleton → datos (sin salto al cargar).
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: KeyedSubtree(
+          key: ValueKey(
+            detalle.isLoading
+                ? 'cargando'
+                : detalle.hasError
+                    ? 'error'
+                    : 'datos',
+          ),
+          child: _body(context, tone, detalle),
+        ),
+      ),
+    );
+  }
+
+  Widget _body(
+    BuildContext context,
+    SozuTone tone,
+    AsyncValue<PropiedadDetalle> detalle,
+  ) {
+    return detalle.when(
         loading: () => ListView(
           padding: const EdgeInsets.all(16),
           children: const [
@@ -72,11 +96,14 @@ class _PropiedadDetalleScreenState
         data: (d) => ListView(
           padding: const EdgeInsets.only(bottom: 32),
           children: [
-            // Hero
-            SizedBox(
-              height: 200,
-              width: double.infinity,
-              child: SozuNetworkImage(url: d.urlImagen),
+            // Hero (transición compartida con la imagen de la tarjeta)
+            Hero(
+              tag: 'prop-img-${widget.cuentaId}',
+              child: SizedBox(
+                height: 200,
+                width: double.infinity,
+                child: SozuNetworkImage(url: d.urlImagen),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -285,7 +312,6 @@ class _PropiedadDetalleScreenState
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -509,16 +535,14 @@ class _UbicacionSection extends StatelessWidget {
                       ),
                       MarkerLayer(
                         markers: [
+                          // Pin con efecto de respiración (halo que crece y
+                          // se desvanece en loop); alineación center = punta
+                          // del pin sobre la coordenada.
                           Marker(
                             point: _punto,
-                            width: 40,
-                            height: 40,
-                            alignment: Alignment.topCenter,
-                            child: const Icon(
-                              Icons.location_pin,
-                              size: 40,
-                              color: SozuColors.emerald600,
-                            ),
+                            width: PulsingPin.lado,
+                            height: PulsingPin.lado,
+                            child: const PulsingPin(),
                           ),
                         ],
                       ),
@@ -589,7 +613,7 @@ class _ProductoRow extends StatelessWidget {
       'En curso' => BadgeTone.neutral,
       _ => BadgeTone.pending,
     };
-    return GestureDetector(
+    return PressableScale(
       onTap: () => context.push('/productos/${p.id}'),
       child: AppCard(
         child: Row(
@@ -763,7 +787,7 @@ class _DocRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
-    return GestureDetector(
+    return PressableScale(
       onTap: () => openMedia(context, d.urlFirmada, titulo: d.nombre),
       child: AppCard(
         child: Row(
