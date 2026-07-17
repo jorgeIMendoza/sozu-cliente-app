@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 import '../core/theme.dart';
+import '../widgets/pulsing_pin.dart';
 
 /// Modo de viaje para la ruta, trazada con OSRM (servidores públicos de
 /// FOSSGIS/OpenStreetMap, sin API key).
@@ -337,16 +338,14 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                         ),
                       ),
                     ),
+                  // Destino: pin con efecto de respiración (halo que crece
+                  // y se desvanece en loop); alineación center = punta del
+                  // pin sobre la coordenada.
                   Marker(
                     point: _destino,
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.topCenter,
-                    child: const Icon(
-                      Icons.location_pin,
-                      size: 40,
-                      color: SozuColors.emerald600,
-                    ),
+                    width: PulsingPin.lado,
+                    height: PulsingPin.lado,
+                    child: const PulsingPin(),
                   ),
                 ],
               ),

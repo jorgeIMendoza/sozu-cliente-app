@@ -458,7 +458,7 @@ class _ActividadCard extends StatelessWidget {
       'upcoming' => SozuColors.amber600,
       _ => SozuColors.emerald500,
     };
-    return GestureDetector(
+    return PressableScale(
       onTap: onTap,
       child: AppCard(
         borderColor: borde.withValues(alpha: 0.35),
@@ -550,7 +550,7 @@ class _PendienteRow extends StatelessWidget {
       'upcoming' => tone.pending,
       _ => tone.positive,
     };
-    return GestureDetector(
+    return PressableScale(
       onTap: onTap,
       child: AppCard(
         child: Row(
@@ -692,7 +692,7 @@ class _QuickAccess extends StatelessWidget {
       ],
     );
 
-    return GestureDetector(
+    return PressableScale(
       onTap: onTap,
       child: destacado
           // Tarjeta destacada de ancho completo (Estado de cuenta).

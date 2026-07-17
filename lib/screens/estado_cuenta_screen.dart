@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/format.dart';
 import '../core/open_media.dart';
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/api_client.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
 import '../providers/impersonation_provider.dart';
 import '../widgets/common.dart';
+import '../widgets/portal_widgets.dart';
 
 /// Estado de cuenta POR PROPIEDAD (paridad con el portal admin):
 /// lista de propiedades (buscador) → detalle con resumen (KPIs), filtros
@@ -96,6 +98,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         null,
       ),
       data: (data) {
+        final portal = isPortalMode(context);
         final cuentas = <PropiedadCard>[
           ...data.enAdquisicion,
           ...data.patrimonioActivo,
@@ -113,13 +116,19 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
             : single;
 
         if (cuenta == null) {
-          return _scaffold(context, _lista(cuentas), null);
+          return _scaffold(
+            context,
+            portal ? _portalSelector(cuentas) : _lista(cuentas),
+            null,
+          );
         }
         // Detalle. Si el usuario eligió de la lista, el back vuelve a la lista.
         final volverALista = _selected != null && single == null;
         return _scaffold(
           context,
-          _detalle(cuenta),
+          portal
+              ? _portalDetalle(cuenta, multi: cuentas.length > 1)
+              : _detalle(cuenta),
           cuenta.id,
           onBack: volverALista ? () => setState(() => _selected = null) : null,
         );
@@ -133,6 +142,11 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     int? cuentaId, {
     VoidCallback? onBack,
   }) {
+    // Modo portal: el shell (sidebar + topbar) ya pinta el título de sección;
+    // la pantalla NO muestra su AppBar propio (header dentro del contenido).
+    if (isPortalMode(context)) {
+      return Scaffold(backgroundColor: Colors.transparent, body: body);
+    }
     return Scaffold(
       appBar: AppBar(
         title: const Text('Estado de cuenta'),
@@ -331,24 +345,15 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   Widget _resumen(SozuTone tone, EstadoCuenta d) {
     final now = DateTime.now();
     final periodo = '${_meses[now.month - 1]} ${now.year}';
-    final hoy =
-        '${now.year}-'
-        '${now.month.toString().padLeft(2, '0')}-'
-        '${now.day.toString().padLeft(2, '0')}';
 
     // Próxima parcialidad: primer acuerdo no completado por fecha ascendente.
     final pendientes = d.acuerdos.where((a) => !a.pagadoCompleto).toList()
       ..sort((a, b) => (a.fecha ?? '').compareTo(b.fecha ?? ''));
     final proxima = pendientes.isEmpty ? null : pendientes.first;
 
-    // Con adeudo si hay saldo y algún acuerdo pendiente ya venció.
-    final vencidos = d.acuerdos.any(
-      (a) =>
-          !a.pagadoCompleto &&
-          (a.fecha ?? '').isNotEmpty &&
-          a.fecha!.compareTo(hoy) < 0,
-    );
-    final conAdeudo = d.saldoPendiente > 0.01 && vencidos;
+    // Chip como el portal: "Pago Pendiente" (ámbar) con saldo, si no
+    // "Al corriente". (Antes decía "Con adeudo" solo con vencidos.)
+    final conAdeudo = d.saldoPendiente > 0.01;
 
     final progreso = d.precioFinal > 0
         ? (d.totalPagado / d.precioFinal).clamp(0.0, 1.0).toDouble()
@@ -367,8 +372,8 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                 ),
               ),
               StatusBadge(
-                label: conAdeudo ? 'Con adeudo' : 'Al corriente',
-                tone: conAdeudo ? BadgeTone.negative : BadgeTone.positive,
+                label: conAdeudo ? 'Pago Pendiente' : 'Al corriente',
+                tone: conAdeudo ? BadgeTone.pending : BadgeTone.positive,
               ),
             ],
           ),
@@ -892,10 +897,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                       'Clave $clave',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: tone.textSecondary,
-                      ),
+                      style: TextStyle(fontSize: 12, color: tone.textSecondary),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -1212,10 +1214,6 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
             Divider(color: tone.border, height: 20),
           ],
           _filaCopiable(tone, 'CLABE', i.clabe!, mono: true),
-          if ((i.beneficiario ?? '').isNotEmpty) ...[
-            Divider(color: tone.border, height: 20),
-            _filaInfo(tone, 'Beneficiario', i.beneficiario!),
-          ],
           if (i.referencia.isNotEmpty) ...[
             Divider(color: tone.border, height: 20),
             _filaCopiable(tone, 'Referencia', i.referencia, mono: true),
@@ -1308,6 +1306,1247 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     await Clipboard.setData(ClipboardData(text: value));
     if (!mounted) return;
     _snack('$label copiado.');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODO PORTAL (web ≥1024): réplica exacta del Estado de cuenta del Portal
+  // del Cliente (docs/web_portal_spec/estado_cuenta.md). Solo capa visual:
+  // reutiliza providers, filtros (_estatus/_anio) y acciones existentes.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static const _mesesCortos = [
+    'ene',
+    'feb',
+    'mar',
+    'abr',
+    'may',
+    'jun',
+    'jul',
+    'ago',
+    'sep',
+    'oct',
+    'nov',
+    'dic',
+  ];
+
+  // Anchos fijos de columnas de la tabla (CONCEPTO es flexible).
+  static const double _wFecha = 112;
+  static const double _wMonto = 150;
+  static const double _wEstatus = 118;
+  static const double _wComp = 128;
+  static const double _minTablaWidth = 680;
+
+  /// Fondo de thead y fila expandida (`bg-muted/10` aplanado, tokens.md §1.1).
+  static const Color _theadBg = Color(0xFFFDFEFE);
+
+  /// Fecha corta es-MX como el portal: "15 jul 2026".
+  String _fechaCorta(String? fecha) {
+    final d = DateTime.tryParse(fecha ?? '');
+    if (d == null) return '—';
+    return '${d.day} ${_mesesCortos[d.month - 1]} ${d.year}';
+  }
+
+  /// Colores del cuadro de unidad del selector (statusStyles del portal).
+  (Color, Color) _portalEstatusStyle(String estatus) {
+    final e = estatus.toLowerCase();
+    if (e.contains('pendiente') || e.contains('vencid')) {
+      return (PortalColors.warningSoft15, PortalColors.warning);
+    }
+    // En Preventa/Escrituración/Por Entregar (primary) y Entregada/Completado
+    // (success) usan el mismo verde en el portal.
+    return (PortalColors.primarySoft15, PortalColors.primary);
+  }
+
+  /// Movimientos del portal: los acuerdos del plan de pagos; sin plan, los
+  /// pagos realizados (mismo fallback que buildMovements del portal).
+  List<_Mov> _movimientosPortal(EstadoCuenta d) {
+    if (d.acuerdos.isNotEmpty) {
+      return [
+        for (final a in d.acuerdos)
+          _Mov(
+            fecha: a.fecha,
+            concepto: _conceptoAcuerdo(a),
+            monto: a.monto,
+            aplicado: a.pagado,
+            status: a.pagadoCompleto
+                ? _MovStatus.pagado
+                : a.pagado > 0.01
+                ? _MovStatus.parcial
+                : _MovStatus.pendiente,
+            // Misma clave que la vista móvil: comparte _acuerdosExpandidos.
+            rowKey: '${a.orden}-${a.concepto}-${a.fecha ?? ''}',
+            apps: a.aplicaciones,
+          ),
+      ];
+    }
+    return [
+      for (final p in d.pagos)
+        _Mov(
+          fecha: p.fecha,
+          concepto: p.metodo,
+          monto: p.monto,
+          aplicado: p.monto,
+          status: _MovStatus.pagado,
+          rowKey: 'pago-${p.id}',
+          apps: const [],
+          pago: p,
+        ),
+    ];
+  }
+
+  /// Recibo de un movimiento (icono FileText): reusa las acciones existentes.
+  Future<void> _abrirReciboMov(_Mov m) async {
+    final app = m.app;
+    if (app != null) return _abrirReciboAplicacion(app);
+    final pago = m.pago;
+    if (pago != null) return _abrirRecibo(pago);
+  }
+
+  /// Genera el recibo PDF vía backend (icono Eye del portal).
+  Future<void> _generarReciboPdf(int pagoId) async {
+    if (_generandoRecibo != null) return;
+    setState(() => _generandoRecibo = pagoId);
+    try {
+      final imp = ref.read(impersonationProvider).idPersona;
+      final url = await fetchReciboPagoUrl(pagoId, impersonate: imp);
+      if (!mounted) return;
+      if (url == null) {
+        _snack('No pudimos generar el recibo. Intenta de nuevo.');
+      } else {
+        await openMedia(context, url, titulo: 'Recibo');
+      }
+    } catch (_) {
+      if (mounted) _snack('No pudimos generar el recibo. Intenta de nuevo.');
+    } finally {
+      if (mounted) setState(() => _generandoRecibo = null);
+    }
+  }
+
+  // ── Selector de propiedad (spec §A) ───────────────────────────────────────
+  Widget _portalSelector(List<PropiedadCard> cuentas) {
+    final q = _query.trim().toLowerCase();
+    final filtradas = q.isEmpty
+        ? cuentas
+        : cuentas
+              .where(
+                (c) =>
+                    c.nombre.toLowerCase().contains(q) ||
+                    c.proyecto.toLowerCase().contains(q),
+              )
+              .toList();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(top: 24, bottom: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Estado de cuenta',
+            style: portalText(
+              size: 26,
+              weight: FontWeight.w700,
+              letterSpacing: -0.65,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Selecciona una propiedad.',
+            style: portalText(size: 13, color: PortalColors.mutedForeground),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 40,
+            child: TextField(
+              onChanged: (v) => setState(() => _query = v),
+              style: portalText(size: 13),
+              cursorColor: PortalColors.primary,
+              decoration: InputDecoration(
+                hintText: 'Buscar propiedad…',
+                hintStyle: portalText(
+                  size: 13,
+                  color: PortalColors.mutedForeground.withValues(alpha: .7),
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: 16,
+                  color: PortalColors.mutedForeground.withValues(alpha: .7),
+                ),
+                filled: true,
+                fillColor: PortalColors.surface,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(kPortalRadiusLg),
+                  borderSide: const BorderSide(color: PortalColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(kPortalRadiusLg),
+                  borderSide: const BorderSide(
+                    color: PortalColors.primary,
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (filtradas.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  'Sin resultados',
+                  style: portalText(
+                    size: 14,
+                    color: PortalColors.mutedForeground,
+                  ),
+                ),
+              ),
+            )
+          else
+            for (final c in filtradas) ...[
+              _portalCardPropiedad(c),
+              const SizedBox(height: 8),
+            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _portalCardPropiedad(PropiedadCard c) {
+    final (bg, fg) = _portalEstatusStyle(c.estatusDerivado);
+    return PortalHoverBuilder(
+      builder: (context, hovered) => GestureDetector(
+        onTap: () => setState(() {
+          _selected = c.id;
+          _estatus = 'todos';
+          _anio = 'todos';
+          _tab = 0;
+          _ordenDesc = true;
+          _acuerdosExpandidos.clear();
+        }),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: PortalColors.surface,
+            borderRadius: BorderRadius.circular(kPortalRadiusCard),
+            border: Border.all(
+              color: hovered
+                  ? PortalColors.primaryBorder30
+                  : PortalColors.border,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(kPortalRadiusLg),
+                ),
+                child: Text(
+                  c.nombre,
+                  style: portalText(
+                    size: 14,
+                    weight: FontWeight.w700,
+                    color: fg,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: c.proyecto,
+                            style: portalText(
+                              size: 14,
+                              weight: FontWeight.w600,
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' · U${c.nombre}',
+                            style: portalText(
+                              size: 14,
+                              color: PortalColors.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: c.estatusDerivado,
+                            style: portalText(
+                              size: 11,
+                              weight: FontWeight.w500,
+                              color: fg,
+                            ),
+                          ),
+                          TextSpan(
+                            text:
+                                ' • ${c.avancePago.round()}% pagado · ${formatMXN(c.monto)}',
+                            style: portalText(
+                              size: 11,
+                              color: PortalColors.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right,
+                size: 16,
+                color: PortalColors.mutedForeground,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Detalle (header + 2 columnas) ─────────────────────────────────────────
+  Widget _portalDetalle(PropiedadCard c, {required bool multi}) {
+    final edo = ref.watch(estadoCuentaProvider(c.id));
+    return edo.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: PortalColors.primary),
+      ),
+      error: (_, __) => ListView(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        children: [
+          ErrorCard(
+            title: 'No pudimos cargar el estado de cuenta',
+            onRetry: () => ref.invalidate(estadoCuentaProvider(c.id)),
+          ),
+        ],
+      ),
+      data: (d) => _portalContenido(c, d, multi),
+    );
+  }
+
+  Widget _portalContenido(PropiedadCard c, EstadoCuenta d, bool multi) {
+    final movs = _movimientosPortal(d);
+    final anios = <String>{
+      for (final m in movs)
+        if ((m.fecha ?? '').length >= 4) m.fecha!.substring(0, 4),
+    }.toList()..sort((a, b) => b.compareTo(a));
+
+    // Filtro en cliente (spec §D): "Pendientes" incluye pendiente Y parcial.
+    final filtrados = movs.where((m) {
+      if (_anio != 'todos' && !(m.fecha ?? '').startsWith(_anio)) return false;
+      if (_estatus == 'pagado' && m.status != _MovStatus.pagado) return false;
+      if (_estatus == 'pendiente' && m.status == _MovStatus.pagado) {
+        return false;
+      }
+      return true;
+    }).toList()..sort((a, b) => (b.fecha ?? '').compareTo(a.fecha ?? ''));
+
+    final izquierda = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _portalFiltros(anios),
+        const SizedBox(height: 16),
+        _portalMovimientos(filtrados),
+      ],
+    );
+    final derecha = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _portalResumen(c, d),
+        if (d.instrucciones != null &&
+            (d.instrucciones!.clabe ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _portalInstrucciones(d.instrucciones!),
+        ],
+      ],
+    );
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(top: 24, bottom: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _portalHeader(c, multi),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, cons) {
+              // Grid 1fr + 300px con gap 24; por debajo de kTwoColBreakpoint
+              // la columna derecha cae debajo.
+              if (cons.maxWidth < kTwoColBreakpoint) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [izquierda, const SizedBox(height: 16), derecha],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: izquierda),
+                  const SizedBox(width: 24),
+                  SizedBox(width: 300, child: derecha),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _portalHeader(PropiedadCard c, bool multi) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Estado de cuenta',
+                style: portalText(
+                  size: 26,
+                  weight: FontWeight.w700,
+                  letterSpacing: -0.65,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${c.proyecto} - U-${c.nombre}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: portalText(
+                  size: 12,
+                  color: PortalColors.mutedForeground,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        if (multi) ...[
+          PortalOutlineButton(
+            label: 'Cambiar propiedad',
+            icon: Icons.swap_horiz,
+            onPressed: () => setState(() => _selected = null),
+          ),
+          const SizedBox(width: 8),
+        ],
+        PortalPrimaryButton(
+          label: 'Descargar PDF',
+          loadingLabel: 'Generando…',
+          icon: Icons.download_outlined,
+          loading: _descargando,
+          onPressed: () => _descargarPdf(c.id),
+        ),
+      ],
+    );
+  }
+
+  // ── Card de filtros (spec §D) ─────────────────────────────────────────────
+  Widget _portalFiltros(List<String> anios) {
+    Widget fila(String label, List<Widget> pills) => Row(
+      children: [
+        PortalSectionLabel(label),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 6,
+            runSpacing: 6,
+            children: pills,
+          ),
+        ),
+      ],
+    );
+
+    return PortalCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          fila('Período', [
+            PortalPill(
+              label: 'Todos',
+              active: _anio == 'todos',
+              onTap: () => setState(() => _anio = 'todos'),
+            ),
+            for (final y in anios)
+              PortalPill(
+                label: y,
+                active: _anio == y,
+                onTap: () => setState(() => _anio = y),
+              ),
+          ]),
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.only(top: 12),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: PortalColors.border)),
+            ),
+            child: fila('Estatus', [
+              PortalPill(
+                label: 'Todos',
+                active: _estatus == 'todos',
+                onTap: () => setState(() => _estatus = 'todos'),
+              ),
+              PortalPill(
+                label: 'Pagados',
+                active: _estatus == 'pagado',
+                onTap: () => setState(() => _estatus = 'pagado'),
+              ),
+              PortalPill(
+                label: 'Pendientes',
+                active: _estatus == 'pendiente',
+                onTap: () => setState(() => _estatus = 'pendiente'),
+              ),
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Card "Movimientos" con tabla (spec §E) ────────────────────────────────
+  Widget _portalMovimientos(List<_Mov> movs) {
+    return PortalCard(
+      clip: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: const BoxDecoration(
+              color: PortalColors.mutedSoft20,
+              border: Border(bottom: BorderSide(color: PortalColors.border)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Movimientos',
+                    style: portalText(size: 14, weight: FontWeight.w600),
+                  ),
+                ),
+                Text(
+                  '${movs.length} registro${movs.length == 1 ? '' : 's'}',
+                  style: portalText(
+                    size: 11,
+                    color: PortalColors.mutedForeground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (movs.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(32),
+              child: Center(
+                child: Text(
+                  'Sin movimientos con ese filtro',
+                  style: portalText(
+                    size: 14,
+                    color: PortalColors.mutedForeground,
+                  ),
+                ),
+              ),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, cons) {
+                // overflow-x-auto: la tabla scrollea horizontal si no cabe.
+                final w = cons.maxWidth < _minTablaWidth
+                    ? _minTablaWidth
+                    : cons.maxWidth;
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: w,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _tablaHeader(),
+                        for (var i = 0; i < movs.length; i++)
+                          ..._tablaFila(movs[i], last: i == movs.length - 1),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: PortalColors.border)),
+            ),
+            child: Text(
+              'Estado de cuenta generado automáticamente por SOZU.',
+              textAlign: TextAlign.center,
+              style: portalText(size: 10, color: PortalColors.mutedForeground),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tablaHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: const BoxDecoration(
+        color: _theadBg,
+        border: Border(bottom: BorderSide(color: PortalColors.border)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: _wFecha,
+            child: const Padding(
+              padding: EdgeInsets.only(left: 20, right: 12),
+              child: PortalSectionLabel('Fecha'),
+            ),
+          ),
+          const Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: PortalSectionLabel('Concepto'),
+            ),
+          ),
+          SizedBox(
+            width: _wMonto,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: PortalSectionLabel('Monto'),
+              ),
+            ),
+          ),
+          const SizedBox(
+            width: _wEstatus,
+            child: Center(child: PortalSectionLabel('Estatus')),
+          ),
+          SizedBox(
+            width: _wComp,
+            child: const Padding(
+              padding: EdgeInsets.only(left: 12, right: 20),
+              child: Center(child: PortalSectionLabel('Comprobante')),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _tablaFila(_Mov m, {required bool last}) {
+    final multi = m.apps.length > 1;
+    final expanded = multi && _acuerdosExpandidos.contains(m.rowKey);
+    final pagado = m.status == _MovStatus.pagado;
+
+    // MONTO (MontoCell del portal).
+    Widget monto;
+    if (m.status == _MovStatus.parcial) {
+      final faltan = (m.monto - m.aplicado) < 0 ? 0.0 : m.monto - m.aplicado;
+      monto = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            formatMXN(m.aplicado),
+            style: portalText(size: 13, weight: FontWeight.w600, tabular: true),
+          ),
+          Text(
+            'de ${formatMXN(m.monto)}',
+            style: portalText(
+              size: 10,
+              color: PortalColors.mutedForeground,
+              tabular: true,
+            ),
+          ),
+          Text(
+            'Faltan ${formatMXN(faltan)}',
+            style: portalText(
+              size: 10,
+              weight: FontWeight.w500,
+              color: PortalColors.warning,
+              tabular: true,
+            ),
+          ),
+        ],
+      );
+    } else {
+      final amt = pagado ? (m.aplicado > 0 ? m.aplicado : m.monto) : m.monto;
+      monto = Text(
+        formatMXN(amt),
+        style: portalText(size: 13, weight: FontWeight.w600, tabular: true),
+      );
+    }
+
+    // ESTATUS con icono (Pagado verde / Parcial y Pendiente ámbar).
+    final chip = pagado
+        ? const PortalStatusChip(
+            label: 'Pagado',
+            icon: Icons.check_circle_outlined,
+            background: PortalColors.primarySoft10,
+            foreground: PortalColors.primary,
+          )
+        : PortalStatusChip(
+            label: m.status == _MovStatus.parcial ? 'Parcial' : 'Pendiente',
+            icon: Icons.schedule,
+            background: PortalColors.warningSoft10,
+            foreground: PortalColors.warning,
+          );
+
+    // COMPROBANTE: toggle si hay varios pagos; si no, recibo / ver / CEP.
+    Widget acciones;
+    if (multi) {
+      acciones = PortalIconBtn(
+        icon: expanded ? Icons.expand_less : Icons.expand_more,
+        tooltip: 'Ver pagos aplicados',
+        onTap: () => setState(() {
+          if (!_acuerdosExpandidos.remove(m.rowKey)) {
+            _acuerdosExpandidos.add(m.rowKey);
+          }
+        }),
+      );
+    } else {
+      final tieneFuente = m.app != null || m.pago != null;
+      final generando = m.pagoId != null && _generandoRecibo == m.pagoId;
+      acciones = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PortalIconBtn(
+            icon: Icons.description_outlined,
+            tooltip: !pagado
+                ? 'Pago pendiente'
+                : tieneFuente
+                ? 'Ver recibo'
+                : 'Sin recibo',
+            onTap: pagado && tieneFuente ? () => _abrirReciboMov(m) : null,
+          ),
+          PortalIconBtn(
+            icon: Icons.visibility_outlined,
+            tooltip: !pagado
+                ? 'Pago pendiente'
+                : m.pagoId != null
+                ? 'Generar recibo PDF'
+                : 'Sin recibo',
+            loading: generando,
+            onTap: pagado && m.pagoId != null
+                ? () => _generarReciboPdf(m.pagoId!)
+                : null,
+          ),
+          PortalIconBtn(
+            icon: Icons.receipt_long_outlined,
+            tooltip: !pagado
+                ? 'Pago pendiente'
+                : m.cepUrl != null
+                ? 'CEP electrónico'
+                : 'Sin comprobante',
+            onTap: pagado && m.cepUrl != null
+                ? () => openMedia(context, m.cepUrl, titulo: 'CEP')
+                : null,
+          ),
+        ],
+      );
+    }
+
+    return [
+      PortalHoverBuilder(
+        builder: (context, hovered) => Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: hovered ? PortalColors.mutedSoft20 : Colors.transparent,
+            border: (last && !expanded)
+                ? null
+                : const Border(bottom: BorderSide(color: PortalColors.border)),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: _wFecha,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 20, right: 12),
+                  child: Text(
+                    _fechaCorta(m.fecha),
+                    style: portalText(
+                      size: 12,
+                      color: PortalColors.mutedForeground,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        m.concepto,
+                        style: portalText(size: 13, weight: FontWeight.w500),
+                      ),
+                      if (multi)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: PortalColors.primarySoft10,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.layers_outlined,
+                                size: 12,
+                                color: PortalColors.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${m.apps.length} pagos',
+                                style: portalText(
+                                  size: 10,
+                                  weight: FontWeight.w500,
+                                  color: PortalColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: _wMonto,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Align(alignment: Alignment.centerRight, child: monto),
+                ),
+              ),
+              SizedBox(
+                width: _wEstatus,
+                child: Center(child: chip),
+              ),
+              SizedBox(
+                width: _wComp,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 12, right: 20),
+                  child: Center(child: acciones),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      if (expanded)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          decoration: BoxDecoration(
+            color: _theadBg,
+            border: last
+                ? null
+                : const Border(bottom: BorderSide(color: PortalColors.border)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${m.apps.length} pagos aplicados a ${m.concepto}'
+                    .toUpperCase(),
+                style: portalText(
+                  size: 10,
+                  color: PortalColors.mutedForeground,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 2),
+              for (final app in m.apps) _portalAppRow(app),
+            ],
+          ),
+        ),
+    ];
+  }
+
+  /// Sub-fila de pago aplicado (AppRow del portal): regla verde a la
+  /// izquierda + método/monto + fecha/clave + botones Eye y CEP.
+  Widget _portalAppRow(AplicacionPago app) {
+    final clave = (app.claveRastreo ?? '').trim();
+    final cep = (app.urlCep ?? '').trim();
+    final generando = _generandoRecibo == app.idPago;
+    return Container(
+      padding: const EdgeInsets.only(left: 12, top: 8, bottom: 8),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: PortalColors.primary.withValues(alpha: .2),
+            width: 2,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${app.metodo ?? 'Pago'} · ${formatMXN(app.monto)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: portalText(
+                    size: 11,
+                    weight: FontWeight.w500,
+                    tabular: true,
+                  ),
+                ),
+                Text(
+                  '${_fechaCorta(app.fecha)}${clave.isNotEmpty ? ' · Clave $clave' : ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: portalText(
+                    size: 10,
+                    color: PortalColors.mutedForeground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          PortalIconBtn(
+            icon: Icons.visibility_outlined,
+            tooltip: 'Generar recibo PDF',
+            loading: generando,
+            onTap: () => _generarReciboPdf(app.idPago),
+          ),
+          PortalIconBtn(
+            icon: Icons.receipt_long_outlined,
+            tooltip: cep.isNotEmpty ? 'CEP electrónico' : 'Sin comprobante',
+            onTap: cep.isNotEmpty
+                ? () => openMedia(context, cep, titulo: 'CEP')
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Card resumen (spec §F) ────────────────────────────────────────────────
+  Widget _portalResumen(PropiedadCard c, EstadoCuenta d) {
+    final now = DateTime.now();
+    final periodo = '${_meses[now.month - 1]} ${now.year}';
+    final pendientes = d.acuerdos.where((a) => !a.pagadoCompleto).toList()
+      ..sort((a, b) => (a.fecha ?? '').compareTo(b.fecha ?? ''));
+    final proxima = pendientes.isEmpty ? null : pendientes.first;
+    final conAdeudo = d.saldoPendiente > 0.01;
+    final pct = d.precioFinal > 0
+        ? ((d.totalPagado / d.precioFinal) * 100).clamp(0, 100).round()
+        : 0;
+
+    Widget sep() => Container(
+      height: 1,
+      margin: const EdgeInsets.only(top: 16, bottom: 12),
+      color: PortalColors.border,
+    );
+
+    Widget finRow(
+      String label,
+      String value, {
+      Color? color,
+      bool bold = false,
+    }) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: portalText(size: 12, color: PortalColors.mutedForeground),
+            ),
+          ),
+          Text(
+            value,
+            style: portalText(
+              size: 14,
+              weight: bold ? FontWeight.w700 : FontWeight.w600,
+              color: color ?? PortalColors.foreground,
+              tabular: true,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return PortalCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. Encabezado de marca + chip de estatus.
+          Row(
+            children: [
+              Text(
+                'sozu',
+                style: portalText(
+                  size: 15,
+                  weight: FontWeight.w700,
+                  letterSpacing: -0.6,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '-',
+                style: portalText(
+                  size: 12,
+                  color: PortalColors.mutedForeground,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Estado de Cuenta',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: portalText(size: 12, weight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(width: 8),
+              PortalStatusChip(
+                small: true,
+                label: conAdeudo ? 'Pago Pendiente' : 'Al corriente',
+                background: conAdeudo
+                    ? PortalColors.warningSoft15
+                    : PortalColors.primarySoft15,
+                foreground: conAdeudo
+                    ? PortalColors.warning
+                    : PortalColors.primary,
+              ),
+            ],
+          ),
+          sep(),
+          // 2. Propiedad / Periodo.
+          PortalInfoRow(
+            label: 'Propiedad',
+            value: '${c.proyecto} - U-${c.nombre}',
+          ),
+          const SizedBox(height: 4),
+          PortalInfoRow(label: 'Periodo', value: periodo),
+          sep(),
+          // 3. Financieros.
+          finRow('Valor del Activo', formatMXN(d.precioFinal), bold: true),
+          const SizedBox(height: 10),
+          finRow(
+            'Total Pagado',
+            formatMXN(d.totalPagado),
+            color: PortalColors.primary,
+          ),
+          const SizedBox(height: 10),
+          finRow('Saldo Pendiente', formatMXN(d.saldoPendiente)),
+          if (proxima != null) ...[
+            Container(
+              height: 1,
+              margin: const EdgeInsets.only(top: 8, bottom: 8),
+              color: PortalColors.border,
+            ),
+            Text(
+              'Próxima Parcialidad',
+              style: portalText(size: 10, color: PortalColors.mutedForeground),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              formatMXN(proxima.monto),
+              style: portalText(
+                size: 14,
+                weight: FontWeight.w600,
+                tabular: true,
+              ),
+            ),
+            Text(
+              'Vence ${_fechaCorta(proxima.fecha)}',
+              style: portalText(size: 11, color: PortalColors.mutedForeground),
+            ),
+          ],
+          sep(),
+          // 4. Progreso.
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Progreso',
+                  style: portalText(
+                    size: 11,
+                    color: PortalColors.mutedForeground,
+                  ),
+                ),
+              ),
+              Text(
+                '$pct%',
+                style: portalText(
+                  size: 11,
+                  weight: FontWeight.w600,
+                  tabular: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              height: 8,
+              color: PortalColors.muted,
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: pct / 100,
+                child: Container(color: PortalColors.primary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Card "Instrucciones de Pago" (spec §G) — sin Beneficiario ─────────────
+  Widget _portalInstrucciones(InstruccionesPago i) {
+    return PortalCard(
+      clip: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: const BoxDecoration(
+              color: PortalColors.primarySoft5,
+              border: Border(bottom: BorderSide(color: PortalColors.border)),
+            ),
+            child: Text(
+              'Instrucciones de Pago',
+              style: portalText(size: 12, weight: FontWeight.w600),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if ((i.banco ?? '').isNotEmpty) ...[
+                  PortalInfoRow(label: 'Banco Receptor', value: i.banco!),
+                  const SizedBox(height: 10),
+                ],
+                PortalInfoRow(
+                  label: 'CLABE',
+                  value: i.clabe!,
+                  mono: true,
+                  onCopy: () => _copiar(i.clabe!, 'CLABE'),
+                ),
+                if (i.referencia.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  PortalInfoRow(
+                    label: 'Referencia',
+                    value: i.referencia,
+                    mono: true,
+                    onCopy: () => _copiar(i.referencia, 'Referencia'),
+                  ),
+                ],
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.only(top: 12),
+                  decoration: const BoxDecoration(
+                    border: Border(top: BorderSide(color: PortalColors.border)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.shield_outlined,
+                        size: 14,
+                        color: PortalColors.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'CLABE vinculada exclusivamente a tu propiedad y RFC.',
+                          style: portalText(
+                            size: 10,
+                            color: PortalColors.mutedForeground,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Estatus de un movimiento de la tabla del portal.
+enum _MovStatus { pagado, parcial, pendiente }
+
+/// Movimiento de la tabla del portal: acuerdo del plan de pagos o, sin plan,
+/// un pago realizado (fallback como buildMovements del portal).
+class _Mov {
+  final String? fecha;
+  final String concepto;
+
+  /// Monto planeado del concepto.
+  final double monto;
+
+  /// Suma de pagos aplicados.
+  final double aplicado;
+  final _MovStatus status;
+  final String rowKey;
+  final List<AplicacionPago> apps;
+
+  /// Solo cuando el movimiento proviene de la lista de pagos (sin plan).
+  final PagoRealizado? pago;
+
+  _Mov({
+    required this.fecha,
+    required this.concepto,
+    required this.monto,
+    required this.aplicado,
+    required this.status,
+    required this.rowKey,
+    required this.apps,
+    this.pago,
+  });
+
+  /// Aplicación única (los botones directos solo aplican con 1 pago).
+  AplicacionPago? get app => apps.length == 1 ? apps.first : null;
+
+  int? get pagoId => app?.idPago ?? pago?.id;
+
+  String? get cepUrl {
+    final u = (app?.urlCep ?? pago?.urlCep ?? '').trim();
+    return u.isEmpty ? null : u;
   }
 }
 
