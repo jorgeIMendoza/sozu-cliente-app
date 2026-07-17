@@ -208,7 +208,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   }
 
   Widget _cardPropiedad(SozuTone tone, PropiedadCard c) {
-    final color = _colorEstatus(tone, c.estatus);
+    final color = _colorEstatus(tone, c.estatusDerivado);
     return GestureDetector(
       onTap: () => setState(() {
         _selected = c.id;
@@ -255,7 +255,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${c.estatus} · ${c.avancePago.round()}% pagado · ${formatMXN(c.monto)}',
+                    '${c.estatusDerivado} · ${c.avancePago.round()}% pagado · ${formatMXN(c.monto)}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 12, color: tone.textSecondary),
