@@ -286,6 +286,20 @@ class PropiedadCard {
       proximaFecha = j['proxima_fecha'] as String?,
       docsPendientes = asInt(j['docs_pendientes']),
       entregadaDesde = j['entregada_desde'] as String?;
+
+  /// Etiqueta de estatus derivada de la etapa activa, como el portal
+  /// (getStageInfo): NUNCA el estatus crudo de disponibilidad de la BD, que
+  /// puede decir "Pagada completamente" o "Vendida" aunque la cuenta tenga
+  /// saldo pendiente. Si el backend aún no manda `etapa_activa`, cae al
+  /// estatus crudo.
+  String get estatusDerivado => switch (etapaActiva) {
+        'preventa' => 'En Preventa',
+        'pago_final' => 'Pago Pendiente',
+        'escrituracion' => 'En Escrituración',
+        'entrega' => 'Por Entregar',
+        'post_entrega' => 'Entregada',
+        _ => estatus,
+      };
 }
 
 class ProductoCard {
