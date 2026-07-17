@@ -198,7 +198,7 @@ class _ProductoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
-    return GestureDetector(
+    return PressableScale(
       onTap: onTap,
       child: AppCard(
       child: Row(

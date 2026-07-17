@@ -113,6 +113,7 @@ class SozuProgressBar extends StatelessWidget {
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: 0, end: clamped.toDouble()),
         duration: const Duration(milliseconds: 700),
+        curve: Curves.easeOutCubic,
         builder: (context, value, _) => LinearProgressIndicator(
           value: value,
           minHeight: 10,

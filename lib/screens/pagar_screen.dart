@@ -37,9 +37,16 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
   Future<void> _copiar(String value, String label) async {
     await Clipboard.setData(ClipboardData(text: value));
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label copiado.')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(
+        children: [
+          const Icon(Icons.check_circle_outline,
+              size: 18, color: SozuColors.emerald400),
+          const SizedBox(width: 8),
+          Expanded(child: Text('$label copiado.')),
+        ],
+      ),
+    ));
   }
 
   @override

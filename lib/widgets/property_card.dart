@@ -57,13 +57,16 @@ class PropertyCardWidget extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Imagen
+            // Imagen (Hero: transición compartida con el detalle)
             Stack(
               children: [
-                SizedBox(
-                  height: 160,
-                  width: double.infinity,
-                  child: SozuNetworkImage(url: item.urlImagen),
+                Hero(
+                  tag: 'prop-img-${item.id}',
+                  child: SizedBox(
+                    height: 160,
+                    width: double.infinity,
+                    child: SozuNetworkImage(url: item.urlImagen),
+                  ),
                 ),
                 Positioned(
                   top: 8,
