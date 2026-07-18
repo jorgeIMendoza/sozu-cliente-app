@@ -3,14 +3,32 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/api_client.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
+import 'portal_widgets.dart' show showPortalDialog;
 
 /// Sheets de edición del Perfil (espejo de los modales de ClientePerfil.tsx
 /// del portal): datos personales, datos fiscales y cuentas bancarias, con
 /// verificación de contraseña previa a guardar (gate de 90 s como el portal).
+/// En modo portal (web ≥1024) se muestran como diálogos centrados (max
+/// ~560px), igual que los Dialog del portal web; en móvil siguen siendo
+/// bottom sheets.
+
+/// Bottom sheet en móvil / diálogo centrado del portal en web ancha.
+Future<T?> _showPerfilModal<T>(BuildContext context, Widget child) {
+  if (isPortalMode(context)) {
+    return showPortalDialog<T>(context, child: child);
+  }
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (_) => child,
+  );
+}
 
 // ─── Gate de contraseña ───────────────────────────────────────────────────────
 
@@ -24,12 +42,7 @@ bool get _pwAuthed =>
 /// la identidad quedó confirmada (o si sigue vigente la gracia de 90 s).
 Future<bool> ensurePerfilPwAuth(BuildContext context) async {
   if (_pwAuthed) return true;
-  final ok = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (_) => const _PwGateSheet(),
-  );
+  final ok = await _showPerfilModal<bool>(context, const _PwGateSheet());
   if (ok == true) {
     _pwAuthAt = DateTime.now();
     return true;
@@ -129,12 +142,7 @@ class _PwGateSheetState extends State<_PwGateSheet> {
 // ─── Editar datos personales ─────────────────────────────────────────────────
 
 Future<void> showEditPersonalSheet(BuildContext context, ClientePerfil p) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => _EditPersonalSheet(perfil: p),
-    );
+    _showPerfilModal<void>(context, _EditPersonalSheet(perfil: p));
 
 class _EditPersonalSheet extends ConsumerStatefulWidget {
   final ClientePerfil perfil;
@@ -283,12 +291,7 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
 // ─── Editar datos fiscales ───────────────────────────────────────────────────
 
 Future<void> showEditFiscalSheet(BuildContext context, ClientePerfil p) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => _EditFiscalSheet(perfil: p),
-    );
+    _showPerfilModal<void>(context, _EditFiscalSheet(perfil: p));
 
 class _EditFiscalSheet extends ConsumerStatefulWidget {
   final ClientePerfil perfil;
@@ -516,12 +519,7 @@ Future<void> showCuentaBancariaSheet(
   BuildContext context, {
   CuentaBancariaPerfil? cuenta,
 }) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => _CuentaSheet(cuenta: cuenta),
-    );
+    _showPerfilModal<void>(context, _CuentaSheet(cuenta: cuenta));
 
 class _CuentaSheet extends ConsumerStatefulWidget {
   final CuentaBancariaPerfil? cuenta;
@@ -682,12 +680,9 @@ Future<String?> _pickOption(
   required List<({String value, String label})> options,
   String? selected,
 }) =>
-    showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) =>
-          _OptionPicker(title: title, options: options, selected: selected),
+    _showPerfilModal<String>(
+      context,
+      _OptionPicker(title: title, options: options, selected: selected),
     );
 
 class _OptionPicker extends StatefulWidget {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
+import '../core/portal_theme.dart';
 import '../core/push_service.dart';
 import '../core/theme.dart';
 import '../data/api_client.dart';
@@ -17,6 +18,7 @@ import '../widgets/expediente_card.dart';
 import '../widgets/fx.dart';
 import '../widgets/perfil_section_card.dart';
 import '../widgets/perfil_sheets.dart';
+import '../widgets/portal_widgets.dart';
 import 'perfil_detalle_screens.dart';
 
 /// Perfil del cliente (espejo de ClientePerfil.tsx del portal web): identidad
@@ -62,13 +64,373 @@ class PerfilScreen extends ConsumerWidget {
         // Con biometría habilitada solo bloquea (la huella re-entra sin
         // contraseña); sin biometría es un signOut real.
         await ref.read(authProvider).lockOrSignOut();
+        // Limpia la impersonación y la caché de datos del cliente para que la
+        // próxima sesión (otro cliente) no herede el resumen/perfil del anterior.
+        ref.read(impersonationProvider).clear();
+        invalidateAllData(ref);
         if (context.mounted) context.go('/login');
       }
     }
 
+    final portal = isPortalMode(context);
+
     void pushDetalle(Widget screen) {
+      // En modo portal los "Ver todo" del portal son diálogos centrados
+      // (max ~560px); en móvil siguen siendo pantallas fullscreen.
+      if (portal) {
+        showPortalDialog<void>(context, child: screen);
+        return;
+      }
       Navigator.of(context)
           .push(MaterialPageRoute<void>(builder: (_) => screen));
+    }
+
+    // Tarjetas de sección compartidas entre móvil y portal (la propia
+    // PerfilSectionCard pinta el estilo del portal en modo portal).
+    final tarjetasSeccion = <Widget>[
+      PerfilSectionCard(
+        title: 'Información personal',
+        subtitle: 'Identificación y contacto',
+        icon: Icons.person_outline,
+        statusOk: (p?.nombreLegal ?? '').isNotEmpty && p != null,
+        statusLabel: (p?.nombreLegal ?? '').isNotEmpty && p != null
+            ? 'Completo'
+            : 'Pendiente',
+        rows: [
+          PerfilInfoRow(label: 'Nombre', value: p?.nombreLegal),
+          PerfilInfoRow(label: 'RFC', value: p?.rfc, mono: true),
+          PerfilInfoRow(
+              label: 'CURP', value: p?.curp, mono: true, isLast: true),
+        ],
+        actions: [
+          if (!impersonating && p != null)
+            PerfilCardAction(
+              label: 'Editar',
+              style: PerfilActionStyle.secondary,
+              onTap: () => showEditPersonalSheet(context, p),
+            ),
+          PerfilCardAction(
+            label: 'Ver todo',
+            onTap: () => pushDetalle(const PerfilPersonalScreen()),
+          ),
+        ],
+      ),
+      PerfilSectionCard(
+        title: 'Información fiscal',
+        subtitle: 'Régimen, CFDI y dirección',
+        icon: Icons.business_outlined,
+        statusOk: p?.regimen != null,
+        statusLabel: p?.regimen != null ? 'Completo' : 'Pendiente',
+        rows: [
+          PerfilInfoRow(label: 'Régimen', value: p?.regimenDisplay),
+          PerfilInfoRow(label: 'Uso CFDI', value: p?.usoCfdiDisplay),
+          PerfilInfoRow(label: 'CP', value: p?.cp, mono: true, isLast: true),
+        ],
+        actions: [
+          if (!impersonating && p != null)
+            PerfilCardAction(
+              label: 'Editar',
+              style: PerfilActionStyle.secondary,
+              onTap: () => showEditFiscalSheet(context, p),
+            ),
+          PerfilCardAction(
+            label: 'Ver todo',
+            onTap: () => pushDetalle(const PerfilFiscalScreen()),
+          ),
+        ],
+      ),
+      PerfilSectionCard(
+        title: 'Cuentas bancarias',
+        subtitle: 'Cuentas de dispersión',
+        icon: Icons.credit_card_outlined,
+        statusOk: cuentas.isNotEmpty,
+        statusLabel: cuentas.isNotEmpty
+            ? '${cuentas.length} cuenta${cuentas.length > 1 ? 's' : ''}'
+            : 'Sin cuentas',
+        rows: [
+          if (cuentas.isEmpty)
+            const PerfilInfoRow(
+                label: 'Cuentas registradas', value: null, isLast: true)
+          else
+            for (var i = 0; i < cuentas.length && i < 3; i++)
+              PerfilInfoRow(
+                label: cuentas[i].banco,
+                value: cuentas[i].clabeMasked,
+                mono: true,
+                isLast: i == cuentas.length - 1 || i == 2,
+              ),
+        ],
+        actions: [
+          if (!impersonating)
+            PerfilCardAction(
+              label: 'Agregar cuenta',
+              style: PerfilActionStyle.secondary,
+              onTap: () => showCuentaBancariaSheet(context),
+            ),
+          PerfilCardAction(
+            label: 'Ver cuentas',
+            onTap: () => pushDetalle(const PerfilCuentasScreen()),
+          ),
+        ],
+      ),
+      PerfilSectionCard(
+        title: 'Seguridad',
+        subtitle: 'Contraseña y sesión',
+        icon: Icons.shield_outlined,
+        statusOk: true,
+        statusLabel: 'Activo',
+        rows: [
+          const PerfilInfoRow(
+              label: 'Contraseña', value: '•••••••••', mono: true),
+          const PerfilInfoRow(label: 'Sesión', value: 'Activa', isLast: true),
+        ],
+        actions: [
+          if (!impersonating)
+            PerfilCardAction(
+              label: 'Cambiar contraseña',
+              style: PerfilActionStyle.secondary,
+              onTap: () => context.push('/cambiar-password'),
+            ),
+          PerfilCardAction(
+            label: 'Cerrar sesión',
+            style: PerfilActionStyle.danger,
+            icon: Icons.logout,
+            onTap: confirmarSalir,
+          ),
+        ],
+      ),
+    ];
+
+    // ── Modo portal (web ≥1024): layout ancho de ClientePerfil.tsx ──────────
+    if (portal) {
+      // Header de identidad: avatar + nombre + estatus a la izquierda,
+      // "Perfil completado N%" con barra a la derecha (220px como el portal).
+      final identidad = PortalCard(
+        padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: PortalColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    p?.iniciales ?? initials(nombre),
+                    style: portalText(
+                      size: 20,
+                      weight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        nombre,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: portalText(size: 20, weight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          _portalEstatusChip(estatus),
+                          Text(
+                            p?.tipoPersonaLabel ?? 'Persona física',
+                            style: portalText(
+                              size: 12,
+                              weight: FontWeight.w500,
+                              color: PortalColors.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 24),
+                SizedBox(
+                  width: 220,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Perfil completado',
+                            style: portalText(
+                              size: 12,
+                              weight: FontWeight.w600,
+                              color: PortalColors.mutedForeground,
+                            ),
+                          ),
+                          perfil.isLoading
+                              ? const Skeleton(width: 32, height: 12)
+                              : Text(
+                                  '$completado%',
+                                  style: portalText(
+                                      size: 12, weight: FontWeight.w700),
+                                ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          height: 7,
+                          color: PortalColors.muted,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: FractionallySizedBox(
+                              widthFactor:
+                                  (completado / 100).clamp(0.0, 1.0),
+                              child:
+                                  Container(color: PortalColors.primary),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (p != null && completado < 85) ...[
+              const SizedBox(height: 14),
+              PerfilBannerCompletar(
+                perfilCompletado: completado,
+                onCompletar: () => context.push('/expediente'),
+              ),
+            ],
+          ],
+        ),
+      );
+
+      // Preferencias propias del app (el portal web no las tiene):
+      // agrupadas discretas al final para conservarlas accesibles.
+      final preferencias = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 24, bottom: 8),
+            child: PortalSectionLabel('Preferencias de la app'),
+          ),
+          PortalCard(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Apariencia',
+                  style: portalText(size: 13, weight: FontWeight.w600),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'El portal web siempre se muestra en tema claro; esta '
+                  'preferencia aplica a la app móvil.',
+                  style: portalText(
+                      size: 11, color: PortalColors.mutedForeground),
+                ),
+                const SizedBox(height: 10),
+                _ThemeSelector(tone: tone),
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 16),
+                  height: 1,
+                  color: PortalColors.border,
+                ),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.notifications_active_outlined,
+                      size: 18,
+                      color: PortalColors.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Notificaciones push',
+                            style: portalText(
+                                size: 13, weight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 2),
+                          ValueListenableBuilder<String>(
+                            valueListenable: PushService.estado,
+                            builder: (_, estado, __) => Text(
+                              estado,
+                              style: portalText(
+                                size: 11,
+                                color: PortalColors.mutedForeground,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (PushService.soportado) ...[
+                  const SizedBox(height: 8),
+                  const _PushPrefSwitch(),
+                ],
+              ],
+            ),
+          ),
+          // Solo móvil con biometría; en web se colapsa sola.
+          const BiometricSettingTile(),
+        ],
+      );
+
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.only(top: 24, bottom: 32),
+          child: Center(
+            child: ConstrainedBox(
+              // El portal centra el Perfil a 920px dentro del shell.
+              constraints: const BoxConstraints(maxWidth: 920),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  identidad,
+                  // Tarjeta hero "Tu expediente" (portal-aware).
+                  const ExpedienteCard(),
+                  const SizedBox(height: 16),
+                  ResponsiveCardGrid(
+                    minCardWidth: 330,
+                    gap: 14,
+                    children: tarjetasSeccion,
+                  ),
+                  if (perfil.hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: ErrorCard(
+                        title: 'No pudimos cargar tu perfil',
+                        onRetry: () => ref.invalidate(clientePerfilProvider),
+                      ),
+                    ),
+                  preferencias,
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
     }
 
     return Scaffold(
@@ -195,129 +557,7 @@ class PerfilScreen extends ConsumerWidget {
             // ── Tarjetas de sección (2 columnas en ancho, 1 en angosto) ─────
             ResponsiveCardGrid(
               minCardWidth: 330,
-              children: [
-                PerfilSectionCard(
-                  title: 'Información personal',
-                  subtitle: 'Identificación y contacto',
-                  icon: Icons.person_outline,
-                  statusOk: (p?.nombreLegal ?? '').isNotEmpty && p != null,
-                  statusLabel: (p?.nombreLegal ?? '').isNotEmpty && p != null
-                      ? 'Completo'
-                      : 'Pendiente',
-                  rows: [
-                    PerfilInfoRow(label: 'Nombre', value: p?.nombreLegal),
-                    PerfilInfoRow(label: 'RFC', value: p?.rfc, mono: true),
-                    PerfilInfoRow(
-                        label: 'CURP', value: p?.curp, mono: true, isLast: true),
-                  ],
-                  actions: [
-                    if (!impersonating && p != null)
-                      PerfilCardAction(
-                        label: 'Editar',
-                        style: PerfilActionStyle.secondary,
-                        onTap: () => showEditPersonalSheet(context, p),
-                      ),
-                    PerfilCardAction(
-                      label: 'Ver todo',
-                      onTap: () =>
-                          pushDetalle(const PerfilPersonalScreen()),
-                    ),
-                  ],
-                ),
-                PerfilSectionCard(
-                  title: 'Información fiscal',
-                  subtitle: 'Régimen, CFDI y dirección',
-                  icon: Icons.business_outlined,
-                  statusOk: p?.regimen != null,
-                  statusLabel: p?.regimen != null ? 'Completo' : 'Pendiente',
-                  rows: [
-                    PerfilInfoRow(
-                        label: 'Régimen', value: p?.regimenDisplay),
-                    PerfilInfoRow(
-                        label: 'Uso CFDI', value: p?.usoCfdiDisplay),
-                    PerfilInfoRow(
-                        label: 'CP', value: p?.cp, mono: true, isLast: true),
-                  ],
-                  actions: [
-                    if (!impersonating && p != null)
-                      PerfilCardAction(
-                        label: 'Editar',
-                        style: PerfilActionStyle.secondary,
-                        onTap: () => showEditFiscalSheet(context, p),
-                      ),
-                    PerfilCardAction(
-                      label: 'Ver todo',
-                      onTap: () => pushDetalle(const PerfilFiscalScreen()),
-                    ),
-                  ],
-                ),
-                PerfilSectionCard(
-                  title: 'Cuentas bancarias',
-                  subtitle: 'Cuentas de dispersión',
-                  icon: Icons.credit_card_outlined,
-                  statusOk: cuentas.isNotEmpty,
-                  statusLabel: cuentas.isNotEmpty
-                      ? '${cuentas.length} cuenta${cuentas.length > 1 ? 's' : ''}'
-                      : 'Sin cuentas',
-                  rows: [
-                    if (cuentas.isEmpty)
-                      const PerfilInfoRow(
-                          label: 'Cuentas registradas',
-                          value: null,
-                          isLast: true)
-                    else
-                      for (var i = 0; i < cuentas.length && i < 3; i++)
-                        PerfilInfoRow(
-                          label: cuentas[i].banco,
-                          value: cuentas[i].clabeMasked,
-                          mono: true,
-                          isLast:
-                              i == cuentas.length - 1 || i == 2,
-                        ),
-                  ],
-                  actions: [
-                    if (!impersonating)
-                      PerfilCardAction(
-                        label: 'Agregar cuenta',
-                        style: PerfilActionStyle.secondary,
-                        onTap: () => showCuentaBancariaSheet(context),
-                      ),
-                    PerfilCardAction(
-                      label: 'Ver cuentas',
-                      onTap: () => pushDetalle(const PerfilCuentasScreen()),
-                    ),
-                  ],
-                ),
-                PerfilSectionCard(
-                  title: 'Seguridad',
-                  subtitle: 'Contraseña y sesión',
-                  icon: Icons.shield_outlined,
-                  statusOk: true,
-                  statusLabel: 'Activo',
-                  rows: [
-                    const PerfilInfoRow(
-                        label: 'Contraseña', value: '•••••••••', mono: true),
-                    PerfilInfoRow(
-                        label: 'Sesión',
-                        value: 'Activa',
-                        isLast: true),
-                  ],
-                  actions: [
-                    if (!impersonating)
-                      PerfilCardAction(
-                        label: 'Cambiar contraseña',
-                        style: PerfilActionStyle.secondary,
-                        onTap: () => context.push('/cambiar-password'),
-                      ),
-                    PerfilCardAction(
-                      label: 'Cerrar sesión',
-                      style: PerfilActionStyle.danger,
-                      icon: Icons.logout,
-                      onTap: confirmarSalir,
-                    ),
-                  ],
-                ),
-              ],
+              children: tarjetasSeccion,
             ),
 
             if (perfil.hasError)
@@ -381,6 +621,31 @@ class PerfilScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Chip de verificación en modo portal (colores del header de
+  /// ClientePerfil.tsx: verde / ámbar / rojo con icono).
+  Widget _portalEstatusChip(String estatus) {
+    return switch (estatus) {
+      'verified' => const PortalStatusChip(
+          label: 'Perfil verificado',
+          icon: Icons.check_circle_outline,
+          background: PortalColors.primarySoft10,
+          foreground: PortalColors.primary,
+        ),
+      'review' => const PortalStatusChip(
+          label: 'En revisión',
+          icon: Icons.schedule,
+          background: PortalColors.warningSoft10,
+          foreground: Color(0xFF92400E),
+        ),
+      _ => const PortalStatusChip(
+          label: 'Información incompleta',
+          icon: Icons.error_outline,
+          background: PortalColors.destructiveSoft10,
+          foreground: PortalColors.destructive,
+        ),
+    };
   }
 
   /// Chip de verificación (mismos umbrales que el portal: ≥85 verificado,

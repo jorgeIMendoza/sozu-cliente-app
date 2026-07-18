@@ -3,13 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
 import '../widgets/common.dart';
 import '../widgets/fx.dart';
 import '../widgets/patrimonio_card.dart';
+import '../widgets/portal_property_card.dart';
 import '../widgets/portal_top_bar.dart';
+import '../widgets/portal_widgets.dart';
 
 /// Mi patrimonio: propiedades entregadas + KPIs (unidades, valor actual y
 /// plusvalía acumulada) + buscador en vivo (espejo de ClientePatrimonio.tsx).
@@ -60,6 +63,30 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
     final props = ref.watch(clientePropiedadesProvider);
+
+    // Modo portal (web ≥1024): réplica de ClientePatrimonio del Portal del
+    // Cliente, sin AppBar propio (la topbar la pinta el shell). La vista
+    // móvil de abajo queda intacta.
+    if (isPortalMode(context)) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: props.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: PortalColors.primary),
+          ),
+          error: (_, __) => ListView(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            children: [
+              ErrorCard(
+                title: 'No pudimos cargar tus propiedades',
+                onRetry: () => ref.invalidate(clientePropiedadesProvider),
+              ),
+            ],
+          ),
+          data: (data) => _portalContenido(data),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: const PortalTopBar(title: 'Mi patrimonio'),
@@ -198,6 +225,102 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
             );
           },
         ),
+      ),
+    );
+  }
+
+  // ── Vista "modo portal" (réplica de ClientePatrimonio.tsx) ────────────────
+  Widget _portalContenido(ClientePropiedades data) {
+    final items = data.patrimonioActivo;
+    final filtrados = _filtrar(items);
+    final n = items.length;
+
+    // Mismos cálculos que la vista móvil (valor actual con fallback al
+    // total invertido y % de plusvalía sobre lo invertido).
+    final valorActual = data.totalActivoValorActual ?? data.totalActivo;
+    final plusvalia = data.totalPlusvalia;
+    double? plusvaliaPct;
+    if (plusvalia != null && data.totalActivoValorActual != null) {
+      final invertido = data.totalActivoValorActual! - plusvalia;
+      if (invertido > 0) plusvaliaPct = plusvalia / invertido * 100;
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(top: 24, bottom: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PortalPageHeader(
+            title: 'Mi patrimonio',
+            subtitle: n > 0
+                ? 'Tus propiedades entregadas · $n '
+                    '${n == 1 ? 'unidad' : 'unidades'}'
+                : 'Tus propiedades entregadas',
+          ),
+          const SizedBox(height: 20),
+          if (items.isEmpty)
+            const PortalEmptyState(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'Tu patrimonio se construirá aquí',
+              message: 'Cuando alguna de tus propiedades sea entregada, '
+                  'pasará automáticamente a esta sección donde podrás '
+                  'gestionar mantenimiento, ver plusvalía y administrar '
+                  'tus activos.',
+            )
+          else ...[
+            // KPIs (Valor actual / Plusvalía acumulada / Unidades activas)
+            PortalCardGrid(
+              gap: 12,
+              minItemWidth: 180,
+              maxCols: 3,
+              children: [
+                PortalKpiCell(
+                  label: 'Valor actual',
+                  value: formatMXN(valorActual),
+                ),
+                if (plusvalia != null)
+                  PortalKpiCell(
+                    label: 'Plusvalía acumulada',
+                    value: _kpiPlusvalia(plusvalia, plusvaliaPct),
+                    valueColor: plusvalia >= 0
+                        ? PortalColors.primary
+                        : PortalColors.destructive,
+                  ),
+                PortalKpiCell(label: 'Unidades activas', value: '$n'),
+              ],
+            ),
+            const SizedBox(height: 20),
+            PortalSearchField(
+              hint: 'Buscar propiedad…',
+              onChanged: (v) => setState(() => _busqueda = v),
+            ),
+            const SizedBox(height: 16),
+            if (filtrados.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text(
+                    'Sin resultados',
+                    style: portalText(
+                      size: 14,
+                      color: PortalColors.mutedForeground,
+                    ),
+                  ),
+                ),
+              )
+            else
+              PortalCardGrid(
+                children: [
+                  for (final it in filtrados)
+                    PortalPatrimonyCard(
+                      item: it,
+                      mantenimiento: _mantenimientoDe(data, it),
+                      onTap: () => context.push('/propiedad/${it.id}'),
+                    ),
+                ],
+              ),
+          ],
+        ],
       ),
     );
   }

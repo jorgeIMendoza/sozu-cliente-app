@@ -45,3 +45,6 @@ flutter:
     # excluye del AssetManifest en el build web release y dotenv falla (pantalla
     # blanca). Se usa assets/env (sin punto). El archivo está gitignored.
     - assets/env
+    # Logo SOZU (negro) usado en el login/recuperar contraseña. Copia exacta del
+    # asset del portal admin (src/assets/sozu-logo-black.png).
+    - assets/sozu-logo-black.png

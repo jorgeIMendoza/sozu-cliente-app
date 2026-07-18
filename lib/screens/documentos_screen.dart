@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/format.dart';
 import '../core/open_doc.dart';
 import '../core/open_media.dart';
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
 import '../widgets/common.dart';
 import '../widgets/fx.dart';
 import '../widgets/portal_top_bar.dart';
+import '../widgets/portal_widgets.dart';
 
 /// Documentos del cliente — espejo de la sección "Documentos" del Portal del
 /// cliente (ClienteDocumentos.tsx): barra de stats por estatus, filtros por
@@ -149,7 +151,10 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
     final tone = SozuTone.of(context);
     final docs = ref.watch(clienteDocumentosProvider);
 
+    // Modo portal (web ≥1024): el shell pinta sidebar + topbar y el fondo
+    // #F9FAFB; PortalTopBar ya se colapsa solo (sin doble header).
     return Scaffold(
+      backgroundColor: isPortalMode(context) ? Colors.transparent : null,
       appBar: const PortalTopBar(title: 'Documentos'),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -192,6 +197,7 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
   }
 
   Widget _contenido(BuildContext context, SozuTone tone, ClienteDocumentos data) {
+    final portal = isPortalMode(context);
     // ── Stats sobre TODOS los documentos (como el portal) ──
     final stats = <String, int>{for (final e in _kEstadosStats) e: 0};
     for (final d in data.documentos) {
@@ -262,11 +268,32 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
     final sinResultados =
         filtrados.isEmpty && facturasVisibles.isEmpty && mantVisibles.isEmpty;
 
+    // Subtítulo (portal: "X de Y documentos verificados").
+    final subtitulo = data.documentos.isNotEmpty
+        ? '$verificados de ${data.total} documento${data.total == 1 ? '' : 's'} verificado${verificados == 1 ? '' : 's'}'
+        : 'Todos tus documentos en un solo lugar.';
+
     if (sinNada) {
       return ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          EmptyCard(
+        padding: portal
+            ? const EdgeInsets.only(top: 24, bottom: 32)
+            : const EdgeInsets.all(16),
+        children: [
+          if (portal) ...[
+            Text(
+              'Documentos',
+              style: portalText(
+                  size: 26, weight: FontWeight.w700, letterSpacing: -0.65),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitulo,
+              style:
+                  portalText(size: 13, color: PortalColors.mutedForeground),
+            ),
+            const SizedBox(height: 20),
+          ],
+          const EmptyCard(
             icon: Icons.folder_open_outlined,
             text:
                 'Sin documentos aún.\nTus documentos aparecerán aquí conforme avance tu proceso.',
@@ -275,19 +302,36 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
       );
     }
 
-    return ContentFrame(
-      maxWidth: 900,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+    // En modo portal el contenido ocupa el ancho del shell (max 1280 con
+    // gutters, como ClienteDocumentos.tsx); en móvil se conserva el frame
+    // de 900 con padding lateral.
+    final lista = ListView(
+        padding: portal
+            ? const EdgeInsets.only(top: 24, bottom: 32)
+            : const EdgeInsets.fromLTRB(16, 0, 16, 32),
         children: [
-          // Subtítulo (portal: "X de Y documentos verificados").
-          Text(
-            data.documentos.isNotEmpty
-                ? '$verificados de ${data.total} documento${data.total == 1 ? '' : 's'} verificado${verificados == 1 ? '' : 's'}'
-                : 'Todos tus documentos en un solo lugar.',
-            style: TextStyle(fontSize: 13, color: tone.textSecondary),
-          ),
-          const SizedBox(height: 12),
+          // Header de página del portal (h1 + subtítulo); en móvil el título
+          // vive en el AppBar y solo se muestra el subtítulo.
+          if (portal) ...[
+            Text(
+              'Documentos',
+              style: portalText(
+                  size: 26, weight: FontWeight.w700, letterSpacing: -0.65),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitulo,
+              style:
+                  portalText(size: 13, color: PortalColors.mutedForeground),
+            ),
+            const SizedBox(height: 20),
+          ] else ...[
+            Text(
+              subtitulo,
+              style: TextStyle(fontSize: 13, color: tone.textSecondary),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // Barra de stats por estatus (chips clicables).
           _StatsBar(
@@ -367,8 +411,9 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
             ],
           ],
         ],
-      ),
-    );
+      );
+
+    return portal ? lista : ContentFrame(maxWidth: 900, child: lista);
   }
 
   // ── Detalle de documento (sheet en angosto, diálogo en ancho) ──

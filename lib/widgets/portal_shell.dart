@@ -210,6 +210,10 @@ class _PortalSidebar extends ConsumerWidget {
     if (ok == true) {
       // Igual que el perfil: con biometría solo bloquea; si no, signOut real.
       await ref.read(authProvider).lockOrSignOut();
+      // Limpia la impersonación y la caché de datos del cliente para que la
+      // próxima sesión (otro cliente) no herede el resumen/perfil del anterior.
+      ref.read(impersonationProvider).clear();
+      invalidateAllData(ref);
       if (context.mounted) context.go('/login');
     }
   }

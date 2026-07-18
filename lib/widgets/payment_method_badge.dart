@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../core/format.dart';
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import 'common.dart';
+import 'portal_widgets.dart';
 
 /// Chip compacto que confirma la forma de pago final elegida (espejo de
 /// PaymentMethodBadge.tsx del portal admin): recursos propios (STP) o crédito
@@ -16,10 +18,16 @@ class PaymentMethodBadge extends StatelessWidget {
   /// Solicitud de crédito vigente (solo aplica para CREDITO_HIPOTECARIO).
   final SolicitudCredito? solicitud;
 
+  /// true en modo portal web (≥1024): solo cambia el contenedor exterior a
+  /// PortalCard (radio 24, sin sombra, borde primary/30); la vista móvil
+  /// queda idéntica.
+  final bool portal;
+
   const PaymentMethodBadge({
     super.key,
     required this.tipoFinanciamiento,
     this.solicitud,
+    this.portal = false,
   });
 
   @override
@@ -136,10 +144,7 @@ class PaymentMethodBadge extends StatelessWidget {
     required String titulo,
     Widget? cuerpo,
   }) {
-    return AppCard(
-      padding: const EdgeInsets.all(12),
-      borderColor: tone.primary.withValues(alpha: 0.25),
-      child: Row(
+    final fila = Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
@@ -182,7 +187,19 @@ class PaymentMethodBadge extends StatelessWidget {
             ),
           ),
         ],
-      ),
+      );
+
+    if (portal) {
+      return PortalCard(
+        padding: const EdgeInsets.all(16),
+        borderColor: PortalColors.primaryBorder30,
+        child: fila,
+      );
+    }
+    return AppCard(
+      padding: const EdgeInsets.all(12),
+      borderColor: tone.primary.withValues(alpha: 0.25),
+      child: fila,
     );
   }
 

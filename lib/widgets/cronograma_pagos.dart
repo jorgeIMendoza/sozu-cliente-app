@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../core/format.dart';
 import '../core/open_media.dart';
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import 'common.dart';
+import 'portal_widgets.dart';
 
 /// Cronograma de pagos del detalle de propiedad (espejo de PaymentSchedule en
 /// src/components/admin/portal-cliente/investor/PropertyAcquisitionDetail.tsx
@@ -19,7 +21,16 @@ import 'common.dart';
 class CronogramaPagos extends StatefulWidget {
   final List<EsquemaPagoItem> esquemaPago;
 
-  const CronogramaPagos({super.key, required this.esquemaPago});
+  /// true en modo portal web (≥1024): solo cambia el contenedor exterior a
+  /// PortalCard (radio 24, sin sombra) y el label del título al estilo
+  /// portal; el contenido y la vista móvil quedan idénticos.
+  final bool portal;
+
+  const CronogramaPagos({
+    super.key,
+    required this.esquemaPago,
+    this.portal = false,
+  });
 
   @override
   State<CronogramaPagos> createState() => _CronogramaPagosState();
@@ -56,10 +67,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
     final pagados = filas.where((e) => e.pagoCompletado).length;
     final visibles = _verTodos ? filas : filas.take(_limiteFilas).toList();
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 24),
-      child: AppCard(
-        child: LayoutBuilder(
+    final contenido = LayoutBuilder(
           builder: (context, constraints) {
             final ancha = constraints.maxWidth >= _anchoTabla;
             return Column(
@@ -101,8 +109,17 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
               ],
             );
           },
-        ),
-      ),
+        );
+
+    if (widget.portal) {
+      return PortalCard(
+        padding: const EdgeInsets.all(20),
+        child: contenido,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: AppCard(child: contenido),
     );
   }
 
@@ -116,19 +133,27 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            const Icon(Icons.calendar_month_outlined,
-                size: 16, color: SozuColors.emerald600),
+            Icon(Icons.calendar_month_outlined,
+                size: 16,
+                color: widget.portal
+                    ? PortalColors.mutedForeground
+                    : SozuColors.emerald600),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                'CRONOGRAMA DE PAGOS',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                  color: tone.textSecondary,
-                ),
-              ),
+              child: widget.portal
+                  ? const Align(
+                      alignment: Alignment.centerLeft,
+                      child: PortalSectionLabel('Cronograma de pagos'),
+                    )
+                  : Text(
+                      'CRONOGRAMA DE PAGOS',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: tone.textSecondary,
+                      ),
+                    ),
             ),
             if (total > 0) ...[
               Text(

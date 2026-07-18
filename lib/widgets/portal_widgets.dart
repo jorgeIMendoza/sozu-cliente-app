@@ -462,3 +462,593 @@ class PortalInfoRow extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Widgets añadidos para las vistas portal de Inicio / Patrimonio / Adquisición
+// (réplicas de ClienteInicio, ClientePatrimonio y ClienteEnAdquisicion).
+// ---------------------------------------------------------------------------
+
+/// Barra de progreso fina del portal: 3px de alto, pista #F3F4F6 y relleno
+/// verde (réplica del `h-[3px] bg-muted` + `bg-primary` de las cards).
+class PortalThinProgressBar extends StatelessWidget {
+  final double percent; // 0-100
+  final double height;
+
+  const PortalThinProgressBar({
+    super.key,
+    required this.percent,
+    this.height = 3,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final factor = (percent / 100).clamp(0.0, 1.0);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        height: height,
+        color: PortalColors.muted,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: FractionallySizedBox(
+            widthFactor: factor,
+            child: Container(color: PortalColors.primary),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Encabezado de página del portal: h1 26px w700 tracking-tight + subtítulo
+/// 13px muted (como ClientePatrimonio / ClienteEnAdquisicion).
+class PortalPageHeader extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+
+  const PortalPageHeader({super.key, required this.title, this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: portalText(size: 26, weight: FontWeight.w700, letterSpacing: -0.65),
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle!,
+            style: portalText(size: 13, color: PortalColors.mutedForeground),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Pinta el borde punteado redondeado del portal (`border-dashed`).
+class _DashedRRectPainter extends CustomPainter {
+  final Color color;
+  final double radius;
+
+  const _DashedRRectPainter(this.color, this.radius);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final rect = Offset.zero & size;
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(rect.deflate(0.5), Radius.circular(radius)),
+      );
+    const dash = 4.0;
+    const gapLen = 4.0;
+    for (final metric in path.computeMetrics()) {
+      double d = 0;
+      while (d < metric.length) {
+        canvas.drawPath(metric.extractPath(d, d + dash), paint);
+        d += dash + gapLen;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRRectPainter old) =>
+      old.color != color || old.radius != radius;
+}
+
+/// Botón "Ver todas…/Ver N más" del portal: texto 13 w500 verde con borde
+/// punteado primary/30 y hover con fondo primary suave.
+class PortalDashedButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const PortalDashedButton({super.key, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return PortalHoverBuilder(
+      builder: (context, hovered) => GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: CustomPaint(
+          painter: const _DashedRRectPainter(
+            PortalColors.primaryBorder30,
+            kPortalRadiusLg,
+          ),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: hovered ? PortalColors.primarySoft6 : Colors.transparent,
+              borderRadius: BorderRadius.circular(kPortalRadiusLg),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: portalText(
+                    size: 13,
+                    weight: FontWeight.w500,
+                    color: PortalColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 14,
+                  color: PortalColors.primary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Estado vacío del portal: card con borde punteado, icono en caja muted,
+/// título semibold y mensaje muted centrados.
+class PortalEmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+
+  const PortalEmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: const _DashedRRectPainter(PortalColors.border, kPortalRadiusCard),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: PortalColors.muted,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 20, color: PortalColors.mutedForeground),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: portalText(size: 15, weight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 448),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: portalText(size: 13, color: PortalColors.mutedForeground),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Celda KPI del portal: label uppercase 10px tracking-[0.18em] + valor 22px
+/// bold tabular (KpiCell de ClientePatrimonio).
+class PortalKpiCell extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  const PortalKpiCell({
+    super.key,
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PortalCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: portalText(
+              size: 10,
+              weight: FontWeight.w600,
+              color: PortalColors.mutedForeground,
+              letterSpacing: 1.8, // tracking-[0.18em]
+            ),
+          ),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: portalText(
+                size: 22,
+                weight: FontWeight.w700,
+                color: valueColor ?? PortalColors.foreground,
+                tabular: true,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Grid responsivo del portal (Wrap con N columnas según el ancho): réplica
+/// de los `grid grid-cols-1 lg:grid-cols-2 gap-4` de los listados.
+class PortalCardGrid extends StatelessWidget {
+  final List<Widget> children;
+  final double gap;
+
+  /// Ancho mínimo por columna antes de bajar el número de columnas.
+  final double minItemWidth;
+  final int maxCols;
+
+  const PortalCardGrid({
+    super.key,
+    required this.children,
+    this.gap = 16,
+    this.minItemWidth = 340,
+    this.maxCols = 2,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, c) {
+        final cols = ((c.maxWidth + gap) / (minItemWidth + gap))
+            .floor()
+            .clamp(1, maxCols);
+        final itemW = (c.maxWidth - gap * (cols - 1)) / cols;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final w in children) SizedBox(width: itemW, child: w),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Modales centrados del portal (Perfil: "Ver todo", editar datos, etc.)
+// ---------------------------------------------------------------------------
+
+/// Abre [child] como diálogo centrado del portal (max ~[maxWidth] px), en
+/// lugar del fullscreen / bottom-sheet del layout móvil. Usar solo cuando
+/// [isPortalMode] es true.
+Future<T?> showPortalDialog<T>(
+  BuildContext context, {
+  required Widget child,
+  double maxWidth = 560,
+}) {
+  return showDialog<T>(
+    context: context,
+    builder: (ctx) => Dialog(
+      backgroundColor: PortalColors.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(kPortalRadiusLg),
+        side: const BorderSide(color: PortalColors.border),
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: maxWidth,
+          maxHeight: MediaQuery.sizeOf(ctx).height * 0.85,
+        ),
+        child: child,
+      ),
+    ),
+  );
+}
+
+/// Shell de diálogo del portal: header con título/subtítulo, acciones
+/// opcionales (p. ej. "Editar") y botón de cerrar, más cuerpo scrolleable.
+/// Réplica de las vistas "Ver todo" de ClientePerfil.tsx en modo portal.
+class PortalDialogShell extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final List<Widget> actions;
+  final Widget child;
+
+  const PortalDialogShell({
+    super.key,
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.actions = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 12, 14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: portalText(size: 16, weight: FontWeight.w700),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: portalText(
+                          size: 12,
+                          color: PortalColors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              ...actions,
+              const SizedBox(width: 4),
+              PortalIconBtn(
+                icon: Icons.close,
+                tooltip: 'Cerrar',
+                onTap: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        ),
+        Container(height: 1, color: PortalColors.border),
+        Flexible(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: child,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Botón full-width de las tarjetas de sección del Perfil en modo portal:
+/// primary = verde sólido, secondary = blanco con borde, danger = rojo suave
+/// (espejo de los CTAs de SectionCard en ClientePerfil.tsx).
+enum PortalBlockButtonStyle { primary, secondary, danger }
+
+class PortalBlockButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final PortalBlockButtonStyle style;
+  final IconData? icon;
+
+  const PortalBlockButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.style = PortalBlockButtonStyle.primary,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PortalHoverBuilder(
+      builder: (context, hovered) {
+        final (Color bg, Color fg, Color? border) = switch (style) {
+          PortalBlockButtonStyle.primary => (
+            hovered ? PortalColors.primaryHover : PortalColors.primary,
+            Colors.white,
+            null,
+          ),
+          PortalBlockButtonStyle.secondary => (
+            hovered ? PortalColors.mutedHover : PortalColors.surface,
+            PortalColors.foreground,
+            hovered ? PortalColors.primaryBorder30 : PortalColors.border,
+          ),
+          PortalBlockButtonStyle.danger => (
+            hovered ? PortalColors.destructiveSoft10 : const Color(0xFFFFF9F9),
+            PortalColors.destructive,
+            const Color(0xFFFCDADA),
+          ),
+        };
+        return GestureDetector(
+          onTap: onPressed,
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(kPortalRadiusSm),
+              border: border != null ? Border.all(color: border) : null,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 14, color: fg),
+                  const SizedBox(width: 7),
+                ],
+                Text(
+                  label,
+                  style: portalText(size: 13, weight: FontWeight.w700, color: fg),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers genéricos añadidos para Pagos / Productos / Notificaciones (modo
+// portal). Solo aditivos: no cambian nada de lo anterior.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const List<String> _kPortalMesesCortos = [
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
+];
+
+/// Fecha corta es-MX como el portal: "15 jul 2026" ('—' si no parsea).
+String portalShortDate(String? fecha) {
+  final d = DateTime.tryParse(fecha ?? '');
+  if (d == null) return '—';
+  return '${d.day} ${_kPortalMesesCortos[d.month - 1]} ${d.year}';
+}
+
+/// Colores (fondo, texto) del chip de estatus de propiedad — statusStyles del
+/// portal: pendiente/vencido en ámbar, resto en verde.
+(Color, Color) portalEstatusStyle(String estatus) {
+  final e = estatus.toLowerCase();
+  if (e.contains('pendiente') || e.contains('vencid')) {
+    return (PortalColors.warningSoft15, PortalColors.warning);
+  }
+  return (PortalColors.primarySoft15, PortalColors.primary);
+}
+
+/// Buscador del portal: alto 40, radio 16, borde #E5E7EB y focus verde
+/// (mismo input de "Buscar propiedad…" de las páginas del portal).
+class PortalSearchField extends StatelessWidget {
+  final String hint;
+  final ValueChanged<String> onChanged;
+
+  const PortalSearchField({
+    super.key,
+    required this.hint,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: TextField(
+        onChanged: onChanged,
+        style: portalText(size: 13),
+        cursorColor: PortalColors.primary,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: portalText(
+            size: 13,
+            color: PortalColors.mutedForeground.withValues(alpha: .7),
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            size: 16,
+            color: PortalColors.mutedForeground.withValues(alpha: .7),
+          ),
+          filled: true,
+          fillColor: PortalColors.surface,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(kPortalRadiusLg),
+            borderSide: const BorderSide(color: PortalColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(kPortalRadiusLg),
+            borderSide: const BorderSide(color: PortalColors.primary, width: 2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Barra de progreso del portal (`h-2 bg-muted` + relleno verde): pista
+/// #F3F4F6 y relleno primary, redonda; [height] 8px por defecto.
+class PortalProgressBar extends StatelessWidget {
+  /// 0–100.
+  final double percent;
+  final double height;
+
+  const PortalProgressBar({
+    super.key,
+    required this.percent,
+    this.height = 8,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final f = (percent / 100).clamp(0.0, 1.0).toDouble();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        height: height,
+        color: PortalColors.muted,
+        child: FractionallySizedBox(
+          alignment: Alignment.centerLeft,
+          widthFactor: f,
+          child: Container(color: PortalColors.primary),
+        ),
+      ),
+    );
+  }
+}
+

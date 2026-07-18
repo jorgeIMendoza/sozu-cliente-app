@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import 'common.dart';
+import 'portal_widgets.dart';
 
 /// Tarjetas de sección del Perfil (espejo de SectionCard en ClientePerfil.tsx
 /// del portal): icono, título/subtítulo, semáforo de estado, filas
-/// label→valor y botones de acción apilados.
+/// label→valor y botones de acción apilados. En modo portal (web ≥1024) la
+/// tarjeta se pinta con el estilo del portal (PortalCard + CTAs del portal);
+/// en móvil no cambia nada.
 
 /// Acción de una tarjeta de sección del perfil.
 class PerfilCardAction {
@@ -124,6 +128,7 @@ class PerfilSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isPortalMode(context)) return _buildPortal(context);
     final tone = SozuTone.of(context);
     final statusColor = statusOk ? tone.positive : tone.textMuted;
     return AppCard(
@@ -194,6 +199,100 @@ class PerfilSectionCard extends StatelessWidget {
           for (var i = 0; i < actions.length; i++) ...[
             if (i > 0) const SizedBox(height: 7),
             _actionButton(context, actions[i]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Variante portal: PortalCard (radio 24, sin sombra), tipografía del
+  /// portal y CTAs full-width verdes/blancos/rojos como SectionCard del
+  /// portal web.
+  Widget _buildPortal(BuildContext context) {
+    return PortalCard(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: PortalColors.primarySoft10,
+                  borderRadius: BorderRadius.circular(kPortalRadiusSm),
+                ),
+                child: Icon(icon, size: 17, color: PortalColors.primary),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: portalText(size: 15, weight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: portalText(
+                        size: 12,
+                        color: PortalColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: statusOk
+                            ? PortalColors.primary
+                            : const Color(0xFFD1D5DB),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      statusLabel,
+                      style: portalText(
+                        size: 11,
+                        weight: FontWeight.w600,
+                        color: statusOk
+                            ? PortalColors.primary
+                            : PortalColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...rows,
+          const SizedBox(height: 14),
+          for (var i = 0; i < actions.length; i++) ...[
+            if (i > 0) const SizedBox(height: 7),
+            PortalBlockButton(
+              label: actions[i].label,
+              icon: actions[i].icon,
+              onPressed: actions[i].onTap,
+              style: switch (actions[i].style) {
+                PerfilActionStyle.primary => PortalBlockButtonStyle.primary,
+                PerfilActionStyle.secondary =>
+                  PortalBlockButtonStyle.secondary,
+                PerfilActionStyle.danger => PortalBlockButtonStyle.danger,
+              },
+            ),
           ],
         ],
       ),
