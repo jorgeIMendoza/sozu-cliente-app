@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import 'common.dart';
+import 'portal_widgets.dart';
 
 /// Sección "Copropietarios" del detalle de propiedad: lista cada
 /// copropietario (avatar con iniciales, nombre y email si está disponible)
@@ -11,12 +13,48 @@ import 'common.dart';
 class CopropietariosSection extends StatelessWidget {
   final List<Copropietario> copropietarios;
 
-  const CopropietariosSection({super.key, required this.copropietarios});
+  /// true en modo portal web (≥1024): PortalCard (radio 24, sin sombra) con
+  /// el label uppercase dentro de la card; la vista móvil queda idéntica.
+  final bool portal;
+
+  const CopropietariosSection({
+    super.key,
+    required this.copropietarios,
+    this.portal = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     if (copropietarios.length < 2) return const SizedBox.shrink();
     final tone = SozuTone.of(context);
+    if (portal) {
+      return PortalCard(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.group_outlined,
+                  size: 14,
+                  color: PortalColors.mutedForeground,
+                ),
+                const SizedBox(width: 8),
+                PortalSectionLabel('Copropietarios · ${copropietarios.length}'),
+              ],
+            ),
+            const SizedBox(height: 4),
+            for (var i = 0; i < copropietarios.length; i++) ...[
+              if (i > 0)
+                const Divider(height: 24, color: PortalColors.border),
+              if (i == 0) const SizedBox(height: 12),
+              _CopropietarioRow(c: copropietarios[i]),
+            ],
+          ],
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

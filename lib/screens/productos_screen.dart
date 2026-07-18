@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
 import '../widgets/common.dart';
 import '../widgets/fx.dart';
+import '../widgets/portal_widgets.dart';
 
 /// Productos adicionales del cliente agrupados por propiedad (paridad con
 /// ClienteProductos del portal admin): buscador en vivo, tarjetas con avance
@@ -53,10 +55,13 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
+    final portal = isPortalMode(context);
     final productos = ref.watch(clienteProductosProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Productos')),
+      // Modo portal: el shell ya pinta el título; sin AppBar propio.
+      backgroundColor: portal ? Colors.transparent : null,
+      appBar: portal ? null : AppBar(title: const Text('Productos')),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(clienteProductosProvider);
@@ -113,6 +118,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
             final n =
                 grupos.fold<int>(0, (s, g) => s + g.productos.length);
             final filtrados = _filtrar(grupos);
+            if (portal) return _portalVista(n, filtrados);
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -165,6 +171,319 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODO PORTAL (web ≥1024): réplica de "Productos adicionales" del Portal del
+  // Cliente (ClienteProductos.tsx) con grid de productos por propiedad. Solo
+  // capa visual: mismo provider, buscador y navegación al historial.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _portalVista(
+    int n,
+    List<(ProductosPropiedad, List<ProductoCliente>)> filtrados,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(top: 24, bottom: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Productos adicionales',
+            style: portalText(
+              size: 26,
+              weight: FontWeight.w700,
+              letterSpacing: -0.65,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            n == 0
+                ? 'No tienes productos adicionales.'
+                : '$n ${n == 1 ? 'producto contratado' : 'productos contratados'}',
+            style: portalText(size: 13, color: PortalColors.mutedForeground),
+          ),
+          const SizedBox(height: 16),
+          if (n == 0)
+            PortalCard(
+              padding: const EdgeInsets.all(40),
+              child: Center(
+                child: Column(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: PortalColors.muted,
+                        borderRadius: BorderRadius.circular(kPortalRadiusLg),
+                      ),
+                      child: const Icon(
+                        Icons.inventory_2_outlined,
+                        size: 20,
+                        color: PortalColors.mutedForeground,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Sin productos adicionales registrados.',
+                      style: portalText(
+                        size: 13,
+                        color: PortalColors.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            PortalSearchField(
+              hint: 'Buscar producto o propiedad…',
+              onChanged: (v) => setState(() => _busqueda = v),
+            ),
+            if (filtrados.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text(
+                    'Sin resultados',
+                    style: portalText(
+                      size: 14,
+                      color: PortalColors.mutedForeground,
+                    ),
+                  ),
+                ),
+              )
+            else
+              for (final (g, prods) in filtrados) ...[
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.apartment_outlined,
+                      size: 16,
+                      color: PortalColors.mutedForeground,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _tituloGrupo(g),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: portalText(size: 14, weight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${prods.length} ${prods.length == 1 ? 'producto' : 'productos'}',
+                      style: portalText(
+                        size: 11,
+                        color: PortalColors.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _portalGrid(prods),
+              ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Grid responsive de productos (3 col ancho, 2 medio, 1 angosto).
+  Widget _portalGrid(List<ProductoCliente> prods) {
+    return LayoutBuilder(
+      builder: (context, cons) {
+        final cols = cons.maxWidth >= 1000
+            ? 3
+            : cons.maxWidth >= 640
+            ? 2
+            : 1;
+        const gap = 16.0;
+        final itemW = (cons.maxWidth - gap * (cols - 1)) / cols;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final p in prods)
+              SizedBox(width: itemW, child: _portalProductoCard(p)),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Chip de estatus del producto (STATUS_CFG del portal): Pendiente ámbar,
+  /// En curso / Pagado en verde.
+  PortalStatusChip _portalChipEstatus(ProductoCliente p, {bool small = true}) {
+    final e = p.estatus.toLowerCase();
+    final (bg, fg) = e.contains('pagado')
+        ? (PortalColors.primarySoft15, PortalColors.primary)
+        : e.contains('curso')
+        ? (PortalColors.primarySoft10, PortalColors.primary)
+        : (PortalColors.warningSoft15, PortalColors.warning);
+    return PortalStatusChip(
+      small: small,
+      label: p.estatus,
+      background: bg,
+      foreground: fg,
+    );
+  }
+
+  /// Tarjeta de producto estilo portal: icono, nombre, chip de estatus,
+  /// avance con barra y acceso al historial (misma navegación que móvil).
+  Widget _portalProductoCard(ProductoCliente p) {
+    final descripcion = (p.descripcion ?? '').trim();
+    return PortalHoverBuilder(
+      builder: (context, hovered) => GestureDetector(
+        onTap: () => context.push('/productos/${p.cuentaId}'),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: PortalColors.surface,
+            borderRadius: BorderRadius.circular(kPortalRadiusCard),
+            border: Border.all(
+              color: hovered
+                  ? PortalColors.primaryBorder30
+                  : PortalColors.border,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: PortalColors.primarySoft10,
+                      borderRadius: BorderRadius.circular(kPortalRadiusMd),
+                    ),
+                    child: const Icon(
+                      Icons.inventory_2_outlined,
+                      size: 16,
+                      color: PortalColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.nombre,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: portalText(size: 13, weight: FontWeight.w600),
+                        ),
+                        if (descripcion.isNotEmpty)
+                          Text(
+                            descripcion,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: portalText(
+                              size: 11,
+                              color: PortalColors.mutedForeground,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _portalChipEstatus(p),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${formatMXN(p.totalPagado)} de ${formatMXN(p.precioFinal)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: portalText(
+                        size: 11,
+                        color: PortalColors.mutedForeground,
+                        tabular: true,
+                      ),
+                    ),
+                  ),
+                  if (p.saldoPendiente > 0) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      'Faltan ${formatMXN(p.saldoPendiente)}',
+                      style: portalText(
+                        size: 11,
+                        weight: FontWeight.w500,
+                        color: PortalColors.warning,
+                        tabular: true,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: PortalProgressBar(percent: p.avancePct, height: 8),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${p.avancePct.round()}%',
+                    style: portalText(
+                      size: 11,
+                      weight: FontWeight.w600,
+                      tabular: true,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: p.proximaFecha == null
+                        ? const SizedBox.shrink()
+                        : Align(
+                            alignment: Alignment.centerLeft,
+                            child: PortalStatusChip(
+                              small: true,
+                              label:
+                                  'Próx. pago ${portalShortDate(p.proximaFecha)}',
+                              icon: Icons.event_outlined,
+                              background: PortalColors.warningSoft10,
+                              foreground: PortalColors.warning,
+                            ),
+                          ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Ver historial',
+                    style: portalText(
+                      size: 12,
+                      weight: FontWeight.w600,
+                      color: PortalColors.primary,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 14,
+                    color: PortalColors.primary,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
