@@ -8,6 +8,7 @@ import '../core/biometric_service.dart';
 import '../core/theme.dart';
 import '../core/version.dart';
 import '../providers/auth_provider.dart';
+import 'auth_widgets.dart';
 
 /// Login: branding SOZU + email/contraseña. Tras autenticar valida rol
 /// Cliente (perfil vía RPC); si no es cliente cierra sesión.
@@ -288,266 +289,183 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
     final porInactividad = ref.watch(inactivityLogoutProvider);
-    return Scaffold(
-      backgroundColor: tone.surface,
-      body: Focus(
-        canRequestFocus: false,
-        onKeyEvent: _onKeyEvent,
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Branding
-                      Column(
-                        children: [
-                          Text(
-                            'sozu',
-                            style: TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -1,
-                              color: tone.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'PORTAL DEL CLIENTE',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 3,
-                              color: tone.textMuted,
-                            ),
-                          ),
-                          if (_adminMode) ...[
-                            const SizedBox(height: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tone.primarySoft,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.admin_panel_settings_outlined,
-                                    size: 14,
-                                    color: tone.primaryDark,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Acceso administrador',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: tone.primaryDark,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 40),
+    return Focus(
+      canRequestFocus: false,
+      onKeyEvent: _onKeyEvent,
+      child: AuthScaffold(
+        child: Form(
+          key: _formKey,
+          child: AuthCard(
+            children: [
+              const AuthLogo(),
+              const SizedBox(height: 28),
+              const AuthTitle('Iniciar sesión'),
+              const SizedBox(height: 10),
+              _portalBadge(),
+              const SizedBox(height: 10),
+              const AuthSubtitle(
+                'Ingresa tus credenciales para acceder al sistema',
+              ),
+              const SizedBox(height: 28),
 
-                      if (porInactividad) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: tone.primarySoft,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.timer_off_outlined,
-                                size: 18,
-                                color: tone.primaryDark,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Tu sesión se cerró por inactividad. '
-                                  'Vuelve a iniciar sesión.',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: tone.primaryDark,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
+              if (porInactividad) ...[
+                const AuthAlert(
+                  kind: AuthAlertKind.warning,
+                  icon: Icons.schedule,
+                  message: 'Tu sesión se cerró por inactividad. '
+                      'Vuelve a iniciar sesión.',
+                ),
+                const SizedBox(height: 16),
+              ],
 
-                      Text('Correo electrónico', style: _labelStyle(tone)),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: _email,
-                        keyboardType: TextInputType.emailAddress,
-                        autofillHints: const [AutofillHints.email],
-                        decoration: const InputDecoration(
-                          hintText: 'tucorreo@ejemplo.com',
-                        ),
-                        validator: (v) {
-                          final t = v?.trim() ?? '';
-                          if (t.isEmpty) return 'Ingresa tu correo';
-                          if (!RegExp(
-                            r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                          ).hasMatch(t)) {
-                            return 'Correo no válido';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
+              const AuthFieldLabel('Correo electrónico'),
+              AuthTextField(
+                controller: _email,
+                hintText: 'tucorreo@ejemplo.com',
+                keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.email],
+                textInputAction: TextInputAction.next,
+                validator: (v) {
+                  final t = v?.trim() ?? '';
+                  if (t.isEmpty) return 'Ingresa tu correo';
+                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(t)) {
+                    return 'Correo no válido';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
 
-                      Text('Contraseña', style: _labelStyle(tone)),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: _password,
-                        obscureText: _obscurePassword,
-                        autofillHints: const [AutofillHints.password],
-                        decoration: InputDecoration(
-                          hintText: '••••••••',
-                          suffixIcon: IconButton(
-                            tooltip: _obscurePassword
-                                ? 'Mostrar contraseña'
-                                : 'Ocultar contraseña',
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                              size: 20,
-                              color: tone.textMuted,
-                            ),
-                            onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
-                          ),
-                        ),
-                        onFieldSubmitted: (_) => _submit(),
-                        validator: (v) => (v == null || v.isEmpty)
-                            ? 'Ingresa tu contraseña'
-                            : null,
-                      ),
+              const AuthFieldLabel('Contraseña'),
+              AuthTextField(
+                controller: _password,
+                hintText: '••••••••',
+                obscureText: _obscurePassword,
+                autofillHints: const [AutofillHints.password],
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _submit(),
+                suffixIcon: IconButton(
+                  tooltip: _obscurePassword
+                      ? 'Mostrar contraseña'
+                      : 'Ocultar contraseña',
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    size: 18,
+                    color: AuthColors.textMuted,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                ),
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Ingresa tu contraseña' : null,
+              ),
 
-                      if (_formError != null) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: tone.negative.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            _formError!,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: tone.negative,
-                            ),
-                          ),
-                        ),
-                      ],
+              if (_formError != null) ...[
+                const SizedBox(height: 16),
+                AuthAlert(
+                  kind: AuthAlertKind.error,
+                  icon: Icons.error_outline,
+                  message: _formError!,
+                ),
+              ],
 
-                      const SizedBox(height: 24),
-                      FilledButton(
-                        onPressed: _submitting ? null : _submit,
-                        child: _submitting
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : const Text('Iniciar sesión'),
-                      ),
-                      if (_bioDisponible) ...[
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: (_submitting || _bioEnCurso)
-                              ? null
-                              : _loginBiometrico,
-                          icon: _bioEnCurso
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: SozuColors.emerald500,
-                                  ),
-                                )
-                              : const Icon(Icons.fingerprint, size: 24),
-                          label: const Text('Entrar con huella o rostro'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: tone.primaryDark,
-                            side: const BorderSide(
-                              color: SozuColors.emerald500,
-                              width: 1.5,
-                            ),
-                            minimumSize: const Size.fromHeight(52),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            textStyle: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+              const SizedBox(height: 20),
+              AuthPrimaryButton(
+                label: 'Iniciar sesión',
+                icon: Icons.login,
+                loading: _submitting,
+                loadingLabel: 'Iniciando sesión...',
+                onPressed: _submitting ? null : _submit,
+              ),
+              if (_bioDisponible) ...[
+                const SizedBox(height: 12),
+                AuthOutlineButton(
+                  label: 'Entrar con huella o rostro',
+                  loading: _bioEnCurso,
+                  onPressed: (_submitting || _bioEnCurso)
+                      ? null
+                      : _loginBiometrico,
+                  icon: _bioEnCurso
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: AuthColors.focusRing,
                           ),
-                        ),
-                      ],
-                      const SizedBox(height: 20),
-                      TextButton(
-                        onPressed: () => context.push('/forgot-password'),
-                        child: Text(
-                          '¿Olvidaste tu contraseña?',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: tone.primaryDark,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        appVersionLabel,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 11,
-                          letterSpacing: 0.5,
-                          color: tone.textMuted,
-                        ),
-                      ),
-                    ],
+                        )
+                      : const Icon(Icons.fingerprint),
+                ),
+              ],
+
+              const SizedBox(height: 20),
+              Center(
+                child: AuthLink(
+                  label: '¿Olvidaste tu contraseña?',
+                  onPressed: () => context.push('/forgot-password'),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+              Container(
+                decoration: const BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: AuthColors.separator),
+                  ),
+                ),
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  appVersionLabel,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    letterSpacing: 0.5,
+                    color: AuthColors.textMuted.withValues(alpha: 0.5),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  TextStyle _labelStyle(SozuTone tone) => TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w600,
-    color: tone.textSecondary,
-  );
+  /// Pastilla bajo el título: "Portal del cliente" por defecto; en modo
+  /// administrador (Ctrl+Alt+A en web) cambia a "Acceso administrador".
+  Widget _portalBadge() {
+    final admin = _adminMode;
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: admin ? const Color(0xFF334155) : AuthColors.gradientStart,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              admin ? Icons.admin_panel_settings_outlined : Icons.person_outline,
+              size: 13,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              admin ? 'Acceso administrador' : 'Portal del cliente',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import 'common.dart';
+import 'portal_widgets.dart';
 
 /// Tarjeta "ETAPA ACTUAL" del detalle de propiedad, espejo del portal del
 /// cliente (InvestmentStepper + caja contextual de StatusTimeline):
@@ -22,11 +24,17 @@ class EtapaActualStepper extends StatelessWidget {
   final String activa;
   final double saldoPendiente;
 
+  /// true en modo portal web (≥1024): solo cambia el contenedor exterior a
+  /// PortalCard (radio 24, sin sombra) y el label del título al estilo
+  /// portal; el contenido y la vista móvil quedan idénticos.
+  final bool portal;
+
   const EtapaActualStepper({
     super.key,
     required this.stages,
     required this.activa,
     required this.saldoPendiente,
+    this.portal = false,
   });
 
   /// Etiquetas del portal (statusLabel de FinancialHero/PortalHeader).
@@ -68,27 +76,29 @@ class EtapaActualStepper extends StatelessWidget {
         saldoPendiente > 0 &&
         (activa == 'preventa' || activa == 'pago_final');
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 24),
-      child: AppCard(
-        child: Column(
+    final contenido = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Título dentro de la tarjeta, con icono de edificio.
             Row(
               children: [
-                const Icon(Icons.apartment_outlined,
-                    size: 16, color: SozuColors.emerald600),
+                Icon(Icons.apartment_outlined,
+                    size: 16,
+                    color: portal
+                        ? PortalColors.mutedForeground
+                        : SozuColors.emerald600),
                 const SizedBox(width: 8),
-                Text(
-                  'ETAPA ACTUAL',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
-                    color: tone.textSecondary,
-                  ),
-                ),
+                portal
+                    ? const PortalSectionLabel('Etapa actual')
+                    : Text(
+                        'ETAPA ACTUAL',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.0,
+                          color: tone.textSecondary,
+                        ),
+                      ),
               ],
             ),
             const SizedBox(height: 16),
@@ -164,8 +174,17 @@ class EtapaActualStepper extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
+        );
+
+    if (portal) {
+      return PortalCard(
+        padding: const EdgeInsets.all(20),
+        child: contenido,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: AppCard(child: contenido),
     );
   }
 }

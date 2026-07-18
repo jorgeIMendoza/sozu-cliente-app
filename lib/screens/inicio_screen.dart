@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/auth_provider.dart';
@@ -10,6 +11,8 @@ import '../providers/data_providers.dart';
 import '../widgets/common.dart';
 import '../widgets/fx.dart';
 import '../widgets/notification_bell.dart';
+import '../widgets/portal_property_card.dart';
+import '../widgets/portal_widgets.dart';
 import '../widgets/property_card.dart';
 
 const _actividadMax = 3;
@@ -28,6 +31,16 @@ class InicioScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Modo portal (web ≥1024): réplica de ClienteInicio del Portal del
+    // Cliente. El shell (sidebar + topbar) lo pinta PortalShellWrapper; la
+    // vista móvil de abajo queda intacta.
+    if (isPortalMode(context)) {
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: _PortalInicio(),
+      );
+    }
+
     final tone = SozuTone.of(context);
     final resumen = ref.watch(clienteResumenProvider);
     final props = ref.watch(clientePropiedadesProvider);
@@ -100,7 +113,11 @@ class InicioScreen extends ConsumerWidget {
                             ],
                           ),
                   ),
-                  const NotificationBell(),
+                  // La campana vive en el header/topbar. En modo portal el
+                  // shell ya pinta su topbar con la campana, así que aquí no
+                  // se duplica (además esta vista móvil no se renderiza en
+                  // portal).
+                  if (!isPortalMode(context)) const NotificationBell(),
                 ],
               ),
               const SizedBox(height: 12),
@@ -723,6 +740,1034 @@ class _QuickAccess extends StatelessWidget {
                 ],
               ),
             ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Vista "modo portal" (web ≥1024): réplica de ClienteInicio.tsx del Portal
+// del Cliente — saludo, hero PATRIMONIO TOTAL, Tu actividad, Mis propiedades
+// (grid) y columna lateral con Accesos rápidos + Pendientes por propiedad.
+// Reusa los mismos providers que la vista móvil (cero fetching nuevo).
+// ---------------------------------------------------------------------------
+
+class _PortalInicio extends ConsumerWidget {
+  const _PortalInicio();
+
+  String _saludo() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Buenos días';
+    if (h < 19) return 'Buenas tardes';
+    return 'Buenas noches';
+  }
+
+  String _unidades(int n) => n == 1 ? 'unidad' : 'unidades';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resumen = ref.watch(clienteResumenProvider);
+    final props = ref.watch(clientePropiedadesProvider);
+    final auth = ref.watch(authProvider);
+    final ultimoAcceso = formatDate(auth.session?.user.lastSignInAt);
+
+    return resumen.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: PortalColors.primary),
+      ),
+      error: (_, __) => ListView(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        children: [
+          ErrorCard(
+            title: 'No pudimos cargar tu información',
+            onRetry: () => ref.invalidate(clienteResumenProvider),
+          ),
+        ],
+      ),
+      data: (data) {
+        final misPropiedades = <PropiedadCard>[
+          ...?props.valueOrNull?.enAdquisicion,
+          ...?props.valueOrNull?.patrimonioActivo,
+        ];
+        final sinPropiedades = props.hasValue && misPropiedades.isEmpty;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(top: 24, bottom: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _welcome(data, ultimoAcceso),
+              if (sinPropiedades)
+                _portafolioVacio()
+              else ...[
+                const SizedBox(height: 16),
+                _heroPatrimonio(data.resumen),
+                const SizedBox(height: 24),
+                // Grid 2/1 del portal: columna principal + lateral.
+                LayoutBuilder(
+                  builder: (context, c) => Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: c.maxWidth >= 960 ? 2 : 1,
+                        child: _columnaPrincipal(context, data, misPropiedades),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(child: _columnaLateral(context, data)),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ── 1. Saludo (WelcomeSection) ────────────────────────────────────────────
+  Widget _welcome(ClienteResumen data, String ultimoAcceso) {
+    Widget punto() => Container(
+          width: 4,
+          height: 4,
+          decoration: const BoxDecoration(
+            color: PortalColors.border,
+            shape: BoxShape.circle,
+          ),
+        );
+    final n = data.resumen.propiedadesActivas;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${_saludo()}, ${data.nombreLegal}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: portalText(
+            size: 20,
+            weight: FontWeight.w700,
+            letterSpacing: -0.4,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              data.tipoCliente,
+              style: portalText(size: 12, color: PortalColors.mutedForeground),
+            ),
+            punto(),
+            Text(
+              '$n propiedad${n == 1 ? '' : 'es'} activa${n == 1 ? '' : 's'}',
+              style: portalText(size: 12, color: PortalColors.mutedForeground),
+            ),
+            punto(),
+            Text(
+              'Último acceso: $ultimoAcceso',
+              style: portalText(
+                size: 11,
+                color: PortalColors.mutedForeground.withValues(alpha: .6),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ── 2. Hero PATRIMONIO TOTAL (HeroFinancialSummary) ───────────────────────
+  Widget _heroPatrimonio(ResumenFinanciero r) {
+    final plusvalia = r.plusvaliaGenerada < 0 ? 0.0 : r.plusvaliaGenerada;
+    return PortalCard(
+      borderColor: PortalColors.borderSoft,
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LayoutBuilder(
+            builder: (context, c) {
+              final izquierda = _heroIzquierda(r, plusvalia);
+              final derecha = _heroMetricas(r, plusvalia);
+              if (c.maxWidth < 720) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    izquierda,
+                    const SizedBox(height: 24),
+                    derecha,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 7, child: izquierda),
+                  const SizedBox(width: 32),
+                  Expanded(
+                    flex: 5,
+                    child: Container(
+                      padding: const EdgeInsets.only(left: 32),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          left: BorderSide(color: PortalColors.borderSoft),
+                        ),
+                      ),
+                      child: derecha,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          // Barra "Pagado · %"
+          Container(
+            padding: const EdgeInsets.only(top: 20),
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: PortalColors.borderSoft),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Pagado · ${r.porcentajePagado.toStringAsFixed(0)}%',
+                      style: portalText(size: 12, weight: FontWeight.w500),
+                    ),
+                    Text(
+                      '${formatMXNCompact(r.pagadoTotal)} de '
+                      '${formatMXNCompact(r.invertidoTotal)}',
+                      style: portalText(
+                        size: 12,
+                        color: PortalColors.mutedForeground,
+                        tabular: true,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                PortalThinProgressBar(percent: r.porcentajePagado),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroIzquierda(ResumenFinanciero r, double plusvalia) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'PATRIMONIO TOTAL',
+          style: portalText(
+            size: 10,
+            weight: FontWeight.w600,
+            color: PortalColors.mutedForeground,
+            letterSpacing: 2, // tracking-[0.2em]
+          ),
+        ),
+        const SizedBox(height: 12),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            formatMXN(r.patrimonioTotal),
+            style: portalText(
+              size: 56,
+              weight: FontWeight.w700,
+              letterSpacing: -1.4,
+              height: 1,
+              tabular: true,
+            ),
+          ),
+        ),
+        if (r.invertidoTotal > 0) ...[
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.trending_up,
+                    size: 14,
+                    color: PortalColors.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '+${formatMXN(plusvalia)}',
+                    style: portalText(
+                      size: 13,
+                      weight: FontWeight.w600,
+                      color: PortalColors.primary,
+                      tabular: true,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                '(${r.plusvaliaPorcentaje.toStringAsFixed(1)}%)',
+                style: portalText(
+                  size: 13,
+                  weight: FontWeight.w500,
+                  color: PortalColors.primary,
+                  tabular: true,
+                ),
+              ),
+              Text(
+                'últimos 12 meses',
+                style: portalText(
+                  size: 13,
+                  color: PortalColors.mutedForeground,
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 12),
+        Text(
+          '${r.propiedadesActivas} '
+          'propiedad${r.propiedadesActivas == 1 ? '' : 'es'} '
+          'activa${r.propiedadesActivas == 1 ? '' : 's'}',
+          style: portalText(size: 12, color: PortalColors.mutedForeground),
+        ),
+        const SizedBox(height: 16),
+        // Indicadores por categoría
+        Wrap(
+          spacing: 20,
+          runSpacing: 8,
+          children: [
+            _categoria(
+              PortalColors.primary,
+              'Patrimonio activo:',
+              r.activoValor,
+              r.activoUnidades,
+            ),
+            _categoria(
+              PortalColors.warning,
+              'En adquisición:',
+              r.adquisicionValor,
+              r.adquisicionUnidades,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _categoria(Color dot, String label, double valor, int unidades) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: portalText(size: 12, color: PortalColors.mutedForeground),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          formatMXN(valor),
+          style: portalText(size: 12, weight: FontWeight.w600, tabular: true),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '($unidades ${_unidades(unidades)})',
+          style: portalText(size: 12, color: PortalColors.mutedForeground),
+        ),
+      ],
+    );
+  }
+
+  Widget _heroMetricas(ResumenFinanciero r, double plusvalia) {
+    Widget fila(String label, String valor, Color color) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style:
+                    portalText(size: 12, color: PortalColors.mutedForeground),
+              ),
+              Text(
+                valor,
+                style: portalText(
+                  size: 14,
+                  weight: FontWeight.w600,
+                  color: color,
+                  tabular: true,
+                ),
+              ),
+            ],
+          ),
+        );
+    return Column(
+      children: [
+        fila(
+          'Invertido total',
+          formatMXN(r.invertidoTotal),
+          PortalColors.foreground,
+        ),
+        const Divider(height: 1, color: PortalColors.borderSoft),
+        fila(
+          'Plusvalía generada',
+          '+${formatMXN(plusvalia)}',
+          PortalColors.primary,
+        ),
+        const Divider(height: 1, color: PortalColors.borderSoft),
+        fila(
+          'Saldo pendiente',
+          formatMXN(r.saldoPendiente),
+          PortalColors.foreground,
+        ),
+      ],
+    );
+  }
+
+  // ── Columna principal: Tu actividad + Mis propiedades ─────────────────────
+  Widget _columnaPrincipal(
+    BuildContext context,
+    ClienteResumen data,
+    List<PropiedadCard> misPropiedades,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Tu actividad', style: portalText(size: 15, weight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        ..._actividad(context, data),
+        if (misPropiedades.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text(
+            'Mis propiedades',
+            style: portalText(size: 15, weight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          PortalCardGrid(
+            minItemWidth: 320,
+            children: [
+              for (final it in misPropiedades.take(3))
+                PortalPropertyCard(
+                  item: it,
+                  onTap: () => context.push('/propiedad/${it.id}'),
+                ),
+            ],
+          ),
+          if (misPropiedades.length > 3) ...[
+            const SizedBox(height: 12),
+            PortalDashedButton(
+              label: 'Ver todas (${misPropiedades.length} propiedades)',
+              onTap: () => context.go('/adquisicion'),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  List<Widget> _actividad(BuildContext context, ClienteResumen data) {
+    if (data.actividad.isEmpty) {
+      return [
+        PortalCard(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: PortalColors.primarySoft15,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.check_circle_outline,
+                  size: 20,
+                  color: PortalColors.primary,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Estás al día',
+                      style: portalText(size: 14, weight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      data.resumen.mensajeContexto ?? 'Sin pagos pendientes',
+                      style: portalText(
+                        size: 12,
+                        color: PortalColors.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ];
+    }
+    return [
+      // Banner resumen de pendientes
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: PortalColors.warningSoft10,
+          borderRadius: BorderRadius.circular(kPortalRadiusCard),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: PortalColors.warningSoft15,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.warning_amber_outlined,
+                size: 20,
+                color: PortalColors.warning,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tienes ${data.actividad.length} '
+                    'pendiente${data.actividad.length == 1 ? '' : 's'}',
+                    style: portalText(size: 14, weight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Revisa y liquida tus pagos',
+                    style: portalText(
+                      size: 12,
+                      color: PortalColors.mutedForeground,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      for (final a in data.actividad.take(_actividadMax)) ...[
+        const SizedBox(height: 12),
+        _PortalActividadCard(
+          a: a,
+          onTap: () => context.push('/propiedad/${a.cuentaId}'),
+        ),
+      ],
+      if (data.actividad.length > _actividadMax) ...[
+        const SizedBox(height: 12),
+        PortalDashedButton(
+          label: 'Ver ${data.actividad.length - _actividadMax} más',
+          onTap: () => context.go('/adquisicion'),
+        ),
+      ],
+    ];
+  }
+
+  // ── Columna lateral: Accesos rápidos + Pendientes por propiedad ───────────
+  Widget _columnaLateral(BuildContext context, ClienteResumen data) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Accesos rápidos',
+          style: portalText(size: 15, weight: FontWeight.w600),
+        ),
+        const SizedBox(height: 12),
+        _PortalQuickAction(
+          icon: Icons.receipt_long_outlined,
+          label: 'Estado de cuenta',
+          subtitle: 'Saldo y movimientos',
+          featured: true,
+          onTap: () => context.push('/estado-cuenta'),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _PortalQuickAction(
+                icon: Icons.schedule_outlined,
+                label: 'Historial de pagos',
+                subtitle: 'Todos tus pagos',
+                onTap: () => context.push('/pagos'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _PortalQuickAction(
+                icon: Icons.description_outlined,
+                label: 'Documentos',
+                subtitle: 'Tu expediente',
+                onTap: () => context.go('/documentos'),
+              ),
+            ),
+          ],
+        ),
+        if (data.pendientesPorPropiedad.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text(
+            'Pendientes por propiedad',
+            style: portalText(size: 14, weight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          PortalCard(
+            clip: true,
+            child: Column(
+              children: [
+                for (var i = 0; i < data.pendientesPorPropiedad.length; i++) ...[
+                  if (i > 0)
+                    const Divider(height: 1, color: PortalColors.border),
+                  _PortalPendienteRow(
+                    p: data.pendientesPorPropiedad[i],
+                    onTap: () => context.push(
+                      '/propiedad/${data.pendientesPorPropiedad[i].cuentaId}',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ── Portafolio vacío (EmptyPortfolio) ─────────────────────────────────────
+  Widget _portafolioVacio() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 80, horizontal: 24),
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: PortalColors.muted,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              Icons.apartment_outlined,
+              size: 32,
+              color: PortalColors.mutedForeground.withValues(alpha: .5),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Aún no tienes propiedades',
+            style: portalText(size: 15, weight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 320),
+            child: Text(
+              'Cuando adquieras una propiedad con SOZU aparecerá aquí '
+              'con toda su información.',
+              textAlign: TextAlign.center,
+              style: portalText(size: 13, color: PortalColors.mutedForeground),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Card de pendiente de "Tu actividad" (ActivitySection): barrita izquierda
+/// de 3px por urgencia, chips de tipo y categoría, fecha y CTA Pagar/Ver.
+class _PortalActividadCard extends StatelessWidget {
+  final ActividadItem a;
+  final VoidCallback onTap;
+
+  const _PortalActividadCard({required this.a, required this.onTap});
+
+  (Color, Color) _chipTipo() {
+    final t = a.tipo.toLowerCase();
+    if (t.contains('final')) {
+      return (PortalColors.destructiveSoft10, PortalColors.destructive);
+    }
+    if (t.contains('parcialidad') || t.contains('mensualidad')) {
+      return (PortalColors.warningSoft10, PortalColors.warning);
+    }
+    return (PortalColors.primarySoft10, PortalColors.primary);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final barra = switch (a.urgencia) {
+      'urgent' => PortalColors.destructive,
+      'upcoming' => PortalColors.warning,
+      _ => PortalColors.primary,
+    };
+    final (chipBg, chipFg) = _chipTipo();
+    final pagar = a.accion == 'pagar' && a.monto > 0;
+    final esPatrimonio = a.categoria == 'patrimonio';
+
+    return PortalHoverBuilder(
+      builder: (context, hovered) => GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: PortalColors.surface,
+            borderRadius: BorderRadius.circular(kPortalRadiusCard),
+            border: Border.all(
+              color: hovered ? PortalColors.borderSoft : PortalColors.border,
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(width: 3, color: barra),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                a.propiedad,
+                                style: portalText(
+                                  size: 14,
+                                  weight: FontWeight.w600,
+                                ),
+                              ),
+                              PortalStatusChip(
+                                small: true,
+                                label: a.tipo,
+                                background: chipBg,
+                                foreground: chipFg,
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: esPatrimonio
+                                      ? PortalColors.primarySoft6
+                                      : PortalColors.mutedSoft30,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: esPatrimonio
+                                        ? PortalColors.primaryBorder30
+                                        : PortalColors.border,
+                                  ),
+                                ),
+                                child: Text(
+                                  esPatrimonio
+                                      ? 'Patrimonio'
+                                      : 'En adquisición',
+                                  style: portalText(
+                                    size: 9,
+                                    weight: FontWeight.w500,
+                                    color: esPatrimonio
+                                        ? PortalColors.primary
+                                        : PortalColors.mutedForeground,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            a.fecha != null
+                                ? formatDate(a.fecha)
+                                : 'Próximamente',
+                            style: portalText(
+                              size: 12,
+                              color: PortalColors.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (a.monto > 0) ...[
+                          Text(
+                            formatMXN(a.monto),
+                            style: portalText(
+                              size: 16,
+                              weight: FontWeight.w700,
+                              tabular: true,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              pagar
+                                  ? Icons.credit_card_outlined
+                                  : Icons.chevron_right,
+                              size: 12,
+                              color: PortalColors.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              pagar ? 'Pagar' : 'Ver',
+                              style: portalText(
+                                size: 11,
+                                weight: FontWeight.w600,
+                                color: PortalColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Acceso rápido del portal (QuickActionsGrid): destacado en fila con
+/// "Ver →" o celda vertical con icono en caja muted.
+class _PortalQuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final bool featured;
+  final VoidCallback onTap;
+
+  const _PortalQuickAction({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    this.featured = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final iconBox = Container(
+      width: 36,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: featured ? PortalColors.primarySoft10 : PortalColors.muted,
+        borderRadius: BorderRadius.circular(kPortalRadiusMd),
+      ),
+      child: Icon(
+        icon,
+        size: 16,
+        color:
+            featured ? PortalColors.primary : PortalColors.mutedForeground,
+      ),
+    );
+    final textos = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: portalText(size: 13, weight: FontWeight.w600),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: portalText(size: 11, color: PortalColors.mutedForeground),
+        ),
+      ],
+    );
+    return PortalHoverBuilder(
+      builder: (context, hovered) => GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: PortalColors.surface,
+            borderRadius: BorderRadius.circular(kPortalRadiusLg),
+            border: Border.all(
+              color: hovered ? PortalColors.borderSoft : PortalColors.border,
+            ),
+            boxShadow: featured && hovered
+                ? const [
+                    BoxShadow(
+                      color: Color(0x0D000000),
+                      offset: Offset(0, 1),
+                      blurRadius: 2,
+                    ),
+                  ]
+                : const [],
+          ),
+          child: featured
+              ? Row(
+                  children: [
+                    iconBox,
+                    const SizedBox(width: 12),
+                    Expanded(child: textos),
+                    Text(
+                      'Ver →',
+                      style: portalText(
+                        size: 12,
+                        weight: FontWeight.w500,
+                        color: PortalColors.primary,
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    iconBox,
+                    const SizedBox(height: 10),
+                    textos,
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Fila de "Pendientes por propiedad" (PendingsByProperty): punto de
+/// urgencia, proyecto + unidad, tipo · fecha y monto con chevron.
+class _PortalPendienteRow extends StatelessWidget {
+  final PendientePropiedad p;
+  final VoidCallback onTap;
+
+  const _PortalPendienteRow({required this.p, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final dot = switch (p.urgencia) {
+      'urgent' => PortalColors.destructive,
+      'upcoming' => PortalColors.warning,
+      _ => PortalColors.primary,
+    };
+    return PortalHoverBuilder(
+      builder: (context, hovered) => GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          color: hovered ? PortalColors.mutedHover : Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: p.proyecto,
+                            style: portalText(
+                              size: 13,
+                              weight: FontWeight.w600,
+                            ),
+                          ),
+                          TextSpan(
+                            text: '  U-${p.unidad}',
+                            style: portalText(
+                              size: 11,
+                              color: PortalColors.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${p.tipo} · '
+                      '${p.fecha != null ? formatDate(p.fecha) : 'Próximamente'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: portalText(
+                        size: 11,
+                        color: PortalColors.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                formatMXN(p.monto),
+                style: portalText(
+                  size: 14,
+                  weight: FontWeight.w700,
+                  tabular: true,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                Icons.chevron_right,
+                size: 14,
+                color: PortalColors.mutedForeground.withValues(alpha: .4),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

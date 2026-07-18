@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
@@ -9,10 +10,14 @@ import '../widgets/common.dart';
 import '../widgets/fx.dart';
 import '../widgets/perfil_section_card.dart';
 import '../widgets/perfil_sheets.dart';
+import '../widgets/portal_widgets.dart';
 
 /// Vistas de detalle del Perfil (espejo de las vistas personal/fiscal/cuentas
-/// de ClientePerfil.tsx del portal). Se abren con Navigator.push desde la
-/// pantalla de Perfil ("Ver todo" / "Ver cuentas").
+/// de ClientePerfil.tsx del portal). En móvil se abren con Navigator.push
+/// desde la pantalla de Perfil ("Ver todo" / "Ver cuentas"); en modo portal
+/// (web ≥1024) se muestran como diálogos centrados (max ~560px) vía
+/// [showPortalDialog], por lo que cada pantalla pinta su variante
+/// [PortalDialogShell] en lugar del Scaffold fullscreen.
 
 /// Detalle de información personal: identificación y contacto.
 class PerfilPersonalScreen extends ConsumerWidget {
@@ -24,6 +29,57 @@ class PerfilPersonalScreen extends ConsumerWidget {
     final perfil = ref.watch(clientePerfilProvider);
     final impersonating = ref.watch(impersonationProvider).active;
     final p = perfil.valueOrNull;
+
+    final filas = <Widget>[
+      PerfilInfoRow(label: 'Tipo de persona', value: p?.tipoPersonaLabel),
+      PerfilInfoRow(label: 'Nombre completo', value: p?.nombreLegal),
+      PerfilInfoRow(label: 'RFC con homoclave', value: p?.rfc, mono: true),
+      PerfilInfoRow(label: 'CURP', value: p?.curp, mono: true),
+      PerfilInfoRow(
+          label: 'Teléfono',
+          value: p?.telefono != null
+              ? '${p?.clavePaisTelefono ?? '+52'} ${p?.telefono}'
+              : null),
+      PerfilInfoRow(
+          label: 'Correo electrónico',
+          value: p?.email,
+          note: 'No editable',
+          isLast: true),
+    ];
+
+    if (isPortalMode(context)) {
+      return PortalDialogShell(
+        title: 'Información personal',
+        subtitle: 'Identificación y datos de contacto',
+        actions: [
+          if (!impersonating && p != null)
+            PortalOutlineButton(
+              label: 'Editar',
+              onPressed: () => showEditPersonalSheet(context, p),
+            ),
+        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (perfil.isLoading)
+              const _DetalleSkeleton()
+            else if (perfil.hasError)
+              ErrorCard(
+                title: 'No pudimos cargar tu información',
+                onRetry: () => ref.invalidate(clientePerfilProvider),
+              )
+            else
+              ...filas,
+            const SizedBox(height: 12),
+            Text(
+              'Tus datos serán validados por el área correspondiente.',
+              textAlign: TextAlign.center,
+              style: portalText(size: 11, color: PortalColors.textMuted),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Información personal')),
@@ -101,6 +157,45 @@ class PerfilFiscalScreen extends ConsumerWidget {
     final impersonating = ref.watch(impersonationProvider).active;
     final p = perfil.valueOrNull;
 
+    if (isPortalMode(context)) {
+      return PortalDialogShell(
+        title: 'Información fiscal',
+        subtitle: 'Régimen, CFDI y dirección fiscal',
+        actions: [
+          if (!impersonating && p != null)
+            PortalOutlineButton(
+              label: 'Editar',
+              onPressed: () => showEditFiscalSheet(context, p),
+            ),
+        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _AmberInfoBanner(
+                text:
+                    'Tus datos serán validados por el área correspondiente.'),
+            const SizedBox(height: 12),
+            if (perfil.isLoading)
+              const _DetalleSkeleton()
+            else if (perfil.hasError)
+              ErrorCard(
+                title: 'No pudimos cargar tu información',
+                onRetry: () => ref.invalidate(clientePerfilProvider),
+              )
+            else ...[
+              PerfilInfoRow(label: 'Régimen fiscal', value: p?.regimenDisplay),
+              PerfilInfoRow(label: 'Uso CFDI', value: p?.usoCfdiDisplay),
+              PerfilInfoRow(label: 'Código postal', value: p?.cp, mono: true),
+              PerfilInfoRow(label: 'Calle', value: p?.calle),
+              PerfilInfoRow(label: 'Núm. exterior', value: p?.numExt),
+              PerfilInfoRow(label: 'Núm. interior', value: p?.numInt),
+              PerfilInfoRow(label: 'Colonia', value: p?.colonia, isLast: true),
+            ],
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Información fiscal')),
       body: ContentFrame(
@@ -167,6 +262,52 @@ class PerfilCuentasScreen extends ConsumerWidget {
     final perfil = ref.watch(clientePerfilProvider);
     final impersonating = ref.watch(impersonationProvider).active;
     final cuentas = perfil.valueOrNull?.cuentasBancarias ?? [];
+
+    if (isPortalMode(context)) {
+      return PortalDialogShell(
+        title: 'Cuentas bancarias',
+        subtitle: 'SOZU deposita directamente a estas cuentas.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _BlueInfoBanner(
+                text:
+                    'Por tu seguridad, toda alta o cambio de cuenta se notifica de inmediato.'),
+            const SizedBox(height: 12),
+            if (perfil.isLoading)
+              const _DetalleSkeleton()
+            else if (perfil.hasError)
+              ErrorCard(
+                title: 'No pudimos cargar tus cuentas',
+                onRetry: () => ref.invalidate(clientePerfilProvider),
+              )
+            else if (cuentas.isEmpty)
+              const EmptyCard(
+                icon: Icons.credit_card_off_outlined,
+                text:
+                    'Sin cuentas registradas.\nAgrega tu primera cuenta bancaria.',
+              )
+            else
+              for (final c in cuentas) ...[
+                _CuentaCard(
+                  cuenta: c,
+                  onEdit: impersonating
+                      ? null
+                      : () => showCuentaBancariaSheet(context, cuenta: c),
+                ),
+                const SizedBox(height: 10),
+              ],
+            if (!impersonating) ...[
+              const SizedBox(height: 6),
+              PortalBlockButton(
+                label: 'Agregar cuenta bancaria',
+                onPressed: () => showCuentaBancariaSheet(context),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Cuentas bancarias')),
@@ -324,6 +465,39 @@ class _AmberInfoBanner extends StatelessWidget {
             child: Text(text,
                 style: const TextStyle(
                     fontSize: 12.5, color: SozuColors.amber600)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Banner informativo azul del diálogo de cuentas en modo portal (espejo del
+/// aviso de seguridad de la vista "cuentas" de ClientePerfil.tsx).
+class _BlueInfoBanner extends StatelessWidget {
+  final String text;
+  const _BlueInfoBanner({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    const fg = Color(0xFF2C5D8A);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF4FB),
+        borderRadius: BorderRadius.circular(kPortalRadiusSm),
+        border: Border.all(color: const Color(0xFFCFE0F3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.shield_outlined, size: 14, color: fg),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style:
+                  portalText(size: 12.5, weight: FontWeight.w500, color: fg),
+            ),
           ),
         ],
       ),

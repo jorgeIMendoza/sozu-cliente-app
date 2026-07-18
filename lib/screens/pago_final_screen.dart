@@ -6,12 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/api_client.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
 import '../providers/impersonation_provider.dart';
 import '../widgets/common.dart';
+import '../widgets/portal_widgets.dart';
 
 /// Plazos disponibles para el crédito hipotecario (años).
 const _plazosAnios = [10, 15, 20];
@@ -256,61 +258,114 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
-    // Unidad 100% pagada: no hay nada que elegir (ref PagoFinalSheet fully paid).
-    if (widget.saldo <= 0) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Pago final')),
-        body: ListView(
-          padding: const EdgeInsets.all(16),
-          children: _unidadLiquidada(tone),
+    // Modo portal (web ≥1024): esta pantalla vive FUERA del shell (se abre
+    // con Navigator.push), así que pinta su propio fondo claro del portal con
+    // una barra mínima y el contenido centrado a máx. 640px — como el sheet
+    // "Pago final" del portal en escritorio. Contenido idéntico al móvil.
+    if (isPortalMode(context)) {
+      return Theme(
+        data: sozuLightTheme(),
+        child: Builder(
+          builder: (context) {
+            final tone = SozuTone.of(context);
+            return Scaffold(
+              backgroundColor: PortalColors.background,
+              body: Column(
+                children: [
+                  Container(
+                    height: kPortalTopBarHeight,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    decoration: const BoxDecoration(
+                      color: PortalColors.surface,
+                      border: Border(
+                        bottom: BorderSide(color: PortalColors.borderSoft),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        PortalIconBtn(
+                          icon: Icons.arrow_back,
+                          tooltip: 'Regresar',
+                          onTap: () => Navigator.of(context).maybePop(),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Pago final',
+                          style: portalText(size: 15, weight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 640),
+                        child: ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: _cuerpo(tone),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       );
     }
+    final tone = SozuTone.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Pago final')),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            '${widget.proyecto} · U-${widget.unidad}',
-            style: TextStyle(fontSize: 13, color: tone.textMuted),
-          ),
-          const SizedBox(height: 12),
-          AppCard(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Saldo a liquidar',
-                  style: TextStyle(fontSize: 14, color: tone.textSecondary),
-                ),
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      '${formatMXN(widget.saldo)} MXN',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: tone.textPrimary,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...switch (_paso) {
-            _Paso.seleccion => _seleccion(tone),
-            _Paso.banco => _bancoSelector(tone),
-            _Paso.precalificacion => _precalificacion(tone),
-            _Paso.estatusCredito => _estatusCredito(tone),
-          },
-        ],
+        children: _cuerpo(tone),
       ),
     );
+  }
+
+  /// Contenido del flujo (idéntico en móvil y portal).
+  List<Widget> _cuerpo(SozuTone tone) {
+    // Unidad 100% pagada: no hay nada que elegir (ref PagoFinalSheet fully paid).
+    if (widget.saldo <= 0) return _unidadLiquidada(tone);
+    return [
+      Text(
+        '${widget.proyecto} · U-${widget.unidad}',
+        style: TextStyle(fontSize: 13, color: tone.textMuted),
+      ),
+      const SizedBox(height: 12),
+      AppCard(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Saldo a liquidar',
+              style: TextStyle(fontSize: 14, color: tone.textSecondary),
+            ),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '${formatMXN(widget.saldo)} MXN',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: tone.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      ...switch (_paso) {
+        _Paso.seleccion => _seleccion(tone),
+        _Paso.banco => _bancoSelector(tone),
+        _Paso.precalificacion => _precalificacion(tone),
+        _Paso.estatusCredito => _estatusCredito(tone),
+      },
+    ];
   }
 
   // ── Unidad liquidada ──

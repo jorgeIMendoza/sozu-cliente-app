@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
@@ -21,6 +22,9 @@ class ExpedienteCard extends ConsumerWidget {
     if (data == null || data.slots.isEmpty) return const SizedBox.shrink();
 
     final tone = SozuTone.of(context);
+    // En modo portal el shell fuerza tema claro: la card usa el estilo del
+    // portal (radio 24 de las cards del portal, botón verde #239F6D).
+    final portal = isPortalMode(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final bg = dark ? tone.primarySoft : const Color(0xFFEEF7F1);
     final border = dark ? SozuColors.emerald700 : const Color(0xFFD8ECDF);
@@ -92,6 +96,13 @@ class ExpedienteCard extends ConsumerWidget {
               style: FilledButton.styleFrom(
                 minimumSize: const Size(0, 44),
                 padding: const EdgeInsets.symmetric(horizontal: 18),
+                backgroundColor: portal ? PortalColors.primary : null,
+                shape: portal
+                    ? RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(kPortalRadiusMd),
+                      )
+                    : null,
               ),
               icon: const Icon(Icons.upload_outlined, size: 16),
               label: Text(sinDocs ? 'Subir documentos' : 'Ver expediente'),
@@ -142,12 +153,15 @@ class ExpedienteCard extends ConsumerWidget {
     );
 
     return Container(
-      margin: const EdgeInsets.only(top: 24),
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+      margin: EdgeInsets.only(top: portal ? 16 : 24),
+      padding: portal
+          ? const EdgeInsets.fromLTRB(24, 22, 24, 22)
+          : const EdgeInsets.fromLTRB(22, 20, 22, 20),
       decoration: BoxDecoration(
         color: bg,
         border: Border.all(color: border),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(portal ? kPortalRadiusCard : 16),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {

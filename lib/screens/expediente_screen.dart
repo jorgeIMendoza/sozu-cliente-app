@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
 import '../core/open_media.dart';
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/api_client.dart';
 import '../data/models.dart';
@@ -14,6 +15,7 @@ import '../providers/data_providers.dart';
 import '../providers/impersonation_provider.dart';
 import '../widgets/common.dart';
 import '../widgets/expediente_card.dart' show expedienteEstatusStyle;
+import '../widgets/portal_widgets.dart';
 
 const _maxArchivoBytes = 10 * 1024 * 1024; // 10 MB (límite del backend)
 
@@ -113,15 +115,42 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
+    // Modo portal (web ≥1024): mismo contenido centrado tipo card grande del
+    // portal, pero con la card y tipografía del portal y fondo del shell.
+    final portal = isPortalMode(context);
     final exp = ref.watch(clienteExpedienteProvider);
 
+    final cardBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Expediente',
+            style: portal
+                ? portalText(size: 18, weight: FontWeight.w700)
+                : TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: tone.textPrimary)),
+        const SizedBox(height: 4),
+        Text('Sube cada documento; validamos los datos por ti.',
+            style: portal
+                ? portalText(
+                    size: 13.5, color: PortalColors.mutedForeground)
+                : TextStyle(fontSize: 13.5, color: tone.textSecondary)),
+        const SizedBox(height: 18),
+        _slots(exp),
+      ],
+    );
+
     return Scaffold(
+      backgroundColor: portal ? Colors.transparent : null,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 900),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+              padding: portal
+                  ? const EdgeInsets.only(top: 24, bottom: 32)
+                  : const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
                 // ── "← Volver al Perfil" ──
                 Align(
@@ -129,7 +158,9 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
                   child: TextButton.icon(
                     onPressed: _volver,
                     style: TextButton.styleFrom(
-                      foregroundColor: tone.textSecondary,
+                      foregroundColor: portal
+                          ? PortalColors.mutedForeground
+                          : tone.textSecondary,
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       textStyle: const TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w600),
@@ -139,22 +170,27 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                AppCard(
-                  padding: const EdgeInsets.all(22),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Expediente',
-                          style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: tone.textPrimary)),
-                      const SizedBox(height: 4),
-                      Text('Sube cada documento; validamos los datos por ti.',
-                          style: TextStyle(
-                              fontSize: 13.5, color: tone.textSecondary)),
-                      const SizedBox(height: 18),
-                      exp.when(
+                if (portal)
+                  PortalCard(
+                    padding: const EdgeInsets.all(22),
+                    child: cardBody,
+                  )
+                else
+                  AppCard(
+                    padding: const EdgeInsets.all(22),
+                    child: cardBody,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Lista numerada de documentos (compartida entre móvil y portal).
+  Widget _slots(AsyncValue<ClienteExpediente> exp) {
+    return exp.when(
                         loading: () => const Column(
                           children: [
                             Skeleton(height: 56),
@@ -193,16 +229,7 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
                             ],
                           );
                         },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+                      );
   }
 }
 

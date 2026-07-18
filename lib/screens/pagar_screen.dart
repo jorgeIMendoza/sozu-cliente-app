@@ -3,11 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/format.dart';
+import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/api_client.dart';
 import '../data/models.dart';
 import '../providers/impersonation_provider.dart';
 import '../widgets/common.dart';
+import '../widgets/portal_widgets.dart';
 
 /// Pagar un acuerdo (réplica del flujo del portal admin, sin crédito
 /// hipotecario): paso 1 = saldo a liquidar + método "Recursos propios (STP)";
@@ -52,34 +54,73 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
-    return Scaffold(
-      appBar: AppBar(title: Text(_instrucciones ? 'Datos para pago' : 'Pagar')),
-      body: FutureBuilder<DatosPago>(
-        future: _datos,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError || snap.data == null) {
-            return ListView(
-              padding: const EdgeInsets.all(16),
+    final portal = isPortalMode(context);
+    final titulo = _instrucciones ? 'Datos para pago' : 'Pagar';
+    final cuerpo = FutureBuilder<DatosPago>(
+      future: _datos,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError || snap.data == null) {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              ErrorCard(
+                title: 'No pudimos cargar los datos de pago',
+                onRetry: () => setState(() {
+                  final id = int.tryParse(widget.referencia ?? '') ?? 0;
+                  final imp = ref.read(impersonationProvider).idPersona;
+                  // ignore: unused_result
+                  _datos = fetchDatosPago(id, impersonate: imp);
+                }),
+              ),
+            ],
+          );
+        }
+        final d = snap.data!;
+        return _instrucciones ? _paso2(tone, d) : _paso1(tone, d);
+      },
+    );
+    // Modo portal: sin AppBar propio (el shell pinta "Pagar" en la topbar);
+    // el flujo se presenta centrado a máx. 640px, como los sheets/diálogos
+    // de pago del portal en escritorio. Contenido idéntico al móvil.
+    if (portal) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ErrorCard(
-                  title: 'No pudimos cargar los datos de pago',
-                  onRetry: () => setState(() {
-                    final id = int.tryParse(widget.referencia ?? '') ?? 0;
-                    final imp = ref.read(impersonationProvider).idPersona;
-                    // ignore: unused_result
-                    _datos = fetchDatosPago(id, impersonate: imp);
-                  }),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
+                  child: Row(
+                    children: [
+                      PortalIconBtn(
+                        icon: Icons.arrow_back,
+                        tooltip: 'Regresar',
+                        onTap: () => Navigator.of(context).maybePop(),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        titulo,
+                        style: portalText(size: 15, weight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
                 ),
+                Expanded(child: cuerpo),
               ],
-            );
-          }
-          final d = snap.data!;
-          return _instrucciones ? _paso2(tone, d) : _paso1(tone, d);
-        },
-      ),
+            ),
+          ),
+        ),
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(title: Text(titulo)),
+      body: cuerpo,
     );
   }
 
