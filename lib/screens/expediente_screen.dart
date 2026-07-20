@@ -260,7 +260,7 @@ class _SlotRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
       decoration: BoxDecoration(
         border: Border.all(color: tone.border),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         children: [
@@ -383,14 +383,14 @@ class _IconBtn extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         child: Container(
-          width: 34,
-          height: 34,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
             color: tone.surface,
             border: Border.all(color: tone.border),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
           ),
           alignment: Alignment.center,
           child: child,

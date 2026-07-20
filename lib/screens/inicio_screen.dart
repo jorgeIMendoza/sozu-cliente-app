@@ -761,6 +761,28 @@ class _PortalInicio extends ConsumerWidget {
     return 'Buenas noches';
   }
 
+  /// "Hoy 9:30 am" cuando el último acceso fue hoy; si no, fecha DD/MM/YYYY.
+  String _ultimoAcceso(Object? input) {
+    DateTime? dt;
+    if (input is DateTime) {
+      dt = input;
+    } else if (input is String && input.isNotEmpty) {
+      dt = DateTime.tryParse(input);
+    }
+    if (dt == null) return formatDate(input);
+    final local = dt.toLocal();
+    final now = DateTime.now();
+    final esHoy = local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+    if (!esHoy) return formatDate(local);
+    final ampm = local.hour < 12 ? 'am' : 'pm';
+    var h = local.hour % 12;
+    if (h == 0) h = 12;
+    final mm = local.minute.toString().padLeft(2, '0');
+    return 'Hoy $h:$mm $ampm';
+  }
+
   String _unidades(int n) => n == 1 ? 'unidad' : 'unidades';
 
   @override
@@ -768,11 +790,57 @@ class _PortalInicio extends ConsumerWidget {
     final resumen = ref.watch(clienteResumenProvider);
     final props = ref.watch(clientePropiedadesProvider);
     final auth = ref.watch(authProvider);
-    final ultimoAcceso = formatDate(auth.session?.user.lastSignInAt);
+    final ultimoAcceso = _ultimoAcceso(auth.session?.user.lastSignInAt);
 
     return resumen.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: PortalColors.primary),
+      loading: () => const SingleChildScrollView(
+        padding: EdgeInsets.only(top: 24, bottom: 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: PortalSkeletonBox(width: 240, height: 24),
+            ),
+            SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: PortalSkeletonBox(width: 320, height: 12),
+            ),
+            SizedBox(height: 16),
+            PortalSkeletonBox(height: 220, radius: kPortalRadiusCard),
+            SizedBox(height: 24),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      PortalSkeletonBox(height: 88, radius: kPortalRadiusCard),
+                      SizedBox(height: 12),
+                      PortalSkeletonBox(height: 120, radius: kPortalRadiusCard),
+                      SizedBox(height: 12),
+                      PortalSkeletonBox(height: 120, radius: kPortalRadiusCard),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 24),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      PortalSkeletonBox(height: 72, radius: kPortalRadiusLg),
+                      SizedBox(height: 12),
+                      PortalSkeletonBox(height: 150, radius: kPortalRadiusCard),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
       error: (_, __) => ListView(
         padding: const EdgeInsets.symmetric(vertical: 24),
@@ -839,7 +907,7 @@ class _PortalInicio extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '${_saludo()}, ${data.nombreLegal}',
+          '${_saludo()}, ${data.nombreLegal.split(RegExp(r'\s+')).first}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: portalText(
@@ -1432,12 +1500,16 @@ class _PortalActividadCard extends StatelessWidget {
     final pagar = a.accion == 'pagar' && a.monto > 0;
     final esPatrimonio = a.categoria == 'patrimonio';
 
-    return PortalHoverBuilder(
-      builder: (context, hovered) => GestureDetector(
+    return PortalPressable(
+      builder: (context, hovered, pressed) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
+          transformAlignment: Alignment.center,
+          transform: pressed
+              ? Matrix4.diagonal3Values(0.985, 0.985, 1)
+              : Matrix4.identity(),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: PortalColors.surface,
@@ -1626,12 +1698,16 @@ class _PortalQuickAction extends StatelessWidget {
         ),
       ],
     );
-    return PortalHoverBuilder(
-      builder: (context, hovered) => GestureDetector(
+    return PortalPressable(
+      builder: (context, hovered, pressed) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
+          transformAlignment: Alignment.center,
+          transform: pressed
+              ? Matrix4.diagonal3Values(0.985, 0.985, 1)
+              : Matrix4.identity(),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: PortalColors.surface,

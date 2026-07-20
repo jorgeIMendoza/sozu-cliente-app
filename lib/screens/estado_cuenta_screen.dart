@@ -12,6 +12,7 @@ import '../providers/data_providers.dart';
 import '../providers/impersonation_provider.dart';
 import '../widgets/common.dart';
 import '../widgets/portal_widgets.dart';
+import '../widgets/recibo_pago_sheet.dart';
 
 /// Estado de cuenta POR PROPIEDAD (paridad con el portal admin):
 /// lista de propiedades (buscador) → detalle con resumen (KPIs), filtros
@@ -1359,13 +1360,15 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
   /// Movimientos del portal: los acuerdos del plan de pagos; sin plan, los
   /// pagos realizados (mismo fallback que buildMovements del portal).
-  List<_Mov> _movimientosPortal(EstadoCuenta d) {
+  /// [propiedad] es la unidad (para el recibo in-app, que no la trae el modelo).
+  List<_Mov> _movimientosPortal(EstadoCuenta d, String propiedad) {
     if (d.acuerdos.isNotEmpty) {
       return [
         for (final a in d.acuerdos)
           _Mov(
             fecha: a.fecha,
             concepto: _conceptoAcuerdo(a),
+            propiedad: propiedad,
             monto: a.monto,
             aplicado: a.pagado,
             status: a.pagadoCompleto
@@ -1384,6 +1387,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         _Mov(
           fecha: p.fecha,
           concepto: p.metodo,
+          propiedad: propiedad,
           monto: p.monto,
           aplicado: p.monto,
           status: _MovStatus.pagado,
@@ -1394,12 +1398,28 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     ];
   }
 
-  /// Recibo de un movimiento (icono FileText): reusa las acciones existentes.
+  /// Recibo de un movimiento (icono FileText): abre el recibo in-app
+  /// (recibo_pago_sheet), degradando concepto/propiedad a lo disponible. El
+  /// PDF sigue accesible desde el icono Eye (_generarReciboPdf) y desde el
+  /// botón "Ver PDF" del propio sheet.
   Future<void> _abrirReciboMov(_Mov m) async {
     final app = m.app;
-    if (app != null) return _abrirReciboAplicacion(app);
     final pago = m.pago;
-    if (pago != null) return _abrirRecibo(pago);
+    final ReciboPagoData? data = app != null
+        ? ReciboPagoData.fromAplicacion(
+            app,
+            concepto: m.concepto,
+            propiedad: m.propiedad,
+          )
+        : pago != null
+        ? ReciboPagoData.fromPagoRealizado(
+            pago,
+            concepto: m.concepto,
+            propiedad: m.propiedad,
+          )
+        : null;
+    if (data == null) return;
+    await showReciboPagoDataSheet(context, data: data);
   }
 
   /// Genera el recibo PDF vía backend (icono Eye del portal).
@@ -1645,7 +1665,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   }
 
   Widget _portalContenido(PropiedadCard c, EstadoCuenta d, bool multi) {
-    final movs = _movimientosPortal(d);
+    final movs = _movimientosPortal(d, c.nombre);
     final anios = <String>{
       for (final m in movs)
         if ((m.fecha ?? '').length >= 4) m.fecha!.substring(0, 4),
@@ -2516,6 +2536,9 @@ class _Mov {
   final String? fecha;
   final String concepto;
 
+  /// Unidad de la propiedad (para el recibo in-app).
+  final String propiedad;
+
   /// Monto planeado del concepto.
   final double monto;
 
@@ -2531,6 +2554,7 @@ class _Mov {
   _Mov({
     required this.fecha,
     required this.concepto,
+    required this.propiedad,
     required this.monto,
     required this.aplicado,
     required this.status,

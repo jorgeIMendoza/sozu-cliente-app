@@ -129,7 +129,11 @@ class ExpedienteCard extends ConsumerWidget {
           const SizedBox(height: 7),
         ],
         OutlinedButton(
-          onPressed: () => context.go('/documentos'),
+          // En el portal "Ver todos los documentos" lleva al Expediente
+          // (paridad con setView('expediente') de ClientePerfil.tsx); en móvil
+          // sigue abriendo la pestaña de Documentos.
+          onPressed: () =>
+              portal ? context.push('/expediente') : context.go('/documentos'),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(0, 36),
             side: BorderSide(
@@ -273,10 +277,12 @@ class _MiniDocRow extends StatelessWidget {
         label: 'En revisión',
       );
     case 'expirado':
+      // Gris neutro (no ámbar), como el portal: punto #d1d5db, chip
+      // #6b7280 sobre #f3f4f6 (aquí vía tokens neutros theme-aware).
       return (
-        dot: SozuColors.amber500,
-        bg: tone.pendingSoft,
-        fg: SozuColors.amber600,
+        dot: SozuColors.slate300,
+        bg: tone.surfaceAlt,
+        fg: tone.textSecondary,
         label: 'Expirado',
       );
     case 'rechazado':

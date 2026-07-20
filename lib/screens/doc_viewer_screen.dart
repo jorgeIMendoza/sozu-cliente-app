@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdfx/pdfx.dart';
 
+import '../core/file_download.dart';
 import '../core/media_cache.dart';
 import '../core/open_doc.dart';
 import '../core/theme.dart';
@@ -51,14 +52,53 @@ class _DocViewerScreenState extends State<DocViewerScreen> {
     return _MediaKind.unknown;
   }
 
+  /// Nombre de archivo para la descarga: título saneado + extensión detectada.
+  String _downloadName() {
+    final base = widget.titulo.trim().isEmpty
+        ? 'documento'
+        : widget.titulo.trim().replaceAll(RegExp(r'\s+'), '-');
+    final ext = fileExtensionOf(widget.url);
+    return ext.isEmpty ? '$base.pdf' : '$base.$ext';
+  }
+
+  Future<void> _descargar() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await downloadFile(widget.url, _downloadName());
+    if (!ok && mounted) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('No se pudo descargar el documento.'),
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text(widget.titulo),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.titulo,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const Text(
+              'Vista previa',
+              style: TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+          ],
+        ),
         actions: [
+          IconButton(
+            tooltip: 'Descargar',
+            icon: const Icon(Icons.download_outlined),
+            onPressed: _descargar,
+          ),
           IconButton(
             tooltip: 'Abrir en navegador',
             icon: const Icon(Icons.open_in_new),

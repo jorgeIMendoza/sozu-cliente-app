@@ -31,6 +31,15 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
     ref.invalidate(clienteNotificacionesProvider);
   }
 
+  /// Al tocar una notificación: la marca como leída (si no lo está) y navega a
+  /// la ruta del app correspondiente a su `url_accion`. Si la URL no mapea a
+  /// ninguna ruta conocida, solo marca leída sin navegar (no rompe).
+  void _abrir(Notificacion n) {
+    if (!n.leida) _marcar(action: 'marcar_leida', id: n.id);
+    final ruta = _rutaAppDesdeUrl(n.urlAccion);
+    if (ruta != null) context.go(ruta);
+  }
+
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
@@ -129,13 +138,8 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
               children: [
-                for (final n in data.notificaciones) ...[
-                  _NotifRow(
-                    n: n,
-                    onTap: n.leida
-                        ? null
-                        : () => _marcar(action: 'marcar_leida', id: n.id),
-                  ),
+                for (final n in _ordenadas(data.notificaciones)) ...[
+                  _NotifRow(n: n, onTap: () => _abrir(n)),
                   const SizedBox(height: 10),
                 ],
               ],
@@ -156,9 +160,10 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
   Widget _portalVista(ClienteNotificaciones data) {
     final total = data.notificaciones.length;
     final noLeidas = data.noLeidas;
+    final ordenadas = _ordenadas(data.notificaciones);
     final lista = _soloNoLeidas
-        ? data.notificaciones.where((n) => !n.leida).toList()
-        : data.notificaciones;
+        ? ordenadas.where((n) => !n.leida).toList()
+        : ordenadas;
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -343,10 +348,13 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
   /// Fila ancha del portal: borde izquierdo verde + punto cuando no está
   /// leída; tocarla la marca como leída (misma acción que móvil).
   Widget _portalNotifRow(Notificacion n) {
-    final (iconBg, iconFg, icon) = _portalTipo(n);
+    final (iconBg, iconFg, tipoIcon) = _portalTipo(n);
+    // El glifo lo define la categoría; el color sigue por tipo/severidad.
+    final icon = _iconoCategoria(n.categoria) ?? tipoIcon;
+    final etiqueta = _etiquetaAccion(n);
     return PortalHoverBuilder(
       builder: (context, hovered) => GestureDetector(
-        onTap: n.leida ? null : () => _marcar(action: 'marcar_leida', id: n.id),
+        onTap: () => _abrir(n),
         behavior: HitTestBehavior.opaque,
         child: Container(
           clipBehavior: Clip.antiAlias,
@@ -425,12 +433,32 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            formatDate(n.fecha),
-                            style: portalText(
-                              size: 10,
-                              color: PortalColors.mutedForeground,
-                            ),
+                          Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _fechaRelativa(n.fecha),
+                                style: portalText(
+                                  size: 10,
+                                  color: PortalColors.mutedForeground,
+                                ),
+                              ),
+                              if (etiqueta != null)
+                                Flexible(
+                                  child: Text(
+                                    '$etiqueta →',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.right,
+                                    style: portalText(
+                                      size: 11,
+                                      weight: FontWeight.w500,
+                                      color: iconFg,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ],
                       ),
@@ -455,12 +483,15 @@ class _NotifRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
-    final (color, icon) = switch (n.tipo) {
+    final (color, tipoIcon) = switch (n.tipo) {
       'urgente' => (tone.negative, Icons.error_outline),
       'accionable' => (SozuColors.amber600, Icons.flash_on_outlined),
       'exito' => (SozuColors.emerald600, Icons.check_circle_outline),
       _ => (SozuColors.emerald600, Icons.info_outline),
     };
+    // El glifo lo define la categoría; el color sigue por tipo/severidad.
+    final icon = _iconoCategoria(n.categoria) ?? tipoIcon;
+    final etiqueta = _etiquetaAccion(n);
     return GestureDetector(
       onTap: onTap,
       child: Opacity(
@@ -500,10 +531,26 @@ class _NotifRow extends StatelessWidget {
                     Text(n.descripcion,
                         style: TextStyle(
                             fontSize: 12, color: tone.textSecondary)),
-                    const SizedBox(height: 4),
-                    Text(formatDate(n.fecha),
-                        style:
-                            TextStyle(fontSize: 11, color: tone.textMuted)),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(_fechaRelativa(n.fecha),
+                            style: TextStyle(
+                                fontSize: 11, color: tone.textMuted)),
+                        if (etiqueta != null)
+                          Flexible(
+                            child: Text('$etiqueta →',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: color)),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -513,4 +560,138 @@ class _NotifRow extends StatelessWidget {
       ),
     );
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Helpers de notificaciones (compartidos por vista móvil y portal)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const _mesesCortos = [
+  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+];
+
+/// Fecha relativa estilo portal: "Ahora" / "Hace 5 min" / "Hace 2 h" /
+/// "Hace 3 d"; a partir de 7 días, fecha corta "15 jul".
+String _fechaRelativa(String? iso) {
+  if (iso == null || iso.isEmpty) return '';
+  final d = DateTime.tryParse(iso);
+  if (d == null) return formatDate(iso);
+  final diff = DateTime.now().difference(d);
+  if (diff.isNegative) return 'Ahora';
+  final min = diff.inMinutes;
+  if (min < 1) return 'Ahora';
+  if (min < 60) return 'Hace $min min';
+  final h = diff.inHours;
+  if (h < 24) return 'Hace $h h';
+  final dias = diff.inDays;
+  if (dias < 7) return 'Hace $dias d';
+  return '${d.day} ${_mesesCortos[d.month - 1]}';
+}
+
+/// Prioridad de orden por tipo (0 = más arriba), espejo del portal
+/// (urgente > accionable > informativa > éxito).
+int _prioridadTipo(String tipo) => switch (tipo) {
+  'urgente' => 0,
+  'accionable' => 1,
+  'exito' => 3,
+  _ => 2,
+};
+
+/// Ordena por prioridad de tipo y luego por fecha descendente.
+List<Notificacion> _ordenadas(List<Notificacion> src) {
+  final l = [...src];
+  l.sort((a, b) {
+    final p = _prioridadTipo(a.tipo).compareTo(_prioridadTipo(b.tipo));
+    if (p != 0) return p;
+    final da = DateTime.tryParse(a.fecha ?? '')?.millisecondsSinceEpoch ?? 0;
+    final db = DateTime.tryParse(b.fecha ?? '')?.millisecondsSinceEpoch ?? 0;
+    return db.compareTo(da);
+  });
+  return l;
+}
+
+/// Icono Material según la `categoria` (glifo). El color sigue por
+/// tipo/severidad. Devuelve null si la categoría es desconocida, para caer al
+/// icono por tipo. Acepta los valores de BD (español) y los alias del portal.
+IconData? _iconoCategoria(String? categoria) {
+  switch ((categoria ?? '').toLowerCase()) {
+    case 'pagos':
+    case 'payments':
+    case 'creditcard':
+      return Icons.credit_card_outlined; // CreditCard
+    case 'documentos':
+    case 'documents':
+    case 'filetext':
+      return Icons.description_outlined; // FileText
+    case 'mantenimiento':
+    case 'maintenance':
+    case 'wrench':
+      return Icons.build_outlined; // Wrench
+    case 'construccion':
+    case 'construction':
+    case 'hardhat':
+      return Icons.engineering_outlined; // HardHat
+    case 'reventa':
+    case 'resale':
+    case 'trendingup':
+      return Icons.trending_up; // TrendingUp
+    case 'entrega':
+    case 'delivery':
+    case 'packagecheck':
+      return Icons.inventory_2_outlined; // PackageCheck
+    default:
+      return null;
+  }
+}
+
+/// Mapea la `url_accion` del portal a una ruta del router del app. Devuelve
+/// null si no hay mapeo conocido (se ignora sin romper la navegación).
+String? _rutaAppDesdeUrl(String? url) {
+  if (url == null) return null;
+  var u = url.trim();
+  if (u.isEmpty) return null;
+  // Tolerar URLs absolutas del portal (con prefijo del admin).
+  const prefijo = '/admin/portal-cliente';
+  if (u.startsWith(prefijo)) u = u.substring(prefijo.length);
+  // Quitar query/hash.
+  final corte = u.indexOf(RegExp(r'[?#]'));
+  if (corte != -1) u = u.substring(0, corte);
+  if (u.isEmpty || u == '/') return '/inicio';
+
+  // Detalle de propiedad: el portal usa /propiedades/:id; el app, /propiedad/:id.
+  final prop = RegExp(r'^/propiedades?/([^/]+)').firstMatch(u);
+  if (prop != null) return '/propiedad/${prop.group(1)}';
+
+  // Detalle de producto: /productos/:id (misma ruta en el app).
+  final prod = RegExp(r'^/productos/([^/]+)').firstMatch(u);
+  if (prod != null) return '/productos/${prod.group(1)}';
+
+  // Rutas simples soportadas por el router del app.
+  const directas = {
+    '/pagos',
+    '/estado-cuenta',
+    '/documentos',
+    '/expediente',
+    '/notificaciones',
+    '/perfil',
+    '/inicio',
+    '/adquisicion',
+    '/patrimonio',
+    '/productos',
+  };
+  final segs = u.split('/').where((s) => s.isNotEmpty);
+  if (segs.isEmpty) return null;
+  final base = '/${segs.first}';
+  return directas.contains(base) ? base : null;
+}
+
+/// Etiqueta de acción a mostrar al pie ("{etiqueta} →"). Usa
+/// `etiqueta_accion`; si viene vacía pero la URL mapea, cae a "Ver". Si no hay
+/// etiqueta ni ruta mapeable, devuelve null (no se pinta enlace).
+String? _etiquetaAccion(Notificacion n) {
+  final e = n.etiquetaAccion?.trim();
+  if (e != null && e.isNotEmpty) return e;
+  if (_rutaAppDesdeUrl(n.urlAccion) != null) return 'Ver';
+  return null;
 }

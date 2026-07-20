@@ -717,31 +717,6 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
     return null;
   }
 
-  /// Recibo de un pago del historial: abre el firmado o lo genera bajo demanda
-  /// (misma acción que _HistorialRow de la vista móvil).
-  Future<void> _portalAbrirReciboHistorial(HistorialPago h) async {
-    if ((h.urlRecibo ?? '').isNotEmpty) {
-      await openMedia(context, h.urlRecibo, titulo: 'Recibo');
-      return;
-    }
-    if (_generandoPortal != null) return;
-    setState(() => _generandoPortal = h.id);
-    try {
-      final imp = ref.read(impersonationProvider).idPersona;
-      final url = await fetchReciboPagoUrl(h.id, impersonate: imp);
-      if (!mounted) return;
-      if (url == null) {
-        _snack('No pudimos generar el recibo. Intenta de nuevo.');
-      } else {
-        await openMedia(context, url, titulo: 'Recibo');
-      }
-    } catch (_) {
-      if (mounted) _snack('No pudimos generar el recibo. Intenta de nuevo.');
-    } finally {
-      if (mounted) setState(() => _generandoPortal = null);
-    }
-  }
-
   /// Recibo de un pago aplicado a un próximo pago (misma acción que la fila
   /// expandible de _ProximoRow en móvil).
   Future<void> _portalAbrirReciboAplicacion(AplicacionPago a) async {
@@ -1628,8 +1603,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
               PortalIconBtn(
                 icon: Icons.description_outlined,
                 tooltip: 'Ver recibo',
-                loading: _generandoPortal == pago.id,
-                onTap: () => _portalAbrirReciboHistorial(pago),
+                onTap: () => showReciboPagoSheet(context, pago: pago),
               ),
               PortalIconBtn(
                 icon: Icons.receipt_long_outlined,

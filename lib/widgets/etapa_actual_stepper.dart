@@ -45,6 +45,23 @@ class EtapaActualStepper extends StatelessWidget {
     'entrega': 'POR ENTREGAR',
   };
 
+  /// Oración descriptiva por etapa (STAGES[].description del portal): se pinta
+  /// bajo "AHORA ESTÁS AQUÍ" solo en modo portal (paridad con el investor
+  /// PropertyAcquisitionDetail).
+  static const _descripciones = <String, String>{
+    'preventa':
+        'Tu unidad está reservada. Falta confirmar el plan de pagos y '
+        'firmar contrato preliminar.',
+    'pago_final':
+        'Estás liquidando las parcialidades acordadas en tu esquema de '
+        'financiamiento.',
+    'escrituracion':
+        'Pagos completados. Coordinando firma de escritura pública ante '
+        'notaría.',
+    'entrega':
+        'Escritura firmada. Esperando fecha de entrega física de tu unidad.',
+  };
+
   static String _labelDe(EtapaStage s) =>
       _labels[s.id] ?? s.label.toUpperCase();
 
@@ -127,6 +144,9 @@ class EtapaActualStepper extends StatelessWidget {
                                 ? null
                                 : statusDe(pasos[i]) == 'completed',
                             fontSize: angosto ? 8.5 : 10,
+                            // Anillo en el nodo actual (ring-4 del portal),
+                            // solo en modo portal para no tocar la vista móvil.
+                            ring: portal && statusDe(pasos[i]) == 'active',
                           ),
                         ),
                     ],
@@ -159,6 +179,19 @@ class EtapaActualStepper extends StatelessWidget {
                       color: tone.primaryDark,
                     ),
                   ),
+                  // Oración descriptiva de la etapa (solo portal): replica el
+                  // `description` estático del portal por etapa.
+                  if (portal && _descripciones[activa] != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _descripciones[activa]!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.45,
+                        color: tone.textPrimary,
+                      ),
+                    ),
+                  ],
                   if (muestraSaldo) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -200,6 +233,10 @@ class _Paso extends StatelessWidget {
   final bool? lineaDer; // null = sin conector (último paso)
   final double fontSize;
 
+  /// Anillo suave alrededor del nodo actual (ring-4 ring-primary/15 del
+  /// portal). Solo lo activa el modo portal.
+  final bool ring;
+
   const _Paso({
     required this.tone,
     required this.numero,
@@ -208,6 +245,7 @@ class _Paso extends StatelessWidget {
     required this.lineaIzq,
     required this.lineaDer,
     required this.fontSize,
+    this.ring = false,
   });
 
   Widget _linea(bool? verde) => Expanded(
@@ -243,6 +281,15 @@ class _Paso extends StatelessWidget {
                 border: esCompletado || esActivo
                     ? null
                     : Border.all(color: tone.border),
+                // Anillo suave del nodo actual (ring-4 ring-primary/15).
+                boxShadow: ring
+                    ? [
+                        BoxShadow(
+                          color: SozuColors.emerald500.withValues(alpha: 0.15),
+                          spreadRadius: 4,
+                        ),
+                      ]
+                    : null,
               ),
               alignment: Alignment.center,
               child: esCompletado

@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
 import '../providers/impersonation_provider.dart';
 import 'notification_bell.dart';
+import 'portal_shell_widgets.dart';
 
 /// Shell web "modo portal": réplica del layout del Portal del Cliente de
 /// sozu-admin (docs/web_portal_spec/shell.md) — sidebar blanca fija de 256px
@@ -53,24 +54,6 @@ const List<_PortalNavItemData> _portalNavItems = [
   ),
   _PortalNavItemData('Perfil', '/perfil', Icons.person_outline),
 ];
-
-/// Título de la sección actual para la topbar (rutas sin ítem propio en el
-/// menú incluidas).
-String _titleForPath(String path) {
-  for (final item in _portalNavItems) {
-    if (_isActive(item.route, path)) return item.label;
-  }
-  const extras = {
-    '/pagar': 'Pagar',
-    '/expediente': 'Expediente',
-    '/cambiar-password': 'Cambiar contraseña',
-    '/propiedad': 'Propiedad',
-  };
-  for (final e in extras.entries) {
-    if (path == e.key || path.startsWith('${e.key}/')) return e.value;
-  }
-  return '';
-}
 
 /// Activo por prefijo de ruta; "Inicio" solo con match exacto (shell.md).
 bool _isActive(String route, String path) {
@@ -148,7 +131,7 @@ class PortalShell extends ConsumerWidget {
             Expanded(
               child: Column(
                 children: [
-                  _PortalShellTopBar(title: _titleForPath(currentPath)),
+                  const _PortalShellTopBar(),
                   Expanded(
                     child: ColoredBox(
                       color: PortalColors.background,
@@ -247,19 +230,13 @@ class _PortalSidebar extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Wordmark SOZU (el portal usa el PNG del logo teñido de
-                // #14161A a 24px de alto; el app no tiene ese asset, así que
-                // se replica como texto).
-                const Text(
-                  'sozu',
-                  style: TextStyle(
-                    fontSize: 24,
-                    height: 1,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -1,
-                    color: PortalColors.foreground,
-                    fontFamilyFallback: kPortalFontFallback,
-                  ),
+                // Wordmark SOZU: el mismo PNG negro del logo que usa el login
+                // (assets/sozu-logo-black.png), a 24px de alto como el portal.
+                Image.asset(
+                  'assets/sozu-logo-black.png',
+                  height: 24,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.centerLeft,
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -666,18 +643,15 @@ class _FooterActionButtonState extends State<_FooterActionButton> {
 }
 
 // ---------------------------------------------------------------------------
-// Topbar (shell.md §TopBar) — sin buscador global (el app no lo tiene aún):
-// título de la sección actual + campana + avatar.
+// Topbar (shell.md §TopBar) — buscador global a la izquierda + campana +
+// popover del avatar (el portal desktop no muestra título de sección).
 // ---------------------------------------------------------------------------
 
-class _PortalShellTopBar extends ConsumerWidget {
-  final String title;
-
-  const _PortalShellTopBar({required this.title});
+class _PortalShellTopBar extends StatelessWidget {
+  const _PortalShellTopBar();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authProvider);
+  Widget build(BuildContext context) {
     return Container(
       height: kPortalTopBarHeight,
       padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -687,31 +661,13 @@ class _PortalShellTopBar extends ConsumerWidget {
           bottom: BorderSide(color: PortalColors.borderSoft, width: 1),
         ),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          Expanded(
-            child: Text(
-              title,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.2,
-                color: PortalColors.foreground,
-                fontFamilyFallback: kPortalFontFallback,
-              ),
-            ),
-          ),
-          const NotificationBell(),
-          const SizedBox(width: 8),
-          InkWell(
-            onTap: () => context.go('/perfil'),
-            borderRadius: BorderRadius.circular(999),
-            child: _PortalAvatar(
-              nombre: auth.profile?.nombre ?? auth.profile?.email,
-              size: 32,
-            ),
-          ),
+          PortalTopBarSearch(),
+          Spacer(),
+          NotificationBell(),
+          SizedBox(width: 8),
+          PortalTopBarAvatarMenu(),
         ],
       ),
     );
