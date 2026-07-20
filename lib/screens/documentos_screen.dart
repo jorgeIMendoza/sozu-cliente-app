@@ -1187,6 +1187,9 @@ class _DetalleFactura extends StatelessWidget {
   /// apilados en angosto — espejo de `grid grid-cols-2` de FacturaModalContent.
   Widget _archivos(BuildContext context, SozuTone tone) {
     final ancho = MediaQuery.sizeOf(context).width >= 768;
+    // En móvil se previsualiza in-app (comportamiento previo); en modo portal
+    // web se descarga con nombre de archivo, como el portal.
+    final portal = isPortalMode(context);
     final pdfBtn = f.pdf == null
         ? null
         : _archivoBtn(
@@ -1196,7 +1199,9 @@ class _DetalleFactura extends StatelessWidget {
             color: tone.negative,
             titulo: 'PDF',
             subtitulo: 'Factura imprimible',
-            onTap: () => _descargar(context, f.pdf!, '${f.fileBase}.pdf'),
+            onTap: () => portal
+                ? _descargar(context, f.pdf!, '${f.fileBase}.pdf')
+                : openMedia(context, f.pdf, titulo: 'Factura ${f.fileBase}'),
           );
     final xmlBtn = f.xml == null
         ? null
@@ -1207,7 +1212,9 @@ class _DetalleFactura extends StatelessWidget {
             color: const Color(0xFF2563EB),
             titulo: 'XML',
             subtitulo: 'Archivo fiscal SAT',
-            onTap: () => _descargar(context, f.xml!, '${f.fileBase}.xml'),
+            onTap: () => portal
+                ? _descargar(context, f.xml!, '${f.fileBase}.xml')
+                : openDoc(context, f.xml!),
           );
 
     if (ancho && pdfBtn != null && xmlBtn != null) {
