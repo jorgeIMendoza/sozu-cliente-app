@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/file_download.dart';
 import '../core/format.dart';
 import '../core/open_doc.dart';
 import '../core/open_media.dart';
@@ -209,11 +210,12 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
     final propiedades = <int, String>{};
     for (final d in data.documentos) {
       if (d.idCuenta != null) {
-        propiedades[d.idCuenta!] = d.propiedad ?? 'Cuenta ${d.idCuenta}';
+        propiedades[d.idCuenta!] = d.propiedad ?? 'Propiedad ${d.idCuenta}';
       }
     }
     for (final f in data.facturas) {
-      propiedades.putIfAbsent(f.idCuenta, () => f.propiedad ?? 'Cuenta ${f.idCuenta}');
+      propiedades.putIfAbsent(
+          f.idCuenta, () => f.propiedad ?? 'Propiedad ${f.idCuenta}');
     }
 
     // ── Filtrado ──
@@ -366,7 +368,8 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
                     ? _estadoLabel(clave)
                     : (clave == 'persona'
                           ? 'Documentos personales'
-                          : (grupos[clave]!.first.propiedad ?? 'Cuenta $clave')),
+                          : (grupos[clave]!.first.propiedad ??
+                              'Propiedad $clave')),
                 docs: grupos[clave]!,
                 colapsado: _colapsados.contains(clave),
                 onToggle: () => setState(() {
@@ -385,7 +388,8 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
                   for (final f in facturasVisibles)
                     _FacturaEntry(
                       titulo: 'Factura CFDI',
-                      subtitulo: f.propiedad ?? 'Cuenta ${f.idCuenta}',
+                      subtitulo: f.propiedad ?? 'Propiedad ${f.idCuenta}',
+                      fileBase: '${f.idCuenta}',
                       pdf: f.pdf,
                       xml: f.xml,
                     ),
@@ -402,6 +406,7 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
                       titulo: 'Factura mantenimiento',
                       subtitulo:
                           'Pago #${f.idPago}${f.fecha != null ? ' · ${formatDate(f.fecha)}' : ''}',
+                      fileBase: 'pago-${f.idPago}',
                       pdf: f.pdf,
                       xml: f.xml,
                     ),
@@ -501,13 +506,13 @@ class _StatsBar extends StatelessWidget {
     final apagado = count == 0 && !seleccionado;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
         height: 32,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: seleccionado ? color.withValues(alpha: 0.10) : tone.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: seleccionado
                 ? color.withValues(alpha: 0.45)
@@ -632,7 +637,7 @@ class _FiltrosRow extends StatelessWidget {
             height: 32,
             decoration: BoxDecoration(
               border: Border.all(color: tone.border),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
             clipBehavior: Clip.antiAlias,
             child: Row(
@@ -649,13 +654,13 @@ class _FiltrosRow extends StatelessWidget {
             const SizedBox(width: 8),
             InkWell(
               onTap: onLimpiar,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
               child: Container(
                 height: 32,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
                   color: tone.negative.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: tone.negative.withValues(alpha: 0.25),
                   ),
@@ -699,7 +704,7 @@ class _FiltrosRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: activo ? tone.primarySoft : tone.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: activo ? SozuColors.emerald500.withValues(alpha: 0.4) : tone.border,
           ),
@@ -778,7 +783,7 @@ class _GrupoSection extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: tone.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: tone.border),
       ),
       child: Column(
@@ -872,7 +877,7 @@ class _DocRow extends StatelessWidget {
               height: 36,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(_categoriaIcono(d.categoria), size: 18, color: color),
             ),
@@ -931,12 +936,16 @@ class _DocRow extends StatelessWidget {
 class _FacturaEntry {
   final String titulo;
   final String subtitulo;
+
+  /// Base del nombre de archivo para la descarga (p. ej. "12" → factura-12.pdf).
+  final String fileBase;
   final String? pdf;
   final String? xml;
 
   const _FacturaEntry({
     required this.titulo,
     required this.subtitulo,
+    required this.fileBase,
     this.pdf,
     this.xml,
   });
@@ -1003,7 +1012,7 @@ class _FacturasSection extends StatelessWidget {
               height: 36,
               decoration: BoxDecoration(
                 color: tone.primarySoft,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: const Icon(
                 Icons.receipt_outlined,
@@ -1115,7 +1124,7 @@ class _DetalleFactura extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: tone.primarySoft,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Icon(
                   Icons.receipt_outlined,
@@ -1164,37 +1173,118 @@ class _DetalleFactura extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              if (f.pdf != null)
-                _archivoBtn(
-                  context,
-                  tone,
-                  icono: Icons.picture_as_pdf_outlined,
-                  color: tone.negative,
-                  titulo: 'PDF',
-                  subtitulo: 'Factura imprimible',
-                  onTap: () => openMedia(context, f.pdf, titulo: f.titulo),
-                ),
-              if (f.pdf != null && f.xml != null) const SizedBox(height: 8),
-              if (f.xml != null)
-                _archivoBtn(
-                  context,
-                  tone,
-                  icono: Icons.code,
-                  color: const Color(0xFF2563EB),
-                  titulo: 'XML',
-                  subtitulo: 'Archivo fiscal SAT',
-                  onTap: () => openDoc(context, f.xml),
-                ),
+              _archivos(context, tone),
               const SizedBox(height: 14),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cerrar'),
-              ),
+              _acciones(context, tone),
             ],
           ),
         ),
       ],
     );
+  }
+
+  /// Lista de archivos disponibles: grid de 2 columnas (PDF | XML) en ancho,
+  /// apilados en angosto — espejo de `grid grid-cols-2` de FacturaModalContent.
+  Widget _archivos(BuildContext context, SozuTone tone) {
+    final ancho = MediaQuery.sizeOf(context).width >= 768;
+    // En móvil se previsualiza in-app (comportamiento previo); en modo portal
+    // web se descarga con nombre de archivo, como el portal.
+    final portal = isPortalMode(context);
+    final pdfBtn = f.pdf == null
+        ? null
+        : _archivoBtn(
+            context,
+            tone,
+            icono: Icons.picture_as_pdf_outlined,
+            color: tone.negative,
+            titulo: 'PDF',
+            subtitulo: 'Factura imprimible',
+            onTap: () => portal
+                ? _descargar(context, f.pdf!, '${f.fileBase}.pdf')
+                : openMedia(context, f.pdf, titulo: 'Factura ${f.fileBase}'),
+          );
+    final xmlBtn = f.xml == null
+        ? null
+        : _archivoBtn(
+            context,
+            tone,
+            icono: Icons.code,
+            color: const Color(0xFF2563EB),
+            titulo: 'XML',
+            subtitulo: 'Archivo fiscal SAT',
+            onTap: () => portal
+                ? _descargar(context, f.xml!, '${f.fileBase}.xml')
+                : openDoc(context, f.xml!),
+          );
+
+    if (ancho && pdfBtn != null && xmlBtn != null) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: pdfBtn),
+          const SizedBox(width: 12),
+          Expanded(child: xmlBtn),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (pdfBtn != null) pdfBtn,
+        if (pdfBtn != null && xmlBtn != null) const SizedBox(height: 8),
+        if (xmlBtn != null) xmlBtn,
+      ],
+    );
+  }
+
+  /// Footer: "Descargar ZIP" (PDF+XML) + "Cerrar", como el portal. Sin una
+  /// librería de compresión se descargan ambos archivos en secuencia.
+  Widget _acciones(BuildContext context, SozuTone tone) {
+    final ambos = f.pdf != null && f.xml != null;
+    final cerrar = TextButton(
+      onPressed: () => Navigator.of(context).pop(),
+      child: const Text('Cerrar'),
+    );
+    if (!ambos) return cerrar;
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: () => _descargarZip(context),
+            style: FilledButton.styleFrom(
+              backgroundColor: tone.primarySoft,
+              foregroundColor: tone.primaryDark,
+              elevation: 0,
+              minimumSize: const Size(0, 44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+            icon: const Icon(Icons.download_outlined, size: 18),
+            label: const Text('Descargar ZIP'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        cerrar,
+      ],
+    );
+  }
+
+  Future<void> _descargar(
+      BuildContext context, String url, String filename) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await downloadFile(url, 'factura-$filename');
+    if (!ok && context.mounted) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No se pudo descargar el archivo.')),
+      );
+    }
+  }
+
+  Future<void> _descargarZip(BuildContext context) async {
+    await downloadFile(f.pdf!, 'factura-${f.fileBase}.pdf');
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    await downloadFile(f.xml!, 'factura-${f.fileBase}.xml');
   }
 
   Widget _archivoBtn(
@@ -1208,11 +1298,11 @@ class _DetalleFactura extends StatelessWidget {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(color: tone.border),
         ),
         child: Row(
@@ -1222,7 +1312,7 @@ class _DetalleFactura extends StatelessWidget {
               height: 36,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(icono, size: 18, color: color),
             ),
@@ -1283,7 +1373,7 @@ class _DetalleDocumento extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(_categoriaIcono(d.categoria), size: 20, color: color),
               ),
@@ -1347,19 +1437,60 @@ class _DetalleDocumento extends StatelessWidget {
                       color: tone.negative.withValues(alpha: 0.2),
                     ),
                   ),
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.error_outline, size: 16, color: tone.negative),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Este documento fue rechazado. Contacta a tu asesor para subir una nueva versión.',
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.error_outline,
+                              size: 16, color: tone.negative),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Este documento fue rechazado. Contacta a tu '
+                              'asesor para subir una nueva versión.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: tone.textPrimary,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Motivo del rechazo (solo si el backend lo expone).
+                      if ((d.motivoRechazo ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Motivo: ${d.motivoRechazo!.trim()}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: tone.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            color: tone.negative,
                             height: 1.4,
                           ),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      // CTA de soporte.
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => openDoc(context, 'mailto:soporte@sozu.com'
+                              '?subject=${Uri.encodeComponent('Documento rechazado: ${d.nombre}')}'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: tone.negative,
+                            side: BorderSide(
+                              color: tone.negative.withValues(alpha: 0.35),
+                            ),
+                            minimumSize: const Size(0, 40),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          icon: const Icon(Icons.support_agent_outlined, size: 16),
+                          label: const Text('Contactar a soporte'),
                         ),
                       ),
                     ],

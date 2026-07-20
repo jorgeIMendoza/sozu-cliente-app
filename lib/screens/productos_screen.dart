@@ -24,6 +24,13 @@ class ProductosScreen extends ConsumerStatefulWidget {
 class _ProductosScreenState extends ConsumerState<ProductosScreen> {
   String _busqueda = '';
 
+  /// Propiedad seleccionada en modo portal (detalle in-page). null = lista.
+  String? _grupoSel;
+
+  /// Clave estable de un grupo/propiedad (para la selección in-page).
+  String _grupoKey(ProductosPropiedad g) =>
+      g.cuentaPropiedadId?.toString() ?? '${g.proyecto}|${g.propiedad}';
+
   /// Grupos filtrados: si la búsqueda coincide con proyecto/propiedad se
   /// conserva el grupo completo; si no, solo los productos cuyo nombre
   /// coincide.
@@ -118,7 +125,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
             final n =
                 grupos.fold<int>(0, (s, g) => s + g.productos.length);
             final filtrados = _filtrar(grupos);
-            if (portal) return _portalVista(n, filtrados);
+            if (portal) return _portalVista(n, filtrados, grupos);
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -185,7 +192,23 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
   Widget _portalVista(
     int n,
     List<(ProductosPropiedad, List<ProductoCliente>)> filtrados,
+    List<ProductosPropiedad> grupos,
   ) {
+    // Detalle in-page de una propiedad seleccionada (agregado por propiedad,
+    // como ClienteProductos del portal).
+    if (_grupoSel != null) {
+      ProductosPropiedad? sel;
+      for (final g in grupos) {
+        if (_grupoKey(g) == _grupoSel) {
+          sel = g;
+          break;
+        }
+      }
+      if (sel != null) return _portalDetalle(sel);
+      // La selección ya no existe (datos recargados): vuelve a la lista.
+      _grupoSel = null;
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.only(top: 24, bottom: 32),
       child: Column(
@@ -203,7 +226,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
           Text(
             n == 0
                 ? 'No tienes productos adicionales.'
-                : '$n ${n == 1 ? 'producto contratado' : 'productos contratados'}',
+                : 'Selecciona una propiedad.',
             style: portalText(size: 13, color: PortalColors.mutedForeground),
           ),
           const SizedBox(height: 16),
@@ -258,38 +281,181 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
                 ),
               )
             else
-              for (final (g, prods) in filtrados) ...[
-                const SizedBox(height: 20),
-                Row(
+              // Una fila por propiedad con el agregado de sus productos.
+              for (final (g, _) in filtrados) ...[
+                const SizedBox(height: 12),
+                _portalPropiedadRow(g),
+              ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Fila-resumen por propiedad (espejo de ClienteProductos): círculo con el
+  /// número de productos, título y agregado "{pct}% pagado · $total".
+  Widget _portalPropiedadRow(ProductosPropiedad g) {
+    final total = g.productos.length;
+    final totalPagado =
+        g.productos.fold<double>(0, (s, p) => s + p.totalPagado);
+    final totalPrecio =
+        g.productos.fold<double>(0, (s, p) => s + p.precioFinal);
+    final pct =
+        totalPrecio > 0 ? (totalPagado / totalPrecio * 100).round() : 0;
+
+    return PortalHoverBuilder(
+      builder: (context, hovered) => GestureDetector(
+        onTap: () => setState(() => _grupoSel = _grupoKey(g)),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: PortalColors.surface,
+            borderRadius: BorderRadius.circular(kPortalRadiusCard),
+            border: Border.all(
+              color: hovered
+                  ? PortalColors.primaryBorder30
+                  : PortalColors.border,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: PortalColors.primarySoft10,
+                  borderRadius: BorderRadius.circular(kPortalRadiusMd),
+                ),
+                child: Text(
+                  '$total',
+                  style: portalText(
+                    size: 14,
+                    weight: FontWeight.w700,
+                    color: PortalColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.apartment_outlined,
-                      size: 16,
-                      color: PortalColors.mutedForeground,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _tituloGrupo(g),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: portalText(size: 14, weight: FontWeight.w600),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     Text(
-                      '${prods.length} ${prods.length == 1 ? 'producto' : 'productos'}',
-                      style: portalText(
-                        size: 11,
-                        color: PortalColors.mutedForeground,
-                      ),
+                      _tituloGrupo(g),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: portalText(size: 14, weight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Text(
+                          '$total ${total == 1 ? 'producto' : 'productos'}',
+                          style: portalText(
+                            size: 11,
+                            color: PortalColors.mutedForeground,
+                          ),
+                        ),
+                        Container(
+                          width: 4,
+                          height: 4,
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: const BoxDecoration(
+                            color: PortalColors.border,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            '$pct% pagado · ${formatMXN(totalPagado)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: portalText(
+                              size: 11,
+                              color: PortalColors.mutedForeground,
+                              tabular: true,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                _portalGrid(prods),
-              ],
-          ],
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: PortalColors.mutedForeground,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Detalle in-page de una propiedad: cabecera con botón volver + grid de
+  /// tarjetas de producto (cada una abre el historial con la navegación
+  /// existente /productos/:cuentaId).
+  Widget _portalDetalle(ProductosPropiedad g) {
+    final total = g.productos.length;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(top: 24, bottom: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              PortalHoverBuilder(
+                builder: (context, hovered) => GestureDetector(
+                  onTap: () => setState(() => _grupoSel = null),
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: hovered
+                          ? PortalColors.mutedHover
+                          : Colors.transparent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.chevron_left,
+                      size: 18,
+                      color: PortalColors.mutedForeground,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Productos adicionales',
+                  style: portalText(
+                    size: 26,
+                    weight: FontWeight.w700,
+                    letterSpacing: -0.65,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 36),
+            child: Text(
+              '${_tituloGrupo(g)} · $total ${total == 1 ? 'producto' : 'productos'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: portalText(size: 13, color: PortalColors.mutedForeground),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _portalGrid(g.productos),
         ],
       ),
     );

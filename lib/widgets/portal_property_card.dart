@@ -205,16 +205,18 @@ class PortalPropertyCard extends StatelessWidget {
     final valor = (item.valorActual != null && item.valorActual! > 0)
         ? item.valorActual!
         : item.monto;
-    final dotColor = item.etapaActiva == 'pago_final'
-        ? PortalColors.warning
-        : PortalColors.primary;
+    final dotColor = portalPropiedadDotColor(item.etapaActiva);
 
-    return PortalHoverBuilder(
-      builder: (context, hovered) => GestureDetector(
+    return PortalPressable(
+      builder: (context, hovered, pressed) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
+          transformAlignment: Alignment.center,
+          transform: pressed
+              ? Matrix4.diagonal3Values(0.985, 0.985, 1)
+              : Matrix4.identity(),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: PortalColors.surface,
@@ -293,7 +295,7 @@ class PortalPropertyCard extends StatelessWidget {
                                 first: true,
                                 label: 'Valor',
                                 value: Text(
-                                  formatMXNCompact(valor),
+                                  formatMXN(valor),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: portalText(
@@ -411,12 +413,16 @@ class PortalAcquisitionCard extends StatelessWidget {
     final (chipBg, chipFg) = portalEstatusStyle(item.estatusDerivado);
     final idx = _currentIdx;
 
-    return PortalHoverBuilder(
-      builder: (context, hovered) => GestureDetector(
+    return PortalPressable(
+      builder: (context, hovered, pressed) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
+          transformAlignment: Alignment.center,
+          transform: pressed
+              ? Matrix4.diagonal3Values(0.985, 0.985, 1)
+              : Matrix4.identity(),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: PortalColors.surface,
@@ -681,12 +687,16 @@ class PortalPatrimonyCard extends StatelessWidget {
         ? item.valorActual!
         : item.monto;
 
-    return PortalHoverBuilder(
-      builder: (context, hovered) => GestureDetector(
+    return PortalPressable(
+      builder: (context, hovered, pressed) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
+          transformAlignment: Alignment.center,
+          transform: pressed
+              ? Matrix4.diagonal3Values(0.985, 0.985, 1)
+              : Matrix4.identity(),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: PortalColors.surface,
@@ -834,22 +844,24 @@ class PortalPatrimonyCard extends StatelessWidget {
                         runSpacing: 4,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          if (manto != null)
-                            mantoPendiente
-                                ? const PortalStatusChip(
-                                    small: true,
-                                    label: 'Pago próximo',
-                                    icon: Icons.calendar_today_outlined,
-                                    background: PortalColors.warningSoft15,
-                                    foreground: PortalColors.warning,
-                                  )
-                                : const PortalStatusChip(
-                                    small: true,
-                                    label: 'Al día',
-                                    icon: Icons.check_circle_outline,
-                                    background: PortalColors.primarySoft15,
-                                    foreground: PortalColors.primary,
-                                  ),
+                          // Chip de mantenimiento SIEMPRE visible: por defecto
+                          // "Al día" (success) cuando no hay registro o está al
+                          // corriente; "Pago próximo" (warning) si hay saldo.
+                          mantoPendiente
+                              ? const PortalStatusChip(
+                                  small: true,
+                                  label: 'Pago próximo',
+                                  icon: Icons.calendar_today_outlined,
+                                  background: PortalColors.warningSoft15,
+                                  foreground: PortalColors.warning,
+                                )
+                              : const PortalStatusChip(
+                                  small: true,
+                                  label: 'Al día',
+                                  icon: Icons.check_circle_outline,
+                                  background: PortalColors.primarySoft15,
+                                  foreground: PortalColors.primary,
+                                ),
                           if (mantoPendiente && manto.proximoPago != null)
                             Text(
                               'Próx. ${formatMXN(manto.saldoPendiente)} · '
@@ -859,6 +871,13 @@ class PortalPatrimonyCard extends StatelessWidget {
                                 color: PortalColors.mutedForeground,
                               ),
                             ),
+                          Text(
+                            '· Uso propio',
+                            style: portalText(
+                              size: 11,
+                              color: PortalColors.mutedForeground,
+                            ),
+                          ),
                         ],
                       ),
                     ),

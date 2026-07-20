@@ -53,10 +53,9 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
     final portal = isPortalMode(context);
-    final titulo = _instrucciones ? 'Datos para pago' : 'Pagar';
-    final cuerpo = FutureBuilder<DatosPago>(
+
+    Widget cuerpo(SozuTone tone) => FutureBuilder<DatosPago>(
       future: _datos,
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
@@ -79,48 +78,302 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
           );
         }
         final d = snap.data!;
+        // Portal: sin el paso de método único (recursos propios); va directo
+        // a las instrucciones de transferencia STP, como el portal admin.
+        if (portal) return _portalInstrucciones(tone, d);
         return _instrucciones ? _paso2(tone, d) : _paso1(tone, d);
       },
     );
-    // Modo portal: sin AppBar propio (el shell pinta "Pagar" en la topbar);
-    // el flujo se presenta centrado a máx. 640px, como los sheets/diálogos
-    // de pago del portal en escritorio. Contenido idéntico al móvil.
+
+    // Modo portal: fuerza el tema claro del portal (evita cards oscuras dentro
+    // del shell claro, igual que pago_final_screen) y presenta el flujo
+    // centrado a máx. 640px, como el sheet de pago del portal en escritorio.
     if (portal) {
-      return Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
-                  child: Row(
+      return Theme(
+        data: sozuLightTheme(),
+        child: Builder(
+          builder: (context) {
+            final tone = SozuTone.of(context);
+            return Scaffold(
+              backgroundColor: Colors.transparent,
+              body: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 640),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      PortalIconBtn(
-                        icon: Icons.arrow_back,
-                        tooltip: 'Regresar',
-                        onTap: () => Navigator.of(context).maybePop(),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
+                        child: Row(
+                          children: [
+                            PortalIconBtn(
+                              icon: Icons.arrow_back,
+                              tooltip: 'Regresar',
+                              onTap: () => Navigator.of(context).maybePop(),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Instrucciones de pago',
+                                  style: portalText(
+                                    size: 15,
+                                    weight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  'Transferencia interbancaria',
+                                  style: portalText(
+                                    size: 12,
+                                    color: PortalColors.mutedForeground,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        titulo,
-                        style: portalText(size: 15, weight: FontWeight.w600),
-                      ),
+                      Expanded(child: cuerpo(tone)),
                     ],
                   ),
                 ),
-                Expanded(child: cuerpo),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       );
     }
+    final tone = SozuTone.of(context);
+    final titulo = _instrucciones ? 'Datos para pago' : 'Pagar';
     return Scaffold(
       appBar: AppBar(title: Text(titulo)),
-      body: cuerpo,
+      body: cuerpo(tone),
+    );
+  }
+
+  // Instrucciones de pago STP (modo portal): réplica de ClientePropiedadPago
+  // del portal admin — banner de confirmación automática, monto/vencimiento,
+  // CLABE, banco receptor STP, beneficiario, concepto, CTA "Copiar CLABE",
+  // nota "Conexión segura" y footer "Procesado por STP".
+  Widget _portalInstrucciones(SozuTone tone, DatosPago d) {
+    final sinClabe = (d.clabe ?? '').isEmpty;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Banner: el pago se refleja al confirmarlo el banco.
+        AppCard(
+          borderColor: tone.primaryDark.withValues(alpha: 0.25),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline, size: 20, color: tone.primaryDark),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Realiza la transferencia desde tu banca en línea utilizando '
+                  'esta CLABE única vinculada a tu propiedad. El pago se '
+                  'reflejará automáticamente una vez confirmado por el banco.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    color: tone.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Monto + vencimiento.
+        AppCard(
+          child: Column(
+            children: [
+              Text(
+                d.concepto.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 2,
+                  color: tone.textMuted,
+                ),
+              ),
+              const SizedBox(height: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  formatMXN(d.saldoPendiente),
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: tone.textPrimary,
+                  ),
+                ),
+              ),
+              if (d.fechaPago != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Vencimiento: ${formatDate(d.fechaPago)}',
+                  style: TextStyle(fontSize: 13, color: tone.textSecondary),
+                ),
+              ],
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () =>
+                    _copiar(d.saldoPendiente.toStringAsFixed(2), 'Monto'),
+                icon: const Icon(Icons.copy_outlined, size: 16),
+                label: const Text('Copiar monto'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (sinClabe)
+          AppCard(
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, size: 20, color: tone.pending),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'La CLABE de pago aún no está configurada. '
+                    'Contacta a tu asesor.',
+                    style: TextStyle(fontSize: 13, color: tone.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else ...[
+          _portalDataRow(
+            tone,
+            'CLABE interbancaria',
+            d.clabe!,
+            mono: true,
+            onCopy: () => _copiar(d.clabe!, 'CLABE'),
+          ),
+          const SizedBox(height: 10),
+          _portalDataRow(
+            tone,
+            'Banco receptor',
+            'STP (Sistema de Transferencias y Pagos)',
+          ),
+          if ((d.beneficiario ?? '').isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _portalDataRow(tone, 'Beneficiario', d.beneficiario!),
+          ],
+          const SizedBox(height: 10),
+          _portalDataRow(
+            tone,
+            'Concepto / Referencia',
+            d.concepto,
+            onCopy: () => _copiar(d.concepto, 'Concepto'),
+          ),
+          const SizedBox(height: 16),
+          // CTA full-width: copiar la CLABE.
+          FilledButton.icon(
+            onPressed: () => _copiar(d.clabe!, 'CLABE'),
+            icon: const Icon(Icons.copy_outlined, size: 18),
+            label: const Text('Copiar CLABE'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
+        // Nota de seguridad.
+        AppCard(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.shield_outlined, size: 20, color: tone.textSecondary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Conexión segura',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: tone.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Esta CLABE está vinculada exclusivamente a tu propiedad.',
+                      style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'PROCESADO POR STP',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.5,
+            color: tone.textMuted,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Fila de dato (portal): label uppercase con tracking + valor y copiar
+  // opcional, en card blanca (espejo del DataRow de ClientePropiedadPago).
+  Widget _portalDataRow(
+    SozuTone tone,
+    String label,
+    String value, {
+    VoidCallback? onCopy,
+    bool mono = false,
+  }) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.5,
+              color: tone.textMuted,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: mono ? 'monospace' : null,
+                    color: tone.textPrimary,
+                  ),
+                ),
+              ),
+              if (onCopy != null)
+                IconButton(
+                  tooltip: 'Copiar',
+                  iconSize: 16,
+                  icon: Icon(Icons.copy_outlined, color: tone.textMuted),
+                  onPressed: onCopy,
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
