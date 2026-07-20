@@ -7,7 +7,9 @@ import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/api_client.dart';
 import '../data/models.dart';
+import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
+import 'password_rules.dart';
 import 'portal_widgets.dart' show showPortalDialog;
 
 /// Sheets de edición del Perfil (espejo de los modales de ClientePerfil.tsx
@@ -161,7 +163,15 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
   late String _clavePais = widget.perfil.clavePaisTelefono ?? '+52';
   bool _busy = false;
 
-  static const _claves = ['+52', '+1', '+34', '+57', '+54', '+56'];
+  // Clave país con bandera, como el <select> del portal (ClientePerfil.tsx).
+  static const _claves = <(String, String)>[
+    ('+52', '🇲🇽'),
+    ('+1', '🇺🇸'),
+    ('+34', '🇪🇸'),
+    ('+57', '🇨🇴'),
+    ('+54', '🇦🇷'),
+    ('+56', '🇨🇱'),
+  ];
 
   @override
   void dispose() {
@@ -250,12 +260,12 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
         Row(
           children: [
             SizedBox(
-              width: 104,
+              width: 120,
               child: DropdownButtonFormField<String>(
                 initialValue: _clavePais,
                 items: [
-                  for (final c in _claves)
-                    DropdownMenuItem(value: c, child: Text(c)),
+                  for (final (clave, bandera) in _claves)
+                    DropdownMenuItem(value: clave, child: Text('$bandera $clave')),
                 ],
                 onChanged: (v) => setState(() => _clavePais = v ?? '+52'),
               ),
@@ -664,6 +674,136 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
           child: Text(_busy
               ? 'Guardando...'
               : (_isEdit ? 'Guardar cambios' : 'Guardar cuenta')),
+        ),
+        _CancelButton(onTap: () => Navigator.pop(context)),
+      ],
+    );
+  }
+}
+
+// ─── Cambiar contraseña (diálogo centrado en modo portal) ────────────────────
+
+/// Abre el cambio de contraseña como diálogo centrado del portal (web ≥1024)
+/// o bottom sheet en móvil — espejo del modal "Cambiar contraseña" de
+/// ClientePerfil.tsx, en vez de una ruta full-page.
+Future<void> showCambiarPasswordDialog(BuildContext context) =>
+    _showPerfilModal<void>(context, const _CambiarPasswordSheet());
+
+class _CambiarPasswordSheet extends ConsumerStatefulWidget {
+  const _CambiarPasswordSheet();
+
+  @override
+  ConsumerState<_CambiarPasswordSheet> createState() =>
+      _CambiarPasswordSheetState();
+}
+
+class _CambiarPasswordSheetState extends ConsumerState<_CambiarPasswordSheet> {
+  final _current = TextEditingController();
+  final _pwd = TextEditingController();
+  final _confirm = TextEditingController();
+  bool _busy = false;
+  String? _error;
+  String _pwdValue = '';
+
+  @override
+  void dispose() {
+    _current.dispose();
+    _pwd.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  bool get _valido =>
+      _current.text.isNotEmpty &&
+      passwordValida(_pwdValue) &&
+      _pwd.text != _current.text &&
+      _confirm.text == _pwd.text;
+
+  Future<void> _guardar() async {
+    if (!_valido || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authProvider).changePassword(_current.text, _pwd.text);
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.pop(context);
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Contraseña actualizada correctamente'),
+      ));
+    } on WrongCurrentPasswordError {
+      if (!mounted) return;
+      setState(() {
+        _error = 'La contraseña actual es incorrecta.';
+        _busy = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'No pudimos actualizar la contraseña. Intenta de nuevo.';
+        _busy = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    return _SheetShell(
+      icon: Icons.lock_outline,
+      title: 'Cambiar contraseña',
+      subtitle: 'Actualiza tu contraseña de acceso',
+      children: [
+        _FieldLabel('Contraseña actual'),
+        TextField(
+          controller: _current,
+          obscureText: true,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(hintText: '••••••••'),
+        ),
+        const SizedBox(height: 14),
+        _FieldLabel('Nueva contraseña'),
+        TextField(
+          controller: _pwd,
+          obscureText: true,
+          onChanged: (v) => setState(() => _pwdValue = v),
+          decoration: const InputDecoration(hintText: '••••••••'),
+        ),
+        const SizedBox(height: 10),
+        PasswordRulesChecklist(value: _pwdValue),
+        const SizedBox(height: 14),
+        _FieldLabel('Confirmar nueva contraseña'),
+        TextField(
+          controller: _confirm,
+          obscureText: true,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(hintText: '••••••••'),
+        ),
+        if (_pwd.text.isNotEmpty && _pwd.text == _current.text) ...[
+          const SizedBox(height: 8),
+          Text(
+            'La nueva contraseña debe ser distinta a la actual.',
+            style: TextStyle(fontSize: 12, color: tone.negative),
+          ),
+        ],
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: tone.negative.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(_error!,
+                style: TextStyle(fontSize: 13, color: tone.negative)),
+          ),
+        ],
+        const SizedBox(height: 20),
+        FilledButton(
+          onPressed: (_valido && !_busy) ? _guardar : null,
+          child: Text(_busy ? 'Guardando...' : 'Actualizar contraseña'),
         ),
         _CancelButton(onTap: () => Navigator.pop(context)),
       ],

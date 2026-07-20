@@ -963,13 +963,222 @@ String portalShortDate(String? fecha) {
 }
 
 /// Colores (fondo, texto) del chip de estatus de propiedad — statusStyles del
-/// portal: pendiente/vencido en ámbar, resto en verde.
+/// portal (statusTone): vencido/demanda en rojo (destructive), pendiente en
+/// ámbar (warning), resto en verde (primary).
 (Color, Color) portalEstatusStyle(String estatus) {
   final e = estatus.toLowerCase();
-  if (e.contains('pendiente') || e.contains('vencid')) {
+  if (e.contains('vencid') ||
+      e.contains('demanda') ||
+      e.contains('mora') ||
+      e.contains('atras') ||
+      e.contains('cancel')) {
+    return (PortalColors.destructiveSoft10, PortalColors.destructive);
+  }
+  if (e.contains('pendiente')) {
     return (PortalColors.warningSoft15, PortalColors.warning);
   }
   return (PortalColors.primarySoft15, PortalColors.primary);
+}
+
+/// Color del punto de estatus de la card de propiedad — getPropertyStatus del
+/// portal (4 estados por etapa activa): `pago_final` en ámbar; preventa,
+/// escrituración, entrega, post-entrega (éxito) y default en verde primario.
+/// La paleta del portal no tiene un token `success` distinto, así que éxito
+/// colapsa a [PortalColors.primary]; `destructive` queda reservado para
+/// estatus vencidos vía [portalEstatusStyle].
+Color portalPropiedadDotColor(String? etapaActiva) {
+  switch (etapaActiva) {
+    case 'pago_final':
+      return PortalColors.warning;
+    case 'preventa':
+    case 'escrituracion':
+    case 'entrega':
+    case 'post_entrega':
+      return PortalColors.primary;
+    default:
+      return PortalColors.primary;
+  }
+}
+
+/// Expone hover y "pressed" para replicar `hover:` + `active:scale` del portal.
+/// Aditivo: no reemplaza a [PortalHoverBuilder] (que sigue usándose donde no
+/// hace falta el estado de presión).
+class PortalPressable extends StatefulWidget {
+  final Widget Function(BuildContext context, bool hovered, bool pressed)
+      builder;
+
+  const PortalPressable({super.key, required this.builder});
+
+  @override
+  State<PortalPressable> createState() => _PortalPressableState();
+}
+
+class _PortalPressableState extends State<PortalPressable> {
+  bool _hover = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() {
+        _hover = false;
+        _pressed = false;
+      }),
+      child: Listener(
+        onPointerDown: (_) => setState(() => _pressed = true),
+        onPointerUp: (_) => setState(() => _pressed = false),
+        onPointerCancel: (_) => setState(() => _pressed = false),
+        child: widget.builder(context, _hover, _pressed),
+      ),
+    );
+  }
+}
+
+/// Bloque de carga del portal con pulso de opacidad (equivalente a
+/// `animate-pulse` de Tailwind): caja `bg-muted` que late entre 45% y 100%.
+class PortalSkeletonBox extends StatefulWidget {
+  final double? width;
+  final double? height;
+  final double radius;
+  final bool circle;
+
+  const PortalSkeletonBox({
+    super.key,
+    this.width,
+    this.height,
+    this.radius = 8,
+    this.circle = false,
+  });
+
+  @override
+  State<PortalSkeletonBox> createState() => _PortalSkeletonBoxState();
+}
+
+class _PortalSkeletonBoxState extends State<PortalSkeletonBox>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1000),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.45, end: 1).animate(
+        CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+      ),
+      child: Container(
+        width: widget.width,
+        height: widget.height,
+        decoration: BoxDecoration(
+          color: PortalColors.muted,
+          shape: widget.circle ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius:
+              widget.circle ? null : BorderRadius.circular(widget.radius),
+        ),
+      ),
+    );
+  }
+}
+
+/// Skeleton de una card de listado del portal (imagen 120×100 + títulos +
+/// métricas + footer): réplica de los SkeletonCard/CardSkeleton de
+/// ClientePatrimonio y ClienteEnAdquisicion.
+class PortalCardSkeleton extends StatelessWidget {
+  const PortalCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return PortalCard(
+      clip: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                PortalSkeletonBox(width: 120, height: 100, radius: 12),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: PortalSkeletonBox(width: 170, height: 14),
+                      ),
+                      SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: PortalSkeletonBox(width: 110, height: 11),
+                      ),
+                      SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(child: PortalSkeletonBox(height: 32)),
+                          SizedBox(width: 12),
+                          Expanded(child: PortalSkeletonBox(height: 32)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: PortalColors.borderSoft)),
+            ),
+            child: Row(
+              children: const [
+                PortalSkeletonBox(width: 84, height: 20, radius: 999),
+                SizedBox(width: 12),
+                PortalSkeletonBox(width: 120, height: 12),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Skeleton de una celda KPI del portal (label + valor): réplica del pulse de
+/// los KpiCell de ClientePatrimonio.
+class PortalKpiSkeleton extends StatelessWidget {
+  const PortalKpiSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return PortalCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: const [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: PortalSkeletonBox(width: 90, height: 10),
+          ),
+          SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: PortalSkeletonBox(width: 120, height: 22),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Buscador del portal: alto 40, radio 16, borde #E5E7EB y focus verde

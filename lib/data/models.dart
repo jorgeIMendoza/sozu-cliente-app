@@ -571,6 +571,10 @@ class DocumentoItem {
   /// Etiqueta "Proyecto · U-número" (null = documento personal).
   final String? propiedad;
 
+  /// Motivo de rechazo (opcional; solo cuando el backend lo expone para
+  /// documentos con estatus `rechazado`).
+  final String? motivoRechazo;
+
   DocumentoItem.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
       nombre = asString(j['nombre'], 'Documento'),
@@ -580,7 +584,9 @@ class DocumentoItem {
       estatus = asString(j['estatus'], 'recibido'),
       categoria = asString(j['categoria'], 'otro'),
       idCuenta = asIntOrNull(j['id_cuenta']),
-      propiedad = j['propiedad'] as String?;
+      propiedad = j['propiedad'] as String?,
+      motivoRechazo =
+          (j['motivo_rechazo'] ?? j['motivo']) as String?;
 }
 
 /// Factura CFDI de una propiedad (PDF + XML firmados), como el portal.
@@ -670,6 +676,72 @@ class Copropietario {
       porcentaje = asDouble(j['porcentaje']);
 }
 
+/// Agente comercial asignado a la cuenta (card lateral "Tu agente comercial"
+/// del detalle en modo portal, espejo de AgentSideCard). Extensión ADITIVA:
+/// el edge puede desplegar estos datos después; si el objeto llega null/ausente
+/// la card se oculta por completo (degradación).
+class AgenteComercial {
+  final String nombre;
+  final String titulo;
+
+  /// Teléfono en formato visible ("+52 33 1234 5678") o null.
+  final String? telefono;
+
+  /// WhatsApp solo dígitos ("523312345678") para el deep link wa.me, o null.
+  final String? whatsapp;
+  final String? email;
+
+  /// Tiempo de respuesta promedio ("Responde en ~2 h"), opcional.
+  final String? tiempoRespuesta;
+
+  AgenteComercial.fromJson(Map<String, dynamic> j)
+    : nombre = asString(j['nombre'], '—'),
+      titulo = asString(j['titulo'], 'Asesor SOZU'),
+      telefono = j['telefono'] as String?,
+      whatsapp = j['whatsapp'] as String?,
+      email = j['email'] as String?,
+      tiempoRespuesta = j['tiempo_respuesta'] as String?;
+}
+
+/// Hito del avance de obra (fase constructiva + % + si está completado).
+class HitoObra {
+  final String fase;
+  final int pct;
+  final bool completado;
+
+  HitoObra.fromJson(Map<String, dynamic> j)
+    : fase = asString(j['fase'], '—'),
+      pct = asInt(j['pct']),
+      completado = j['completado'] == true;
+}
+
+/// Avance de obra del proyecto (card "Avance de obra" del detalle en modo
+/// portal, espejo de ConstructionProgress; sin el video embebido). Extensión
+/// ADITIVA con degradación: la card se oculta si el objeto llega null/ausente.
+class AvanceObra {
+  /// Título de la card ("Avance de obra" / "Proyecto entregado"), opcional.
+  final String? estatus;
+
+  /// Avance global 0-100.
+  final double avanceGlobal;
+
+  /// Texto de última actualización ya formateado por el backend, o null.
+  final String? ultimaActualizacion;
+
+  /// Fecha estimada de entrega (ISO) o null.
+  final String? entregaEstimada;
+  final List<HitoObra> hitos;
+
+  AvanceObra.fromJson(Map<String, dynamic> j)
+    : estatus = j['estatus'] as String?,
+      avanceGlobal = asDouble(j['avance_global']),
+      ultimaActualizacion = j['ultima_actualizacion'] as String?,
+      entregaEstimada = j['entrega_estimada'] as String?,
+      hitos = ((j['hitos'] as List?) ?? [])
+          .map((e) => HitoObra.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+}
+
 class PropiedadDetalle {
   final int id;
   final String nombre;
@@ -712,6 +784,14 @@ class PropiedadDetalle {
 
   /// Copropietarios de la cuenta (la sección solo se muestra si hay > 1).
   final List<Copropietario> copropietarios;
+
+  /// Agente comercial asignado (card lateral en portal). null/ausente =
+  /// card oculta. Backend puede desplegar este campo después (aditivo).
+  final AgenteComercial? agente;
+
+  /// Avance de obra del proyecto (card en portal). null/ausente = card
+  /// oculta. Backend puede desplegar este campo después (aditivo).
+  final AvanceObra? avanceObra;
 
   PropiedadDetalle.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
@@ -765,7 +845,17 @@ class PropiedadDetalle {
           .toList(),
       copropietarios = ((j['copropietarios'] as List?) ?? [])
           .map((e) => Copropietario.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+          .toList(),
+      agente = j['agente_comercial'] is Map
+          ? AgenteComercial.fromJson(
+              Map<String, dynamic>.from(j['agente_comercial'] as Map),
+            )
+          : null,
+      avanceObra = j['avance_obra'] is Map
+          ? AvanceObra.fromJson(
+              Map<String, dynamic>.from(j['avance_obra'] as Map),
+            )
+          : null;
 
   // ── Montos efectivos (espejo del portal, use-portfolio.ts) ────────────────
   // El portal cae a propiedades.precio_lista cuando cuentas_cobranza tiene
@@ -1064,6 +1154,13 @@ class Notificacion {
   final String titulo;
   final String descripcion;
   final String? fecha;
+
+  /// URL de acción del portal (p.ej. "/pagos", "/propiedades/12"); el app la
+  /// mapea a una ruta de su router al tocar la notificación.
+  final String? urlAccion;
+
+  /// Texto del enlace de acción al pie de la fila (p.ej. "Ver detalle").
+  final String? etiquetaAccion;
   final bool leida;
 
   Notificacion.fromJson(Map<String, dynamic> j)
@@ -1073,6 +1170,8 @@ class Notificacion {
       titulo = asString(j['titulo']),
       descripcion = asString(j['descripcion']),
       fecha = j['fecha'] as String?,
+      urlAccion = j['url_accion'] as String?,
+      etiquetaAccion = j['etiqueta_accion'] as String?,
       leida = j['leida'] == true;
 }
 

@@ -71,8 +71,32 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: props.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: PortalColors.primary),
+          loading: () => const SingleChildScrollView(
+            padding: EdgeInsets.only(top: 24, bottom: 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                PortalPageHeader(
+                  title: 'Mi patrimonio',
+                  subtitle: 'Tus propiedades entregadas',
+                ),
+                SizedBox(height: 20),
+                PortalCardGrid(
+                  gap: 12,
+                  minItemWidth: 180,
+                  maxCols: 3,
+                  children: [
+                    PortalKpiSkeleton(),
+                    PortalKpiSkeleton(),
+                    PortalKpiSkeleton(),
+                  ],
+                ),
+                SizedBox(height: 20),
+                PortalCardGrid(
+                  children: [PortalCardSkeleton(), PortalCardSkeleton()],
+                ),
+              ],
+            ),
           ),
           error: (_, __) => ListView(
             padding: const EdgeInsets.symmetric(vertical: 24),
@@ -235,15 +259,9 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
     final filtrados = _filtrar(items);
     final n = items.length;
 
-    // Mismos cálculos que la vista móvil (valor actual con fallback al
-    // total invertido y % de plusvalía sobre lo invertido).
+    // Valor actual de mercado con fallback al total invertido.
     final valorActual = data.totalActivoValorActual ?? data.totalActivo;
     final plusvalia = data.totalPlusvalia;
-    double? plusvaliaPct;
-    if (plusvalia != null && data.totalActivoValorActual != null) {
-      final invertido = data.totalActivoValorActual! - plusvalia;
-      if (invertido > 0) plusvaliaPct = plusvalia / invertido * 100;
-    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(top: 24, bottom: 32),
@@ -281,10 +299,10 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
                 if (plusvalia != null)
                   PortalKpiCell(
                     label: 'Plusvalía acumulada',
-                    value: _kpiPlusvalia(plusvalia, plusvaliaPct),
-                    valueColor: plusvalia >= 0
-                        ? PortalColors.primary
-                        : PortalColors.destructive,
+                    // Solo monto, nunca negativo (clamp ≥ 0) y siempre verde:
+                    // la plusvalía acumulada del patrimonio no muestra % ni rojo.
+                    value: '+${formatMXN(plusvalia < 0 ? 0.0 : plusvalia)}',
+                    valueColor: PortalColors.primary,
                   ),
                 PortalKpiCell(label: 'Unidades activas', value: '$n'),
               ],

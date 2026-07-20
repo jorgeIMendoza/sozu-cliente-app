@@ -25,11 +25,23 @@ import 'perfil_detalle_screens.dart';
 /// con % de perfil completado y estatus de verificación, tarjetas de
 /// información personal / fiscal / cuentas bancarias / seguridad, más las
 /// secciones propias del app (tema, push, biometría).
-class PerfilScreen extends ConsumerWidget {
+/// Sección del Perfil abierta inline en modo portal ("Ver todo").
+enum _PerfilSeccion { personal, fiscal, cuentas }
+
+class PerfilScreen extends ConsumerStatefulWidget {
   const PerfilScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PerfilScreen> createState() => _PerfilScreenState();
+}
+
+class _PerfilScreenState extends ConsumerState<PerfilScreen> {
+  /// En modo portal, sección abierta inline con "← Volver al Perfil"
+  /// (null = overview). En móvil no se usa (las vistas van por Navigator).
+  _PerfilSeccion? _detalle;
+
+  @override
+  Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
     final auth = ref.watch(authProvider);
     final perfil = ref.watch(clientePerfilProvider);
@@ -74,13 +86,19 @@ class PerfilScreen extends ConsumerWidget {
 
     final portal = isPortalMode(context);
 
-    void pushDetalle(Widget screen) {
-      // En modo portal los "Ver todo" del portal son diálogos centrados
-      // (max ~560px); en móvil siguen siendo pantallas fullscreen.
+    void abrirDetalle(_PerfilSeccion seccion) {
+      // En modo portal los "Ver todo" se abren inline (con "← Volver al
+      // Perfil"), como el `setView` del portal; en móvil siguen siendo
+      // pantallas fullscreen por Navigator.
       if (portal) {
-        showPortalDialog<void>(context, child: screen);
+        setState(() => _detalle = seccion);
         return;
       }
+      final screen = switch (seccion) {
+        _PerfilSeccion.personal => const PerfilPersonalScreen(),
+        _PerfilSeccion.fiscal => const PerfilFiscalScreen(),
+        _PerfilSeccion.cuentas => const PerfilCuentasScreen(),
+      };
       Navigator.of(context)
           .push(MaterialPageRoute<void>(builder: (_) => screen));
     }
@@ -111,7 +129,7 @@ class PerfilScreen extends ConsumerWidget {
             ),
           PerfilCardAction(
             label: 'Ver todo',
-            onTap: () => pushDetalle(const PerfilPersonalScreen()),
+            onTap: () => abrirDetalle(_PerfilSeccion.personal),
           ),
         ],
       ),
@@ -135,7 +153,7 @@ class PerfilScreen extends ConsumerWidget {
             ),
           PerfilCardAction(
             label: 'Ver todo',
-            onTap: () => pushDetalle(const PerfilFiscalScreen()),
+            onTap: () => abrirDetalle(_PerfilSeccion.fiscal),
           ),
         ],
       ),
@@ -169,7 +187,7 @@ class PerfilScreen extends ConsumerWidget {
             ),
           PerfilCardAction(
             label: 'Ver cuentas',
-            onTap: () => pushDetalle(const PerfilCuentasScreen()),
+            onTap: () => abrirDetalle(_PerfilSeccion.cuentas),
           ),
         ],
       ),
@@ -189,7 +207,11 @@ class PerfilScreen extends ConsumerWidget {
             PerfilCardAction(
               label: 'Cambiar contraseña',
               style: PerfilActionStyle.secondary,
-              onTap: () => context.push('/cambiar-password'),
+              // En portal el cambio de contraseña es un diálogo centrado
+              // (modal inline), no una ruta full-page.
+              onTap: () => portal
+                  ? showCambiarPasswordDialog(context)
+                  : context.push('/cambiar-password'),
             ),
           PerfilCardAction(
             label: 'Cerrar sesión',
@@ -221,9 +243,12 @@ class PerfilScreen extends ConsumerWidget {
                     shape: BoxShape.circle,
                   ),
                   child: Text(
-                    p?.iniciales ?? initials(nombre),
+                    // El portal usa una sola inicial (displayName.charAt(0)).
+                    nombre.trim().isNotEmpty
+                        ? nombre.trim()[0].toUpperCase()
+                        : '?',
                     style: portalText(
-                      size: 20,
+                      size: 22,
                       weight: FontWeight.w800,
                       color: Colors.white,
                     ),
@@ -395,6 +420,29 @@ class PerfilScreen extends ConsumerWidget {
           const BiometricSettingTile(),
         ],
       );
+
+      // Detalle inline ("Ver todo"): sustituye el overview a 920px con
+      // "← Volver al Perfil", como el `setView` del portal.
+      if (_detalle != null) {
+        void cerrar() => setState(() => _detalle = null);
+        final detalle = switch (_detalle!) {
+          _PerfilSeccion.personal => PerfilPersonalScreen(onBack: cerrar),
+          _PerfilSeccion.fiscal => PerfilFiscalScreen(onBack: cerrar),
+          _PerfilSeccion.cuentas => PerfilCuentasScreen(onBack: cerrar),
+        };
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.only(top: 24, bottom: 32),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 920),
+                child: detalle,
+              ),
+            ),
+          ),
+        );
+      }
 
       return Scaffold(
         backgroundColor: Colors.transparent,

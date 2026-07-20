@@ -10,6 +10,74 @@ import '../data/models.dart';
 import '../providers/impersonation_provider.dart';
 import 'common.dart';
 
+/// Datos que el recibo in-app necesita, desacoplados del modelo de origen para
+/// poder alimentarlo desde HistorialPago, PagoRealizado o AplicacionPago
+/// (cada tabla del portal trae uno u otro). Los campos que un modelo no expone
+/// (concepto/propiedad) los aporta la pantalla; el resto degrada a '—'.
+class ReciboPagoData {
+  final int id;
+  final String? fechaPago;
+  final String concepto;
+  final String propiedad;
+  final String metodo;
+  final double monto;
+  final String? urlRecibo;
+  final String? urlCep;
+  final String? claveRastreo;
+
+  const ReciboPagoData({
+    required this.id,
+    required this.fechaPago,
+    required this.concepto,
+    required this.propiedad,
+    required this.metodo,
+    required this.monto,
+    this.urlRecibo,
+    this.urlCep,
+    this.claveRastreo,
+  });
+
+  /// Desde el historial de pagos (cliente-pagos). No trae clave de rastreo.
+  ReciboPagoData.fromHistorial(HistorialPago p, {this.claveRastreo})
+    : id = p.id,
+      fechaPago = p.fechaPago,
+      concepto = p.concepto,
+      propiedad = p.propiedad,
+      metodo = p.metodo,
+      monto = p.monto,
+      urlRecibo = p.urlRecibo,
+      urlCep = p.urlCep;
+
+  /// Desde un pago del estado de cuenta (sin plan de pagos). El concepto y la
+  /// propiedad los aporta la pantalla; degradan a lo disponible.
+  ReciboPagoData.fromPagoRealizado(
+    PagoRealizado p, {
+    String? concepto,
+    required this.propiedad,
+  }) : id = p.id,
+       fechaPago = p.fecha,
+       concepto = concepto ?? p.metodo,
+       metodo = p.metodo,
+       monto = p.monto,
+       urlRecibo = p.urlRecibo,
+       urlCep = p.urlCep,
+       claveRastreo = p.referencia;
+
+  /// Desde una aplicación de pago (abono a un acuerdo). El concepto del acuerdo
+  /// y la propiedad los aporta la pantalla.
+  ReciboPagoData.fromAplicacion(
+    AplicacionPago a, {
+    required this.concepto,
+    required this.propiedad,
+  }) : id = a.idPago,
+       fechaPago = a.fecha,
+       metodo = a.metodo ?? 'Pago',
+       monto = a.monto,
+       urlRecibo = a.urlRecibo,
+       urlCep = a.urlCep,
+       claveRastreo = a.claveRastreo;
+}
+
 /// Sheet de recibo in-app (espejo simplificado del PaymentReceiptModal del
 /// portal admin): folio copiable, datos del pago, monto grande y acciones
 /// "Ver PDF" (genera el recibo bajo demanda si no existe) y "CEP".
@@ -18,21 +86,30 @@ Future<void> showReciboPagoSheet(
   required HistorialPago pago,
   String? claveRastreo,
 }) {
+  return showReciboPagoDataSheet(
+    context,
+    data: ReciboPagoData.fromHistorial(pago, claveRastreo: claveRastreo),
+  );
+}
+
+/// Igual que [showReciboPagoSheet] pero desde un [ReciboPagoData] ya armado
+/// (para tablas cuyo modelo no es HistorialPago).
+Future<void> showReciboPagoDataSheet(
+  BuildContext context, {
+  required ReciboPagoData data,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => ReciboPagoSheet(pago: pago, claveRastreo: claveRastreo),
+    builder: (_) => ReciboPagoSheet(data: data),
   );
 }
 
 class ReciboPagoSheet extends ConsumerStatefulWidget {
-  final HistorialPago pago;
+  final ReciboPagoData data;
 
-  /// Clave de rastreo SPEI (opcional; HistorialPago aún no la trae).
-  final String? claveRastreo;
-
-  const ReciboPagoSheet({super.key, required this.pago, this.claveRastreo});
+  const ReciboPagoSheet({super.key, required this.data});
 
   @override
   ConsumerState<ReciboPagoSheet> createState() => _ReciboPagoSheetState();
@@ -41,7 +118,7 @@ class ReciboPagoSheet extends ConsumerStatefulWidget {
 class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
   bool _generando = false;
 
-  String get _folio => 'SOZU-${widget.pago.id}';
+  String get _folio => 'SOZU-${widget.data.id}';
 
   void _snack(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -54,7 +131,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
 
   /// Abre el PDF del recibo; si aún no existe, pide al backend generarlo.
   Future<void> _verPdf() async {
-    final p = widget.pago;
+    final p = widget.data;
     if ((p.urlRecibo ?? '').isNotEmpty) {
       await openMedia(context, p.urlRecibo, titulo: 'Recibo');
       return;
@@ -80,7 +157,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
-    final p = widget.pago;
+    final p = widget.data;
 
     return Container(
       constraints: BoxConstraints(
@@ -222,14 +299,14 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                     _fila(tone, 'Propiedad', 'U${p.propiedad}'),
                     Divider(color: tone.border, height: 1),
                     _fila(tone, 'Método de pago', p.metodo),
-                    if ((widget.claveRastreo ?? '').isNotEmpty) ...[
+                    if ((p.claveRastreo ?? '').isNotEmpty) ...[
                       Divider(color: tone.border, height: 1),
                       _fila(
                         tone,
                         'Clave de rastreo',
-                        widget.claveRastreo!,
+                        p.claveRastreo!,
                         onCopiar: () => _copiar(
-                          widget.claveRastreo!,
+                          p.claveRastreo!,
                           'Clave de rastreo copiada',
                         ),
                       ),

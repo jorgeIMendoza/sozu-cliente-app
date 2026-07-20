@@ -523,7 +523,14 @@ class _PropiedadDetalleScreenState
         // expone una sola foto — clic abre el visor a pantalla completa).
         _portalImagen(d),
 
-        // 2 · Productos adicionales
+        // 2 · Avance de obra (card nueva del backend; DEGRADACIÓN: se oculta
+        // por completo si el campo llega null/ausente).
+        if (d.avanceObra != null) ...[
+          const SizedBox(height: 16),
+          _portalAvanceObra(d.avanceObra!),
+        ],
+
+        // 3 · Productos adicionales
         if (d.productos.isNotEmpty) ...[
           const SizedBox(height: 16),
           _portalProductos(d),
@@ -583,9 +590,45 @@ class _PropiedadDetalleScreenState
     final derecha = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Agente comercial (card nueva del backend; DEGRADACIÓN: se oculta si
+        // el campo llega null/ausente). El portal la pinta primero en el lateral.
+        if (d.agente != null) ...[
+          _portalAgente(d.agente!, d),
+          const SizedBox(height: 16),
+        ],
         _portalPrecioCompra(d),
         const SizedBox(height: 16),
         _portalDatosTecnicos(d),
+      ],
+    );
+
+    // Cuerpo: header + grid de 2 columnas.
+    final cuerpo = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _portalHeader(d),
+        const SizedBox(height: 20),
+        LayoutBuilder(
+          builder: (context, cons) {
+            // Grid 1fr + 300 con gap 24 (md:grid-cols-[1fr_300px] del TSX,
+            // igual que Pagos y Productos); si el contenido queda angosto
+            // la columna lateral cae debajo (patrón md: del TSX).
+            if (cons.maxWidth < kTwoColBreakpoint) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [izquierda, const SizedBox(height: 16), derecha],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: izquierda),
+                const SizedBox(width: 24),
+                SizedBox(width: 300, child: derecha),
+              ],
+            );
+          },
+        ),
       ],
     );
 
@@ -594,36 +637,67 @@ class _PropiedadDetalleScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Propiedad en proceso legal → banner de solo lectura (los CTAs de
-          // pago ya se ocultan con la misma condición que en móvil).
+          // Propiedad en proceso legal (espejo del overlay del portal): copia
+          // de solo lectura + contenido en escala de grises. Los CTAs de pago
+          // ya se ocultan con la misma condición.
           if (d.enDemanda) ...[
-            _portalDemandaBanner(),
+            _portalDemandaPill(),
             const SizedBox(height: 16),
-          ],
-          _portalHeader(d),
-          const SizedBox(height: 20),
-          LayoutBuilder(
-            builder: (context, cons) {
-              // Grid 1fr + 300 con gap 24 (md:grid-cols-[1fr_300px] del TSX,
-              // igual que Pagos y Productos); si el contenido queda angosto
-              // la columna lateral cae debajo (patrón md: del TSX).
-              if (cons.maxWidth < kTwoColBreakpoint) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [izquierda, const SizedBox(height: 16), derecha],
-                );
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: izquierda),
-                  const SizedBox(width: 24),
-                  SizedBox(width: 300, child: derecha),
-                ],
-              );
-            },
-          ),
+            ColorFiltered(
+              colorFilter: const ColorFilter.matrix(_grayscaleMatrix),
+              child: cuerpo,
+            ),
+          ] else
+            cuerpo,
         ],
+      ),
+    );
+  }
+
+  /// Matriz de saturación 0 (grayscale) para el overlay de "en demanda".
+  static const List<double> _grayscaleMatrix = <double>[
+    0.2126, 0.7152, 0.0722, 0, 0, //
+    0.2126, 0.7152, 0.0722, 0, 0, //
+    0.2126, 0.7152, 0.0722, 0, 0, //
+    0, 0, 0, 1, 0, //
+  ];
+
+  /// Pill "En demanda · Modo solo lectura" (espejo del overlay del portal).
+  Widget _portalDemandaPill() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFACC15), // yellow-400
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFFEAB308)), // yellow-500
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x26000000),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              size: 16,
+              color: Color(0xFF422006), // yellow-950
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'En demanda · Modo solo lectura',
+              style: portalText(
+                size: 13,
+                weight: FontWeight.w600,
+                color: const Color(0xFF422006),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -762,37 +836,6 @@ class _PropiedadDetalleScreenState
     );
   }
 
-  /// Banner "en proceso legal" estilo portal (ámbar, radio 16).
-  Widget _portalDemandaBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: PortalColors.warningSoft10,
-        borderRadius: BorderRadius.circular(kPortalRadiusLg),
-        border: Border.all(
-          color: PortalColors.warning.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.gavel_outlined,
-            size: 16,
-            color: PortalColors.warning,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Propiedad en proceso legal — modo solo lectura',
-              style: portalText(size: 13, weight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// Imagen principal (PropertyImage del portal): aspect-video con radio de
   /// card; clic abre el visor a pantalla completa (lightbox).
   Widget _portalImagen(PropiedadDetalle d) {
@@ -846,11 +889,29 @@ class _PropiedadDetalleScreenState
   }
 
   Widget _portalProductoRow(ProductoDetalle p) {
-    final (bg, fg) = switch (p.estatus) {
-      'Pagado' => (PortalColors.primarySoft10, PortalColors.primary),
-      'En curso' => (PortalColors.muted, PortalColors.mutedForeground),
-      _ => (PortalColors.warningSoft10, PortalColors.warning),
+    // Chip de estatus (bg/fg) + punto de color por estatus (dot del portal).
+    final (bg, fg, dot) = switch (p.estatus) {
+      'Pagado' => (
+          PortalColors.primarySoft10,
+          PortalColors.primary,
+          PortalColors.primary,
+        ),
+      'En curso' => (
+          PortalColors.primarySoft10,
+          PortalColors.primary,
+          PortalColors.primary,
+        ),
+      _ => (
+          PortalColors.warningSoft10,
+          PortalColors.warning,
+          PortalColors.warning,
+        ),
     };
+    // El backend ya entrega avance y monto; el pendiente se deriva.
+    final paidPct = p.avance.clamp(0, 100).toDouble();
+    final pendiente =
+        (p.monto * (1 - paidPct / 100)).clamp(0, p.monto).toDouble();
+
     return PortalHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: () => context.push('/productos/${p.id}'),
@@ -859,6 +920,7 @@ class _PropiedadDetalleScreenState
           color: hovered ? PortalColors.mutedHover : Colors.transparent,
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 34,
@@ -878,36 +940,122 @@ class _PropiedadDetalleScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      p.nombre,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: portalText(size: 13, weight: FontWeight.w600),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            p.nombre,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                portalText(size: 13, weight: FontWeight.w600),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Chip de estatus con punto de color por estatus.
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: bg,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: dot,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                p.estatus,
+                                style: portalText(
+                                  size: 10,
+                                  weight: FontWeight.w600,
+                                  color: fg,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 3),
-                    PortalStatusChip(
-                      label: p.estatus,
-                      background: bg,
-                      foreground: fg,
-                      small: true,
+                    if (p.monto > 0) ...[
+                      const SizedBox(height: 8),
+                      // Barra de avance + porcentaje pagado.
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(999),
+                              child: Container(
+                                height: 6,
+                                color: PortalColors.muted,
+                                child: FractionallySizedBox(
+                                  alignment: Alignment.centerLeft,
+                                  widthFactor: (paidPct / 100).clamp(0.0, 1.0),
+                                  child: Container(
+                                    color: PortalColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${paidPct.round()}%',
+                            style: portalText(
+                              size: 10,
+                              color: PortalColors.mutedForeground,
+                              tabular: true,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    // Monto total + saldo pendiente derivado.
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: formatMXN(p.monto),
+                            style: portalText(
+                              size: 11,
+                              weight: FontWeight.w700,
+                              tabular: true,
+                            ),
+                          ),
+                          if (pendiente > 0)
+                            TextSpan(
+                              text: ' · ${formatMXN(pendiente)} pendiente',
+                              style: portalText(
+                                size: 10,
+                                color: PortalColors.mutedForeground,
+                                tabular: true,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                formatMXN(p.monto),
-                style: portalText(
-                  size: 13,
-                  weight: FontWeight.w700,
-                  tabular: true,
+              const SizedBox(width: 8),
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 16,
+                  color: PortalColors.mutedForeground,
                 ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right,
-                size: 16,
-                color: PortalColors.mutedForeground,
               ),
             ],
           ),
@@ -1240,6 +1388,390 @@ class _PropiedadDetalleScreenState
                   ),
                 ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Card "TU AGENTE COMERCIAL" (AgentSideCard del portal) ──────────────────
+  // Card nueva: lee AgenteComercial del modelo. Cada botón de contacto solo
+  // aparece si el dato correspondiente viene del backend (degradación fina).
+  Widget _portalAgente(AgenteComercial a, PropiedadDetalle d) {
+    final asunto = '${d.proyecto} U-${d.unidad}';
+    return PortalCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.person_outline,
+                size: 14,
+                color: PortalColors.mutedForeground,
+              ),
+              SizedBox(width: 8),
+              PortalSectionLabel('Tu agente comercial'),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: PortalColors.primarySoft10,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  initials(a.nombre),
+                  style: portalText(
+                    size: 15,
+                    weight: FontWeight.w700,
+                    color: PortalColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      a.nombre,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: portalText(size: 13, weight: FontWeight.w600),
+                    ),
+                    Text(
+                      a.titulo,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: portalText(
+                        size: 11,
+                        color: PortalColors.mutedForeground,
+                      ),
+                    ),
+                    if ((a.tiempoRespuesta ?? '').trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          '● ${a.tiempoRespuesta!.trim()}',
+                          style: portalText(
+                            size: 10,
+                            weight: FontWeight.w500,
+                            color: PortalColors.primary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              if ((a.whatsapp ?? '').trim().isNotEmpty) ...[
+                Expanded(
+                  child: _portalAgenteBtn(
+                    icon: Icons.chat_outlined,
+                    label: 'WA',
+                    filled: true,
+                    onTap: () => _abrirUrlExterna(
+                      'https://wa.me/${a.whatsapp!.trim()}'
+                      '?text=${Uri.encodeComponent('Hola ${a.nombre.split(' ').first}, tengo una pregunta sobre mi propiedad $asunto.')}',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              if ((a.telefono ?? '').trim().isNotEmpty) ...[
+                Expanded(
+                  child: _portalAgenteBtn(
+                    icon: Icons.phone_outlined,
+                    label: 'Tel',
+                    onTap: () => _abrirUrlExterna(
+                      'tel:${a.telefono!.replaceAll(RegExp(r'\s'), '')}',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              if ((a.email ?? '').trim().isNotEmpty)
+                Expanded(
+                  child: _portalAgenteBtn(
+                    icon: Icons.mail_outline,
+                    label: 'Email',
+                    onTap: () => _abrirUrlExterna(
+                      'mailto:${a.email!.trim()}'
+                      '?subject=${Uri.encodeComponent('Sobre $asunto')}',
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _abrirUrlExterna(String url) async {
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
+  Widget _portalAgenteBtn({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool filled = false,
+  }) {
+    return PortalHoverBuilder(
+      builder: (context, hovered) => GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: filled
+                ? (hovered ? PortalColors.primaryHover : PortalColors.primary)
+                : (hovered ? PortalColors.mutedHover : PortalColors.surface),
+            borderRadius: BorderRadius.circular(kPortalRadiusMd),
+            border: filled
+                ? null
+                : Border.all(color: PortalColors.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: filled ? Colors.white : PortalColors.foreground,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: portalText(
+                  size: 11,
+                  weight: FontWeight.w600,
+                  color: filled ? Colors.white : PortalColors.foreground,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Última actualización del avance: el backend manda una fecha ISO; la
+  // formateamos a DD/MM/YYYY. Si ya viniera formateada (no parseable como
+  // fecha), se muestra tal cual.
+  String _fmtUltimaActualizacion(String raw) {
+    final d = DateTime.tryParse(raw);
+    return d != null ? formatDate(d) : raw;
+  }
+
+  // ── Card "AVANCE DE OBRA" (ConstructionProgress del portal, sin video) ─────
+  // Card nueva: lee AvanceObra del modelo (% global + hitos + entrega
+  // estimada). Se muestra solo cuando el objeto viene del backend.
+  Widget _portalAvanceObra(AvanceObra o) {
+    final currentIdx = o.hitos.indexWhere((h) => !h.completado);
+    return PortalCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.engineering_outlined,
+                size: 14,
+                color: PortalColors.mutedForeground,
+              ),
+              const SizedBox(width: 8),
+              PortalSectionLabel(o.estatus ?? 'Avance de obra'),
+            ],
+          ),
+          if ((o.ultimaActualizacion ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today_outlined,
+                  size: 12,
+                  color: PortalColors.mutedForeground,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Última actualización · ',
+                          style: portalText(
+                            size: 11,
+                            color: PortalColors.mutedForeground,
+                          ),
+                        ),
+                        TextSpan(
+                          text: _fmtUltimaActualizacion(
+                            o.ultimaActualizacion!.trim(),
+                          ),
+                          style: portalText(size: 11, weight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (o.avanceGlobal > 0) ...[
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Avance global',
+                  style: portalText(
+                    size: 12,
+                    weight: FontWeight.w500,
+                    color: PortalColors.mutedForeground,
+                  ),
+                ),
+                Text(
+                  '${o.avanceGlobal.round()}%',
+                  style: portalText(
+                    size: 18,
+                    weight: FontWeight.w700,
+                    color: PortalColors.primary,
+                    tabular: true,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            PortalProgressBar(percent: o.avanceGlobal, height: 8),
+          ],
+          if (o.hitos.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (var i = 0; i < o.hitos.length; i++)
+              _portalHitoRow(o.hitos[i], actual: i == currentIdx),
+          ],
+          if ((o.entregaEstimada ?? '').trim().isNotEmpty) ...[
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.only(top: 12),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: PortalColors.border)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today_outlined,
+                    size: 12,
+                    color: PortalColors.mutedForeground,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Entrega estimada · ${portalShortDate(o.entregaEstimada)}',
+                      style: portalText(
+                        size: 11,
+                        color: PortalColors.mutedForeground,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _portalHitoRow(HitoObra h, {required bool actual}) {
+    final Widget marca;
+    if (h.completado) {
+      marca = const Icon(
+        Icons.check_circle,
+        size: 16,
+        color: PortalColors.primary,
+      );
+    } else if (actual) {
+      marca = Container(
+        width: 16,
+        height: 16,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: PortalColors.primary, width: 2),
+        ),
+        child: Container(
+          width: 6,
+          height: 6,
+          decoration: const BoxDecoration(
+            color: PortalColors.primary,
+            shape: BoxShape.circle,
+          ),
+        ),
+      );
+    } else {
+      marca = const Icon(
+        Icons.circle_outlined,
+        size: 16,
+        color: PortalColors.mutedForeground,
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: actual
+          ? BoxDecoration(
+              color: PortalColors.primarySoft6,
+              borderRadius: BorderRadius.circular(kPortalRadiusMd),
+              border: Border.all(color: PortalColors.primaryBorder30),
+            )
+          : null,
+      child: Row(
+        children: [
+          marca,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              h.fase,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: portalText(
+                size: 12,
+                weight: actual ? FontWeight.w600 : FontWeight.w400,
+                color: h.completado
+                    ? PortalColors.foreground
+                    : actual
+                        ? PortalColors.primary
+                        : PortalColors.mutedForeground,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${h.pct}%',
+            style: portalText(
+              size: 11,
+              weight: actual ? FontWeight.w600 : FontWeight.w400,
+              color: actual
+                  ? PortalColors.primary
+                  : PortalColors.mutedForeground,
+              tabular: true,
+            ),
           ),
         ],
       ),
@@ -1634,6 +2166,53 @@ class _FichaTecnica extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             contenido,
+            // Chip de m² + disclaimers "±3%" del portal (el SVG del edificio
+            // no se replica). Solo en modo portal.
+            if (ficha.m2Total != null) ...[
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: PortalColors.surface,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: PortalColors.border),
+                  ),
+                  child: Text(
+                    '${ficha.m2Total!.toStringAsFixed(2)} m²',
+                    style: portalText(
+                      size: 11.5,
+                      weight: FontWeight.w500,
+                      tabular: true,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Text(
+              'Las dimensiones son referenciales y pueden variar ±3% en obra.',
+              style: portalText(
+                size: 11,
+                height: 1.45,
+                color: PortalColors.mutedForeground,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Las descripciones son ilustrativas, pueden variar en marca por '
+              'cuestión de disponibilidad en modelos e inventarios; siempre y '
+              'cuando sean de calidad equivalente.',
+              style: portalText(
+                size: 11,
+                height: 1.45,
+                color: PortalColors.mutedForeground,
+              ).copyWith(fontStyle: FontStyle.italic),
+            ),
           ],
         ),
       );

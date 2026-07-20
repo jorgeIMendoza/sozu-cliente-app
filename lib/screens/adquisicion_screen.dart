@@ -49,8 +49,21 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: props.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: PortalColors.primary),
+          loading: () => const SingleChildScrollView(
+            padding: EdgeInsets.only(top: 24, bottom: 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                PortalPageHeader(
+                  title: 'En adquisición',
+                  subtitle: 'Propiedades en proceso de compra',
+                ),
+                SizedBox(height: 20),
+                PortalCardGrid(
+                  children: [PortalCardSkeleton(), PortalCardSkeleton()],
+                ),
+              ],
+            ),
           ),
           error: (_, __) => ListView(
             padding: const EdgeInsets.symmetric(vertical: 24),
