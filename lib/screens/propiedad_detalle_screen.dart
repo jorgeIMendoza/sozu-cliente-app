@@ -1569,6 +1569,14 @@ class _PropiedadDetalleScreenState
     );
   }
 
+  // Última actualización del avance: el backend manda una fecha ISO; la
+  // formateamos a DD/MM/YYYY. Si ya viniera formateada (no parseable como
+  // fecha), se muestra tal cual.
+  String _fmtUltimaActualizacion(String raw) {
+    final d = DateTime.tryParse(raw);
+    return d != null ? formatDate(d) : raw;
+  }
+
   // ── Card "AVANCE DE OBRA" (ConstructionProgress del portal, sin video) ─────
   // Card nueva: lee AvanceObra del modelo (% global + hitos + entrega
   // estimada). Se muestra solo cuando el objeto viene del backend.
@@ -1612,7 +1620,9 @@ class _PropiedadDetalleScreenState
                           ),
                         ),
                         TextSpan(
-                          text: o.ultimaActualizacion!.trim(),
+                          text: _fmtUltimaActualizacion(
+                            o.ultimaActualizacion!.trim(),
+                          ),
                           style: portalText(size: 11, weight: FontWeight.w500),
                         ),
                       ],
