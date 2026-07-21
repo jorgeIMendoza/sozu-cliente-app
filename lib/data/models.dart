@@ -486,6 +486,13 @@ class EsquemaPagoItem {
   final double pagado;
   final double saldo;
   final bool pagoCompletado;
+
+  /// Posición del concepto en la secuencia del plan de pagos (la manda el
+  /// backend en `esquema_pago[].orden`, ascendente: apartado primero,
+  /// pago a escrituración/contraentrega al final). Se usa para ordenar el
+  /// cronograma por etapa del plan. Puede venir null en cuentas legacy.
+  final int? orden;
+
   final List<AplicacionPago> aplicaciones;
 
   EsquemaPagoItem.fromJson(Map<String, dynamic> j)
@@ -496,6 +503,7 @@ class EsquemaPagoItem {
       pagado = asDouble(j['pagado']),
       saldo = asDouble(j['saldo']),
       pagoCompletado = j['pago_completado'] == true,
+      orden = asIntOrNull(j['orden']),
       aplicaciones = _parseAplicaciones(j['aplicaciones']);
 }
 
@@ -740,6 +748,12 @@ class AvanceObra {
       hitos = ((j['hitos'] as List?) ?? [])
           .map((e) => HitoObra.fromJson(Map<String, dynamic>.from(e)))
           .toList();
+
+  /// Degradación: la card solo se pinta si el backend mandó datos reales.
+  /// Sin hitos (o con todos los porcentajes en 0) no hay nada que mostrar y
+  /// se prefiere ocultar la card antes que inventar un desglose.
+  bool get tieneDatosReales =>
+      hitos.isNotEmpty && (avanceGlobal > 0 || hitos.any((h) => h.pct > 0));
 }
 
 class PropiedadDetalle {
@@ -885,17 +899,37 @@ class PropiedadDetalle {
       ? (pagadoEfectivo / montoEfectivo * 100).clamp(0, 100).toDouble()
       : avancePago;
 
-  /// Etapa activa efectiva. Solo cuando el backend mandó monto = 0 (cuenta
-  /// legacy sin precio_final) su saldo/etapa se calcularon con precio 0 y la
-  /// cuenta salta a "escrituración" aunque deba dinero; en ese caso se
-  /// corrige a `pago_final` (criterio byPaymentProgress del portal:
-  /// saldo > 0 → pago final). Con monto > 0 la etapa del backend ya es
-  /// idéntica a la del portal y se respeta.
+  /// Orden del ciclo de vida de la transacción (espejo de use-portfolio.ts).
+  static const List<String> _ordenEtapas = [
+    'preventa',
+    'pago_final',
+    'escrituracion',
+    'entrega',
+    'post_entrega',
+  ];
+
+  /// Hay parcialidades/mensualidades pendientes en el plan de pagos (conceptos
+  /// 4 Mensualidad y 5 Parcialidad del portal, que corren durante obra). Se
+  /// detecta por el nombre del concepto ya que el app no expone id_concepto.
+  bool get _hayParcialidadesPendientes => esquemaPago.any((e) {
+        if (e.pagoCompletado) return false;
+        final c = e.concepto.toLowerCase();
+        return c.startsWith('parcialidad') || c.startsWith('mensualidad');
+      });
+
+  /// Etapa activa efectiva. Replica el "cap por realidad de pago" del portal
+  /// (buildStages en use-portfolio.ts): escrituración/entrega/post-entrega
+  /// exigen saldo ≈ 0. Si el backend manda una etapa más avanzada pero aún
+  /// hay `saldoPendienteEfectivo > 0`, el estatus_disponibilidad está
+  /// desfasado (p.ej. reprecio con cuenta nueva que hereda estatus de la
+  /// anterior); se corrige a `pago_final` (o a `preventa` si todavía quedan
+  /// parcialidades pendientes). Con saldo = 0 se respeta la etapa del backend.
   String get etapaActivaEfectiva {
-    if (monto <= 0 &&
-        saldoPendienteEfectivo > 0 &&
-        etapaActiva == 'escrituracion') {
-      return 'pago_final';
+    if (saldoPendienteEfectivo > 0) {
+      final tope = _hayParcialidadesPendientes ? 'preventa' : 'pago_final';
+      final idxTope = _ordenEtapas.indexOf(tope);
+      final idxActiva = _ordenEtapas.indexOf(etapaActiva);
+      if (idxActiva > idxTope) return tope;
     }
     return etapaActiva;
   }

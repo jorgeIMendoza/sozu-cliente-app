@@ -11,6 +11,7 @@ import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
+import '../widgets/building_diagram.dart';
 import '../widgets/common.dart';
 import '../widgets/copropietarios_section.dart';
 import '../widgets/cronograma_pagos.dart';
@@ -524,8 +525,9 @@ class _PropiedadDetalleScreenState
         _portalImagen(d),
 
         // 2 · Avance de obra (card nueva del backend; DEGRADACIÓN: se oculta
-        // por completo si el campo llega null/ausente).
-        if (d.avanceObra != null) ...[
+        // por completo si el campo llega null/ausente O si no trae datos
+        // reales (sin hitos / todo en 0). No se inventan porcentajes.
+        if (d.avanceObra != null && d.avanceObra!.tieneDatosReales) ...[
           const SizedBox(height: 16),
           _portalAvanceObra(d.avanceObra!),
         ],
@@ -1863,7 +1865,7 @@ class _UbicacionSection extends StatelessWidget {
     final mapa = ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        height: portal ? 260 : 180,
+        height: portal ? 170 : 140,
         width: double.infinity,
         child: FlutterMap(
           options: MapOptions(
@@ -2099,6 +2101,16 @@ class _FichaTecnica extends StatelessWidget {
                       color: tone.textPrimary),
                 ),
               ],
+              // ¿Dónde está tu unidad? — diagrama del edificio (niveles) +
+              // rejilla del nivel, réplica del BuildingDiagram del portal.
+              if (ficha.numeroPiso != null) ...[
+                const SizedBox(height: 16),
+                BuildingDiagram(
+                  numeroPiso: ficha.numeroPiso!,
+                  totalPisos: ficha.totalPisos,
+                  unidad: ficha.numeroDepa ?? '${ficha.numeroPiso}',
+                ),
+              ],
               // Ubicación en el nivel: mapa interactivo o imagen.
               if (ficha.regiones.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -2141,8 +2153,9 @@ class _FichaTecnica extends StatelessWidget {
               ],
               if (ficha.planoDistribucionUrl != null) ...[
                 const SizedBox(height: 12),
-                _planoImage(
-                    context, tone, 'DISTRIBUCIÓN', ficha.planoDistribucionUrl!),
+                _planoImage(context, tone, 'DISTRIBUCIÓN',
+                    ficha.planoDistribucionUrl!,
+                    height: 360),
               ],
             ],
           );
@@ -2229,7 +2242,8 @@ class _FichaTecnica extends StatelessWidget {
   }
 
   Widget _planoImage(
-      BuildContext context, SozuTone tone, String label, String url) {
+      BuildContext context, SozuTone tone, String label, String url,
+      {double height = 200}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2246,7 +2260,7 @@ class _FichaTecnica extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             child: Container(
               color: tone.surfaceAlt,
-              height: 200,
+              height: height,
               width: double.infinity,
               child: SozuNetworkImage(
                 url: url,
@@ -2255,6 +2269,15 @@ class _FichaTecnica extends StatelessWidget {
               ),
             ),
           ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Icon(Icons.zoom_in, size: 14, color: tone.textMuted),
+            const SizedBox(width: 4),
+            Text('Toca para ampliar',
+                style: TextStyle(fontSize: 11, color: tone.textMuted)),
+          ],
         ),
       ],
     );
