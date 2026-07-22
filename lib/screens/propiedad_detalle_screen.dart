@@ -14,6 +14,7 @@ import '../providers/data_providers.dart';
 import '../widgets/building_diagram.dart';
 import '../widgets/common.dart';
 import '../widgets/copropietarios_section.dart';
+import '../widgets/credito_hipotecario_drawer.dart';
 import '../widgets/cronograma_pagos.dart';
 import '../widgets/etapa_actual_stepper.dart';
 import '../widgets/fx.dart';
@@ -22,6 +23,7 @@ import '../widgets/network_image.dart';
 import '../widgets/payment_method_badge.dart';
 import '../widgets/portal_widgets.dart';
 import '../widgets/pulsing_pin.dart';
+import '../widgets/whatsapp_icon.dart';
 import 'como_llegar_screen.dart';
 import 'pago_final_screen.dart';
 
@@ -349,6 +351,26 @@ class _PropiedadDetalleScreenState
     final esUltimoPago = pendientes.length == 1;
     if ((esUltimoPago && d.tipoFinanciamiento == null) ||
         d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO') {
+      // Modo portal (web ancho): panel lateral derecho (drawer) estilo
+      // PagoFinalSheet, en vez de la pantalla completa. En móvil/angosto se
+      // conserva la pantalla completa.
+      if (isPortalMode(context)) {
+        showCreditoHipotecarioDrawer(
+          context,
+          cuentaId: widget.cuentaId,
+          unidad: d.unidad,
+          proyecto: d.proyecto,
+          saldo: d.saldoPendienteEfectivo,
+          acuerdoId: siguiente?.id,
+          tipoFinanciamiento: d.tipoFinanciamiento,
+          solicitud: d.solicitudCredito,
+          agente: d.agente,
+          onRecursosPropios: (acuerdoId) {
+            if (acuerdoId != null) context.push('/pagar?id=$acuerdoId');
+          },
+        );
+        return;
+      }
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => PagoFinalScreen(
@@ -1481,6 +1503,7 @@ class _PropiedadDetalleScreenState
                 Expanded(
                   child: _portalAgenteBtn(
                     icon: Icons.chat_outlined,
+                    leading: const WhatsAppIcon(size: 15, color: Colors.white),
                     label: 'WA',
                     filled: true,
                     onTap: () => _abrirUrlExterna(
@@ -1530,6 +1553,10 @@ class _PropiedadDetalleScreenState
     required String label,
     required VoidCallback onTap,
     bool filled = false,
+
+    /// Widget de ícono a la izquierda que reemplaza a [icon] (p. ej. el logo
+    /// de WhatsApp dibujado con CustomPaint en el botón "WhatsApp").
+    Widget? leading,
   }) {
     return PortalHoverBuilder(
       builder: (context, hovered) => GestureDetector(
@@ -1550,11 +1577,12 @@ class _PropiedadDetalleScreenState
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 14,
-                color: filled ? Colors.white : PortalColors.foreground,
-              ),
+              leading ??
+                  Icon(
+                    icon,
+                    size: 14,
+                    color: filled ? Colors.white : PortalColors.foreground,
+                  ),
               const SizedBox(width: 6),
               Text(
                 label,

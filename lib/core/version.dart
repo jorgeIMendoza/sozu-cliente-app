@@ -9,7 +9,7 @@ library;
 
 const String appVersionBase = '1.0.0';
 
-const String _buildTimestampDefault = '260720.1903';
+const String _buildTimestampDefault = '260722.1151';
 
 const String buildTimestamp = String.fromEnvironment(
   'BUILD_TIMESTAMP',
