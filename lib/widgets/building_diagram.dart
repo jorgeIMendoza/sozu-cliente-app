@@ -332,11 +332,6 @@ class _RejillaUnidades extends StatelessWidget {
           ),
           if (r < filas - 1) const SizedBox(height: 6),
         ],
-        const SizedBox(height: 8),
-        Text(
-          'Planta ilustrativa del nivel',
-          style: TextStyle(fontSize: 9.5, color: tone.textMuted),
-        ),
       ],
     );
   }

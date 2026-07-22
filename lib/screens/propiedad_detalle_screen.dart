@@ -27,6 +27,10 @@ import '../widgets/whatsapp_icon.dart';
 import 'como_llegar_screen.dart';
 import 'pago_final_screen.dart';
 
+/// Pestañas del detalle en modo portal (espejo de DETAIL_TABS del portal
+/// admin): Pagos · Avance de obra · Documentos · Ficha técnica.
+enum _DetailTab { pagos, obra, docs, ficha }
+
 /// Detalle de propiedad: datos técnicos, productos adicionales, etapa actual,
 /// cronograma de pagos (tarjeta colapsable con pagos aplicados y CEP), ficha
 /// técnica (LevelMap) y documentos.
@@ -44,6 +48,9 @@ class _PropiedadDetalleScreenState
     extends ConsumerState<PropiedadDetalleScreen> {
   /// Ancla del cronograma para el fallback de "Confirmar plan de pagos".
   final GlobalKey _cronoKey = GlobalKey();
+
+  /// Pestaña activa del detalle en modo portal (default "Pagos").
+  _DetailTab _portalTab = _DetailTab.pagos;
 
   @override
   Widget build(BuildContext context) {
@@ -527,7 +534,10 @@ class _PropiedadDetalleScreenState
   }
 
   Widget _portalContenido(PropiedadDetalle d) {
-    // ── Columna izquierda (mismo orden que el TSX) ──
+    // ── Columna izquierda ──
+    // Parte FIJA (arriba de las pestañas, espejo del portal admin) + barra de
+    // pestañas + contenido de la pestaña activa. El resto de secciones vive
+    // dentro de su pestaña (no se duplican en el scroll).
     final izquierda = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -546,21 +556,13 @@ class _PropiedadDetalleScreenState
         // expone una sola foto — clic abre el visor a pantalla completa).
         _portalImagen(d),
 
-        // 2 · Avance de obra (card nueva del backend; DEGRADACIÓN: se oculta
-        // por completo si el campo llega null/ausente O si no trae datos
-        // reales (sin hitos / todo en 0). No se inventan porcentajes.
-        if (d.avanceObra != null && d.avanceObra!.tieneDatosReales) ...[
-          const SizedBox(height: 16),
-          _portalAvanceObra(d.avanceObra!),
-        ],
-
-        // 3 · Productos adicionales
+        // 2 · Productos adicionales
         if (d.productos.isNotEmpty) ...[
           const SizedBox(height: 16),
           _portalProductos(d),
         ],
 
-        // 3 · Etapa actual (stepper compartido, contenedor portal)
+        // 3 · Etapa actual (stepper compartido con "Ahora estás aquí")
         const SizedBox(height: 16),
         EtapaActualStepper(
           portal: true,
@@ -569,44 +571,13 @@ class _PropiedadDetalleScreenState
           saldoPendiente: d.saldoPendienteEfectivo,
         ),
 
-        // 4 · Cronograma de pagos (misma ancla para "Confirmar plan")
+        // 4 · Barra de pestañas (Pagos · Avance de obra · Documentos · Ficha)
         const SizedBox(height: 16),
-        KeyedSubtree(
-          key: _cronoKey,
-          child: CronogramaPagos(portal: true, esquemaPago: d.esquemaPago),
-        ),
+        _portalTabBar(),
 
-        // 5 · Documentos
+        // 5 · Contenido de la pestaña activa
         const SizedBox(height: 16),
-        _portalDocumentos(d),
-
-        // 6 · Ficha técnica
-        if (d.ficha.numeroPiso != null ||
-            d.ficha.planoNivelUrl != null ||
-            d.ficha.planoDistribucionUrl != null ||
-            d.ficha.regiones.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _FichaTecnica(ficha: d.ficha, portal: true),
-        ],
-
-        // 7 · Copropietarios (el portal admin no los pinta: van al final)
-        if (d.copropietarios.length >= 2) ...[
-          const SizedBox(height: 16),
-          CopropietariosSection(
-            portal: true,
-            copropietarios: d.copropietarios,
-          ),
-        ],
-
-        // 8 · Ubicación con mapa (el portal no trae mapa: cierra la columna)
-        if (d.ubicacion != null) ...[
-          const SizedBox(height: 16),
-          _UbicacionSection(
-            portal: true,
-            ubicacion: d.ubicacion!,
-            proyecto: d.proyecto,
-          ),
-        ],
+        _portalTabContent(d),
       ],
     );
 
@@ -674,6 +645,189 @@ class _PropiedadDetalleScreenState
           ] else
             cuerpo,
         ],
+      ),
+    );
+  }
+
+  // ── Barra de pestañas (espejo de DETAIL_TABS del portal admin) ──
+  // Fondo muted, pill activa con fondo card + sombra, icono + label.
+  Widget _portalTabBar() {
+    const tabs = <(_DetailTab, String, IconData)>[
+      (_DetailTab.pagos, 'Pagos', Icons.credit_card_outlined),
+      (_DetailTab.obra, 'Avance de obra', Icons.apartment_outlined),
+      (_DetailTab.docs, 'Documentos', Icons.description_outlined),
+      (_DetailTab.ficha, 'Ficha técnica', Icons.layers_outlined),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: PortalColors.muted,
+        borderRadius: BorderRadius.circular(kPortalRadiusLg),
+      ),
+      child: Row(
+        children: [
+          for (final (id, label, icon) in tabs)
+            Expanded(child: _portalTabButton(id, label, icon)),
+        ],
+      ),
+    );
+  }
+
+  Widget _portalTabButton(_DetailTab id, String label, IconData icon) {
+    final active = _portalTab == id;
+    return PortalHoverBuilder(
+      builder: (context, hovered) {
+        final Color fg = active
+            ? PortalColors.foreground
+            : hovered
+                ? PortalColors.foreground
+                : PortalColors.mutedForeground;
+        return GestureDetector(
+          onTap: () => setState(() => _portalTab = id),
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: active ? PortalColors.surface : Colors.transparent,
+              borderRadius: BorderRadius.circular(kPortalRadiusMd),
+              boxShadow: active
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x0D000000), // shadow-sm
+                        offset: Offset(0, 1),
+                        blurRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            // FittedBox evita desbordes cuando la columna queda angosta
+            // (equivalente al overflow-x-auto del portal).
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 14, color: fg),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    style: portalText(size: 12, weight: FontWeight.w500, color: fg),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Contenido de la pestaña activa (cada sección vive solo aquí).
+  Widget _portalTabContent(PropiedadDetalle d) {
+    switch (_portalTab) {
+      // Pagos → cronograma (misma ancla para "Confirmar plan de pagos").
+      case _DetailTab.pagos:
+        return KeyedSubtree(
+          key: _cronoKey,
+          child: CronogramaPagos(portal: true, esquemaPago: d.esquemaPago),
+        );
+
+      // Avance de obra → card con datos del backend; si aún no hay datos,
+      // empty state discreto dentro de la pestaña (no se inventa nada).
+      case _DetailTab.obra:
+        return d.avanceObra != null
+            ? _portalAvanceObra(d.avanceObra!)
+            : _portalAvanceObraVacio();
+
+      // Documentos → sección de documentos de la propiedad.
+      case _DetailTab.docs:
+        return _portalDocumentos(d);
+
+      // Ficha técnica → ficha (¿dónde está tu unidad? + distribución),
+      // ubicación/mapa y copropietarios.
+      case _DetailTab.ficha:
+        final tieneFicha = d.ficha.numeroPiso != null ||
+            d.ficha.planoNivelUrl != null ||
+            d.ficha.planoDistribucionUrl != null ||
+            d.ficha.regiones.isNotEmpty;
+        final tieneAlgo =
+            tieneFicha || d.ubicacion != null || d.copropietarios.length >= 2;
+        if (!tieneAlgo) {
+          return _portalTabVacio(
+            'La ficha técnica de tu unidad aún no está disponible.',
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (tieneFicha) _FichaTecnica(ficha: d.ficha, portal: true),
+            if (d.ubicacion != null) ...[
+              if (tieneFicha) const SizedBox(height: 16),
+              _UbicacionSection(
+                portal: true,
+                ubicacion: d.ubicacion!,
+                proyecto: d.proyecto,
+              ),
+            ],
+            if (d.copropietarios.length >= 2) ...[
+              const SizedBox(height: 16),
+              CopropietariosSection(
+                portal: true,
+                copropietarios: d.copropietarios,
+              ),
+            ],
+          ],
+        );
+    }
+  }
+
+  /// Empty state discreto de la pestaña Avance de obra (mientras el desarrollo
+  /// no reporte datos): card con el label de sección + mensaje muted, NO una
+  /// card de avance fabricada.
+  Widget _portalAvanceObraVacio() {
+    return PortalCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.engineering_outlined,
+                size: 14,
+                color: PortalColors.mutedForeground,
+              ),
+              SizedBox(width: 8),
+              PortalSectionLabel('Avance de obra'),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'El avance de obra se mostrará cuando el desarrollo lo reporte.',
+            style: portalText(
+              size: 12,
+              height: 1.45,
+              color: PortalColors.mutedForeground,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Empty state genérico discreto para una pestaña sin datos.
+  Widget _portalTabVacio(String mensaje) {
+    return PortalCard(
+      padding: const EdgeInsets.all(20),
+      child: Text(
+        mensaje,
+        style: portalText(
+          size: 12,
+          height: 1.45,
+          color: PortalColors.mutedForeground,
+        ),
       ),
     );
   }
