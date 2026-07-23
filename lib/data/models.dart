@@ -486,6 +486,13 @@ class EsquemaPagoItem {
   final double pagado;
   final double saldo;
   final bool pagoCompletado;
+
+  /// Posición del concepto en la secuencia del plan de pagos (la manda el
+  /// backend en `esquema_pago[].orden`, ascendente: apartado primero,
+  /// pago a escrituración/contraentrega al final). Se usa para ordenar el
+  /// cronograma por etapa del plan. Puede venir null en cuentas legacy.
+  final int? orden;
+
   final List<AplicacionPago> aplicaciones;
 
   EsquemaPagoItem.fromJson(Map<String, dynamic> j)
@@ -496,6 +503,7 @@ class EsquemaPagoItem {
       pagado = asDouble(j['pagado']),
       saldo = asDouble(j['saldo']),
       pagoCompletado = j['pago_completado'] == true,
+      orden = asIntOrNull(j['orden']),
       aplicaciones = _parseAplicaciones(j['aplicaciones']);
 }
 
@@ -740,6 +748,12 @@ class AvanceObra {
       hitos = ((j['hitos'] as List?) ?? [])
           .map((e) => HitoObra.fromJson(Map<String, dynamic>.from(e)))
           .toList();
+
+  /// Degradación: la card solo se pinta si el backend mandó datos reales.
+  /// Sin hitos (o con todos los porcentajes en 0) no hay nada que mostrar y
+  /// se prefiere ocultar la card antes que inventar un desglose.
+  bool get tieneDatosReales =>
+      hitos.isNotEmpty && (avanceGlobal > 0 || hitos.any((h) => h.pct > 0));
 }
 
 class PropiedadDetalle {
@@ -885,17 +899,37 @@ class PropiedadDetalle {
       ? (pagadoEfectivo / montoEfectivo * 100).clamp(0, 100).toDouble()
       : avancePago;
 
-  /// Etapa activa efectiva. Solo cuando el backend mandó monto = 0 (cuenta
-  /// legacy sin precio_final) su saldo/etapa se calcularon con precio 0 y la
-  /// cuenta salta a "escrituración" aunque deba dinero; en ese caso se
-  /// corrige a `pago_final` (criterio byPaymentProgress del portal:
-  /// saldo > 0 → pago final). Con monto > 0 la etapa del backend ya es
-  /// idéntica a la del portal y se respeta.
+  /// Orden del ciclo de vida de la transacción (espejo de use-portfolio.ts).
+  static const List<String> _ordenEtapas = [
+    'preventa',
+    'pago_final',
+    'escrituracion',
+    'entrega',
+    'post_entrega',
+  ];
+
+  /// Hay parcialidades/mensualidades pendientes en el plan de pagos (conceptos
+  /// 4 Mensualidad y 5 Parcialidad del portal, que corren durante obra). Se
+  /// detecta por el nombre del concepto ya que el app no expone id_concepto.
+  bool get _hayParcialidadesPendientes => esquemaPago.any((e) {
+        if (e.pagoCompletado) return false;
+        final c = e.concepto.toLowerCase();
+        return c.startsWith('parcialidad') || c.startsWith('mensualidad');
+      });
+
+  /// Etapa activa efectiva. Replica el "cap por realidad de pago" del portal
+  /// (buildStages en use-portfolio.ts): escrituración/entrega/post-entrega
+  /// exigen saldo ≈ 0. Si el backend manda una etapa más avanzada pero aún
+  /// hay `saldoPendienteEfectivo > 0`, el estatus_disponibilidad está
+  /// desfasado (p.ej. reprecio con cuenta nueva que hereda estatus de la
+  /// anterior); se corrige a `pago_final` (o a `preventa` si todavía quedan
+  /// parcialidades pendientes). Con saldo = 0 se respeta la etapa del backend.
   String get etapaActivaEfectiva {
-    if (monto <= 0 &&
-        saldoPendienteEfectivo > 0 &&
-        etapaActiva == 'escrituracion') {
-      return 'pago_final';
+    if (saldoPendienteEfectivo > 0) {
+      final tope = _hayParcialidadesPendientes ? 'preventa' : 'pago_final';
+      final idxTope = _ordenEtapas.indexOf(tope);
+      final idxActiva = _ordenEtapas.indexOf(etapaActiva);
+      if (idxActiva > idxTope) return tope;
     }
     return etapaActiva;
   }
@@ -1072,22 +1106,73 @@ class CuentaBancariaPerfil {
   final int id;
   final int idBanco;
   final String banco;
+
+  /// Número de cuenta (clave real, 8–34; espejo del portal).
+  final String? numeroCuenta;
   final String? clabe;
+
+  /// Código SWIFT (opcional; cuentas internacionales).
+  final String? swift;
   final String? titular;
+
+  /// Estatus de verificación (1 revisión · 2 validada · 3 rechazada), opcional.
+  final int? estatus;
+
+  /// URL de la carátula del estado de cuenta (evidencia), opcional.
+  final String? evidencia;
 
   CuentaBancariaPerfil.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
       idBanco = asInt(j['id_banco']),
       banco = asString(j['banco'], 'Banco'),
+      numeroCuenta = j['numero_cuenta'] as String?,
       clabe = j['clabe'] as String?,
-      titular = j['titular'] as String?;
+      swift = j['swift'] as String?,
+      titular = j['titular'] as String?,
+      estatus = asIntOrNull(j['estatus']),
+      evidencia = j['evidencia'] as String?;
 
-  /// Últimos 4 dígitos enmascarados ("****1234") o null.
+  /// Últimos 4 dígitos enmascarados de la CLABE ("****1234") o null.
   String? get clabeMasked {
     final c = clabe;
     if (c == null || c.length < 4) return null;
     return '****${c.substring(c.length - 4)}';
   }
+
+  /// Enmascarado del número de cuenta (o la CLABE si no hay número), como el
+  /// portal: "****1234".
+  String? get cuentaMasked {
+    final c = (numeroCuenta != null && numeroCuenta!.isNotEmpty)
+        ? numeroCuenta!
+        : clabe;
+    if (c == null || c.length < 4) return null;
+    return '****${c.substring(c.length - 4)}';
+  }
+}
+
+/// Datos fiscales detectados en la CSF (cliente-expediente subir → CSF),
+/// para el diálogo de confirmación del expediente.
+class DatosFiscalesCSF {
+  final String? rfc;
+  final String? curp;
+  final String? nombre;
+  final String? regimen;
+  final String? codigoPostal;
+  final String? calle;
+  final String? numExt;
+  final String? numInt;
+  final String? colonia;
+
+  DatosFiscalesCSF.fromJson(Map<String, dynamic> j)
+    : rfc = j['rfc'] as String?,
+      curp = j['curp'] as String?,
+      nombre = j['nombre'] as String?,
+      regimen = j['regimen'] as String?,
+      codigoPostal = j['codigo_postal'] as String?,
+      calle = j['calle'] as String?,
+      numExt = j['num_ext'] as String?,
+      numInt = j['num_int'] as String?,
+      colonia = j['colonia'] as String?;
 }
 
 /// Catálogos para editar el perfil (cliente-perfil action=catalogos).
@@ -1382,4 +1467,23 @@ class ClienteExpediente {
       requeridosTotal = asInt(j['requeridos_total']),
       requeridosAprobados = asInt(j['requeridos_aprobados']),
       subidos = asInt(j['subidos']);
+}
+
+// ─── cliente-menu ────────────────────────────────────────────────────────────
+
+/// Ítem del menú del Portal del Cliente servido por la edge function
+/// `cliente-menu` (submenús activos y permitidos, mismo criterio que el portal
+/// web). `route` es la `vista_front_end` del portal (p.ej.
+/// `/admin/portal-cliente/inicio`); la app la mapea a su ruta interna + icono.
+class MenuItemDto {
+  final int id;
+  final String label;
+  final String route;
+  final int orden;
+
+  MenuItemDto.fromJson(Map<String, dynamic> j)
+    : id = asInt(j['id']),
+      label = asString(j['label']),
+      route = asString(j['route']),
+      orden = asInt(j['orden']);
 }

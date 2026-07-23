@@ -57,13 +57,40 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
     return _EstadoFila.pendiente;
   }
 
+  /// Rango de la etapa del plan de pagos por concepto (mayor = más arriba).
+  /// Refleja el orden descendente del "deal": pago a escrituración/
+  /// contraentrega > parcialidad/mensualidad > enganche > apartado. Sirve como
+  /// criterio principal de orden (independiente de la fecha) y como respaldo
+  /// cuando el backend no manda `orden`.
+  int _rangoConcepto(EsquemaPagoItem e) {
+    final c = e.concepto.toLowerCase();
+    if (c.contains('escritur') || c.contains('contra')) return 500;
+    if (c.contains('parcialidad') || c.contains('mensualidad')) return 300;
+    if (c.contains('enganche')) return 200;
+    if (c.contains('apartado')) return 100;
+    return 250; // concepto desconocido: entre enganche y parcialidad.
+  }
+
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
 
-    // Mismo orden del portal: fecha descendente (lo más reciente arriba).
+    // Orden por etapa del plan de pagos, DESCENDENTE por concepto (como el
+    // "deal"): Pago a escrituración/contraentrega arriba, luego parcialidades
+    // (la de número mayor primero), enganche y apartado hasta abajo.
+    // Se prioriza el rango por concepto para garantizar esa jerarquía; dentro
+    // de un mismo concepto se usa `orden` del backend descendente (parcialidad
+    // mayor arriba) y, como último desempate, la fecha más reciente.
     final filas = [...widget.esquemaPago]
-      ..sort((a, b) => (b.fechaPago ?? '').compareTo(a.fechaPago ?? ''));
+      ..sort((a, b) {
+        final ra = _rangoConcepto(a);
+        final rb = _rangoConcepto(b);
+        if (ra != rb) return rb.compareTo(ra);
+        final oa = a.orden ?? -1;
+        final ob = b.orden ?? -1;
+        if (oa != ob) return ob.compareTo(oa);
+        return (b.fechaPago ?? '').compareTo(a.fechaPago ?? '');
+      });
     final pagados = filas.where((e) => e.pagoCompletado).length;
     final visibles = _verTodos ? filas : filas.take(_limiteFilas).toList();
 

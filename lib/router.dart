@@ -6,6 +6,7 @@ import 'core/portal_theme.dart';
 import 'core/theme.dart';
 import 'core/version.dart';
 import 'providers/auth_provider.dart';
+import 'providers/data_providers.dart';
 import 'providers/impersonation_provider.dart';
 import 'screens/admin_avisos_screen.dart';
 import 'screens/adquisicion_screen.dart';
@@ -275,12 +276,15 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
+/// Tabs del shell (icono, label, ruta interna). La ruta permite filtrar qué
+/// tabs se muestran según el menú de la BD (mismo criterio que el sidebar del
+/// portal), degradando a los 5 tabs si el endpoint aún no responde.
 const _navItems = [
-  (Icons.home_outlined, 'Inicio'),
-  (Icons.shopping_bag_outlined, 'En adquisición'),
-  (Icons.account_balance_wallet_outlined, 'Patrimonio'),
-  (Icons.description_outlined, 'Documentos'),
-  (Icons.person_outline, 'Perfil'),
+  (Icons.home_outlined, 'Inicio', '/inicio'),
+  (Icons.shopping_bag_outlined, 'En adquisición', '/adquisicion'),
+  (Icons.account_balance_wallet_outlined, 'Patrimonio', '/patrimonio'),
+  (Icons.description_outlined, 'Documentos', '/documentos'),
+  (Icons.person_outline, 'Perfil', '/perfil'),
 ];
 
 /// Shell responsive: sidebar en desktop (como el portal web), bottom nav en
@@ -327,6 +331,23 @@ class _TabsShell extends ConsumerWidget {
               ),
       );
     }
+    // Tabs visibles del bottom nav según el menú de la BD (misma resolución
+    // que el sidebar del portal), con degradación a los 5 tabs si el endpoint
+    // `cliente-menu` aún no responde.
+    final allowedRoutes = portalAllowedRoutes(
+      ref.watch(clienteMenuProvider).valueOrNull,
+    );
+    var branches = <int>[
+      for (var i = 0; i < _navItems.length; i++)
+        if (allowedRoutes.contains(_navItems[i].$3)) i,
+    ];
+    // BottomNavigationBar exige ≥2 ítems: si el menú dejara <2 tabs visibles,
+    // cae a los 5 tabs para no romper la navegación.
+    if (branches.length < 2) {
+      branches = [for (var i = 0; i < _navItems.length; i++) i];
+    }
+    final currentPos = branches.indexOf(shell.currentIndex);
+
     return Scaffold(
       body: banner == null
           ? shell
@@ -337,13 +358,15 @@ class _TabsShell extends ConsumerWidget {
               ],
             ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: shell.currentIndex,
-        onTap: _go,
+        currentIndex: currentPos < 0 ? 0 : currentPos,
+        onTap: (pos) => _go(branches[pos]),
         items: [
-          for (final (icon, label) in _navItems)
+          for (final i in branches)
             BottomNavigationBarItem(
-              icon: Icon(icon),
-              label: label == 'En adquisición' ? 'Adquisición' : label,
+              icon: Icon(_navItems[i].$1),
+              label: _navItems[i].$2 == 'En adquisición'
+                  ? 'Adquisición'
+                  : _navItems[i].$2,
             ),
         ],
       ),

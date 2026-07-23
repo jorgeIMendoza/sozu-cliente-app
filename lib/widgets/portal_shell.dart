@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../core/portal_theme.dart';
 import '../core/theme.dart' show sozuLightTheme;
 import '../core/version.dart';
+import '../data/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
 import '../providers/impersonation_provider.dart';
@@ -54,6 +55,79 @@ const List<_PortalNavItemData> _portalNavItems = [
   ),
   _PortalNavItemData('Perfil', '/perfil', Icons.person_outline),
 ];
+
+/// Mapa de la `vista_front_end` del portal (lo que devuelve la edge function
+/// `cliente-menu`) a la ruta interna de la app + su icono Material equivalente
+/// del icono lucide que usa el portal (ROUTE_ICON de portal-nav-data.ts).
+/// Una ruta del portal sin entrada aquí no la sabe pintar la app y se omite.
+const Map<String, ({String route, IconData icon})> _portalRouteMap = {
+  '/admin/portal-cliente/inicio': (route: '/inicio', icon: Icons.home_outlined),
+  '/admin/portal-cliente/en-adquisicion': (
+    route: '/adquisicion',
+    icon: Icons.shopping_bag_outlined,
+  ),
+  // El portal puede exponer "Propiedades" como único ítem; la app lo lleva a
+  // su pantalla de adquisición.
+  '/admin/portal-cliente/propiedades': (
+    route: '/adquisicion',
+    icon: Icons.shopping_bag_outlined,
+  ),
+  '/admin/portal-cliente/patrimonio': (
+    route: '/patrimonio',
+    icon: Icons.account_balance_wallet_outlined,
+  ),
+  '/admin/portal-cliente/productos': (
+    route: '/productos',
+    icon: Icons.inventory_2_outlined,
+  ),
+  '/admin/portal-cliente/pagos': (
+    route: '/pagos',
+    icon: Icons.credit_card_outlined,
+  ),
+  '/admin/portal-cliente/historial-pagos': (
+    route: '/pagos',
+    icon: Icons.credit_card_outlined,
+  ),
+  '/admin/portal-cliente/estado-de-cuenta': (
+    route: '/estado-cuenta',
+    icon: Icons.bar_chart_outlined,
+  ),
+  '/admin/portal-cliente/documentos': (
+    route: '/documentos',
+    icon: Icons.description_outlined,
+  ),
+  '/admin/portal-cliente/notificaciones': (
+    route: '/notificaciones',
+    icon: Icons.notifications_outlined,
+  ),
+  '/admin/portal-cliente/perfil': (
+    route: '/perfil',
+    icon: Icons.person_outline,
+  ),
+};
+
+/// Resuelve los ítems del sidebar desde la lista de la BD (edge function
+/// `cliente-menu`), con DEGRADACIÓN: si la lista es null/vacía (function no
+/// desplegada aún, red, error) o ninguno mapea a una ruta de la app, cae a la
+/// lista hardcodeada [_portalNavItems]. La etiqueta viene de la BD (`label`).
+List<_PortalNavItemData> _resolvePortalNavItems(List<MenuItemDto>? dbItems) {
+  if (dbItems == null || dbItems.isEmpty) return _portalNavItems;
+  final out = <_PortalNavItemData>[];
+  final vistas = <String>{};
+  for (final it in dbItems) {
+    final m = _portalRouteMap[it.route];
+    if (m == null) continue; // ruta del portal no soportada por la app
+    if (!vistas.add(m.route)) continue; // dedupe por ruta interna
+    final label = it.label.trim().isEmpty ? m.route : it.label.trim();
+    out.add(_PortalNavItemData(label, m.route, m.icon));
+  }
+  return out.isEmpty ? _portalNavItems : out;
+}
+
+/// Rutas internas permitidas por el menú de la BD, para filtrar la navegación
+/// móvil (bottom nav) con el mismo criterio/degradación que el sidebar.
+Set<String> portalAllowedRoutes(List<MenuItemDto>? dbItems) =>
+    _resolvePortalNavItems(dbItems).map((e) => e.route).toSet();
 
 /// Activo por prefijo de ruta; "Inicio" solo con match exacto (shell.md).
 bool _isActive(String route, String path) {
@@ -209,6 +283,11 @@ class _PortalSidebar extends ConsumerWidget {
     final noLeidas =
         ref.watch(clienteNotificacionesProvider).valueOrNull?.noLeidas ?? 0;
     final nombre = auth.profile?.nombre ?? auth.profile?.email ?? 'Usuario';
+    // Ítems del menú desde la BD (edge function `cliente-menu`), con
+    // degradación a la lista hardcodeada si aún no responde.
+    final navItems = _resolvePortalNavItems(
+      ref.watch(clienteMenuProvider).valueOrNull,
+    );
 
     return Container(
       width: kPortalSidebarWidth,
@@ -259,7 +338,7 @@ class _PortalSidebar extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final item in _portalNavItems)
+                  for (final item in navItems)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 2),
                       child: _PortalNavItem(
