@@ -57,6 +57,16 @@ Future<ClienteResumen> fetchClienteResumen({int? impersonate}) async =>
       await _invoke('cliente-resumen', impersonate: impersonate),
     );
 
+/// Ítems del menú lateral del portal cliente (submenús activos y permitidos,
+/// mismo criterio que el portal web). Si la edge function aún no está
+/// desplegada o falla, el provider degrada a la lista hardcodeada.
+Future<List<MenuItemDto>> fetchClienteMenu({int? impersonate}) async {
+  final res = await _invoke('cliente-menu', impersonate: impersonate);
+  return ((res['items'] as List?) ?? [])
+      .map((e) => MenuItemDto.fromJson(Map<String, dynamic>.from(e)))
+      .toList();
+}
+
 Future<ClientePagos> fetchClientePagos({int? impersonate}) async =>
     ClientePagos.fromJson(
       await _invoke('cliente-pagos', impersonate: impersonate),
@@ -149,21 +159,56 @@ Future<void> updatePerfilFiscal({
   );
 }
 
-/// Alta de cuenta bancaria de dispersión (CLABE de 18 dígitos).
+Map<String, dynamic> _cuentaBody({
+  required String action,
+  int? id,
+  required int idBanco,
+  required String numeroCuenta,
+  String? cuentaClabe,
+  String? cuentaSwift,
+  required String titular,
+  String? evidenciaBase64,
+  String? evidenciaNombre,
+  String? evidenciaContentType,
+}) => {
+  'action': action,
+  if (id != null) 'id': id,
+  'id_banco': idBanco,
+  'numero_cuenta': numeroCuenta,
+  if (cuentaClabe != null && cuentaClabe.isNotEmpty) 'cuenta_clabe': cuentaClabe,
+  if (cuentaSwift != null && cuentaSwift.isNotEmpty) 'cuenta_swift': cuentaSwift,
+  'titular': titular,
+  if (evidenciaBase64 != null) 'evidencia_base64': evidenciaBase64,
+  if (evidenciaNombre != null) 'evidencia_nombre': evidenciaNombre,
+  if (evidenciaContentType != null) 'evidencia_content_type': evidenciaContentType,
+};
+
+/// Alta de cuenta bancaria de dispersión. `numeroCuenta` (8–34) es la clave;
+/// CLABE/SWIFT son opcionales. `evidencia*` = carátula del estado de cuenta.
 Future<void> addCuentaBancaria({
   required int idBanco,
-  required String cuentaClabe,
+  required String numeroCuenta,
+  String? cuentaClabe,
+  String? cuentaSwift,
   required String titular,
+  String? evidenciaBase64,
+  String? evidenciaNombre,
+  String? evidenciaContentType,
   int? impersonate,
 }) async {
   await _invoke(
     'cliente-perfil',
-    body: {
-      'action': 'cuenta_add',
-      'id_banco': idBanco,
-      'cuenta_clabe': cuentaClabe,
-      'titular': titular,
-    },
+    body: _cuentaBody(
+      action: 'cuenta_add',
+      idBanco: idBanco,
+      numeroCuenta: numeroCuenta,
+      cuentaClabe: cuentaClabe,
+      cuentaSwift: cuentaSwift,
+      titular: titular,
+      evidenciaBase64: evidenciaBase64,
+      evidenciaNombre: evidenciaNombre,
+      evidenciaContentType: evidenciaContentType,
+    ),
     impersonate: impersonate,
   );
 }
@@ -172,21 +217,44 @@ Future<void> addCuentaBancaria({
 Future<void> updateCuentaBancaria({
   required int id,
   required int idBanco,
-  required String cuentaClabe,
+  required String numeroCuenta,
+  String? cuentaClabe,
+  String? cuentaSwift,
   required String titular,
+  String? evidenciaBase64,
+  String? evidenciaNombre,
+  String? evidenciaContentType,
   int? impersonate,
 }) async {
   await _invoke(
     'cliente-perfil',
-    body: {
-      'action': 'cuenta_update',
-      'id': id,
-      'id_banco': idBanco,
-      'cuenta_clabe': cuentaClabe,
-      'titular': titular,
-    },
+    body: _cuentaBody(
+      action: 'cuenta_update',
+      id: id,
+      idBanco: idBanco,
+      numeroCuenta: numeroCuenta,
+      cuentaClabe: cuentaClabe,
+      cuentaSwift: cuentaSwift,
+      titular: titular,
+      evidenciaBase64: evidenciaBase64,
+      evidenciaNombre: evidenciaNombre,
+      evidenciaContentType: evidenciaContentType,
+    ),
     impersonate: impersonate,
   );
+}
+
+/// Agrega un banco al catálogo (dedup en el backend). Devuelve id + nombre.
+Future<({int id, String nombre})> agregarBancoCatalogo(
+  String nombre, {
+  int? impersonate,
+}) async {
+  final res = await _invoke(
+    'cliente-perfil',
+    body: {'action': 'banco_add', 'nombre': nombre},
+    impersonate: impersonate,
+  );
+  return (id: asInt(res['id']), nombre: asString(res['nombre'], nombre));
 }
 
 Future<ClienteDocumentos> fetchClienteDocumentos({int? impersonate}) async =>
@@ -505,10 +573,18 @@ Future<ClienteExpediente> fetchClienteExpediente({int? impersonate}) async =>
     );
 
 /// Sube un documento del expediente. El backend valida el PDF (CURP/CSF/
-/// domicilio/actas), lo guarda en Storage y registra el documento. Devuelve
-/// el estatus resultante: 'aprobado' | 'revision'. Lanza
+/// domicilio/actas), lo guarda en Storage y registra el documento. Devuelve el
+/// estatus resultante ('aprobado' | 'revision') y los datos detectados para
+/// confirmar en el perfil: `datosFiscales` (CSF tipo 6), `datosCurp` (CURP tipo
+/// 5) o `datosActa` (Acta tipo 1) — solo uno viene poblado. Lanza
 /// [DocumentoInvalidoError] si el archivo no pasa la validación.
-Future<String> subirDocumentoExpediente({
+Future<
+    ({
+      String estatus,
+      DatosFiscalesCSF? datosFiscales,
+      DatosCURP? datosCurp,
+      DatosActa? datosActa,
+    })> subirDocumentoExpediente({
   required int tipoId,
   required String nombreArchivo,
   required String archivoBase64,
@@ -530,7 +606,23 @@ Future<String> subirDocumentoExpediente({
           : null,
     );
     final data = res.data;
-    if (data is Map) return (data['estatus'] as String?) ?? 'revision';
+    if (data is Map) {
+      final df = data['datos_fiscales'];
+      final dc = data['datos_curp'];
+      final da = data['datos_acta'];
+      return (
+        estatus: (data['estatus'] as String?) ?? 'revision',
+        datosFiscales: df is Map
+            ? DatosFiscalesCSF.fromJson(Map<String, dynamic>.from(df))
+            : null,
+        datosCurp: dc is Map
+            ? DatosCURP.fromJson(Map<String, dynamic>.from(dc))
+            : null,
+        datosActa: da is Map
+            ? DatosActa.fromJson(Map<String, dynamic>.from(da))
+            : null,
+      );
+    }
     throw ApiError(500, 'empty_response');
   } on FunctionException catch (e) {
     final details = e.details;

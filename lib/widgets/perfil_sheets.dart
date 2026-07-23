@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +12,7 @@ import '../data/api_client.dart';
 import '../data/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
+import '../providers/impersonation_provider.dart';
 import 'password_rules.dart';
 import 'portal_widgets.dart' show showPortalDialog;
 
@@ -197,6 +201,7 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
         curp: _curp.text.trim().toUpperCase(),
         clavePaisTelefono: _clavePais,
         telefono: _tel.text.trim(),
+        impersonate: ref.read(impersonationProvider).idPersona,
       );
       ref.invalidate(clientePerfilProvider);
       if (!mounted) return;
@@ -334,7 +339,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
 
   Future<void> _loadCatalogos() async {
     try {
-      final c = await fetchPerfilCatalogos();
+      final c = await fetchPerfilCatalogos(impersonate: ref.read(impersonationProvider).idPersona);
       if (mounted) setState(() => _catalogos = c);
     } catch (_) {
       if (mounted) setState(() => _loadError = true);
@@ -357,7 +362,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
         _catalogos?.regimen.where((r) => r.id == _regimen).toList() ?? [];
     return match.isEmpty
         ? (widget.perfil.regimenDisplay ?? _regimen)
-        : '${match.first.id} — ${match.first.nombre}';
+        : '${match.first.id} - ${match.first.nombre}';
   }
 
   String? get _usoCfdiLabel {
@@ -366,7 +371,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
         _catalogos?.usoCfdi.where((u) => u.codigo == _usoCfdi).toList() ?? [];
     return match.isEmpty
         ? (widget.perfil.usoCfdiDisplay ?? _usoCfdi)
-        : '${match.first.codigo} — ${match.first.nombre}';
+        : '${match.first.codigo} - ${match.first.nombre}';
   }
 
   Future<void> _save() async {
@@ -382,6 +387,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
         numExt: _numExt.text.trim(),
         numInt: _numInt.text.trim(),
         colonia: _colonia.text.trim(),
+        impersonate: ref.read(impersonationProvider).idPersona,
       );
       ref.invalidate(clientePerfilProvider);
       if (!mounted) return;
@@ -427,7 +433,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
               title: 'Régimen fiscal',
               options: [
                 for (final r in _catalogos!.regimen)
-                  (value: r.id, label: '${r.id} — ${r.nombre}'),
+                  (value: r.id, label: '${r.id} - ${r.nombre}'),
               ],
               selected: _regimen,
             );
@@ -450,7 +456,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
               title: 'Uso CFDI',
               options: [
                 for (final u in _catalogos!.usoCfdi)
-                  (value: u.codigo, label: '${u.codigo} — ${u.nombre}'),
+                  (value: u.codigo, label: '${u.codigo} - ${u.nombre}'),
               ],
               selected: _usoCfdi,
             );
@@ -544,14 +550,38 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
   bool _loadError = false;
   late int? _idBanco = widget.cuenta?.idBanco;
   late String? _bancoNombre = widget.cuenta?.banco;
+  late final _numeroCuenta =
+      TextEditingController(text: widget.cuenta?.numeroCuenta ?? '');
   late final _clabe = TextEditingController(text: widget.cuenta?.clabe ?? '');
+  late final _swift = TextEditingController(text: widget.cuenta?.swift ?? '');
   late final _titular =
       TextEditingController(text: widget.cuenta?.titular ?? '');
+
+  // Evidencia (carátula del estado de cuenta) — requerida en el alta, igual
+  // que el portal (handleAddCuenta).
+  String? _evidenciaNombre;
+  Uint8List? _evidenciaBytes;
+  bool _titularAuto = false;
   bool _busy = false;
 
   bool get _isEdit => widget.cuenta != null;
-  bool get _valid =>
-      _idBanco != null && _clabe.text.length == 18 && _titular.text.trim().isNotEmpty;
+
+  bool get _valid {
+    final num = _numeroCuenta.text.trim();
+    final clabe = _clabe.text.trim();
+    final swift = _swift.text.trim();
+    final numOk = num.length >= 8 && num.length <= 34;
+    final clabeOk = clabe.isEmpty || clabe.length == 18;
+    final swiftOk = swift.isEmpty || swift.length == 8 || swift.length == 11;
+    // El portal exige la carátula en el alta; al editar no forzamos re-subida.
+    final evidenciaOk = _isEdit || _evidenciaBytes != null;
+    return _idBanco != null &&
+        numOk &&
+        clabeOk &&
+        swiftOk &&
+        _titular.text.trim().isNotEmpty &&
+        evidenciaOk;
+  }
 
   @override
   void initState() {
@@ -561,7 +591,7 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
 
   Future<void> _loadCatalogos() async {
     try {
-      final c = await fetchPerfilCatalogos();
+      final c = await fetchPerfilCatalogos(impersonate: ref.read(impersonationProvider).idPersona);
       if (mounted) setState(() => _catalogos = c);
     } catch (_) {
       if (mounted) setState(() => _loadError = true);
@@ -570,9 +600,63 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
 
   @override
   void dispose() {
+    _numeroCuenta.dispose();
     _clabe.dispose();
+    _swift.dispose();
     _titular.dispose();
     super.dispose();
+  }
+
+  void _snack(String msg) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(msg)));
+
+  String _contentType(String nombre) {
+    switch (nombre.split('.').last.toLowerCase()) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  Future<void> _pickEvidencia() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+      withData: true,
+    );
+    final file = result?.files.firstOrNull;
+    final bytes = file?.bytes;
+    if (file == null || bytes == null) return;
+    if (bytes.length > 10 * 1024 * 1024) {
+      _snack('El archivo supera el límite de 10 MB.');
+      return;
+    }
+    setState(() {
+      _evidenciaBytes = bytes;
+      _evidenciaNombre = file.name;
+    });
+  }
+
+  /// Alta de un banco nuevo al catálogo (espejo de "Agregar «q»" del portal).
+  Future<String?> _agregarBanco(String nombre) async {
+    try {
+      final b = await agregarBancoCatalogo(nombre, impersonate: ref.read(impersonationProvider).idPersona);
+      final c = await fetchPerfilCatalogos(impersonate: ref.read(impersonationProvider).idPersona);
+      if (!mounted) return null;
+      setState(() => _catalogos = c);
+      return '${b.id}';
+    } catch (_) {
+      if (mounted) _snack('No se pudo agregar el banco. Intenta de nuevo.');
+      return null;
+    }
   }
 
   Future<void> _save() async {
@@ -582,18 +666,37 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
     if (!mounted) return;
     setState(() => _busy = true);
     try {
+      final clabe = _clabe.text.trim();
+      final swift = _swift.text.trim();
+      final b64 =
+          _evidenciaBytes != null ? base64Encode(_evidenciaBytes!) : null;
+      final ct = _evidenciaNombre != null
+          ? _contentType(_evidenciaNombre!)
+          : null;
       if (_isEdit) {
         await updateCuentaBancaria(
           id: widget.cuenta!.id,
           idBanco: _idBanco!,
-          cuentaClabe: _clabe.text,
+          numeroCuenta: _numeroCuenta.text.trim(),
+          cuentaClabe: clabe.isEmpty ? null : clabe,
+          cuentaSwift: swift.isEmpty ? null : swift,
           titular: _titular.text.trim(),
+          evidenciaBase64: b64,
+          evidenciaNombre: _evidenciaNombre,
+          evidenciaContentType: ct,
+          impersonate: ref.read(impersonationProvider).idPersona,
         );
       } else {
         await addCuentaBancaria(
           idBanco: _idBanco!,
-          cuentaClabe: _clabe.text,
+          numeroCuenta: _numeroCuenta.text.trim(),
+          cuentaClabe: clabe.isEmpty ? null : clabe,
+          cuentaSwift: swift.isEmpty ? null : swift,
           titular: _titular.text.trim(),
+          evidenciaBase64: b64,
+          evidenciaNombre: _evidenciaNombre,
+          evidenciaContentType: ct,
+          impersonate: ref.read(impersonationProvider).idPersona,
         );
       }
       ref.invalidate(clientePerfilProvider);
@@ -614,9 +717,12 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    final nombreLegal =
+        ref.watch(clientePerfilProvider).valueOrNull?.nombreLegal;
     return _SheetShell(
       icon: Icons.credit_card_outlined,
-      title: _isEdit ? 'Editar cuenta bancaria' : 'Agregar cuenta bancaria',
+      title: _isEdit ? 'Editar cuenta bancaria' : 'Nueva cuenta bancaria',
       subtitle: _isEdit
           ? 'Corrige los datos de tu cuenta'
           : 'SOZU usará esta cuenta para depósitos',
@@ -637,6 +743,7 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
                   (value: '${b.id}', label: b.nombre),
               ],
               selected: _idBanco?.toString(),
+              onAddNew: _agregarBanco,
             );
             if (sel != null) {
               setState(() {
@@ -650,23 +757,115 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
           },
         ),
         const SizedBox(height: 14),
-        _FieldLabel('CLABE interbancaria *'),
+        _FieldLabel('Número de cuenta *'),
         TextField(
-          controller: _clabe,
-          maxLength: 18,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          controller: _numeroCuenta,
+          maxLength: 34,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
+          ],
           onChanged: (_) => setState(() {}),
-          decoration:
-              const InputDecoration(hintText: '18 dígitos', counterText: ''),
+          decoration: const InputDecoration(
+              hintText: 'Entre 8 y 34 caracteres', counterText: ''),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _FieldLabel('CLABE'),
+                  TextField(
+                    controller: _clabe,
+                    maxLength: 18,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                        hintText: '18 dígitos (opcional)', counterText: ''),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _FieldLabel('Código SWIFT'),
+                  TextField(
+                    controller: _swift,
+                    maxLength: 11,
+                    textCapitalization: TextCapitalization.characters,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
+                      TextInputFormatter.withFunction((_, n) =>
+                          n.copyWith(text: n.text.toUpperCase())),
+                    ],
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                        hintText: '8 u 11 (opcional)', counterText: ''),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 14),
         _FieldLabel('Titular de la cuenta *'),
+        if ((nombreLegal ?? '').trim().isNotEmpty)
+          InkWell(
+            onTap: () => setState(() {
+              _titularAuto = !_titularAuto;
+              _titular.text = _titularAuto ? nombreLegal!.trim() : '';
+            }),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: Checkbox(
+                      value: _titularAuto,
+                      onChanged: (v) => setState(() {
+                        _titularAuto = v ?? false;
+                        _titular.text =
+                            _titularAuto ? nombreLegal!.trim() : '';
+                      }),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize:
+                          MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('El titular es $nombreLegal',
+                        style: TextStyle(
+                            fontSize: 12.5, color: tone.textSecondary)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        const SizedBox(height: 6),
         TextField(
           controller: _titular,
           onChanged: (_) => setState(() {}),
           decoration: const InputDecoration(
               hintText: 'Nombre completo del titular'),
+        ),
+        const SizedBox(height: 14),
+        _FieldLabel(_isEdit ? 'Evidencia' : 'Evidencia *'),
+        _EvidenciaPicker(
+          nombre: _evidenciaNombre,
+          onPick: _pickEvidencia,
+          hint: _isEdit
+              ? 'Reemplaza la carátula (opcional)'
+              : 'Sube la carátula de tu estado de cuenta',
         ),
         const SizedBox(height: 20),
         FilledButton(
@@ -677,6 +876,65 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
         ),
         _CancelButton(onTap: () => Navigator.pop(context)),
       ],
+    );
+  }
+}
+
+/// Selector de archivo para la carátula (dropzone estilo portal).
+class _EvidenciaPicker extends StatelessWidget {
+  final String? nombre;
+  final VoidCallback onPick;
+  final String hint;
+
+  const _EvidenciaPicker({
+    required this.nombre,
+    required this.onPick,
+    required this.hint,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    final tiene = nombre != null;
+    return InkWell(
+      onTap: onPick,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: tone.surfaceAlt.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: tiene
+                ? SozuColors.emerald500.withValues(alpha: 0.4)
+                : tone.border,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        child: Row(
+          children: [
+            Icon(tiene ? Icons.description_outlined : Icons.upload_outlined,
+                size: 20, color: tone.textSecondary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                tiene ? nombre! : hint,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: tiene ? tone.textPrimary : tone.textMuted,
+                ),
+              ),
+            ),
+            if (tiene)
+              Text('Cambiar',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: tone.primaryDark)),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -814,26 +1072,36 @@ class _CambiarPasswordSheetState extends ConsumerState<_CambiarPasswordSheet> {
 // ─── Piezas compartidas ──────────────────────────────────────────────────────
 
 /// Selector con búsqueda (bottom sheet): catálogos de régimen/CFDI/bancos.
+/// [onAddNew] (opcional): si el texto buscado no existe, ofrece "Agregar «q»"
+/// (espejo del combobox de bancos del portal); devuelve el value creado.
 Future<String?> _pickOption(
   BuildContext context, {
   required String title,
   required List<({String value, String label})> options,
   String? selected,
+  Future<String?> Function(String nombre)? onAddNew,
 }) =>
     _showPerfilModal<String>(
       context,
-      _OptionPicker(title: title, options: options, selected: selected),
+      _OptionPicker(
+        title: title,
+        options: options,
+        selected: selected,
+        onAddNew: onAddNew,
+      ),
     );
 
 class _OptionPicker extends StatefulWidget {
   final String title;
   final List<({String value, String label})> options;
   final String? selected;
+  final Future<String?> Function(String nombre)? onAddNew;
 
   const _OptionPicker({
     required this.title,
     required this.options,
     this.selected,
+    this.onAddNew,
   });
 
   @override
@@ -842,15 +1110,34 @@ class _OptionPicker extends StatefulWidget {
 
 class _OptionPickerState extends State<_OptionPicker> {
   String _q = '';
+  bool _adding = false;
+
+  Future<void> _add() async {
+    final nombre = _q.trim();
+    if (nombre.isEmpty || widget.onAddNew == null) return;
+    setState(() => _adding = true);
+    final value = await widget.onAddNew!(nombre);
+    if (!mounted) return;
+    if (value != null) {
+      Navigator.pop(context, value);
+    } else {
+      setState(() => _adding = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
-    final filtered = _q.isEmpty
+    final q = _q.trim().toLowerCase();
+    final filtered = q.isEmpty
         ? widget.options
         : widget.options
-            .where((o) => o.label.toLowerCase().contains(_q.toLowerCase()))
+            .where((o) => o.label.toLowerCase().contains(q))
             .toList();
+    // "Agregar «q»" cuando hay callback, la búsqueda es ≥2 y no hay match exacto.
+    final puedeAgregar = widget.onAddNew != null &&
+        q.length >= 2 &&
+        !widget.options.any((o) => o.label.toLowerCase() == q);
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.72,
       child: Column(
@@ -887,8 +1174,29 @@ class _OptionPickerState extends State<_OptionPicker> {
           const SizedBox(height: 8),
           Expanded(
             child: ListView.builder(
-              itemCount: filtered.length,
+              itemCount: filtered.length + (puedeAgregar ? 1 : 0),
               itemBuilder: (context, i) {
+                if (puedeAgregar && i == filtered.length) {
+                  return ListTile(
+                    dense: true,
+                    leading: _adding
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(Icons.add, size: 20, color: tone.primaryDark),
+                    title: Text(
+                      'Agregar «${_q.trim()}»',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: tone.primaryDark,
+                      ),
+                    ),
+                    onTap: _adding ? null : _add,
+                  );
+                }
                 final o = filtered[i];
                 final isSel = o.value == widget.selected;
                 return ListTile(

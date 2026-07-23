@@ -34,6 +34,26 @@ String formatDate(Object? input) {
   return DateFormat('dd/MM/yyyy').format(d);
 }
 
+/// Meses cortos en español (formato es-MX del portal).
+const _mesesCortoEs = <String>[
+  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+];
+
+/// Date/ISO string -> "11 feb 2026" (formato es-MX del portal: día a 2 dígitos,
+/// mes corto en minúsculas, año). Null/inválida -> "—".
+String formatDateEsMX(Object? input) {
+  DateTime? d;
+  if (input is DateTime) {
+    d = input;
+  } else if (input is String && input.isNotEmpty) {
+    d = DateTime.tryParse(input);
+  }
+  if (d == null) return '—';
+  final dd = d.day.toString().padLeft(2, '0');
+  return '$dd ${_mesesCortoEs[d.month - 1]} ${d.year}';
+}
+
 /// "Juan Pérez López" -> "JP"
 String initials(String? name) {
   if (name == null || name.trim().isEmpty) return '?';

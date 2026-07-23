@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
 import '../widgets/common.dart';
 import '../widgets/fx.dart';
 import '../widgets/perfil_section_card.dart';
@@ -30,7 +30,6 @@ class PerfilPersonalScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final perfil = ref.watch(clientePerfilProvider);
-    final impersonating = ref.watch(impersonationProvider).active;
     final p = perfil.valueOrNull;
 
     final filas = <Widget>[
@@ -52,7 +51,7 @@ class PerfilPersonalScreen extends ConsumerWidget {
 
     if (isPortalMode(context)) {
       final actions = [
-        if (!impersonating && p != null)
+        if (p != null)
           PortalOutlineButton(
             label: 'Editar',
             onPressed: () => showEditPersonalSheet(context, p),
@@ -107,7 +106,7 @@ class PerfilPersonalScreen extends ConsumerWidget {
                         _DetalleHeader(
                           title: 'Información personal',
                           subtitle: 'Identificación y datos de contacto',
-                          onEdit: (!impersonating && p != null)
+                          onEdit: (p != null)
                               ? () => showEditPersonalSheet(context, p)
                               : null,
                         ),
@@ -166,12 +165,11 @@ class PerfilFiscalScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final perfil = ref.watch(clientePerfilProvider);
-    final impersonating = ref.watch(impersonationProvider).active;
     final p = perfil.valueOrNull;
 
     if (isPortalMode(context)) {
       final actions = [
-        if (!impersonating && p != null)
+        if (p != null)
           PortalOutlineButton(
             label: 'Editar',
             onPressed: () => showEditFiscalSheet(context, p),
@@ -237,7 +235,7 @@ class PerfilFiscalScreen extends ConsumerWidget {
                         _DetalleHeader(
                           title: 'Información fiscal',
                           subtitle: 'Régimen, CFDI y dirección fiscal',
-                          onEdit: (!impersonating && p != null)
+                          onEdit: (p != null)
                               ? () => showEditFiscalSheet(context, p)
                               : null,
                         ),
@@ -284,8 +282,29 @@ class PerfilCuentasScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tone = SozuTone.of(context);
     final perfil = ref.watch(clientePerfilProvider);
-    final impersonating = ref.watch(impersonationProvider).active;
     final cuentas = perfil.valueOrNull?.cuentasBancarias ?? [];
+
+    // Contenido compartido (banner + lista/empty + pie), espejo EXACTO de la
+    // vista "cuentas" de ClientePerfil.tsx: solo lectura; el alta se hace en
+    // Documentos → Cuenta bancaria (no hay botón inline de "agregar").
+    List<Widget> cuerpo() => [
+          if (perfil.isLoading)
+            const _DetalleSkeleton()
+          else if (perfil.hasError)
+            ErrorCard(
+              title: 'No pudimos cargar tus cuentas',
+              onRetry: () => ref.invalidate(clientePerfilProvider),
+            )
+          else if (cuentas.isEmpty)
+            const _CuentasEmptyBox()
+          else
+            for (final c in cuentas) ...[
+              _CuentaCard(cuenta: c),
+              const SizedBox(height: 10),
+            ],
+          const SizedBox(height: 4),
+          const _CuentasFooterLink(),
+        ];
 
     if (isPortalMode(context)) {
       final child = Column(
@@ -295,36 +314,7 @@ class PerfilCuentasScreen extends ConsumerWidget {
               text:
                   'Por tu seguridad, toda alta o cambio de cuenta se notifica de inmediato.'),
           const SizedBox(height: 12),
-          if (perfil.isLoading)
-            const _DetalleSkeleton()
-          else if (perfil.hasError)
-            ErrorCard(
-              title: 'No pudimos cargar tus cuentas',
-              onRetry: () => ref.invalidate(clientePerfilProvider),
-            )
-          else if (cuentas.isEmpty)
-            const EmptyCard(
-              icon: Icons.credit_card_off_outlined,
-              text:
-                  'Sin cuentas registradas.\nAgrega tu primera cuenta bancaria.',
-            )
-          else
-            for (final c in cuentas) ...[
-              _CuentaCard(
-                cuenta: c,
-                onEdit: impersonating
-                    ? null
-                    : () => showCuentaBancariaSheet(context, cuenta: c),
-              ),
-              const SizedBox(height: 10),
-            ],
-          if (!impersonating) ...[
-            const SizedBox(height: 6),
-            PortalBlockButton(
-              label: 'Agregar cuenta bancaria',
-              onPressed: () => showCuentaBancariaSheet(context),
-            ),
-          ],
+          ...cuerpo(),
         ],
       );
       if (onBack != null) {
@@ -375,44 +365,7 @@ class PerfilCuentasScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
-            if (perfil.isLoading)
-              const AppCard(child: _DetalleSkeleton())
-            else if (cuentas.isEmpty)
-              const EmptyCard(
-                icon: Icons.credit_card_off_outlined,
-                text:
-                    'Sin cuentas registradas.\nAgrega tu primera cuenta bancaria.',
-              )
-            else
-              for (final c in cuentas) ...[
-                _CuentaCard(
-                  cuenta: c,
-                  onEdit: impersonating
-                      ? null
-                      : () => showCuentaBancariaSheet(context, cuenta: c),
-                ),
-                const SizedBox(height: 10),
-              ],
-            if (perfil.hasError)
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 12),
-                child: ErrorCard(
-                  title: 'No pudimos cargar tus cuentas',
-                  onRetry: () => ref.invalidate(clientePerfilProvider),
-                ),
-              ),
-            const SizedBox(height: 6),
-            if (!impersonating)
-              FilledButton(
-                onPressed: () => showCuentaBancariaSheet(context),
-                child: const Text('Agregar cuenta bancaria'),
-              ),
-            const SizedBox(height: 12),
-            Text(
-              'SOZU deposita directamente a estas cuentas.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: tone.textMuted),
-            ),
+            ...cuerpo(),
           ],
         ),
       ),
@@ -619,15 +572,27 @@ class _BlueInfoBanner extends StatelessWidget {
   }
 }
 
+/// Tarjeta de cuenta bancaria de solo lectura (banco, número enmascarado,
+/// titular y estatus), espejo de la tarjeta de la vista "cuentas" del portal.
 class _CuentaCard extends StatelessWidget {
   final CuentaBancariaPerfil cuenta;
-  final VoidCallback? onEdit;
 
-  const _CuentaCard({required this.cuenta, this.onEdit});
+  const _CuentaCard({required this.cuenta});
+
+  /// Estatus derivado igual que ClientePerfil.tsx: sin carátula (evidencia) no
+  /// puede ir a revisión → "Incompleto"; 2 validada; 3 rechazada; el resto en
+  /// revisión.
+  (String, BadgeTone) get _badge {
+    if (cuenta.evidencia == null) return ('Incompleto', BadgeTone.negative);
+    if (cuenta.estatus == 2) return ('Validada', BadgeTone.positive);
+    if (cuenta.estatus == 3) return ('Rechazada', BadgeTone.negative);
+    return ('En revisión', BadgeTone.pending);
+  }
 
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
+    final (label, badgeTone) = _badge;
     return AppCard(
       child: Row(
         children: [
@@ -651,31 +616,90 @@ class _CuentaCard extends StatelessWidget {
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: tone.textPrimary)),
-                if (cuenta.clabeMasked != null)
-                  Text(cuenta.clabeMasked!,
+                if (cuenta.cuentaMasked != null)
+                  Text(cuenta.cuentaMasked!,
                       style: TextStyle(
                           fontSize: 13,
                           fontFamily: 'monospace',
                           color: tone.textSecondary)),
                 if (cuenta.titular != null)
-                  Text(cuenta.titular!,
+                  Text('Titular: ${cuenta.titular!}',
                       style: TextStyle(
                           fontSize: 12, color: tone.textMuted)),
               ],
             ),
           ),
-          const StatusBadge(label: 'Activa', tone: BadgeTone.positive),
-          if (onEdit != null) ...[
-            const SizedBox(width: 8),
-            IconButton(
-              icon: Icon(Icons.edit_outlined,
-                  size: 18, color: tone.textSecondary),
-              onPressed: onEdit,
-              tooltip: 'Editar cuenta',
-            ),
-          ],
+          StatusBadge(label: label, tone: badgeTone),
         ],
       ),
+    );
+  }
+}
+
+/// Caja de estado vacío de la vista "cuentas": título en negrita + guía en gris
+/// hacia Documentos → Cuenta bancaria (textos EXACTOS del portal).
+class _CuentasEmptyBox extends StatelessWidget {
+  const _CuentasEmptyBox();
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 28),
+      decoration: BoxDecoration(
+        color: tone.surfaceAlt.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: tone.border),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'Sin cuentas registradas.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: tone.textPrimary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Regístrala en Documentos → Cuenta bancaria.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, color: tone.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pie de la vista "cuentas" (siempre visible): guía hacia el alta con el enlace
+/// verde "Documentos → Cuenta bancaria" que navega al Expediente (/expediente).
+class _CuentasFooterLink extends StatelessWidget {
+  const _CuentasFooterLink();
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    final muted = TextStyle(fontSize: 12, color: tone.textMuted);
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text('Para registrar una cuenta, ve a ', style: muted),
+        InkWell(
+          onTap: () => context.push('/expediente'),
+          child: Text(
+            'Documentos → Cuenta bancaria',
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: tone.primaryDark),
+          ),
+        ),
+        Text('.', style: muted),
+      ],
     );
   }
 }
