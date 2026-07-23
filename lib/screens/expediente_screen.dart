@@ -15,7 +15,9 @@ import '../providers/data_providers.dart';
 import '../providers/impersonation_provider.dart';
 import '../widgets/common.dart';
 import '../widgets/expediente_card.dart' show expedienteEstatusStyle;
+import '../widgets/perfil_sheets.dart' show showCuentaBancariaSheet;
 import '../widgets/portal_widgets.dart';
+import 'perfil_detalle_screens.dart' show PerfilCuentasScreen;
 
 const _maxArchivoBytes = 10 * 1024 * 1024; // 10 MB (límite del backend)
 
@@ -148,6 +150,18 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
     }
   }
 
+  /// Abre la vista (solo lectura) de cuentas bancarias del perfil. Diálogo
+  /// centrado en modo portal (web ≥1024) o pantalla en móvil.
+  void _verCuentas() {
+    if (isPortalMode(context)) {
+      showPortalDialog<void>(context, child: const PerfilCuentasScreen());
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const PerfilCuentasScreen()),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
@@ -155,6 +169,12 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
     // portal, pero con la card y tipografía del portal y fondo del shell.
     final portal = isPortalMode(context);
     final exp = ref.watch(clienteExpedienteProvider);
+    // Cuentas bancarias del perfil: alimentan la fila estructurada "Cuenta
+    // bancaria" (bajo los documentos), espejo del slot financiero del portal.
+    final cuentas =
+        ref.watch(clientePerfilProvider).valueOrNull?.cuentasBancarias ??
+            const <CuentaBancariaPerfil>[];
+    final impersonating = ref.watch(impersonationProvider).active;
 
     final cardBody = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,6 +194,21 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
                 : TextStyle(fontSize: 13.5, color: tone.textSecondary)),
         const SizedBox(height: 18),
         _slots(exp),
+        const SizedBox(height: 10),
+        // Cuenta bancaria: no es un documento subible sino un formulario
+        // estructurado (banco, número, CLABE/SWIFT, titular, evidencia). Abre
+        // el _CuentaSheet de alta; al guardar registra la cuenta (cliente-perfil
+        // cuenta_add) e invalida el perfil, refrescando esta fila y la vista de
+        // cuentas. Espejo del slot "Cuenta bancaria" del expediente del portal.
+        _CuentaBancariaRow(
+          cuentas: cuentas,
+          onSubir: impersonating
+              ? null
+              : () => showCuentaBancariaSheet(context),
+          onVer: cuentas.any((c) => c.evidencia != null)
+              ? () => _verCuentas()
+              : null,
+        ),
       ],
     );
 
@@ -395,6 +430,122 @@ class _SlotRow extends StatelessWidget {
                     ? tone.textMuted.withValues(alpha: 0.4)
                     : tone.textSecondary),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Fila estructurada "Cuenta bancaria" del expediente (bajo los documentos):
+/// abre el formulario de alta y, si hay evidencia, permite ver las cuentas.
+/// Espejo del slot financiero "Cuenta bancaria" de ClientePerfil.tsx.
+class _CuentaBancariaRow extends StatelessWidget {
+  final List<CuentaBancariaPerfil> cuentas;
+
+  /// Abre el sheet de alta (null en impersonación → sin acción de subir).
+  final VoidCallback? onSubir;
+
+  /// Abre la vista de cuentas (null si aún no hay evidencia que mostrar).
+  final VoidCallback? onVer;
+
+  const _CuentaBancariaRow({
+    required this.cuentas,
+    required this.onSubir,
+    required this.onVer,
+  });
+
+  /// Badge agregado, igual que el portal: sin cuentas → Pendiente; si alguna no
+  /// tiene carátula → Incompleto; todas validadas (estatus 2) → Validada; el
+  /// resto → En revisión.
+  (String, Color, Color) _badge(SozuTone tone) {
+    if (cuentas.isEmpty) {
+      return ('Pendiente', tone.surfaceAlt, tone.textSecondary);
+    }
+    final todasEvidencia = cuentas.every((c) => c.evidencia != null);
+    if (!todasEvidencia) {
+      return ('Incompleto', tone.negative.withValues(alpha: 0.1), tone.negative);
+    }
+    if (cuentas.every((c) => c.estatus == 2)) {
+      return ('Validada', tone.primarySoft, tone.primaryDark);
+    }
+    return ('En revisión', tone.pendingSoft, SozuColors.amber600);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    final (label, bg, fg) = _badge(tone);
+    final n = cuentas.length;
+    final subtitulo = n > 0
+        ? '$n cuenta${n > 1 ? 's' : ''} registrada${n > 1 ? 's' : ''}'
+        : 'Banco, número de cuenta, CLABE y titular';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+      decoration: BoxDecoration(
+        border: Border.all(color: tone.border),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: tone.surfaceAlt,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            alignment: Alignment.center,
+            child: Icon(Icons.credit_card_outlined,
+                size: 17, color: tone.textSecondary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Cuenta bancaria',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: tone.textPrimary)),
+                const SizedBox(height: 2),
+                Text(subtitulo,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11.5, color: tone.textMuted)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 10.5, fontWeight: FontWeight.w700, color: fg)),
+          ),
+          if (onSubir != null) ...[
+            const SizedBox(width: 6),
+            _IconBtn(
+              tooltip: 'Agregar cuenta bancaria',
+              onTap: onSubir,
+              child: Icon(Icons.upload_outlined,
+                  size: 16, color: tone.textSecondary),
+            ),
+          ],
+          if (onVer != null) ...[
+            const SizedBox(width: 6),
+            _IconBtn(
+              tooltip: 'Ver cuentas',
+              onTap: onVer,
+              child: Icon(Icons.visibility_outlined,
+                  size: 16, color: tone.textSecondary),
+            ),
+          ],
         ],
       ),
     );
