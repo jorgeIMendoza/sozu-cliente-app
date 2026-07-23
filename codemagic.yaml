@@ -205,7 +205,7 @@ workflows:
       - name: Promover internal → production
         script: |
           google-play tracks promote-release \
-            --package-name com.sozu.sozuClienteApp \
+            --package-name com.sozu.sozu_cliente_app \
             --source-track internal \
             --target-track production \
             --credentials "@env:GCLOUD_SERVICE_ACCOUNT_CREDENTIALS"
