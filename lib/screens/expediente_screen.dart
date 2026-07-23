@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -80,15 +80,13 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
     final extensiones = camara
         ? ['jpg', 'jpeg', 'png', 'webp']
         : (slot.soloPdf ? ['pdf'] : ['pdf', 'jpg', 'jpeg', 'png', 'webp']);
-    // file_picker >= 11: API estática (ya no existe FilePicker.platform).
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: extensiones,
-      withData: true, // necesario para web (no hay path)
+    final file = await openFile(
+      acceptedTypeGroups: [
+        XTypeGroup(label: 'Documentos', extensions: extensiones),
+      ],
     );
-    final file = result?.files.firstOrNull;
-    final bytes = file?.bytes;
-    if (file == null || bytes == null) return; // cancelado
+    if (file == null) return; // cancelado
+    final bytes = await file.readAsBytes();
 
     if (bytes.length > _maxArchivoBytes) {
       messenger.showSnackBar(const SnackBar(
