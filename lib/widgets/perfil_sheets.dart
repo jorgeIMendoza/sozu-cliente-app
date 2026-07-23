@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -627,14 +627,16 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
   }
 
   Future<void> _pickEvidencia() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
-      withData: true,
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(
+          label: 'Evidencia',
+          extensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+        ),
+      ],
     );
-    final file = result?.files.firstOrNull;
-    final bytes = file?.bytes;
-    if (file == null || bytes == null) return;
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
     if (bytes.length > 10 * 1024 * 1024) {
       _snack('El archivo supera el límite de 10 MB.');
       return;
