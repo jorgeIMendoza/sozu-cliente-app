@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
 import '../core/open_media.dart';
@@ -153,7 +154,12 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         title: const Text('Estado de cuenta'),
         leading: onBack != null
             ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack)
-            : null,
+            // Flecha siempre presente: si no hay stack regresa a Inicio.
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/inicio'),
+              ),
         actions: [
           if (cuentaId != null)
             _descargando

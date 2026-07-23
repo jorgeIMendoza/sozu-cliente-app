@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
 import '../core/open_media.dart';
@@ -54,7 +55,15 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
       backgroundColor: portal ? Colors.transparent : null,
       appBar: portal
           ? null
-          : AppBar(title: Text(producto?.nombre ?? 'Producto')),
+          : AppBar(
+              title: Text(producto?.nombre ?? 'Producto'),
+              // Flecha siempre presente: si no hay stack regresa a Inicio.
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/inicio'),
+              ),
+            ),
       body: productos.when(
         loading: () => const _LoadingDetalle(),
         error: (_, __) => ListView(

@@ -68,7 +68,18 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
     return Scaffold(
       // Modo portal: el shell ya pinta el título; sin AppBar propio.
       backgroundColor: portal ? Colors.transparent : null,
-      appBar: portal ? null : AppBar(title: const Text('Productos')),
+      appBar: portal
+          ? null
+          : AppBar(
+              title: const Text('Productos'),
+              // Flecha siempre presente: si no hay stack (deep link / arranque
+              // en frío) regresa a Inicio en lugar de desaparecer.
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/inicio'),
+              ),
+            ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(clienteProductosProvider);

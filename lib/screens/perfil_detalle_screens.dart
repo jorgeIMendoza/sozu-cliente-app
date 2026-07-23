@@ -6,7 +6,6 @@ import '../core/portal_theme.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
 import '../widgets/common.dart';
 import '../widgets/fx.dart';
 import '../widgets/perfil_section_card.dart';
@@ -31,7 +30,6 @@ class PerfilPersonalScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final perfil = ref.watch(clientePerfilProvider);
-    final impersonating = ref.watch(impersonationProvider).active;
     final p = perfil.valueOrNull;
 
     final filas = <Widget>[
@@ -53,7 +51,7 @@ class PerfilPersonalScreen extends ConsumerWidget {
 
     if (isPortalMode(context)) {
       final actions = [
-        if (!impersonating && p != null)
+        if (p != null)
           PortalOutlineButton(
             label: 'Editar',
             onPressed: () => showEditPersonalSheet(context, p),
@@ -108,7 +106,7 @@ class PerfilPersonalScreen extends ConsumerWidget {
                         _DetalleHeader(
                           title: 'Información personal',
                           subtitle: 'Identificación y datos de contacto',
-                          onEdit: (!impersonating && p != null)
+                          onEdit: (p != null)
                               ? () => showEditPersonalSheet(context, p)
                               : null,
                         ),
@@ -167,12 +165,11 @@ class PerfilFiscalScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final perfil = ref.watch(clientePerfilProvider);
-    final impersonating = ref.watch(impersonationProvider).active;
     final p = perfil.valueOrNull;
 
     if (isPortalMode(context)) {
       final actions = [
-        if (!impersonating && p != null)
+        if (p != null)
           PortalOutlineButton(
             label: 'Editar',
             onPressed: () => showEditFiscalSheet(context, p),
@@ -238,7 +235,7 @@ class PerfilFiscalScreen extends ConsumerWidget {
                         _DetalleHeader(
                           title: 'Información fiscal',
                           subtitle: 'Régimen, CFDI y dirección fiscal',
-                          onEdit: (!impersonating && p != null)
+                          onEdit: (p != null)
                               ? () => showEditFiscalSheet(context, p)
                               : null,
                         ),

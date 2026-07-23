@@ -160,8 +160,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       // 64, ruta activa marcada); en móvil/angosto devuelve el hijo tal cual
       // y el layout actual no cambia.
       ShellRoute(
-        builder: (context, state, child) =>
-            PortalShellWrapper(currentPath: state.uri.path, child: child),
+        // En móvil (<1024) el wrapper añade la barra inferior flotante a TODAS
+        // las pantallas del cliente (tabs + secundarias), de modo que el menú
+        // NUNCA desaparezca; en modo portal (web ≥1024) o escritorio nativo el
+        // _ClienteMobileChrome es un pass-through y manda el sidebar/_SideNav.
+        builder: (context, state, child) {
+          final path = state.uri.path;
+          return PortalShellWrapper(
+            currentPath: path,
+            child: _ClienteMobileChrome(currentPath: path, child: child),
+          );
+        },
         routes: [
           // Secundarias (con back; en modo portal se muestran dentro del shell).
           GoRoute(
@@ -287,9 +296,11 @@ const _navItems = [
   (Icons.person_outline, 'Perfil', '/perfil'),
 ];
 
-/// Shell responsive: sidebar en desktop (como el portal web), bottom nav en
-/// móvil/tablet angosta. Si un super admin impersona a un cliente, muestra la
-/// franja "Viendo como" sobre todo el layout.
+/// Shell de las 5 ramas: en escritorio pinta la sidebar (`_SideNav`); en móvil
+/// solo entrega el contenido (la barra inferior flotante la añade
+/// [_ClienteMobileChrome] a nivel del ShellRoute, para que persista también en
+/// las pantallas secundarias). Si un super admin impersona a un cliente,
+/// muestra la franja "Viendo como" sobre el layout.
 class _TabsShell extends ConsumerWidget {
   final StatefulNavigationShell shell;
 
@@ -312,9 +323,8 @@ class _TabsShell extends ConsumerWidget {
         ? _ImpersonationBanner(nombre: imp.nombre ?? 'Cliente')
         : null;
 
-    final Widget layout;
     if (isDesktop(context)) {
-      layout = Row(
+      final layout = Row(
         children: [
           _SideNav(currentIndex: shell.currentIndex, onSelect: _go),
           Expanded(child: shell),
@@ -331,23 +341,9 @@ class _TabsShell extends ConsumerWidget {
               ),
       );
     }
-    // Tabs visibles del bottom nav según el menú de la BD (misma resolución
-    // que el sidebar del portal), con degradación a los 5 tabs si el endpoint
-    // `cliente-menu` aún no responde.
-    final allowedRoutes = portalAllowedRoutes(
-      ref.watch(clienteMenuProvider).valueOrNull,
-    );
-    var branches = <int>[
-      for (var i = 0; i < _navItems.length; i++)
-        if (allowedRoutes.contains(_navItems[i].$3)) i,
-    ];
-    // BottomNavigationBar exige ≥2 ítems: si el menú dejara <2 tabs visibles,
-    // cae a los 5 tabs para no romper la navegación.
-    if (branches.length < 2) {
-      branches = [for (var i = 0; i < _navItems.length; i++) i];
-    }
-    final currentPos = branches.indexOf(shell.currentIndex);
-
+    // Móvil (<1024): la barra inferior flotante la provee _ClienteMobileChrome
+    // (envuelve tabs + secundarias). Aquí solo el contenido (+ franja de
+    // impersonación cuando aplica).
     return Scaffold(
       body: banner == null
           ? shell
@@ -357,18 +353,214 @@ class _TabsShell extends ConsumerWidget {
                 Expanded(child: shell),
               ],
             ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentPos < 0 ? 0 : currentPos,
-        onTap: (pos) => _go(branches[pos]),
-        items: [
-          for (final i in branches)
-            BottomNavigationBarItem(
-              icon: Icon(_navItems[i].$1),
-              label: _navItems[i].$2 == 'En adquisición'
-                  ? 'Adquisición'
-                  : _navItems[i].$2,
+    );
+  }
+}
+
+/// Envoltorio móvil (<1024) común a TODAS las pantallas del cliente: añade la
+/// barra inferior flotante ([_ClienteBottomNav]) tanto sobre las tabs como
+/// sobre las pantallas secundarias (pagos, estado de cuenta, productos,
+/// notificaciones, expediente, detalles), de modo que el menú nunca desaparezca
+/// y siempre haya cómo moverse. En modo portal (web ≥1024) o escritorio nativo
+/// es un pass-through: el sidebar del portal / `_SideNav` ya navegan.
+class _ClienteMobileChrome extends StatelessWidget {
+  final String currentPath;
+  final Widget child;
+
+  const _ClienteMobileChrome({required this.currentPath, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    if (isPortalMode(context) || isDesktop(context)) return child;
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: child,
+      bottomNavigationBar: _ClienteBottomNav(currentPath: currentPath),
+    );
+  }
+}
+
+/// Barra inferior flotante del cliente (móvil): tarjeta redondeada con sombra
+/// suave, respetando SafeArea. Muestra los primeros ítems del menú y agrupa el
+/// resto tras el botón "Más" (…). El ítem activo se resuelve por la ruta actual
+/// (un detalle como `/productos/:id` resalta su tab padre). Los tabs cambian de
+/// sección con `context.go` (preservan el estado del IndexedStack); las
+/// secundarias del menú "Más" se abren con `context.push` para que quede stack
+/// y aparezca la flecha de regresar.
+class _ClienteBottomNav extends ConsumerWidget {
+  final String currentPath;
+
+  const _ClienteBottomNav({required this.currentPath});
+
+  /// Rutas que corresponden a ramas del StatefulShellRoute: siempre se navegan
+  /// con `context.go` (nunca push) para conservar el estado de la rama.
+  static const _branchRoutes = {
+    '/inicio',
+    '/adquisicion',
+    '/patrimonio',
+    '/documentos',
+    '/perfil',
+  };
+
+  /// Activo por prefijo de ruta; "Inicio" solo con match exacto.
+  bool _isActive(String route, String path) {
+    if (route == '/inicio') return path == '/inicio';
+    return path == route || path.startsWith('$route/');
+  }
+
+  String _shortLabel(String label) =>
+      label == 'En adquisición' ? 'Adquisición' : label;
+
+  void _navigateTo(BuildContext context, String route, {required bool push}) {
+    if (_branchRoutes.contains(route)) {
+      context.go(route); // preserva el estado de la rama
+    } else if (push) {
+      context.push(route); // stack → flecha de regresar
+    } else {
+      context.go(route);
+    }
+  }
+
+  void _mostrarMasMenu(
+    BuildContext context,
+    List<({IconData icon, String label, String route})> items,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final it in items)
+              ListTile(
+                leading: Icon(it.icon),
+                title: Text(it.label),
+                selected: _isActive(it.route, currentPath),
+                onTap: () {
+                  Navigator.of(sheetCtx).pop();
+                  // Secundarias con push (stack); ramas con go.
+                  _navigateTo(context, it.route, push: true);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tone = SozuTone.of(context);
+    // Menú completo del portal (misma resolución/orden/permisos que el sidebar,
+    // vía cliente-menu con degradación). Los primeros ítems como tabs; el resto
+    // tras "Más" (…) para que TODOS sean alcanzables aunque no quepan.
+    final menu = clienteMenuTabs(ref.watch(clienteMenuProvider).valueOrNull);
+    const maxTabs = 4; // 4 tabs + "Más" cuando hay más de 5 ítems
+    final hasOverflow = menu.length > 5;
+    final tabs = hasOverflow ? menu.take(maxTabs).toList() : menu;
+    final overflow = hasOverflow
+        ? menu.skip(maxTabs).toList()
+        : <({IconData icon, String label, String route})>[];
+
+    final selected = tabs.indexWhere((t) => _isActive(t.route, currentPath));
+    // "Más" resaltado cuando la pantalla actual no es ninguno de los tabs
+    // visibles (estás en una secundaria o en un ítem del overflow).
+    final masActive = hasOverflow && selected < 0;
+
+    return Container(
+      color: tone.background,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+          child: Container(
+            decoration: BoxDecoration(
+              color: tone.surface,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: tone.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.10),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-        ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              child: Row(
+                children: [
+                  for (var i = 0; i < tabs.length; i++)
+                    _NavBarItem(
+                      icon: tabs[i].icon,
+                      label: _shortLabel(tabs[i].label),
+                      active: i == selected,
+                      onTap: () =>
+                          _navigateTo(context, tabs[i].route, push: false),
+                    ),
+                  if (hasOverflow)
+                    _NavBarItem(
+                      icon: Icons.more_horiz,
+                      label: 'Más',
+                      active: masActive,
+                      onTap: () => _mostrarMasMenu(context, overflow),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Ítem de la barra inferior flotante: icono + etiqueta, resaltado en verde
+/// cuando está activo.
+class _NavBarItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _NavBarItem({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    final color = active ? tone.primary : tone.textMuted;
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 24, color: color),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.1,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
