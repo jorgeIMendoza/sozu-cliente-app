@@ -12,6 +12,7 @@ import '../data/api_client.dart';
 import '../data/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
+import '../providers/impersonation_provider.dart';
 import 'password_rules.dart';
 import 'portal_widgets.dart' show showPortalDialog;
 
@@ -200,6 +201,7 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
         curp: _curp.text.trim().toUpperCase(),
         clavePaisTelefono: _clavePais,
         telefono: _tel.text.trim(),
+        impersonate: ref.read(impersonationProvider).idPersona,
       );
       ref.invalidate(clientePerfilProvider);
       if (!mounted) return;
@@ -337,7 +339,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
 
   Future<void> _loadCatalogos() async {
     try {
-      final c = await fetchPerfilCatalogos();
+      final c = await fetchPerfilCatalogos(impersonate: ref.read(impersonationProvider).idPersona);
       if (mounted) setState(() => _catalogos = c);
     } catch (_) {
       if (mounted) setState(() => _loadError = true);
@@ -360,7 +362,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
         _catalogos?.regimen.where((r) => r.id == _regimen).toList() ?? [];
     return match.isEmpty
         ? (widget.perfil.regimenDisplay ?? _regimen)
-        : '${match.first.id} — ${match.first.nombre}';
+        : '${match.first.id} - ${match.first.nombre}';
   }
 
   String? get _usoCfdiLabel {
@@ -369,7 +371,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
         _catalogos?.usoCfdi.where((u) => u.codigo == _usoCfdi).toList() ?? [];
     return match.isEmpty
         ? (widget.perfil.usoCfdiDisplay ?? _usoCfdi)
-        : '${match.first.codigo} — ${match.first.nombre}';
+        : '${match.first.codigo} - ${match.first.nombre}';
   }
 
   Future<void> _save() async {
@@ -385,6 +387,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
         numExt: _numExt.text.trim(),
         numInt: _numInt.text.trim(),
         colonia: _colonia.text.trim(),
+        impersonate: ref.read(impersonationProvider).idPersona,
       );
       ref.invalidate(clientePerfilProvider);
       if (!mounted) return;
@@ -430,7 +433,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
               title: 'Régimen fiscal',
               options: [
                 for (final r in _catalogos!.regimen)
-                  (value: r.id, label: '${r.id} — ${r.nombre}'),
+                  (value: r.id, label: '${r.id} - ${r.nombre}'),
               ],
               selected: _regimen,
             );
@@ -453,7 +456,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
               title: 'Uso CFDI',
               options: [
                 for (final u in _catalogos!.usoCfdi)
-                  (value: u.codigo, label: '${u.codigo} — ${u.nombre}'),
+                  (value: u.codigo, label: '${u.codigo} - ${u.nombre}'),
               ],
               selected: _usoCfdi,
             );
@@ -588,7 +591,7 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
 
   Future<void> _loadCatalogos() async {
     try {
-      final c = await fetchPerfilCatalogos();
+      final c = await fetchPerfilCatalogos(impersonate: ref.read(impersonationProvider).idPersona);
       if (mounted) setState(() => _catalogos = c);
     } catch (_) {
       if (mounted) setState(() => _loadError = true);
@@ -645,8 +648,8 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
   /// Alta de un banco nuevo al catálogo (espejo de "Agregar «q»" del portal).
   Future<String?> _agregarBanco(String nombre) async {
     try {
-      final b = await agregarBancoCatalogo(nombre);
-      final c = await fetchPerfilCatalogos();
+      final b = await agregarBancoCatalogo(nombre, impersonate: ref.read(impersonationProvider).idPersona);
+      final c = await fetchPerfilCatalogos(impersonate: ref.read(impersonationProvider).idPersona);
       if (!mounted) return null;
       setState(() => _catalogos = c);
       return '${b.id}';
@@ -681,6 +684,7 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
           evidenciaBase64: b64,
           evidenciaNombre: _evidenciaNombre,
           evidenciaContentType: ct,
+          impersonate: ref.read(impersonationProvider).idPersona,
         );
       } else {
         await addCuentaBancaria(
@@ -692,6 +696,7 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
           evidenciaBase64: b64,
           evidenciaNombre: _evidenciaNombre,
           evidenciaContentType: ct,
+          impersonate: ref.read(impersonationProvider).idPersona,
         );
       }
       ref.invalidate(clientePerfilProvider);

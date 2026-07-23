@@ -1175,6 +1175,45 @@ class DatosFiscalesCSF {
       colonia = j['colonia'] as String?;
 }
 
+/// Datos detectados en la CURP (cliente-expediente subir → CURP tipo 5), para
+/// el diálogo de confirmación del expediente (paridad con ConfirmDataModal).
+class DatosCURP {
+  final String? curp;
+  final String? nombre;
+  final String? fechaNacimiento;
+  final String? sexo; // "H" | "M"
+
+  DatosCURP.fromJson(Map<String, dynamic> j)
+    : curp = j['curp'] as String?,
+      nombre = j['nombre'] as String?,
+      fechaNacimiento = j['fecha_nacimiento'] as String?,
+      sexo = j['sexo'] as String?;
+
+  /// Etiqueta legible del sexo ("Hombre"/"Mujer"/"").
+  String get sexoLabel =>
+      sexo == 'H' ? 'Hombre' : sexo == 'M' ? 'Mujer' : '';
+}
+
+/// Datos detectados en el Acta de nacimiento (cliente-expediente subir → tipo
+/// 1), para el diálogo de confirmación del expediente.
+class DatosActa {
+  final String? curp;
+  final String? nombre;
+  final String? fechaNacimiento;
+  final String? sexo; // "H" | "M"
+  final String? lugarNacimiento;
+
+  DatosActa.fromJson(Map<String, dynamic> j)
+    : curp = j['curp'] as String?,
+      nombre = j['nombre'] as String?,
+      fechaNacimiento = j['fecha_nacimiento'] as String?,
+      sexo = j['sexo'] as String?,
+      lugarNacimiento = j['lugar_nacimiento'] as String?;
+
+  String get sexoLabel =>
+      sexo == 'H' ? 'Hombre' : sexo == 'M' ? 'Mujer' : '';
+}
+
 /// Catálogos para editar el perfil (cliente-perfil action=catalogos).
 class PerfilCatalogos {
   final List<({String id, String nombre})> regimen;

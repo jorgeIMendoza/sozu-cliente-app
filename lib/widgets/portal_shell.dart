@@ -129,6 +129,17 @@ List<_PortalNavItemData> _resolvePortalNavItems(List<MenuItemDto>? dbItems) {
 Set<String> portalAllowedRoutes(List<MenuItemDto>? dbItems) =>
     _resolvePortalNavItems(dbItems).map((e) => e.route).toSet();
 
+/// Menú completo resuelto (icono, label, ruta) en el mismo orden y con la misma
+/// degradación que el sidebar del portal. Lo usa el bottom nav móvil: muestra
+/// los primeros ítems como tabs y el resto tras un botón "Más" (…), de modo que
+/// en móvil se alcancen TODOS los menús del portal aunque no quepan.
+List<({IconData icon, String label, String route})> clienteMenuTabs(
+  List<MenuItemDto>? dbItems,
+) => [
+  for (final it in _resolvePortalNavItems(dbItems))
+    (icon: it.icon, label: it.label, route: it.route),
+];
+
 /// Activo por prefijo de ruta; "Inicio" solo con match exacto (shell.md).
 bool _isActive(String route, String path) {
   if (route == '/inicio') return path == '/inicio';

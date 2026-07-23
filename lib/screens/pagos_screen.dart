@@ -122,7 +122,12 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => _seleccionar(null),
               )
-            : null,
+            // Flecha siempre presente: si no hay stack regresa a Inicio.
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/inicio'),
+              ),
         actions: [
           TextButton(
             onPressed: () => context.push('/estado-cuenta'),
