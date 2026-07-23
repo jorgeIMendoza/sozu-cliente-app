@@ -7,7 +7,6 @@ import '../core/portal_theme.dart';
 import '../core/push_service.dart';
 import '../core/theme.dart';
 import '../data/api_client.dart';
-import '../data/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
 import '../providers/impersonation_provider.dart';
@@ -49,9 +48,13 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
 
     final p = perfil.valueOrNull;
     final nombre = p?.nombreLegal ?? auth.profile?.nombre ?? 'Cliente';
-    final cuentas = p?.cuentasBancarias ?? const <CuentaBancariaPerfil>[];
     final completado = p?.perfilCompletado ?? 0;
     final estatus = p?.estatusPerfil ?? 'incomplete';
+    // Estado de las 4 secciones del overview (docs + personal + fiscal +
+    // cuentas), derivado del perfil y el expediente igual que el portal.
+    final expediente = ref.watch(clienteExpedienteProvider);
+    final estadoSecciones =
+        computePerfilSeccionesEstado(p, expediente.valueOrNull);
 
     Future<void> confirmarSalir() async {
       final ok = await showDialog<bool>(
@@ -103,125 +106,89 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
           .push(MaterialPageRoute<void>(builder: (_) => screen));
     }
 
-    // Tarjetas de sección compartidas entre móvil y portal (la propia
-    // PerfilSectionCard pinta el estilo del portal en modo portal).
-    final tarjetasSeccion = <Widget>[
-      PerfilSectionCard(
+    // ── Overview espejo del portal: hero "motor" + estado de secciones y las
+    //    filas "Secciones de tu perfil" (compartido entre móvil y portal). ──
+    final motorHero = ExpedienteCard(
+      estado: estadoSecciones,
+      onGestionarDocumentos: () => context.push('/expediente'),
+    );
+
+    PerfilPillEstado pill(bool ok) =>
+        ok ? PerfilPillEstado.completo : PerfilPillEstado.pendiente;
+
+    Widget seccionesLabel() => Text(
+          'SECCIONES DE TU PERFIL',
+          style: portal
+              ? portalText(
+                  size: 10.5,
+                  weight: FontWeight.w700,
+                  color: const Color(0xFF9AA3AD),
+                  letterSpacing: 1,
+                )
+              : TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: tone.textMuted,
+                  letterSpacing: 1,
+                ),
+        );
+
+    final seccionRows = <Widget>[
+      PerfilSectionRow(
+        title: 'Documentos',
+        description: 'Sube y consulta tus documentos',
+        estado: pill(estadoSecciones.documentosCompleto),
+        onTap: () => context.push('/expediente'),
+      ),
+      PerfilSectionRow(
         title: 'Información personal',
-        subtitle: 'Identificación y contacto',
-        icon: Icons.person_outline,
-        statusOk: (p?.nombreLegal ?? '').isNotEmpty && p != null,
-        statusLabel: (p?.nombreLegal ?? '').isNotEmpty && p != null
-            ? 'Completo'
-            : 'Pendiente',
-        rows: [
-          PerfilInfoRow(label: 'Nombre', value: p?.nombreLegal),
-          PerfilInfoRow(label: 'RFC', value: p?.rfc, mono: true),
-          PerfilInfoRow(
-              label: 'CURP', value: p?.curp, mono: true, isLast: true),
-        ],
-        actions: [
-          if (!impersonating && p != null)
-            PerfilCardAction(
-              label: 'Editar',
-              style: PerfilActionStyle.secondary,
-              onTap: () => showEditPersonalSheet(context, p),
-            ),
-          PerfilCardAction(
-            label: 'Ver todo',
-            onTap: () => abrirDetalle(_PerfilSeccion.personal),
-          ),
-        ],
+        description: 'Identificación y contacto',
+        estado: pill(estadoSecciones.personalCompleto),
+        onTap: () => abrirDetalle(_PerfilSeccion.personal),
       ),
-      PerfilSectionCard(
+      PerfilSectionRow(
         title: 'Información fiscal',
-        subtitle: 'Régimen, CFDI y dirección',
-        icon: Icons.business_outlined,
-        statusOk: p?.regimen != null,
-        statusLabel: p?.regimen != null ? 'Completo' : 'Pendiente',
-        rows: [
-          PerfilInfoRow(label: 'Régimen', value: p?.regimenDisplay),
-          PerfilInfoRow(label: 'Uso CFDI', value: p?.usoCfdiDisplay),
-          PerfilInfoRow(label: 'CP', value: p?.cp, mono: true, isLast: true),
-        ],
-        actions: [
-          if (!impersonating && p != null)
-            PerfilCardAction(
-              label: 'Editar',
-              style: PerfilActionStyle.secondary,
-              onTap: () => showEditFiscalSheet(context, p),
-            ),
-          PerfilCardAction(
-            label: 'Ver todo',
-            onTap: () => abrirDetalle(_PerfilSeccion.fiscal),
-          ),
-        ],
+        description: 'Régimen, CFDI y dirección',
+        estado: pill(estadoSecciones.fiscalCompleto),
+        onTap: () => abrirDetalle(_PerfilSeccion.fiscal),
       ),
-      PerfilSectionCard(
+      PerfilSectionRow(
         title: 'Cuentas bancarias',
-        subtitle: 'Cuentas de dispersión',
-        icon: Icons.credit_card_outlined,
-        statusOk: cuentas.isNotEmpty,
-        statusLabel: cuentas.isNotEmpty
-            ? '${cuentas.length} cuenta${cuentas.length > 1 ? 's' : ''}'
-            : 'Sin cuentas',
-        rows: [
-          if (cuentas.isEmpty)
-            const PerfilInfoRow(
-                label: 'Cuentas registradas', value: null, isLast: true)
-          else
-            for (var i = 0; i < cuentas.length && i < 3; i++)
-              PerfilInfoRow(
-                label: cuentas[i].banco,
-                value: cuentas[i].clabeMasked,
-                mono: true,
-                isLast: i == cuentas.length - 1 || i == 2,
-              ),
-        ],
-        actions: [
-          if (!impersonating)
-            PerfilCardAction(
-              label: 'Agregar cuenta',
-              style: PerfilActionStyle.secondary,
-              onTap: () => showCuentaBancariaSheet(context),
-            ),
-          PerfilCardAction(
-            label: 'Ver cuentas',
-            onTap: () => abrirDetalle(_PerfilSeccion.cuentas),
-          ),
-        ],
+        description: 'Cuentas de dispersión',
+        estado: pill(estadoSecciones.cuentasCompleto),
+        onTap: () => abrirDetalle(_PerfilSeccion.cuentas),
       ),
-      PerfilSectionCard(
-        title: 'Seguridad',
-        subtitle: 'Contraseña y sesión',
-        icon: Icons.shield_outlined,
-        statusOk: true,
-        statusLabel: 'Activo',
-        rows: [
-          const PerfilInfoRow(
-              label: 'Contraseña', value: '•••••••••', mono: true),
-          const PerfilInfoRow(label: 'Sesión', value: 'Activa', isLast: true),
-        ],
-        actions: [
-          if (!impersonating)
-            PerfilCardAction(
-              label: 'Cambiar contraseña',
-              style: PerfilActionStyle.secondary,
-              // En portal el cambio de contraseña es un diálogo centrado
-              // (modal inline), no una ruta full-page.
-              onTap: () => portal
-                  ? showCambiarPasswordDialog(context)
-                  : context.push('/cambiar-password'),
-            ),
-          PerfilCardAction(
-            label: 'Cerrar sesión',
-            style: PerfilActionStyle.danger,
-            icon: Icons.logout,
-            onTap: confirmarSalir,
-          ),
-        ],
-      ),
+      if (!impersonating)
+        PerfilSectionRow(
+          title: 'Seguridad',
+          description: 'Acceso y contraseña',
+          onTap: () => portal
+              ? showCambiarPasswordDialog(context)
+              : context.push('/cambiar-password'),
+        ),
     ];
+
+    // Filas con separación uniforme de 10px.
+    final seccionRowsColumn = <Widget>[
+      for (var i = 0; i < seccionRows.length; i++) ...[
+        if (i > 0) const SizedBox(height: 10),
+        seccionRows[i],
+      ],
+    ];
+
+    // Botón "Cerrar sesión" (solo móvil; en portal vive en el menú del avatar
+    // de la topbar). Reemplaza el que estaba en la tarjeta "Seguridad".
+    final cerrarSesionButton = OutlinedButton.icon(
+      onPressed: confirmarSalir,
+      icon: Icon(Icons.logout, size: 18, color: tone.negative),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(48),
+        foregroundColor: tone.negative,
+        backgroundColor: tone.negative.withValues(alpha: 0.05),
+        side: BorderSide(color: tone.negative.withValues(alpha: 0.3)),
+      ),
+      label: const Text('Cerrar sesión'),
+    );
 
     // ── Modo portal (web ≥1024): layout ancho de ClientePerfil.tsx ──────────
     if (portal) {
@@ -456,14 +423,13 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   identidad,
-                  // Tarjeta hero "Tu expediente" (portal-aware).
-                  const ExpedienteCard(),
                   const SizedBox(height: 16),
-                  ResponsiveCardGrid(
-                    minCardWidth: 330,
-                    gap: 14,
-                    children: tarjetasSeccion,
-                  ),
+                  // Hero "motor" del expediente + estado de secciones.
+                  motorHero,
+                  const SizedBox(height: 20),
+                  seccionesLabel(),
+                  const SizedBox(height: 10),
+                  ...seccionRowsColumn,
                   if (perfil.hasError)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -596,17 +562,17 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
               ),
             ),
 
-            // EXPEDIENTE_CARD_SLOT — tarjeta "Tu expediente" (se auto-oculta si
-            // el backend aún no expone cliente-expediente).
-            const ExpedienteCard(),
+            const SizedBox(height: 24),
 
-            const SizedBox(height: 16),
+            // Hero "motor" del expediente + estado de secciones (una columna).
+            motorHero,
 
-            // ── Tarjetas de sección (2 columnas en ancho, 1 en angosto) ─────
-            ResponsiveCardGrid(
-              minCardWidth: 330,
-              children: tarjetasSeccion,
-            ),
+            const SizedBox(height: 20),
+
+            // ── Secciones de tu perfil (filas: abren su vista) ──────────────
+            seccionesLabel(),
+            const SizedBox(height: 10),
+            ...seccionRowsColumn,
 
             if (perfil.hasError)
               Padding(
@@ -665,6 +631,10 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
             // Solo móvil con biometría disponible; en web se colapsa sola.
             const SizedBox(height: 8),
             const BiometricSettingTile(),
+
+            // Cerrar sesión (en móvil no hay menú de avatar en la topbar).
+            const SizedBox(height: 24),
+            cerrarSesionButton,
           ],
         ),
       ),

@@ -651,8 +651,8 @@ class _CuentaCard extends StatelessWidget {
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: tone.textPrimary)),
-                if (cuenta.clabeMasked != null)
-                  Text(cuenta.clabeMasked!,
+                if (cuenta.cuentaMasked != null)
+                  Text(cuenta.cuentaMasked!,
                       style: TextStyle(
                           fontSize: 13,
                           fontFamily: 'monospace',

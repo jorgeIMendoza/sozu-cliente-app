@@ -31,6 +31,16 @@ final clienteResumenProvider = FutureProvider<ClienteResumen>((ref) {
   return fetchClienteResumen(impersonate: imp);
 });
 
+/// Menú lateral del portal cliente servido por la edge function `cliente-menu`
+/// (submenús activos/permitidos, mismo criterio que el portal web). El sidebar
+/// y la navegación móvil se construyen desde esta lista; si el fetch falla
+/// (function no desplegada aún, red, error), la UI cae a su menú hardcodeado.
+final clienteMenuProvider = FutureProvider<List<MenuItemDto>>((ref) {
+  ref.watch(authUserIdProvider);
+  final imp = ref.watch(impersonationProvider).idPersona;
+  return fetchClienteMenu(impersonate: imp);
+});
+
 final clientePagosProvider = FutureProvider<ClientePagos>((ref) {
   ref.watch(authUserIdProvider);
   final imp = ref.watch(impersonationProvider).idPersona;
@@ -119,6 +129,7 @@ final adminPropietariosProvider = FutureProvider.autoDispose
 /// Invalida todos los datos del cliente (p.ej. al cerrar sesión). Recibe el
 /// `WidgetRef` de la pantalla que dispara el cierre de sesión.
 void invalidateAllData(WidgetRef ref) {
+  ref.invalidate(clienteMenuProvider);
   ref.invalidate(clienteResumenProvider);
   ref.invalidate(clientePagosProvider);
   ref.invalidate(clientePropiedadesProvider);

@@ -350,6 +350,137 @@ class PerfilSectionCard extends StatelessWidget {
   }
 }
 
+/// Estado del chip de una fila "Secciones de tu perfil".
+enum PerfilPillEstado { completo, enProceso, pendiente }
+
+/// Fila de "Secciones de tu perfil" (espejo de ProfileSectionRow del portal):
+/// nombre, descripción, chip de estatus opcional y chevron. Al tocarla abre su
+/// vista. En modo portal usa la paleta exacta del portal; en móvil degrada a
+/// colores theme-aware (soporta oscuro).
+class PerfilSectionRow extends StatelessWidget {
+  final String title;
+  final String description;
+
+  /// null = sin chip (p. ej. "Seguridad").
+  final PerfilPillEstado? estado;
+  final VoidCallback onTap;
+
+  const PerfilSectionRow({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.onTap,
+    this.estado,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final portal = isPortalMode(context);
+    final tone = SozuTone.of(context);
+
+    final Color bg = portal ? PortalColors.surface : tone.surface;
+    final Color border = portal ? const Color(0xFFECEEF0) : tone.border;
+    final Color titleColor = portal ? const Color(0xFF171A1D) : tone.textPrimary;
+    final Color descColor = portal ? const Color(0xFF9AA3AD) : tone.textMuted;
+
+    Widget titleWidget = Text(
+      title,
+      style: portal
+          ? portalText(size: 13.5, weight: FontWeight.w700, color: titleColor)
+          : TextStyle(
+              fontSize: 13.5, fontWeight: FontWeight.w700, color: titleColor),
+    );
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(portal ? kPortalRadiusMd : 12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(portal ? kPortalRadiusMd : 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          decoration: BoxDecoration(
+            border: Border.all(color: border),
+            borderRadius: BorderRadius.circular(portal ? kPortalRadiusMd : 12),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        titleWidget,
+                        if (estado != null) _pill(portal, tone, estado!),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: portal
+                          ? portalText(
+                              size: 11.5,
+                              weight: FontWeight.w500,
+                              color: descColor)
+                          : TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: descColor),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Icon(Icons.chevron_right,
+                  size: 18,
+                  color: portal ? const Color(0xFF9AA3AD) : tone.textMuted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pill(bool portal, SozuTone tone, PerfilPillEstado e) {
+    final (String label, Color fg, Color bg) = switch (e) {
+      PerfilPillEstado.completo => (
+          'Completado',
+          portal ? PortalColors.primary : tone.primaryDark,
+          portal ? const Color(0xFFE8F5EE) : tone.primarySoft,
+        ),
+      PerfilPillEstado.enProceso => (
+          'En proceso',
+          portal ? const Color(0xFFB5730A) : SozuColors.amber600,
+          portal ? const Color(0xFFFBEFD9) : tone.pendingSoft,
+        ),
+      PerfilPillEstado.pendiente => (
+          'Pendiente',
+          portal ? const Color(0xFF6B7280) : tone.textSecondary,
+          portal ? const Color(0xFFF2F4F5) : tone.surfaceAlt,
+        ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
+      ),
+    );
+  }
+}
+
 /// Banner ámbar "Perfil casi completo / Completa tu perfil" con CTA.
 class PerfilBannerCompletar extends StatelessWidget {
   final int perfilCompletado;

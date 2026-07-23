@@ -1106,22 +1106,73 @@ class CuentaBancariaPerfil {
   final int id;
   final int idBanco;
   final String banco;
+
+  /// Número de cuenta (clave real, 8–34; espejo del portal).
+  final String? numeroCuenta;
   final String? clabe;
+
+  /// Código SWIFT (opcional; cuentas internacionales).
+  final String? swift;
   final String? titular;
+
+  /// Estatus de verificación (1 revisión · 2 validada · 3 rechazada), opcional.
+  final int? estatus;
+
+  /// URL de la carátula del estado de cuenta (evidencia), opcional.
+  final String? evidencia;
 
   CuentaBancariaPerfil.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
       idBanco = asInt(j['id_banco']),
       banco = asString(j['banco'], 'Banco'),
+      numeroCuenta = j['numero_cuenta'] as String?,
       clabe = j['clabe'] as String?,
-      titular = j['titular'] as String?;
+      swift = j['swift'] as String?,
+      titular = j['titular'] as String?,
+      estatus = asIntOrNull(j['estatus']),
+      evidencia = j['evidencia'] as String?;
 
-  /// Últimos 4 dígitos enmascarados ("****1234") o null.
+  /// Últimos 4 dígitos enmascarados de la CLABE ("****1234") o null.
   String? get clabeMasked {
     final c = clabe;
     if (c == null || c.length < 4) return null;
     return '****${c.substring(c.length - 4)}';
   }
+
+  /// Enmascarado del número de cuenta (o la CLABE si no hay número), como el
+  /// portal: "****1234".
+  String? get cuentaMasked {
+    final c = (numeroCuenta != null && numeroCuenta!.isNotEmpty)
+        ? numeroCuenta!
+        : clabe;
+    if (c == null || c.length < 4) return null;
+    return '****${c.substring(c.length - 4)}';
+  }
+}
+
+/// Datos fiscales detectados en la CSF (cliente-expediente subir → CSF),
+/// para el diálogo de confirmación del expediente.
+class DatosFiscalesCSF {
+  final String? rfc;
+  final String? curp;
+  final String? nombre;
+  final String? regimen;
+  final String? codigoPostal;
+  final String? calle;
+  final String? numExt;
+  final String? numInt;
+  final String? colonia;
+
+  DatosFiscalesCSF.fromJson(Map<String, dynamic> j)
+    : rfc = j['rfc'] as String?,
+      curp = j['curp'] as String?,
+      nombre = j['nombre'] as String?,
+      regimen = j['regimen'] as String?,
+      codigoPostal = j['codigo_postal'] as String?,
+      calle = j['calle'] as String?,
+      numExt = j['num_ext'] as String?,
+      numInt = j['num_int'] as String?,
+      colonia = j['colonia'] as String?;
 }
 
 /// Catálogos para editar el perfil (cliente-perfil action=catalogos).
@@ -1416,4 +1467,23 @@ class ClienteExpediente {
       requeridosTotal = asInt(j['requeridos_total']),
       requeridosAprobados = asInt(j['requeridos_aprobados']),
       subidos = asInt(j['subidos']);
+}
+
+// ─── cliente-menu ────────────────────────────────────────────────────────────
+
+/// Ítem del menú del Portal del Cliente servido por la edge function
+/// `cliente-menu` (submenús activos y permitidos, mismo criterio que el portal
+/// web). `route` es la `vista_front_end` del portal (p.ej.
+/// `/admin/portal-cliente/inicio`); la app la mapea a su ruta interna + icono.
+class MenuItemDto {
+  final int id;
+  final String label;
+  final String route;
+  final int orden;
+
+  MenuItemDto.fromJson(Map<String, dynamic> j)
+    : id = asInt(j['id']),
+      label = asString(j['label']),
+      route = asString(j['route']),
+      orden = asInt(j['orden']);
 }
