@@ -18,11 +18,14 @@ android {
     }
 
     defaultConfig {
-        // applicationId configurable por proyecto: se define en
-        // android/gradle.properties (propiedad `sozu.applicationId`). Cambia
-        // el package ahí, en un solo lugar, sin tocar este archivo.
-        applicationId = (project.findProperty("sozu.applicationId") as String?)
-            ?.takeIf { it.isNotBlank() }
+        // applicationId configurable por proyecto. Prioridad:
+        //  1. Variable de entorno ANDROID_PACKAGE_NAME (la inyecta el dashboard
+        //     al disparar el build en Codemagic).
+        //  2. Propiedad Gradle `sozu.applicationId` (android/gradle.properties),
+        //     para builds locales / que no reciben la env var.
+        //  3. Default de fábrica.
+        applicationId = System.getenv("ANDROID_PACKAGE_NAME")?.takeIf { it.isNotBlank() }
+            ?: (project.findProperty("sozu.applicationId") as String?)?.takeIf { it.isNotBlank() }
             ?: "com.sozu.clientes_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
