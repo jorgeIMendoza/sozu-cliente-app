@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../core/theme.dart';
 import '../providers/data_providers.dart';
 import 'animacion_llegada.dart';
+import 'notificaciones_fx.dart';
 
 /// Campana de notificaciones con contador de no leídas.
 ///
@@ -56,6 +57,7 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
 
   @override
   void dispose() {
+    NotifFx.instance.quitarCampana(this);
     _quitarProyectil();
     _vuelo.dispose();
     super.dispose();
@@ -107,6 +109,15 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
   @override
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
+
+    // Reporta al controlador global si esta campana está visible (pestaña
+    // activa / topbar): si lo está, ella anima la llegada y NotificacionesFx no
+    // duplica el disparo. `TickerMode.valuesOf` crea la dependencia, así que al
+    // cambiar de pestaña se reconstruye y el registro queda al día.
+    NotifFx.instance.reportarCampana(
+      this,
+      visible: TickerMode.valuesOf(context).enabled,
+    );
 
     ref.listen(clienteNotificacionesProvider, (prev, next) {
       final nuevo = next.valueOrNull?.noLeidas;

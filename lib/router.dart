@@ -28,6 +28,7 @@ import 'screens/productos_screen.dart';
 import 'screens/propiedad_detalle_screen.dart';
 import 'screens/seleccionar_cliente_screen.dart';
 import 'widgets/fx.dart';
+import 'widgets/notificaciones_fx.dart';
 import 'widgets/portal_shell.dart';
 
 /// Página secundaria con transición sutil (fade + deslizamiento) y contenido
@@ -166,9 +167,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         // _ClienteMobileChrome es un pass-through y manda el sidebar/_SideNav.
         builder: (context, state, child) {
           final path = state.uri.path;
-          return PortalShellWrapper(
-            currentPath: path,
-            child: _ClienteMobileChrome(currentPath: path, child: child),
+          // NotificacionesFx envuelve TODAS las pantallas del cliente (móvil,
+          // portal y escritorio): observa la campana a nivel app y dispara la
+          // animación de llegada hacia el destino visible de cada pantalla, sin
+          // depender de que una campana concreta esté montada/visible.
+          return NotificacionesFx(
+            child: PortalShellWrapper(
+              currentPath: path,
+              child: _ClienteMobileChrome(currentPath: path, child: child),
+            ),
           );
         },
         routes: [
@@ -467,6 +474,12 @@ class _ClienteBottomNav extends ConsumerWidget {
     // "Más" resaltado cuando la pantalla actual no es ninguno de los tabs
     // visibles (estás en una secundaria o en un ítem del overflow).
     final masActive = hasOverflow && selected < 0;
+    // Destino de la animación de llegada (NotificacionesFx) cuando no hay
+    // campana visible: el ítem "Notificaciones" si es una pestaña visible, o
+    // el botón "Más" (…) si vive dentro del overflow.
+    final notifTabIdx = tabs.indexWhere((t) => t.route == '/notificaciones');
+    final notifEnMas =
+        notifTabIdx < 0 && overflow.any((t) => t.route == '/notificaciones');
 
     return Container(
       color: tone.background,
@@ -493,6 +506,7 @@ class _ClienteBottomNav extends ConsumerWidget {
                 children: [
                   for (var i = 0; i < tabs.length; i++)
                     _NavBarItem(
+                      key: i == notifTabIdx ? notifNavKey : null,
                       icon: tabs[i].icon,
                       label: _shortLabel(tabs[i].label),
                       active: i == selected,
@@ -501,6 +515,7 @@ class _ClienteBottomNav extends ConsumerWidget {
                     ),
                   if (hasOverflow)
                     _NavBarItem(
+                      key: notifEnMas ? notifNavKey : null,
                       icon: Icons.more_horiz,
                       label: 'Más',
                       active: masActive,
@@ -525,6 +540,7 @@ class _NavBarItem extends StatelessWidget {
   final VoidCallback onTap;
 
   const _NavBarItem({
+    super.key,
     required this.icon,
     required this.label,
     required this.active,
