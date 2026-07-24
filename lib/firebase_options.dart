@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBi_e43N8DiR34RwAYaAJKeTlNzGoVCAzk',
-    appId: '1:334194000163:android:0ef2d32f5637bc219a8c96',
+    appId: '1:334194000163:android:3faec92654ee45a09a8c96',
     messagingSenderId: '334194000163',
     projectId: 'sozu-admin-prd',
     storageBucket: 'sozu-admin-prd.firebasestorage.app',
