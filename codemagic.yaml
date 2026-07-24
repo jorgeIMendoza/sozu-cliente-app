@@ -29,6 +29,24 @@ definitions:
     name: Timestamp de versión (hora México, estilo sozu-admin)
     script: |
       echo "BUILD_TIMESTAMP=$(TZ=America/Mexico_City date +%y%m%d.%H%M)" >> $CM_ENV
+  # Keystore subido desde el dashboard (variables cifradas del grupo
+  # android_signing_custom). Reconstruye el .jks y exporta las CM_KEYSTORE_*
+  # que lee build.gradle.kts. Si sigue en PENDIENTE, aborta con mensaje claro.
+  dashboard_keystore: &dashboard_keystore
+    name: Preparar keystore (dashboard)
+    script: |
+      if [ -z "${ANDROID_KEYSTORE_B64:-}" ] || [ "$ANDROID_KEYSTORE_B64" = "PENDIENTE" ]; then
+        echo "ERROR: keystore no configurado. Súbelo desde el dashboard (Deploy App → Keystore Android → subir)."
+        exit 1
+      fi
+      echo "$ANDROID_KEYSTORE_B64" | base64 --decode > /tmp/dashboard.keystore
+      {
+        echo "CM_KEYSTORE_PATH=/tmp/dashboard.keystore"
+        echo "CM_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
+        echo "CM_KEY_ALIAS=$ANDROID_KEY_ALIAS"
+        echo "CM_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
+      } >> $CM_ENV
+      echo "Keystore del dashboard listo (alias: $ANDROID_KEY_ALIAS)" 
 
 workflows:
   android-release:
@@ -36,14 +54,15 @@ workflows:
     max_build_duration: 45
     instance_type: mac_mini_m2
     environment:
+      groups:
+        - android_signing_custom
       vars:
         <<: *supabase_env
-      android_signing:
-        - sozu_keystore
       flutter: stable
     scripts:
       - *env_setup
       - *build_stamp
+      - *dashboard_keystore
       - name: Dependencias y análisis
         script: |
           flutter pub get
@@ -71,14 +90,15 @@ workflows:
     max_build_duration: 45
     instance_type: mac_mini_m2
     environment:
+      groups:
+        - android_signing_custom
       vars:
         <<: *supabase_env
-      android_signing:
-        - sozu_keystore
       flutter: stable
     scripts:
       - *env_setup
       - *build_stamp
+      - *dashboard_keystore
       - name: Dependencias y análisis
         script: |
           flutter pub get
