@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:334194000163:android:3faec92654ee45a09a8c96",
+        "android_client_info": {
+          "package_name": "com.sozu.clientes_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBi_e43N8DiR34RwAYaAJKeTlNzGoVCAzk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:334194000163:android:0ef2d32f5637bc219a8c96",
         "android_client_info": {
           "package_name": "com.sozu.sozu_cliente_app"

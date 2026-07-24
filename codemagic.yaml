@@ -214,6 +214,12 @@ workflows:
     name: Android → Play Store (producción)
     max_build_duration: 15
     instance_type: mac_mini_m2
+    environment:
+      vars:
+        # Package/applicationId de la app en Google Play. Debe coincidir con
+        # `sozu.applicationId` de android/gradle.properties (el que lleva el
+        # AAB). Editable aquí en un solo lugar para el promote a producción.
+        ANDROID_PACKAGE_NAME: com.sozu.clientes_app
     scripts:
       - name: Validar release notes
         script: |
@@ -225,7 +231,7 @@ workflows:
       - name: Promover internal → production
         script: |
           google-play tracks promote-release \
-            --package-name com.sozu.sozu_cliente_app \
+            --package-name "$ANDROID_PACKAGE_NAME" \
             --source-track internal \
             --target-track production \
             --credentials "@env:GCLOUD_SERVICE_ACCOUNT_CREDENTIALS"
