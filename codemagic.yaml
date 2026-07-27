@@ -238,6 +238,110 @@ workflows:
             --target-track production \
             --credentials "@env:GCLOUD_SERVICE_ACCOUNT_CREDENTIALS"
 
+  # ---------------------------------------------------------------------------
+  # Flujo SIMPLE (un solo clic): construye y publica DIRECTO a la tienda, sin
+  # pasar por Play interno / TestFlight. Es lo que dispara el dashboard cuando
+  # el proyecto está en "modo simple". Los workflows por etapas de arriba
+  # siguen existiendo para cuando se quiera probar antes de publicar.
+  # ---------------------------------------------------------------------------
+
+  # Construye el .aab y lo sube directo al track `production` de Google Play.
+  # Play lo manda a revisión automáticamente.
+  android-store:
+    name: Android → Play Store (directo)
+    max_build_duration: 45
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - android_signing_custom
+      vars:
+        <<: *supabase_env
+      flutter: stable
+    scripts:
+      - name: Validar release notes
+        script: |
+          if [ -z "${RELEASE_NOTES:-}" ]; then
+            echo "ERROR: falta RELEASE_NOTES (comentario obligatorio de la actualización)."
+            exit 1
+          fi
+          echo "Release notes: $RELEASE_NOTES"
+      - *env_setup
+      - *build_stamp
+      - *dashboard_keystore
+      - name: Dependencias y análisis
+        script: |
+          flutter pub get
+          flutter analyze
+      - name: Build AAB (Google Play)
+        script: |
+          flutter build appbundle --release \
+            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
+            --dart-define=APP_ENV=prod
+    artifacts:
+      - build/app/outputs/bundle/release/*.aab
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: production
+
+  # Construye el .ipa, lo sube a App Store Connect y lo manda a revisión de
+  # App Store en la misma corrida. (Apple siempre pasa por App Store Connect:
+  # es el mismo upload que alimenta TestFlight, solo que aquí no se detiene ahí.)
+  ios-store:
+    name: iOS → App Store (directo)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: sozu_app_store_connect
+    environment:
+      vars:
+        <<: *supabase_env
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.sozu.sozuClienteApp
+      flutter: stable
+    scripts:
+      - name: Validar release notes
+        script: |
+          if [ -z "${RELEASE_NOTES:-}" ]; then
+            echo "ERROR: falta RELEASE_NOTES (comentario obligatorio de la actualización)."
+            exit 1
+          fi
+          echo "Release notes: $RELEASE_NOTES"
+      - *env_setup
+      - *build_stamp
+      - name: Dependencias y análisis
+        script: |
+          flutter pub get
+          flutter analyze
+      - name: Build IPA firmado
+        script: |
+          flutter build ipa --release \
+            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
+            --dart-define=APP_ENV=prod \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        # El upload a App Store Connect es el mismo para TestFlight y App Store.
+        submit_to_testflight: true
+      scripts:
+        # Post-publicación: una vez procesado el build, se manda a revisión.
+        # Mismo procedimiento que `ios-appstore`, pero sin build intermedio.
+        - name: Enviar a revisión de App Store
+          script: |
+            set -e
+            APP_ID=$(app-store-connect apps list \
+              --bundle-id-identifier com.sozu.sozuClienteApp --json | jq -r '.[0].id')
+            BUILD_ID=$(app-store-connect builds list \
+              --app-id "$APP_ID" --processing-state VALID --limit 1 --json | jq -r '.[0].id')
+            echo "Enviando build $BUILD_ID a revisión de App Store"
+            app-store-connect builds submit-to-app-store "$BUILD_ID" \
+              --release-type AFTER_APPROVAL \
+              --whats-new "$RELEASE_NOTES"
+
   # Sincroniza la lista de testers del dashboard con el grupo externo de
   # TestFlight "SOZU Testers" (lo crea si no existe). Lo dispara el dashboard
   # al agregar/quitar correos, pasando TESTER_EMAILS separados por coma.
