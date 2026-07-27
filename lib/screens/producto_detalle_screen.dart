@@ -585,71 +585,17 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // MODO PORTAL (web ≥1024): réplica del historial de producto del Portal del
-  // Cliente (ProductoHistorialView.tsx): filtros + tabla "Movimientos" a la
-  // izquierda y card resumen (300px) a la derecha. Solo capa visual.
+  // Cliente (ProductoHistorialView.tsx). La tabla "Movimientos" + card resumen
+  // viven en [ProductoPortalHistorial], reutilizado por ProductosScreen para el
+  // detalle in-page con tabs. Aquí solo va la cabecera de la ruta directa
+  // (/productos/:cuentaId), con el nombre del producto como título.
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Anchos fijos de columnas de la tabla (CONCEPTO es flexible).
-  static const double _wFecha = 112;
-  static const double _wMonto = 140;
-  static const double _wEstatus = 112;
-  static const double _wComp = 110;
-  static const double _minTablaWidth = 620;
-
-  /// Fondo de thead (`bg-muted/10` aplanado, tokens.md §1.1).
-  static const Color _theadBg = Color(0xFFFDFEFE);
-
-  /// Chip de estatus del producto (STATUS_CLASS del portal).
-  PortalStatusChip _portalChipEstatus(ProductoCliente p, {bool small = false}) {
-    final e = p.estatus.toLowerCase();
-    final (bg, fg) = e.contains('pagado')
-        ? (PortalColors.primarySoft15, PortalColors.primary)
-        : e.contains('curso')
-        ? (PortalColors.primarySoft10, PortalColors.primary)
-        : (PortalColors.warningSoft15, PortalColors.warning);
-    return PortalStatusChip(
-      small: small,
-      label: p.estatus,
-      background: bg,
-      foreground: fg,
-    );
-  }
-
-  /// Fecha efectiva del movimiento (toMovement del portal): la de pago si ya
-  /// se completó, si no la fecha compromiso.
-  String? _fechaMov(ProductoAcuerdo a) =>
-      (a.completado && (a.fechaPago ?? '').isNotEmpty) ? a.fechaPago : a.fecha;
-
   Widget _portalContenido(ProductoCliente p, ProductosPropiedad? g) {
-    final anios = <String>{
-      for (final a in p.acuerdos)
-        if ((a.fecha ?? '').length >= 4) a.fecha!.substring(0, 4),
-    }.toList()..sort((a, b) => b.compareTo(a));
-
-    // Mismos filtros que la vista móvil; tabla plana más reciente primero.
-    final acuerdos = p.acuerdos.where((a) {
-      if (_estatus == 'pagado' && !a.completado) return false;
-      if (_estatus == 'pendiente' && a.completado) return false;
-      if (_anio != 'todos' && !(a.fecha ?? '').startsWith(_anio)) return false;
-      return true;
-    }).toList()..sort(
-      (a, b) => (_fechaMov(b) ?? '').compareTo(_fechaMov(a) ?? ''),
-    );
-
     final unidad = g == null
         ? null
         : (g.propiedad.startsWith('U-') ? g.propiedad : 'U-${g.propiedad}');
     final descripcion = (p.descripcion ?? '').trim();
-
-    final izquierda = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _portalFiltros(anios),
-        const SizedBox(height: 16),
-        _portalMovimientos(acuerdos),
-      ],
-    );
-    final derecha = _portalResumen(p, g);
 
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -693,36 +639,161 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                _portalChipEstatus(p),
+                portalProductoStatusChip(p.estatus),
               ],
             ),
             const SizedBox(height: 16),
-            LayoutBuilder(
-              builder: (context, cons) {
-                if (cons.maxWidth < kTwoColBreakpoint) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [izquierda, const SizedBox(height: 16), derecha],
-                  );
-                }
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: izquierda),
-                    const SizedBox(width: 24),
-                    SizedBox(width: 300, child: derecha),
-                  ],
-                );
-              },
-            ),
+            ProductoPortalHistorial(producto: p, grupo: g),
           ],
         ),
       ),
     );
   }
+}
+
+class _LoadingDetalle extends StatelessWidget {
+  const _LoadingDetalle();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(16),
+    children: const [
+      AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Skeleton(width: 180, height: 16),
+            SizedBox(height: 12),
+            Skeleton(width: 240, height: 30),
+            SizedBox(height: 12),
+            Skeleton(height: 10, radius: 999),
+          ],
+        ),
+      ),
+      SizedBox(height: 12),
+      Skeleton(height: 90, radius: 16),
+      SizedBox(height: 8),
+      Skeleton(height: 90, radius: 16),
+    ],
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Historial de un producto en modo portal (réplica de ProductoHistorialView.tsx
+// del portal): card de filtros + tabla "Movimientos" a la izquierda y card
+// resumen (280px) a la derecha. Reutilizado por [ProductoDetalleScreen] (ruta
+// directa) y por ProductosScreen (detalle in-page con tabs por producto). No
+// pinta el título del producto — eso lo pone quien lo embebe (tabs o cabecera).
+// ═══════════════════════════════════════════════════════════════════════════
+class ProductoPortalHistorial extends StatefulWidget {
+  final ProductoCliente producto;
+  final ProductosPropiedad? grupo;
+
+  const ProductoPortalHistorial({
+    super.key,
+    required this.producto,
+    this.grupo,
+  });
+
+  @override
+  State<ProductoPortalHistorial> createState() =>
+      _ProductoPortalHistorialState();
+}
+
+class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
+  String _anio = 'todos';
+  String _estatus = 'todos'; // todos | pagado | pendiente
+
+  static const _meses = [
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre',
+  ];
+
+  // Anchos fijos de columnas de la tabla (CONCEPTO es flexible).
+  static const double _wFecha = 112;
+  static const double _wMonto = 140;
+  static const double _wEstatus = 112;
+  static const double _wComp = 110;
+  static const double _minTablaWidth = 620;
+
+  /// Fondo de thead (`bg-muted/10` aplanado, tokens.md §1.1).
+  static const Color _theadBg = Color(0xFFFDFEFE);
+
+  /// Fecha efectiva del movimiento (toMovement del portal): la de pago si ya
+  /// se completó, si no la fecha compromiso.
+  String? _fechaMov(ProductoAcuerdo a) =>
+      (a.completado && (a.fechaPago ?? '').isNotEmpty) ? a.fechaPago : a.fecha;
+
+  Future<void> _copiar(String value, String label) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label copiada.')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.producto;
+    final g = widget.grupo;
+
+    final anios = <String>{
+      for (final a in p.acuerdos)
+        if ((a.fecha ?? '').length >= 4) a.fecha!.substring(0, 4),
+    }.toList()..sort((a, b) => b.compareTo(a));
+
+    // Mismos filtros que la vista móvil; tabla plana más reciente primero.
+    final acuerdos = p.acuerdos.where((a) {
+      if (_estatus == 'pagado' && !a.completado) return false;
+      if (_estatus == 'pendiente' && a.completado) return false;
+      if (_anio != 'todos' && !(a.fecha ?? '').startsWith(_anio)) return false;
+      return true;
+    }).toList()..sort(
+      (a, b) => (_fechaMov(b) ?? '').compareTo(_fechaMov(a) ?? ''),
+    );
+
+    final izquierda = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _filtros(anios),
+        const SizedBox(height: 16),
+        _movimientos(acuerdos),
+      ],
+    );
+    final derecha = _resumen(p, g);
+
+    return LayoutBuilder(
+      builder: (context, cons) {
+        if (cons.maxWidth < kTwoColBreakpoint) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [izquierda, const SizedBox(height: 16), derecha],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: izquierda),
+            const SizedBox(width: 24),
+            SizedBox(width: 280, child: derecha),
+          ],
+        );
+      },
+    );
+  }
 
   // ── Card de filtros (filterBar del portal) ────────────────────────────────
-  Widget _portalFiltros(List<String> anios) {
+  Widget _filtros(List<String> anios) {
     Widget fila(String label, List<Widget> pills) => Row(
       children: [
         PortalSectionLabel(label),
@@ -786,7 +857,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
   }
 
   // ── Card "Movimientos" con tabla (desktopTable del portal) ────────────────
-  Widget _portalMovimientos(List<ProductoAcuerdo> acuerdos) {
+  Widget _movimientos(List<ProductoAcuerdo> acuerdos) {
     return PortalCard(
       clip: true,
       child: Column(
@@ -842,9 +913,9 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _portalTablaHeader(),
+                        _tablaHeader(),
                         for (var i = 0; i < acuerdos.length; i++)
-                          _portalTablaFila(
+                          _tablaFila(
                             acuerdos[i],
                             last: i == acuerdos.length - 1,
                           ),
@@ -859,7 +930,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
     );
   }
 
-  Widget _portalTablaHeader() {
+  Widget _tablaHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: const BoxDecoration(
@@ -907,7 +978,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
     );
   }
 
-  Widget _portalTablaFila(ProductoAcuerdo a, {required bool last}) {
+  Widget _tablaFila(ProductoAcuerdo a, {required bool last}) {
     final parcial = !a.completado && a.pagado > 0.01 && a.pagado < a.monto;
     final faltante = (a.monto - a.pagado).clamp(0, a.monto).toDouble();
     final tieneCep = (a.urlCep ?? '').isNotEmpty;
@@ -1065,12 +1136,18 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
   }
 
   // ── Card resumen (summaryBlock del portal) ────────────────────────────────
-  Widget _portalResumen(ProductoCliente p, ProductosPropiedad? g) {
+  Widget _resumen(ProductoCliente p, ProductosPropiedad? g) {
     final now = DateTime.now();
     final periodo = '${_meses[now.month - 1]} ${now.year}';
-    final pendientes = p.acuerdos.where((a) => !a.completado).toList()
-      ..sort((a, b) => (a.fecha ?? '').compareTo(b.fecha ?? ''));
-    final proximo = pendientes.isEmpty ? null : pendientes.first;
+    // Próximo pago = primer acuerdo no completado en el orden del plan (find del
+    // portal), no el de fecha más próxima.
+    ProductoAcuerdo? proximo;
+    for (final a in p.acuerdos) {
+      if (!a.completado) {
+        proximo = a;
+        break;
+      }
+    }
     final unidad = g == null
         ? null
         : (g.propiedad.startsWith('U-') ? g.propiedad : 'U-${g.propiedad}');
@@ -1113,14 +1190,10 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
         children: [
           Row(
             children: [
-              Text(
-                'sozu',
-                style: portalText(
-                  size: 15,
-                  weight: FontWeight.w700,
-                  letterSpacing: -0.6,
-                  height: 1,
-                ),
+              Image.asset(
+                'assets/sozu-logo-black.png',
+                height: 14,
+                fit: BoxFit.contain,
               ),
               const SizedBox(width: 8),
               Text(
@@ -1140,7 +1213,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              _portalChipEstatus(p, small: true),
+              portalProductoStatusChip(p.estatus, small: true),
             ],
           ),
           sep(),
@@ -1225,31 +1298,4 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
       ),
     );
   }
-}
-
-class _LoadingDetalle extends StatelessWidget {
-  const _LoadingDetalle();
-
-  @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(16),
-    children: const [
-      AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Skeleton(width: 180, height: 16),
-            SizedBox(height: 12),
-            Skeleton(width: 240, height: 30),
-            SizedBox(height: 12),
-            Skeleton(height: 10, radius: 999),
-          ],
-        ),
-      ),
-      SizedBox(height: 12),
-      Skeleton(height: 90, radius: 16),
-      SizedBox(height: 8),
-      Skeleton(height: 90, radius: 16),
-    ],
-  );
 }

@@ -10,6 +10,7 @@ import '../providers/data_providers.dart';
 import '../widgets/common.dart';
 import '../widgets/fx.dart';
 import '../widgets/portal_widgets.dart';
+import 'producto_detalle_screen.dart' show ProductoPortalHistorial;
 
 /// Productos adicionales del cliente agrupados por propiedad (paridad con
 /// ClienteProductos del portal admin): buscador en vivo, tarjetas con avance
@@ -26,6 +27,10 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
 
   /// Propiedad seleccionada en modo portal (detalle in-page). null = lista.
   String? _grupoSel;
+
+  /// Producto (cuentaId) seleccionado en las tabs del detalle in-page. null =
+  /// se usa el primero de la propiedad.
+  int? _prodSel;
 
   /// Clave estable de un grupo/propiedad (para la selección in-page).
   String _grupoKey(ProductosPropiedad g) =>
@@ -218,6 +223,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
       if (sel != null) return _portalDetalle(sel);
       // La selección ya no existe (datos recargados): vuelve a la lista.
       _grupoSel = null;
+      _prodSel = null;
     }
 
     return SingleChildScrollView(
@@ -316,7 +322,10 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
 
     return PortalHoverBuilder(
       builder: (context, hovered) => GestureDetector(
-        onTap: () => setState(() => _grupoSel = _grupoKey(g)),
+        onTap: () => setState(() {
+          _grupoSel = _grupoKey(g);
+          _prodSel = g.productos.isNotEmpty ? g.productos.first.cuentaId : null;
+        }),
         behavior: HitTestBehavior.opaque,
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -408,11 +417,17 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
     );
   }
 
-  /// Detalle in-page de una propiedad: cabecera con botón volver + grid de
-  /// tarjetas de producto (cada una abre el historial con la navegación
-  /// existente /productos/:cuentaId).
+  /// Detalle in-page de una propiedad (réplica de PropiedadDetail del portal):
+  /// cabecera con botón volver + tabs por producto (o cabecera simple si solo
+  /// hay uno) + historial del producto seleccionado (filtros, movimientos y
+  /// resumen), como ClienteProductos.tsx.
   Widget _portalDetalle(ProductosPropiedad g) {
     final total = g.productos.length;
+    final sel = g.productos.firstWhere(
+      (p) => p.cuentaId == _prodSel,
+      orElse: () => g.productos.first,
+    );
+
     return SingleChildScrollView(
       padding: const EdgeInsets.only(top: 24, bottom: 32),
       child: Column(
@@ -422,7 +437,10 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
             children: [
               PortalHoverBuilder(
                 builder: (context, hovered) => GestureDetector(
-                  onTap: () => setState(() => _grupoSel = null),
+                  onTap: () => setState(() {
+                    _grupoSel = null;
+                    _prodSel = null;
+                  }),
                   behavior: HitTestBehavior.opaque,
                   child: Container(
                     width: 30,
@@ -466,203 +484,134 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          _portalGrid(g.productos),
+          if (total > 1)
+            _portalTabs(g.productos, sel.cuentaId)
+          else
+            _portalProductoSingleHeader(sel),
+          const SizedBox(height: 16),
+          ProductoPortalHistorial(producto: sel, grupo: g),
         ],
       ),
     );
   }
 
-  /// Grid responsive de productos (3 col ancho, 2 medio, 1 angosto).
-  Widget _portalGrid(List<ProductoCliente> prods) {
-    return LayoutBuilder(
-      builder: (context, cons) {
-        final cols = cons.maxWidth >= 1000
-            ? 3
-            : cons.maxWidth >= 640
-            ? 2
-            : 1;
-        const gap = 16.0;
-        final itemW = (cons.maxWidth - gap * (cols - 1)) / cols;
-        return Wrap(
-          spacing: gap,
-          runSpacing: gap,
-          children: [
-            for (final p in prods)
-              SizedBox(width: itemW, child: _portalProductoCard(p)),
+  /// Selector horizontal de productos de la propiedad (ProductoTabs del
+  /// portal): pill con icono + nombre; las inactivas muestran su chip de
+  /// estatus.
+  Widget _portalTabs(List<ProductoCliente> prods, int selectedId) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final p in prods) ...[
+            _portalTab(p, active: p.cuentaId == selectedId),
+            const SizedBox(width: 8),
           ],
-        );
-      },
+        ],
+      ),
     );
   }
 
-  /// Chip de estatus del producto (STATUS_CFG del portal): Pendiente ámbar,
-  /// En curso / Pagado en verde.
-  PortalStatusChip _portalChipEstatus(ProductoCliente p, {bool small = true}) {
-    final e = p.estatus.toLowerCase();
-    final (bg, fg) = e.contains('pagado')
-        ? (PortalColors.primarySoft15, PortalColors.primary)
-        : e.contains('curso')
-        ? (PortalColors.primarySoft10, PortalColors.primary)
-        : (PortalColors.warningSoft15, PortalColors.warning);
-    return PortalStatusChip(
-      small: small,
-      label: p.estatus,
-      background: bg,
-      foreground: fg,
-    );
-  }
-
-  /// Tarjeta de producto estilo portal: icono, nombre, chip de estatus,
-  /// avance con barra y acceso al historial (misma navegación que móvil).
-  Widget _portalProductoCard(ProductoCliente p) {
-    final descripcion = (p.descripcion ?? '').trim();
+  Widget _portalTab(ProductoCliente p, {required bool active}) {
     return PortalHoverBuilder(
       builder: (context, hovered) => GestureDetector(
-        onTap: () => context.push('/productos/${p.cuentaId}'),
+        onTap: () => setState(() => _prodSel = p.cuentaId),
         behavior: HitTestBehavior.opaque,
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: PortalColors.surface,
-            borderRadius: BorderRadius.circular(kPortalRadiusCard),
+            color: active ? PortalColors.primary : PortalColors.surface,
+            borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: hovered
+              color: active
+                  ? PortalColors.primary
+                  : hovered
                   ? PortalColors.primaryBorder30
                   : PortalColors.border,
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: PortalColors.primarySoft10,
-                      borderRadius: BorderRadius.circular(kPortalRadiusMd),
-                    ),
-                    child: const Icon(
-                      Icons.inventory_2_outlined,
-                      size: 16,
-                      color: PortalColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          p.nombre,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: portalText(size: 13, weight: FontWeight.w600),
-                        ),
-                        if (descripcion.isNotEmpty)
-                          Text(
-                            descripcion,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: portalText(
-                              size: 11,
-                              color: PortalColors.mutedForeground,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _portalChipEstatus(p),
-                ],
+              Icon(
+                Icons.inventory_2_outlined,
+                size: 14,
+                color: active ? Colors.white : PortalColors.mutedForeground,
               ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${formatMXN(p.totalPagado)} de ${formatMXN(p.precioFinal)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: portalText(
-                        size: 11,
-                        color: PortalColors.mutedForeground,
-                        tabular: true,
-                      ),
-                    ),
+              const SizedBox(width: 6),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 140),
+                child: Text(
+                  p.nombre,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: portalText(
+                    size: 12,
+                    weight: FontWeight.w500,
+                    color: active
+                        ? Colors.white
+                        : PortalColors.mutedForeground,
                   ),
-                  if (p.saldoPendiente > 0) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      'Faltan ${formatMXN(p.saldoPendiente)}',
-                      style: portalText(
-                        size: 11,
-                        weight: FontWeight.w500,
-                        color: PortalColors.warning,
-                        tabular: true,
-                      ),
-                    ),
-                  ],
-                ],
+                ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: PortalProgressBar(percent: p.avancePct, height: 8),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${p.avancePct.round()}%',
-                    style: portalText(
-                      size: 11,
-                      weight: FontWeight.w600,
-                      tabular: true,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: p.proximaFecha == null
-                        ? const SizedBox.shrink()
-                        : Align(
-                            alignment: Alignment.centerLeft,
-                            child: PortalStatusChip(
-                              small: true,
-                              label:
-                                  'Próx. pago ${portalShortDate(p.proximaFecha)}',
-                              icon: Icons.event_outlined,
-                              background: PortalColors.warningSoft10,
-                              foreground: PortalColors.warning,
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Ver historial',
-                    style: portalText(
-                      size: 12,
-                      weight: FontWeight.w600,
-                      color: PortalColors.primary,
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right,
-                    size: 14,
-                    color: PortalColors.primary,
-                  ),
-                ],
-              ),
+              if (!active) ...[
+                const SizedBox(width: 6),
+                portalProductoStatusChip(p.estatus, small: true),
+              ],
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// Cabecera de producto único (rama length == 1 de PropiedadDetail): icono,
+  /// nombre + descripción y chip de estatus.
+  Widget _portalProductoSingleHeader(ProductoCliente p) {
+    final descripcion = (p.descripcion ?? '').trim();
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: PortalColors.primarySoft10,
+            borderRadius: BorderRadius.circular(kPortalRadiusLg),
+          ),
+          child: const Icon(
+            Icons.inventory_2_outlined,
+            size: 16,
+            color: PortalColors.primary,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                p.nombre,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: portalText(size: 13, weight: FontWeight.w600),
+              ),
+              if (descripcion.isNotEmpty)
+                Text(
+                  descripcion,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: portalText(
+                    size: 11,
+                    color: PortalColors.mutedForeground,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        portalProductoStatusChip(p.estatus, small: true),
+      ],
     );
   }
 }

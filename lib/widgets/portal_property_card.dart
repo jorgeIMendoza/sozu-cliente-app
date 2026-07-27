@@ -385,13 +385,27 @@ class PortalPropertyCard extends StatelessWidget {
 // PortalAcquisitionCard — AcquisitionCard de ClienteEnAdquisicion.tsx
 // ---------------------------------------------------------------------------
 
-const List<String> _etapas = [
-  'preventa',
-  'pago_final',
-  'escrituracion',
-  'entrega',
+/// Sombra `shadow-lg shadow-black/[0.06]` que aparece en hover en las cards de
+/// adquisición (más marcada que `_hoverShadow`).
+const List<BoxShadow> _hoverShadowLg = [
+  BoxShadow(
+    color: Color(0x0F000000),
+    offset: Offset(0, 10),
+    blurRadius: 15,
+    spreadRadius: -3,
+  ),
+  BoxShadow(
+    color: Color(0x0F000000),
+    offset: Offset(0, 4),
+    blurRadius: 6,
+    spreadRadius: -4,
+  ),
 ];
-const List<String> _etapasCortas = ['Preventa', 'Pago', 'Escritura', 'Entrega'];
+
+/// Punto de color del badge de estatus sobre la imagen (statusDot del portal):
+/// `pago_final` en ámbar, resto en verde primario.
+Color _acqStatusDotColor(String? etapaActiva) =>
+    portalPropiedadDotColor(etapaActiva);
 
 class PortalAcquisitionCard extends StatelessWidget {
   final PropiedadCard item;
@@ -403,167 +417,240 @@ class PortalAcquisitionCard extends StatelessWidget {
     required this.onTap,
   });
 
-  int get _currentIdx {
-    if (item.etapaActiva == 'post_entrega') return _etapas.length;
-    return _etapas.indexOf(item.etapaActiva ?? '');
-  }
-
   @override
   Widget build(BuildContext context) {
-    final (chipBg, chipFg) = portalEstatusStyle(item.estatusDerivado);
-    final idx = _currentIdx;
+    final paidPct = item.avancePago.round();
+    final ubicacion = item.ubicacion?.trim();
+    final tieneSaldo = item.saldoPendiente > 0;
 
-    return PortalPressable(
-      builder: (context, hovered, pressed) => GestureDetector(
+    return PortalHoverBuilder(
+      builder: (context, hovered) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: const Duration(milliseconds: 200),
           transformAlignment: Alignment.center,
-          transform: pressed
-              ? Matrix4.diagonal3Values(0.985, 0.985, 1)
+          transform: hovered
+              ? Matrix4.translationValues(0, -2, 0)
               : Matrix4.identity(),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: PortalColors.surface,
             borderRadius: BorderRadius.circular(kPortalRadiusCard),
-            border: Border.all(
-              color: hovered ? PortalColors.borderSoft : PortalColors.border,
-            ),
-            boxShadow: hovered ? _hoverShadow : const [],
+            border: Border.all(color: PortalColors.border),
+            boxShadow: hovered ? _hoverShadowLg : const [],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              // ── Hero: imagen h-44 con degradado, estatus y título encima ──
+              SizedBox(
+                height: 176,
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    // Imagen 120×100 rounded-xl
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        width: 120,
-                        height: 100,
-                        child: SozuNetworkImage(url: item.urlImagen),
+                    SozuNetworkImage(url: item.urlImagen),
+                    // Degradado negro inferior para legibilidad del título.
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: 128,
+                      child: const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Color(0xE6000000),
+                              Color(0x8C000000),
+                              Color(0x00000000),
+                            ],
+                            stops: [0.0, 0.55, 1.0],
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: SizedBox(
-                        height: 100,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(child: _CardTitle(item: item)),
-                                const SizedBox(width: 8),
-                                PortalStatusChip(
-                                  small: true,
-                                  label: item.estatusDerivado,
-                                  background: chipBg,
-                                  foreground: chipFg,
-                                ),
-                              ],
+                    // Estatus: pill blanco sólido + punto de color (top-right).
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x26000000),
+                              offset: Offset(0, 2),
+                              blurRadius: 4,
                             ),
-                            // Pagado + barra 3px
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'Pagado',
-                                      style: portalText(
-                                        size: 11,
-                                        color: PortalColors.mutedForeground,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${item.avancePago.round()}%',
-                                      style: portalText(
-                                        size: 11,
-                                        weight: FontWeight.w500,
-                                        tabular: true,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                PortalThinProgressBar(
-                                  percent: item.avancePago,
-                                ),
-                              ],
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: _acqStatusDotColor(item.etapaActiva),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              item.estatusDerivado,
+                              style: portalText(
+                                size: 10,
+                                weight: FontWeight.w700,
+                                color: const Color(0xFF171717),
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
+                    // Título + ubicación sobre la imagen (abajo).
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 16,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: item.proyecto,
+                                  style: portalText(
+                                    size: 17,
+                                    weight: FontWeight.w700,
+                                    color: Colors.white,
+                                    height: 1.15,
+                                  ).copyWith(shadows: const [
+                                    Shadow(
+                                      color: Color(0x99000000),
+                                      offset: Offset(0, 1),
+                                      blurRadius: 3,
+                                    ),
+                                  ]),
+                                ),
+                                TextSpan(
+                                  text: ' · ${_unidadLabel(item)}',
+                                  style: portalText(
+                                    size: 17,
+                                    weight: FontWeight.w500,
+                                    color: const Color(0xD9FFFFFF),
+                                    height: 1.15,
+                                  ).copyWith(shadows: const [
+                                    Shadow(
+                                      color: Color(0x99000000),
+                                      offset: Offset(0, 1),
+                                      blurRadius: 3,
+                                    ),
+                                  ]),
+                                ),
+                              ],
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (ubicacion != null && ubicacion.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.place_outlined,
+                                  size: 12,
+                                  color: Color(0xE6FFFFFF),
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    ubicacion,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: portalText(
+                                      size: 11,
+                                      color: const Color(0xE6FFFFFF),
+                                    ).copyWith(shadows: const [
+                                      Shadow(
+                                        color: Color(0xB3000000),
+                                        offset: Offset(0, 1),
+                                        blurRadius: 2,
+                                      ),
+                                    ]),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-              // Mini-stepper de etapas (4 segmentos de 3px + labels 9px)
+              // ── Cuerpo: avance de pago ──
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                padding: const EdgeInsets.all(16),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        for (var i = 0; i < _etapas.length; i++) ...[
-                          if (i > 0) const SizedBox(width: 4),
-                          Expanded(
-                            child: Container(
-                              height: 3,
-                              decoration: BoxDecoration(
-                                color: idx == i
-                                    ? PortalColors.primary
-                                    : idx > i
-                                        ? PortalColors.primary
-                                            .withValues(alpha: .6)
-                                        : PortalColors.muted,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                            ),
+                        Text(
+                          'AVANCE DE PAGO',
+                          style: portalText(
+                            size: 11,
+                            weight: FontWeight.w500,
+                            color: PortalColors.mutedForeground,
+                            letterSpacing: 0.3,
                           ),
-                        ],
+                        ),
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: '$paidPct',
+                                style: portalText(
+                                  size: 15,
+                                  weight: FontWeight.w700,
+                                  tabular: true,
+                                  height: 1.0,
+                                ),
+                              ),
+                              TextSpan(
+                                text: '%',
+                                style: portalText(
+                                  size: 11,
+                                  weight: FontWeight.w600,
+                                  color: PortalColors.mutedForeground,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        for (var i = 0; i < _etapasCortas.length; i++)
-                          Text(
-                            _etapasCortas[i].toUpperCase(),
-                            style: portalText(
-                              size: 9,
-                              weight: FontWeight.w500,
-                              letterSpacing: 0.4,
-                              color: idx == i
-                                  ? PortalColors.primary
-                                  : idx > i
-                                      ? PortalColors.foreground
-                                          .withValues(alpha: .7)
-                                      : PortalColors.mutedForeground
-                                          .withValues(alpha: .6),
-                            ),
-                          ),
-                      ],
-                    ),
+                    PortalProgressBar(percent: item.avancePago, height: 6),
                   ],
                 ),
               ),
-              // Footer: próximo pago / docs / plusvalía + Ver detalle
+              // ── Footer: próximo pago / docs + Ver detalle ──
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: const BoxDecoration(
+                  color: PortalColors.mutedSoft20,
                   border: Border(
                     top: BorderSide(color: PortalColors.borderSoft),
                   ),
@@ -572,11 +659,11 @@ class PortalAcquisitionCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Wrap(
-                        spacing: 16,
+                        spacing: 12,
                         runSpacing: 4,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          if (item.saldoPendiente > 0)
+                          if (tieneSaldo)
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -590,7 +677,7 @@ class PortalAcquisitionCard extends StatelessWidget {
                                   formatMXN(item.saldoPendiente),
                                   style: portalText(
                                     size: 11,
-                                    weight: FontWeight.w500,
+                                    weight: FontWeight.w600,
                                     tabular: true,
                                   ),
                                 ),
@@ -610,7 +697,7 @@ class PortalAcquisitionCard extends StatelessWidget {
                               children: [
                                 const Icon(
                                   Icons.calendar_today_outlined,
-                                  size: 13,
+                                  size: 14,
                                   color: PortalColors.mutedForeground,
                                 ),
                                 const SizedBox(width: 6),
@@ -643,8 +730,6 @@ class PortalAcquisitionCard extends StatelessWidget {
                                 ),
                               ],
                             ),
-                          if ((item.plusvaliaPct ?? 0) > 0)
-                            _PlusvaliaText(pct: item.plusvaliaPct, size: 11),
                         ],
                       ),
                     ),
@@ -686,207 +771,272 @@ class PortalPatrimonyCard extends StatelessWidget {
     final valor = (item.valorActual != null && item.valorActual! > 0)
         ? item.valorActual!
         : item.monto;
+    final ubicacion = item.ubicacion?.trim();
 
     return PortalPressable(
       builder: (context, hovered, pressed) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: const Duration(milliseconds: 200),
           transformAlignment: Alignment.center,
-          transform: pressed
-              ? Matrix4.diagonal3Values(0.985, 0.985, 1)
+          // hover:-translate-y-0.5 del portal (la card se levanta 2px).
+          transform: hovered
+              ? Matrix4.translationValues(0, -2, 0)
               : Matrix4.identity(),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: PortalColors.surface,
             borderRadius: BorderRadius.circular(kPortalRadiusCard),
-            border: Border.all(
-              color: hovered ? PortalColors.borderSoft : PortalColors.border,
-            ),
-            boxShadow: hovered ? _hoverShadow : const [],
+            border: Border.all(color: PortalColors.border),
+            // hover:shadow-lg del portal.
+            boxShadow: hovered
+                ? const [
+                    BoxShadow(
+                      color: Color(0x0F000000),
+                      offset: Offset(0, 8),
+                      blurRadius: 24,
+                    ),
+                  ]
+                : const [],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              // ── Hero: imagen full-width (h-44), degradado y overlays ──
+              SizedBox(
+                height: 176,
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    // Imagen 120×100 con badge check de entregada
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: SizedBox(
-                            width: 120,
-                            height: 100,
-                            child: SozuNetworkImage(url: item.urlImagen),
+                    SozuNetworkImage(url: item.urlImagen),
+                    // Degradado inferior para legibilidad del título.
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Container(
+                        height: 128,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Color(0xE6000000), // black/90
+                              Color(0x8C000000), // black/55
+                              Color(0x00000000), // transparent
+                            ],
+                            stops: [0.0, 0.5, 1.0],
                           ),
                         ),
-                        Positioned(
-                          top: -6,
-                          right: -6,
-                          child: Container(
-                            width: 24,
-                            height: 24,
-                            alignment: Alignment.center,
-                            decoration: const BoxDecoration(
-                              color: PortalColors.primary,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Color(0x1A000000),
-                                  offset: Offset(0, 1),
-                                  blurRadius: 3,
-                                ),
-                              ],
+                      ),
+                    ),
+                    // Badge "Entregada": pill blanco + punto verde (top-right).
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x26000000),
+                              offset: Offset(0, 2),
+                              blurRadius: 6,
                             ),
-                            child: const Icon(
-                              Icons.check,
-                              size: 14,
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: PortalColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Entregada',
+                              style: portalText(
+                                size: 10,
+                                weight: FontWeight.w700,
+                                color: const Color(0xFF171717), // neutral-900
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Pill "Tuya desde …" (top-left, solo si hay fecha).
+                    if (item.entregadaDesde != null)
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0x8C000000), // black/55
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'Tuya desde ${formatDate(item.entregadaDesde)}',
+                            style: portalText(
+                              size: 10,
+                              weight: FontWeight.w600,
                               color: Colors.white,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(child: _CardTitle(item: item)),
-                              if (item.entregadaDesde != null) ...[
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Tuya desde '
-                                  '${formatDate(item.entregadaDesde)}',
-                                  style: portalText(
-                                    size: 10,
-                                    weight: FontWeight.w500,
-                                    color: PortalColors.mutedForeground,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          // Valor actual · Plusvalía (2 columnas con divisor)
-                          Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                top: BorderSide(color: PortalColors.borderSoft),
-                                bottom:
-                                    BorderSide(color: PortalColors.borderSoft),
-                              ),
-                            ),
-                            child: IntrinsicHeight(
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                      ),
+                    // Título "Proyecto · U-x" + ubicación sobre la imagen.
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text.rich(
+                              TextSpan(
                                 children: [
-                                  Expanded(
-                                    child: _MetricCell(
-                                      first: true,
-                                      label: 'Valor actual',
-                                      value: Text(
-                                        formatMXN(valor),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: portalText(
-                                          size: 14,
-                                          weight: FontWeight.w600,
-                                          tabular: true,
-                                        ),
-                                      ),
+                                  TextSpan(
+                                    text: item.proyecto,
+                                    style: portalText(
+                                      size: 17,
+                                      weight: FontWeight.w700,
+                                      color: Colors.white,
+                                      height: 1.15,
                                     ),
                                   ),
-                                  Expanded(
-                                    child: _MetricCell(
-                                      label: 'Plusvalía',
-                                      value: _PlusvaliaText(
-                                        pct: item.plusvaliaPct,
-                                        monto: item.plusvaliaMonto,
-                                        size: 14,
+                                  TextSpan(
+                                    text: ' · ${_unidadLabel(item)}',
+                                    style: portalText(
+                                      size: 17,
+                                      weight: FontWeight.w500,
+                                      color:
+                                          Colors.white.withValues(alpha: .85),
+                                      height: 1.15,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (ubicacion != null && ubicacion.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.place_outlined,
+                                    size: 12,
+                                    color: Colors.white.withValues(alpha: .9),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      ubicacion,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: portalText(
+                                        size: 11,
+                                        color:
+                                            Colors.white.withValues(alpha: .9),
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ),
-                        ],
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              // Footer: chip de mantenimiento + Ver detalle
+              // ── Cuerpo: Valor actual / Plusvalía en dos cajas muted ──
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _PatrimonioMetricBox(
+                          label: 'Valor actual',
+                          child: Text(
+                            formatMXN(valor),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: portalText(
+                              size: 16,
+                              weight: FontWeight.w700,
+                              tabular: true,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _PatrimonioMetricBox(
+                          label: 'Plusvalía',
+                          child: _PlusvaliaText(
+                            pct: item.plusvaliaPct,
+                            monto: item.plusvaliaMonto,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // ── Footer: chip de mantenimiento + Ver detalle ──
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: const BoxDecoration(
+                  color: PortalColors.mutedSoft20,
                   border: Border(
                     top: BorderSide(color: PortalColors.borderSoft),
                   ),
                 ),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Wrap(
-                        spacing: 12,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          // Chip de mantenimiento SIEMPRE visible: por defecto
-                          // "Al día" (success) cuando no hay registro o está al
-                          // corriente; "Pago próximo" (warning) si hay saldo.
-                          mantoPendiente
-                              ? const PortalStatusChip(
-                                  small: true,
-                                  label: 'Pago próximo',
-                                  icon: Icons.calendar_today_outlined,
-                                  background: PortalColors.warningSoft15,
-                                  foreground: PortalColors.warning,
-                                )
-                              : const PortalStatusChip(
-                                  small: true,
-                                  label: 'Al día',
-                                  icon: Icons.check_circle_outline,
-                                  background: PortalColors.primarySoft15,
-                                  foreground: PortalColors.primary,
-                                ),
-                          if (mantoPendiente && manto.proximoPago != null)
-                            Text(
-                              'Próx. ${formatMXN(manto.saldoPendiente)} · '
-                              '${formatDate(manto.proximoPago)}',
-                              style: portalText(
-                                size: 11,
-                                color: PortalColors.mutedForeground,
-                              ),
-                            ),
-                          Text(
-                            '· Uso propio',
-                            style: portalText(
-                              size: 11,
-                              color: PortalColors.mutedForeground,
-                            ),
+                    // Chip de mantenimiento SIEMPRE visible: por defecto
+                    // "Al día" (success) cuando no hay registro o está al
+                    // corriente; "Pago próximo" (warning) si hay saldo.
+                    mantoPendiente
+                        ? const PortalStatusChip(
+                            small: true,
+                            label: 'Pago próximo',
+                            icon: Icons.calendar_today_outlined,
+                            background: PortalColors.warningSoft15,
+                            foreground: PortalColors.warning,
+                          )
+                        : const PortalStatusChip(
+                            small: true,
+                            label: 'Al día',
+                            icon: Icons.check_circle_outline,
+                            background: PortalColors.primarySoft15,
+                            foreground: PortalColors.primary,
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
                     _VerDetalle(hovered: hovered),
                   ],
                 ),
               ),
-              // Banner ámbar de mantenimiento pendiente
+              // ── Banner ámbar de mantenimiento pendiente ──
               if (mantoPendiente)
                 Container(
                   padding:
@@ -929,6 +1079,45 @@ class PortalPatrimonyCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Caja de métrica de la PortalPatrimonyCard: fondo muted suave, radio 12,
+/// label 10px uppercase + valor (réplica de los `bg-muted/40 rounded-xl p-3`
+/// de PatrimonyCard.tsx del portal).
+class _PatrimonioMetricBox extends StatelessWidget {
+  final String label;
+  final Widget child;
+
+  const _PatrimonioMetricBox({required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: PortalColors.muted.withValues(alpha: .4),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: portalText(
+              size: 10,
+              color: PortalColors.mutedForeground,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+          child,
+        ],
       ),
     );
   }

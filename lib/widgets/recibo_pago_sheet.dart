@@ -7,6 +7,7 @@ import '../core/open_media.dart';
 import '../core/theme.dart';
 import '../data/api_client.dart';
 import '../data/models.dart';
+import '../providers/data_providers.dart';
 import '../providers/impersonation_provider.dart';
 import 'common.dart';
 
@@ -25,6 +26,16 @@ class ReciboPagoData {
   final String? urlCep;
   final String? claveRastreo;
 
+  // — Campos ricos del recibo (espejo del PaymentReceiptModal del portal).
+  //   Los provee cliente-pagos en `historial`; degradan a null en las tablas
+  //   cuyo modelo no los expone (aplicaciones / pagos de estado de cuenta). —
+  final String? rfc;
+  final String? clabe; // CLABE enmascarada (solo últimos 4)
+  final String? referenciaStp; // referencia STP (SOZU-<cuenta>)
+  final double? saldo; // saldo pendiente de la propiedad
+  final double? totalPagado; // total pagado acumulado
+  final double? valorActivo; // valor total del activo
+
   const ReciboPagoData({
     required this.id,
     required this.fechaPago,
@@ -35,10 +46,17 @@ class ReciboPagoData {
     this.urlRecibo,
     this.urlCep,
     this.claveRastreo,
+    this.rfc,
+    this.clabe,
+    this.referenciaStp,
+    this.saldo,
+    this.totalPagado,
+    this.valorActivo,
   });
 
-  /// Desde el historial de pagos (cliente-pagos). No trae clave de rastreo.
-  ReciboPagoData.fromHistorial(HistorialPago p, {this.claveRastreo})
+  /// Desde el historial de pagos (cliente-pagos): trae los campos ricos del
+  /// recibo (RFC, CLABE, referencia bancaria, resumen de la propiedad).
+  ReciboPagoData.fromHistorial(HistorialPago p, {String? claveRastreo})
     : id = p.id,
       fechaPago = p.fechaPago,
       concepto = p.concepto,
@@ -46,7 +64,14 @@ class ReciboPagoData {
       metodo = p.metodo,
       monto = p.monto,
       urlRecibo = p.urlRecibo,
-      urlCep = p.urlCep;
+      urlCep = p.urlCep,
+      claveRastreo = claveRastreo ?? p.claveRastreo,
+      rfc = p.rfc,
+      clabe = p.clabe,
+      referenciaStp = p.referenciaStp,
+      saldo = p.saldo,
+      totalPagado = p.totalPagado,
+      valorActivo = p.valorActivo;
 
   /// Desde un pago del estado de cuenta (sin plan de pagos). El concepto y la
   /// propiedad los aporta la pantalla; degradan a lo disponible.
@@ -61,7 +86,13 @@ class ReciboPagoData {
        monto = p.monto,
        urlRecibo = p.urlRecibo,
        urlCep = p.urlCep,
-       claveRastreo = p.referencia;
+       claveRastreo = p.referencia,
+       rfc = null,
+       clabe = null,
+       referenciaStp = null,
+       saldo = null,
+       totalPagado = null,
+       valorActivo = null;
 
   /// Desde una aplicación de pago (abono a un acuerdo). El concepto del acuerdo
   /// y la propiedad los aporta la pantalla.
@@ -75,12 +106,20 @@ class ReciboPagoData {
        monto = a.monto,
        urlRecibo = a.urlRecibo,
        urlCep = a.urlCep,
-       claveRastreo = a.claveRastreo;
+       claveRastreo = a.claveRastreo,
+       rfc = null,
+       clabe = null,
+       referenciaStp = null,
+       saldo = null,
+       totalPagado = null,
+       valorActivo = null;
 }
 
-/// Sheet de recibo in-app (espejo simplificado del PaymentReceiptModal del
-/// portal admin): folio copiable, datos del pago, monto grande y acciones
-/// "Ver PDF" (genera el recibo bajo demanda si no existe) y "CEP".
+/// Sheet de recibo in-app (espejo del PaymentReceiptModal del portal): folio
+/// copiable, cliente/RFC, propiedad, concepto, método, CLABE vinculada y
+/// referencia bancaria, monto grande, resumen actualizado de la propiedad
+/// (valor del activo, total pagado, saldo y progreso) y acciones "Ver PDF"
+/// (genera el recibo bajo demanda si no existe) y "CEP".
 Future<void> showReciboPagoSheet(
   BuildContext context, {
   required HistorialPago pago,
@@ -158,6 +197,36 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
   Widget build(BuildContext context) {
     final tone = SozuTone.of(context);
     final p = widget.data;
+
+    // Datos ricos del recibo (espejo del PaymentReceiptModal del portal). El
+    // nombre del cliente y el proyecto se leen de la caché con valueOrNull: si
+    // aún no están, cada fila degrada (se oculta) sin bloquear el recibo.
+    final perfil = ref.watch(clientePerfilProvider).valueOrNull;
+    final cliente = (perfil?.nombreLegal.trim().isNotEmpty ?? false)
+        ? perfil!.nombreLegal
+        : null;
+    final rfc = (p.rfc?.trim().isNotEmpty ?? false)
+        ? p.rfc
+        : ((perfil?.rfc?.trim().isNotEmpty ?? false) ? perfil!.rfc : null);
+    final props = ref.watch(clientePropiedadesProvider).valueOrNull;
+    String? proyecto;
+    for (final c in [...?props?.enAdquisicion, ...?props?.patrimonioActivo]) {
+      if (c.nombre == p.propiedad) {
+        proyecto = c.proyecto;
+        break;
+      }
+    }
+    final propiedadLabel = proyecto != null
+        ? '$proyecto · U-${p.propiedad}'
+        : 'U${p.propiedad}';
+
+    // Resumen actualizado de la propiedad (solo cuando el backend lo expone).
+    final tieneResumen =
+        p.valorActivo != null || p.totalPagado != null || p.saldo != null;
+    final valorActivo = p.valorActivo ?? 0;
+    final progreso = valorActivo > 0
+        ? ((p.totalPagado ?? 0) / valorActivo * 100).clamp(0, 100).toDouble()
+        : 0.0;
 
     return Container(
       constraints: BoxConstraints(
@@ -270,7 +339,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        'Fecha de pago',
+                        'Fecha de emisión',
                         style: TextStyle(fontSize: 11, color: tone.textMuted),
                       ),
                       const SizedBox(height: 2),
@@ -287,6 +356,16 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                 ],
               ),
               const SizedBox(height: 16),
+              Text(
+                'Información del pago',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
+                  color: tone.textMuted,
+                ),
+              ),
+              const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
                   border: Border.all(color: tone.border),
@@ -294,23 +373,38 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                 ),
                 child: Column(
                   children: [
+                    if (cliente != null) ...[
+                      _fila(tone, 'Cliente', cliente),
+                      Divider(color: tone.border, height: 1),
+                    ],
+                    if (rfc != null) ...[
+                      _fila(tone, 'RFC', rfc, mono: true),
+                      Divider(color: tone.border, height: 1),
+                    ],
+                    _fila(tone, 'Propiedad', propiedadLabel),
+                    Divider(color: tone.border, height: 1),
                     _fila(tone, 'Concepto', p.concepto),
                     Divider(color: tone.border, height: 1),
-                    _fila(tone, 'Propiedad', 'U${p.propiedad}'),
-                    Divider(color: tone.border, height: 1),
                     _fila(tone, 'Método de pago', p.metodo),
+                    if ((p.clabe ?? '').isNotEmpty) ...[
+                      Divider(color: tone.border, height: 1),
+                      _fila(tone, 'CLABE vinculada', p.clabe!, mono: true),
+                    ],
                     if ((p.claveRastreo ?? '').isNotEmpty) ...[
                       Divider(color: tone.border, height: 1),
                       _fila(
                         tone,
-                        'Clave de rastreo',
+                        'Referencia bancaria',
                         p.claveRastreo!,
+                        mono: true,
                         onCopiar: () => _copiar(
                           p.claveRastreo!,
-                          'Clave de rastreo copiada',
+                          'Referencia copiada',
                         ),
                       ),
                     ],
+                    Divider(color: tone.border, height: 1),
+                    _fila(tone, 'Fecha de confirmación', formatDate(p.fechaPago)),
                   ],
                 ),
               ),
@@ -344,6 +438,112 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                     Text(
                       'MXN',
                       style: TextStyle(fontSize: 11, color: tone.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              if (tieneResumen) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Resumen actualizado de la propiedad',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1,
+                    color: tone.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: tone.border),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      _resumenRow(
+                        tone,
+                        'Valor total del activo',
+                        formatMXN(p.valorActivo ?? 0),
+                      ),
+                      const SizedBox(height: 12),
+                      _resumenRow(
+                        tone,
+                        'Total pagado acumulado',
+                        formatMXN(p.totalPagado ?? 0),
+                        color: tone.primaryDark,
+                      ),
+                      const SizedBox(height: 12),
+                      _resumenRow(
+                        tone,
+                        'Saldo pendiente',
+                        formatMXN(p.saldo ?? 0),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Progreso de pago',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: tone.textSecondary,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${progreso.round()}%',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: tone.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: progreso / 100,
+                          minHeight: 6,
+                          backgroundColor: tone.surfaceAlt,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            tone.primaryDark,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: tone.surfaceAlt,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.shield_outlined,
+                      size: 14,
+                      color: tone.primaryDark,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Este recibo fue generado automáticamente tras la '
+                        'confirmación del pago por STP.',
+                        style: TextStyle(
+                          fontSize: 10,
+                          height: 1.4,
+                          color: tone.textSecondary,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -417,6 +617,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
     SozuTone tone,
     String label,
     String value, {
+    bool mono = false,
     VoidCallback? onCopiar,
   }) {
     return Padding(
@@ -435,6 +636,10 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: tone.textPrimary,
+                fontFeatures: mono
+                    ? const [FontFeature.tabularFigures()]
+                    : null,
+                letterSpacing: mono ? 0.3 : null,
               ),
             ),
           ),
@@ -451,6 +656,35 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
           ],
         ],
       ),
+    );
+  }
+
+  /// Fila del resumen de la propiedad: etiqueta a la izquierda, importe a la
+  /// derecha (con color opcional para "Total pagado acumulado").
+  Widget _resumenRow(
+    SozuTone tone,
+    String label,
+    String value, {
+    Color? color,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 12, color: tone.textSecondary),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: color ?? tone.textPrimary,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
     );
   }
 }
