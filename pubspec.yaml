@@ -37,6 +37,24 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  # Generación de íconos de launcher (Android/iOS) a partir del ícono SOZU.
+  flutter_launcher_icons: ^0.14.3
+  # Usado por tool/gen_icons.dart para derivar el foreground del adaptive icon
+  # y las siluetas blancas del ícono de notificación (ic_stat_sozu).
+  image: ^4.5.4
+
+# Config de flutter_launcher_icons. Fuente: el ícono SOZU de la web (cuadro
+# negro con el pin blanco). NO se generan íconos web aquí (web ya está bien).
+flutter_launcher_icons:
+  image_path: "web/icons/Icon-512.png"
+  android: "ic_launcher"
+  ios: true
+  remove_alpha_ios: true
+  # Adaptive icon (Android 8+): fondo negro de marca + pin blanco recortado
+  # sobre transparente (generado por tool/gen_icons.dart) para que el launcher
+  # muestre el pin de SOZU, no el logo de Flutter.
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/icon/ic_launcher_foreground.png"
 
 flutter:
   uses-material-design: true

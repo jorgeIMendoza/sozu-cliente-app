@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#000000</color>
+    <!-- Color de acento del ícono de notificación (verde de marca SOZU). -->
+    <color name="sozu_notif">#239F6D</color>
+</resources>
