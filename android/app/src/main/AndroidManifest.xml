@@ -35,6 +35,16 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Ícono de notificación de FCM (push): silueta blanca del pin SOZU
+             sobre transparente. Sin esto, el status bar usa el launcher y se
+             ve un cuadro/blob blanco. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_sozu" />
+        <!-- Color de acento (fondo del ícono pequeño en la notificación). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/sozu_notif" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
