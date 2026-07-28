@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/theme.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/password_rules.dart';
+import 'auth_widgets.dart';
 
 /// Cambio OBLIGATORIO de contraseña temporal (debe_cambiar_password=true).
+/// Réplica del card del portal admin (`auth/ChangePassword.tsx`): misma tarjeta
+/// blanca de auth, logo SOZU, textos y checklist de requisitos.
 class ChangePasswordForcedScreen extends ConsumerStatefulWidget {
   const ChangePasswordForcedScreen({super.key});
 
@@ -23,6 +25,20 @@ class _ChangePasswordForcedScreenState
   bool _submitting = false;
   String? _formError;
   String _pwdValue = '';
+  bool _showPwd = false;
+  bool _showConfirm = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // El checklist de reglas se actualiza en vivo; AuthTextField no expone
+    // onChanged, así que escuchamos el controller directamente.
+    _pwd.addListener(() {
+      if (_pwdValue != _pwd.text) {
+        setState(() => _pwdValue = _pwd.text);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -39,6 +55,10 @@ class _ChangePasswordForcedScreenState
     });
     try {
       await ref.read(authProvider).updatePassword(_pwd.text);
+      // Divergencia intencional con el portal admin: allá se hace
+      // signOut → /login tras cambiar la contraseña. Aquí la app conserva la
+      // sesión por diseño (SecureSessionStorage / biometría), así que tras el
+      // éxito entramos directo a /inicio sin cerrar sesión.
       if (mounted) context.go('/inicio');
     } catch (_) {
       setState(() {
@@ -48,123 +68,123 @@ class _ChangePasswordForcedScreenState
     }
   }
 
+  Future<void> _cerrarSesion() async {
+    await ref.read(authProvider).signOut();
+    if (mounted) context.go('/login');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
-    return Scaffold(
-      backgroundColor: tone.surface,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Column(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: tone.primarySoft,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.lock_outline,
-                              color: SozuColors.emerald600, size: 26),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Crea tu contraseña',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: tone.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tu acceso es temporal. Define una contraseña personal '
-                          'para continuar.',
-                          textAlign: TextAlign.center,
-                          style:
-                              TextStyle(fontSize: 14, color: tone.textSecondary),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
+    return AuthScaffold(
+      child: AuthCard(
+        children: [
+          const AuthLogo(),
+          const SizedBox(height: 28),
+          const AuthTitle('Cambiar Contraseña'),
+          const SizedBox(height: 10),
+          const AuthSubtitle(
+            'Por seguridad, debes cambiar tu contraseña temporal antes de '
+            'continuar',
+          ),
+          const SizedBox(height: 28),
+          Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_formError != null) ...[
+                  AuthAlert(
+                    kind: AuthAlertKind.error,
+                    icon: Icons.error_outline,
+                    message: _formError!,
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
-                    TextFormField(
-                      controller: _pwd,
-                      obscureText: true,
-                      decoration:
-                          const InputDecoration(hintText: 'Nueva contraseña'),
-                      onChanged: (v) => setState(() => _pwdValue = v),
-                      validator: (v) =>
-                          passwordValida(v ?? '') ? null : 'Cumple todas las reglas',
+                const AuthFieldLabel('Nueva contraseña'),
+                AuthTextField(
+                  controller: _pwd,
+                  hintText: '••••••••',
+                  obscureText: !_showPwd,
+                  autofillHints: const [AutofillHints.newPassword],
+                  textInputAction: TextInputAction.next,
+                  suffixIcon: IconButton(
+                    tooltip: _showPwd
+                        ? 'Ocultar contraseña'
+                        : 'Mostrar contraseña',
+                    icon: Icon(
+                      _showPwd
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      size: 18,
+                      color: AuthColors.textMuted,
                     ),
-                    const SizedBox(height: 12),
-                    PasswordRulesChecklist(value: _pwdValue),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _confirm,
-                      obscureText: true,
-                      decoration:
-                          const InputDecoration(hintText: 'Confirmar contraseña'),
-                      validator: (v) =>
-                          v == _pwd.text ? null : 'Las contraseñas no coinciden',
-                    ),
-
-                    if (_formError != null) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: tone.negative.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          _formError!,
-                          style: TextStyle(fontSize: 14, color: tone.negative),
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: _submitting ? null : _submit,
-                      child: _submitting
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2.5),
-                            )
-                          : const Text('Guardar y continuar'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () async {
-                        await ref.read(authProvider).signOut();
-                        if (context.mounted) context.go('/login');
-                      },
-                      child: Text(
-                        'Cancelar y salir',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: tone.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
+                    onPressed: () => setState(() => _showPwd = !_showPwd),
+                  ),
+                  validator: (v) =>
+                      passwordValida(v ?? '') ? null : 'Cumple todas las reglas',
                 ),
-              ),
+                const SizedBox(height: 16),
+
+                const AuthFieldLabel('Confirmar contraseña'),
+                AuthTextField(
+                  controller: _confirm,
+                  hintText: '••••••••',
+                  obscureText: !_showConfirm,
+                  autofillHints: const [AutofillHints.newPassword],
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _submit(),
+                  suffixIcon: IconButton(
+                    tooltip: _showConfirm
+                        ? 'Ocultar contraseña'
+                        : 'Mostrar contraseña',
+                    icon: Icon(
+                      _showConfirm
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      size: 18,
+                      color: AuthColors.textMuted,
+                    ),
+                    onPressed: () =>
+                        setState(() => _showConfirm = !_showConfirm),
+                  ),
+                  validator: (v) =>
+                      v == _pwd.text ? null : 'Las contraseñas no coinciden',
+                ),
+                const SizedBox(height: 20),
+
+                // Checklist de requisitos con encabezado (como el portal).
+                const Text(
+                  'Requisitos:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AuthColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                PasswordRulesChecklist(value: _pwdValue),
+                const SizedBox(height: 20),
+
+                AuthPrimaryButton(
+                  label: 'Cambiar Contraseña',
+                  icon: Icons.vpn_key_outlined,
+                  loading: _submitting,
+                  loadingLabel: 'Cambiando contraseña...',
+                  onPressed: _submitting ? null : _submit,
+                ),
+              ],
             ),
           ),
-        ),
+          const SizedBox(height: 20),
+          Center(
+            child: AuthLink(
+              label: 'Cerrar sesión',
+              icon: Icons.logout,
+              onPressed: _cerrarSesion,
+            ),
+          ),
+        ],
       ),
     );
   }

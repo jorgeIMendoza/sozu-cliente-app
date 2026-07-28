@@ -15,6 +15,7 @@ import '../widgets/biometric_tile.dart';
 import '../widgets/common.dart';
 import '../widgets/expediente_card.dart';
 import '../widgets/fx.dart';
+import '../widgets/network_image.dart';
 import '../widgets/perfil_section_card.dart';
 import '../widgets/perfil_sheets.dart';
 import '../widgets/portal_widgets.dart';
@@ -201,23 +202,29 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
           children: [
             Row(
               children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: PortalColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    // El portal usa una sola inicial (displayName.charAt(0)).
-                    nombre.trim().isNotEmpty
-                        ? nombre.trim()[0].toUpperCase()
-                        : '?',
-                    style: portalText(
-                      size: 22,
-                      weight: FontWeight.w800,
-                      color: Colors.white,
+                _PerfilAvatar(
+                  fotoUrl: p?.fotoPerfilUrl,
+                  size: 52,
+                  showBadge: p != null && !impersonating,
+                  onTap: p != null ? () => showAvatarSheet(context, p) : null,
+                  fallback: Container(
+                    width: 52,
+                    height: 52,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: PortalColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      // El portal usa una sola inicial (displayName.charAt(0)).
+                      nombre.trim().isNotEmpty
+                          ? nombre.trim()[0].toUpperCase()
+                          : '?',
+                      style: portalText(
+                        size: 22,
+                        weight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -464,9 +471,17 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                       final wide = c.maxWidth >= 560;
                       final identity = Row(
                         children: [
-                          SozuAvatar(
-                              iniciales: p?.iniciales ?? initials(nombre),
-                              size: 52),
+                          _PerfilAvatar(
+                            fotoUrl: p?.fotoPerfilUrl,
+                            size: 52,
+                            showBadge: p != null && !impersonating,
+                            onTap: p != null
+                                ? () => showAvatarSheet(context, p)
+                                : null,
+                            fallback: SozuAvatar(
+                                iniciales: p?.iniciales ?? initials(nombre),
+                                size: 52),
+                          ),
                           const SizedBox(width: 14),
                           Expanded(
                             child: Column(
@@ -776,6 +791,92 @@ class _PushPrefSwitchState extends State<_PushPrefSwitch> {
             onChanged: _disponible ? _cambiar : null,
           ),
       ],
+    );
+  }
+}
+
+/// Avatar del header de identidad: muestra la foto (`fotoPerfilUrl`) recortada
+/// en círculo si existe, con fallback a las iniciales (widget [fallback]).
+/// Cuando [showBadge] es true dibuja el badge de cámara (esquina inferior
+/// derecha) y hace tappable todo el avatar ([onTap] abre la gestión de foto).
+/// El badge se oculta al impersonar (showBadge=false) — espejo del botón de
+/// avatar de ClientePerfil.tsx.
+class _PerfilAvatar extends StatelessWidget {
+  final String? fotoUrl;
+  final Widget fallback;
+  final double size;
+  final bool showBadge;
+  final VoidCallback? onTap;
+
+  const _PerfilAvatar({
+    required this.fotoUrl,
+    required this.fallback,
+    required this.size,
+    required this.showBadge,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    final hasFoto = (fotoUrl ?? '').isNotEmpty;
+    final img = hasFoto
+        ? ClipOval(
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: SozuNetworkImage(
+                url: fotoUrl,
+                placeholderIcon: Icons.person_outline,
+              ),
+            ),
+          )
+        : fallback;
+
+    final content = SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(child: img),
+          if (showBadge)
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: Container(
+                width: 22,
+                height: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: tone.surface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: tone.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Icon(Icons.photo_camera,
+                    size: 12, color: tone.textSecondary),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    if (!showBadge || onTap == null) return content;
+    return Semantics(
+      button: true,
+      label: 'Cambiar foto de perfil',
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: content,
+      ),
     );
   }
 }

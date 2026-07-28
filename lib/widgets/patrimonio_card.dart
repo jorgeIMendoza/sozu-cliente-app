@@ -240,7 +240,11 @@ class PatrimonioCard extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Mantenimiento pendiente ${formatMXN(m.saldoPendiente)}',
+              // Cuota MENSUAL de mantenimiento (decisión de producto, igual que
+              // el portal). Degrada al saldo pendiente si el backend no manda cuota.
+              item.cuotaMensual > 0
+                  ? 'Mantenimiento · ${formatMXN(item.cuotaMensual)} /mes'
+                  : 'Mantenimiento pendiente ${formatMXN(m.saldoPendiente)}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(

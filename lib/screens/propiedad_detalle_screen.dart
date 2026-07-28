@@ -129,15 +129,27 @@ class _PropiedadDetalleScreenState
         data: (d) => ListView(
           padding: const EdgeInsets.only(bottom: 32),
           children: [
-            // Hero (transición compartida con la imagen de la tarjeta)
-            Hero(
-              tag: 'prop-img-${widget.cuentaId}',
-              child: SizedBox(
-                height: 200,
-                width: double.infinity,
-                child: SozuNetworkImage(url: d.urlImagen),
+            // Hero (transición compartida con la imagen de la tarjeta). Si el
+            // backend manda galería, se reemplaza por un carrusel (mismo alto).
+            if (d.galeria.isEmpty)
+              Hero(
+                tag: 'prop-img-${widget.cuentaId}',
+                child: SizedBox(
+                  height: 200,
+                  width: double.infinity,
+                  child: SozuNetworkImage(url: d.urlImagen),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: _GaleriaCarrusel(
+                  fotos: _galeriaItems(d),
+                  titulo: '${d.proyecto} · U-${d.unidad}',
+                  radius: 16,
+                  height: 200,
+                ),
               ),
-            ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
@@ -734,12 +746,28 @@ class _PropiedadDetalleScreenState
           child: CronogramaPagos(portal: true, esquemaPago: d.esquemaPago),
         );
 
-      // Avance de obra → card con datos del backend; si aún no hay datos,
-      // empty state discreto dentro de la pestaña (no se inventa nada).
+      // Avance de obra → tarjeta de video (si hay) + card de datos del
+      // backend; si aún no hay datos ni video, empty state discreto dentro de
+      // la pestaña (no se inventa nada).
       case _DetailTab.obra:
-        return d.avanceObra != null
-            ? _portalAvanceObra(d.avanceObra!)
-            : _portalAvanceObraVacio();
+        final videoUrl = d.videoObraUrl?.trim();
+        final tieneVideo = videoUrl != null && videoUrl.isNotEmpty;
+        final secciones = <Widget>[
+          if (tieneVideo) _portalVideoObra(videoUrl),
+          if (d.avanceObra != null)
+            _portalAvanceObra(d.avanceObra!)
+          else if (!tieneVideo)
+            _portalAvanceObraVacio(),
+        ];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < secciones.length; i++) ...[
+              if (i > 0) const SizedBox(height: 16),
+              secciones[i],
+            ],
+          ],
+        );
 
       // Documentos → sección de documentos de la propiedad.
       case _DetailTab.docs:
@@ -1015,8 +1043,18 @@ class _PropiedadDetalleScreenState
   }
 
   /// Imagen principal (PropertyImage del portal): aspect-video con radio de
-  /// card; clic abre el visor a pantalla completa (lightbox).
+  /// card; clic abre el visor a pantalla completa (lightbox). Si el backend
+  /// manda galería, se convierte en un carrusel (imagen grande + flechas +
+  /// miniaturas + dots + badge de categoría).
   Widget _portalImagen(PropiedadDetalle d) {
+    if (d.galeria.isNotEmpty) {
+      return _GaleriaCarrusel(
+        fotos: _galeriaItems(d),
+        titulo: '${d.proyecto} · U-${d.unidad}',
+        radius: kPortalRadiusCard,
+        aspectRatio: 16 / 9,
+      );
+    }
     final url = d.urlImagen;
     final imagen = ClipRRect(
       borderRadius: BorderRadius.circular(kPortalRadiusCard),
@@ -1034,6 +1072,26 @@ class _PropiedadDetalleScreenState
         child: imagen,
       ),
     );
+  }
+
+  /// Construye la lista de slides de la galería: antepone la portada
+  /// (`urlImagen`) como primer slide si aún no está incluida y deduplica por
+  /// URL, respetando el orden que envía el backend.
+  List<({String url, String categoria})> _galeriaItems(PropiedadDetalle d) {
+    final items = <({String url, String categoria})>[];
+    final seen = <String>{};
+    void push(String? url, String cat) {
+      final u = url?.trim();
+      if (u != null && u.isNotEmpty && seen.add(u)) {
+        items.add((url: u, categoria: cat));
+      }
+    }
+
+    push(d.urlImagen, 'proyecto');
+    for (final f in d.galeria) {
+      push(f.url, f.categoria);
+    }
+    return items;
   }
 
   // ── Productos adicionales (card única con filas, estilo portal) ──
@@ -1441,6 +1499,7 @@ class _PropiedadDetalleScreenState
               ],
             ),
           ),
+          ..._portalDesgloseEscrituracion(d),
           if (d.entrega.trim().isNotEmpty && d.entrega != '—') ...[
             const SizedBox(height: 12),
             Row(
@@ -1483,6 +1542,199 @@ class _PropiedadDetalleScreenState
         ],
       ),
     );
+  }
+
+  /// "Desglose a escrituración" del FinancialSideCard del portal
+  /// (PropertyAcquisitionDetail.tsx). Renglón por concepto → monto restante,
+  /// con "Lista" (precio total) debajo y badge "Incluido"/"Pagado" según el
+  /// estado del complemento. El monto grande es lo que falta pagar para
+  /// escriturar; cada complemento se paga en su propia cuenta, aparte del
+  /// departamento. Se oculta por completo si no hay complementos.
+  List<Widget> _portalDesgloseEscrituracion(PropiedadDetalle d) {
+    final complementos = d.productos;
+    if (complementos.isEmpty) return const [];
+
+    double nonNeg(double v) => v < 0 ? 0.0 : v;
+    // Restante por producto = precio total × (1 − avance%); el modelo del
+    // detalle no expone saldo_pendiente por producto, se deriva de avance.
+    double restanteDe(ProductoDetalle p) =>
+        (p.monto * (1 - (p.avance / 100))).clamp(0.0, nonNeg(p.monto)).toDouble();
+
+    final precioDepto = nonNeg(d.montoEfectivo);
+    final restanteDepto = nonNeg(d.saldoPendienteEfectivo);
+    final precioComplementos =
+        complementos.fold<double>(0, (s, p) => s + nonNeg(p.monto));
+    final restanteComplementos =
+        complementos.fold<double>(0, (s, p) => s + restanteDe(p));
+    final precioTotal = precioDepto + precioComplementos;
+    final totalEscriturar = restanteDepto + restanteComplementos;
+
+    Widget badge(String text) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: PortalColors.primarySoft10,
+        border: Border.all(color: PortalColors.primaryBorder30),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: portalText(
+          size: 10,
+          weight: FontWeight.w600,
+          color: PortalColors.primary,
+        ),
+      ),
+    );
+
+    Widget listaLabel(double monto) => Text(
+      'Lista ${formatMXN(monto)}',
+      style: portalText(
+        size: 10,
+        color: PortalColors.mutedForeground,
+        tabular: true,
+      ),
+    );
+
+    Widget montoGrande(double monto, {bool bold = false}) => Text(
+      formatMXN(monto),
+      style: portalText(
+        size: 13,
+        weight: bold ? FontWeight.w700 : FontWeight.w600,
+        tabular: true,
+        height: 1.2,
+      ),
+    );
+
+    Widget row({
+      required String concepto,
+      required Widget right,
+      required bool first,
+      bool conceptoBold = false,
+      Color? background,
+    }) {
+      return Container(
+        decoration: BoxDecoration(
+          color: background,
+          border: first
+              ? null
+              : const Border(
+                  top: BorderSide(color: PortalColors.borderSoft),
+                ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                concepto,
+                style: portalText(
+                  size: 12,
+                  weight: conceptoBold ? FontWeight.w600 : FontWeight.w400,
+                  color: conceptoBold
+                      ? PortalColors.foreground
+                      : PortalColors.mutedForeground,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            right,
+          ],
+        ),
+      );
+    }
+
+    final rows = <Widget>[
+      // Departamento
+      row(
+        first: true,
+        concepto: 'Departamento',
+        right: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [montoGrande(restanteDepto), listaLabel(precioDepto)],
+        ),
+      ),
+      // Complementos (estacionamiento / bodega / etc.)
+      for (final p in complementos)
+        Builder(
+          builder: (_) {
+            final incluido = p.monto <= 0.01;
+            final pagado = !incluido && restanteDe(p) <= 0.01;
+            final Widget right;
+            if (incluido) {
+              right = badge('Incluido');
+            } else if (pagado) {
+              right = Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  badge('Pagado'),
+                  const SizedBox(height: 2),
+                  listaLabel(p.monto),
+                ],
+              );
+            } else {
+              right = Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [montoGrande(restanteDe(p)), listaLabel(p.monto)],
+              );
+            }
+            return row(first: false, concepto: p.nombre, right: right);
+          },
+        ),
+      // Total a escriturar
+      row(
+        first: false,
+        concepto: 'Total a escriturar',
+        conceptoBold: true,
+        background: PortalColors.primary.withValues(alpha: .04),
+        right: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            montoGrande(totalEscriturar, bold: true),
+            listaLabel(precioTotal),
+          ],
+        ),
+      ),
+    ];
+
+    return [
+      const SizedBox(height: 16),
+      Container(
+        padding: const EdgeInsets.only(bottom: 16),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: PortalColors.border)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const PortalSectionLabel('Desglose a escrituración', size: 10),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: PortalColors.mutedSoft30,
+                border: Border.all(color: PortalColors.border),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Column(children: rows),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'El monto grande es lo que falta pagar (restante) para '
+              'escriturar; "Lista" es el precio total. Cada complemento se '
+              'paga en su propia cuenta, aparte del departamento.',
+              style: portalText(
+                size: 10,
+                color: PortalColors.mutedForeground,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
   }
 
   /// CTA contextual del card financiero (getContextualCTA del portal):
@@ -1761,6 +2013,90 @@ class _PropiedadDetalleScreenState
     return d != null ? formatDate(d) : raw;
   }
 
+  /// Extrae el id de YouTube de una URL embed/watch/short (para derivar el
+  /// thumbnail). null si no reconoce el formato.
+  String? _youtubeId(String url) {
+    for (final re in [
+      RegExp(r'youtube\.com/embed/([\w-]{6,})'),
+      RegExp(r'youtu\.be/([\w-]{6,})'),
+      RegExp(r'[?&]v=([\w-]{6,})'),
+      RegExp(r'youtube\.com/shorts/([\w-]{6,})'),
+    ]) {
+      final m = re.firstMatch(url);
+      if (m != null) return m.group(1);
+    }
+    return null;
+  }
+
+  // ── Card "RECORRIDO DEL AVANCE" (video embebido del ConstructionProgress
+  // del portal). Thumbnail de YouTube + botón de play; al tocar abre el video
+  // externamente. Se muestra solo si el backend manda `video_obra_url`.
+  Widget _portalVideoObra(String url) {
+    final id = _youtubeId(url);
+    final thumb = id != null ? 'https://img.youtube.com/vi/$id/hqdefault.jpg' : null;
+    return PortalCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.play_circle_outline,
+                size: 14,
+                color: PortalColors.mutedForeground,
+              ),
+              SizedBox(width: 8),
+              PortalSectionLabel('Recorrido del avance'),
+            ],
+          ),
+          const SizedBox(height: 14),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () => _abrirUrlExterna(url),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(kPortalRadiusCard),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (thumb != null)
+                        SozuNetworkImage(
+                          url: thumb,
+                          placeholderIcon: Icons.videocam_outlined,
+                        )
+                      else
+                        Container(color: Colors.black),
+                      // Velo oscuro para resaltar el botón de play.
+                      Container(color: Colors.black26),
+                      Center(
+                        child: Container(
+                          width: 56,
+                          height: 56,
+                          decoration: const BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.play_arrow_rounded,
+                            size: 34,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Card "AVANCE DE OBRA" (ConstructionProgress del portal, sin video) ─────
   // Card nueva: lee AvanceObra del modelo (% global + hitos + entrega
   // estimada). Se muestra solo cuando el objeto viene del backend.
@@ -1957,6 +2293,248 @@ class _PropiedadDetalleScreenState
               tabular: true,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Etiqueta legible para el badge de categoría de la galería (espejo de
+/// GALLERY_CAT_LABEL del portal); si la categoría no está mapeada, capitaliza
+/// el valor crudo del backend.
+String _galeriaCatLabel(String cat) {
+  const mapa = <String, String>{
+    'proyecto': 'Proyecto',
+    'render': 'Render',
+    'fachada': 'Fachada',
+    'interior': 'Interior',
+    'exterior': 'Exterior',
+    'obra': 'Obra',
+    'amenidad': 'Amenidades',
+    'amenidades': 'Amenidades',
+    'nivel': 'Plano de nivel',
+    'depto': 'Plano del depto',
+    'modelo': 'Modelo',
+    'galeria': 'Galería',
+    'otro': 'Imagen',
+  };
+  final key = cat.trim().toLowerCase();
+  if (mapa.containsKey(key)) return mapa[key]!;
+  if (key.isEmpty) return 'Imagen';
+  return key[0].toUpperCase() + key.substring(1);
+}
+
+/// Carrusel de la imagen principal (espejo de PropertyImage del portal):
+/// imagen grande con badge de categoría (arriba-izquierda), flechas prev/next,
+/// swipe (PageView), dots y una fila de miniaturas debajo. Clic sobre la
+/// imagen abre el visor a pantalla completa. Reutilizable en móvil (alto fijo)
+/// y portal (aspect-ratio).
+class _GaleriaCarrusel extends StatefulWidget {
+  final List<({String url, String categoria})> fotos;
+  final String titulo;
+
+  /// Radio de las esquinas de la imagen grande.
+  final double radius;
+
+  /// Alto fijo (móvil). Si es null se usa [aspectRatio].
+  final double? height;
+
+  /// Relación de aspecto (portal). Ignorado si [height] no es null.
+  final double? aspectRatio;
+
+  const _GaleriaCarrusel({
+    required this.fotos,
+    required this.titulo,
+    this.radius = 0,
+    this.height,
+    this.aspectRatio,
+  });
+
+  @override
+  State<_GaleriaCarrusel> createState() => _GaleriaCarruselState();
+}
+
+class _GaleriaCarruselState extends State<_GaleriaCarrusel> {
+  final PageController _pc = PageController();
+  int _idx = 0;
+
+  @override
+  void dispose() {
+    _pc.dispose();
+    super.dispose();
+  }
+
+  void _goTo(int i) {
+    final target = i.clamp(0, widget.fotos.length - 1);
+    _pc.animateToPage(
+      target,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fotos = widget.fotos;
+    final safeIdx = _idx.clamp(0, fotos.length - 1);
+    final actual = fotos[safeIdx];
+    final varias = fotos.length > 1;
+
+    Widget flecha({required bool prev}) {
+      final habilitado = prev ? safeIdx > 0 : safeIdx < fotos.length - 1;
+      return Opacity(
+        opacity: habilitado ? 1 : 0.3,
+        child: GestureDetector(
+          onTap: habilitado ? () => _goTo(safeIdx + (prev ? -1 : 1)) : null,
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: const BoxDecoration(
+              color: Colors.black45,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              prev ? Icons.chevron_left : Icons.chevron_right,
+              size: 20,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final stack = Stack(
+      fit: StackFit.expand,
+      children: [
+        // Imagen grande + swipe (el tap abre el visor).
+        GestureDetector(
+          onTap: () => openMedia(context, actual.url, titulo: widget.titulo),
+          child: PageView.builder(
+            controller: _pc,
+            itemCount: fotos.length,
+            onPageChanged: (i) => setState(() => _idx = i),
+            itemBuilder: (_, i) => SozuNetworkImage(url: fotos[i].url),
+          ),
+        ),
+
+        // Badge de categoría (arriba-izquierda).
+        Positioned(
+          top: 12,
+          left: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              _galeriaCatLabel(actual.categoria),
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+
+        if (varias) ...[
+          // Flechas prev/next centradas verticalmente.
+          Positioned(
+            left: 12,
+            top: 0,
+            bottom: 0,
+            child: Center(child: flecha(prev: true)),
+          ),
+          Positioned(
+            right: 12,
+            top: 0,
+            bottom: 0,
+            child: Center(child: flecha(prev: false)),
+          ),
+          // Dots (abajo-centro).
+          Positioned(
+            bottom: 10,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < fotos.length; i++)
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: i == safeIdx ? 18 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: i == safeIdx
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+
+    final imagen = ClipRRect(
+      borderRadius: BorderRadius.circular(widget.radius),
+      child: widget.height != null
+          ? SizedBox(height: widget.height, width: double.infinity, child: stack)
+          : AspectRatio(
+              aspectRatio: widget.aspectRatio ?? 16 / 9,
+              child: stack,
+            ),
+    );
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          imagen,
+          if (varias) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 56,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: fotos.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (_, i) {
+                  final activa = i == safeIdx;
+                  return GestureDetector(
+                    onTap: () => _goTo(i),
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: activa
+                              ? PortalColors.primary
+                              : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                      child: Opacity(
+                        opacity: activa ? 1 : 0.6,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: SozuNetworkImage(url: fotos[i].url),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -327,7 +327,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
           style: TextStyle(fontSize: 13, color: tone.textMuted),
         ),
         const SizedBox(height: 8),
-        _resumen(tone, d),
+        _resumen(tone, c, d),
         const SizedBox(height: 12),
         _tabs(tone, d),
         const SizedBox(height: 12),
@@ -349,7 +349,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  Widget _resumen(SozuTone tone, EstadoCuenta d) {
+  Widget _resumen(SozuTone tone, PropiedadCard c, EstadoCuenta d) {
     final now = DateTime.now();
     final periodo = '${_meses[now.month - 1]} ${now.year}';
 
@@ -358,9 +358,14 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
       ..sort((a, b) => (a.fecha ?? '').compareTo(b.fecha ?? ''));
     final proxima = pendientes.isEmpty ? null : pendientes.first;
 
-    // Chip como el portal: "Pago Pendiente" (ámbar) con saldo, si no
-    // "Al corriente". (Antes decía "Con adeudo" solo con vencidos.)
-    final conAdeudo = d.saldoPendiente > 0.01;
+    // Chip como el portal: SIEMPRE el estatus real de la propiedad (etapa),
+    // nunca la lógica binaria "Al corriente". Misma categorización de tono que
+    // _colorEstatus / _portalEstatusStyle (pendiente/vencido → ámbar).
+    final estatusLower = c.estatusDerivado.toLowerCase();
+    final estatusTone =
+        estatusLower.contains('pendiente') || estatusLower.contains('vencid')
+        ? BadgeTone.pending
+        : BadgeTone.positive;
 
     final progreso = d.precioFinal > 0
         ? (d.totalPagado / d.precioFinal).clamp(0.0, 1.0).toDouble()
@@ -379,8 +384,8 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                 ),
               ),
               StatusBadge(
-                label: conAdeudo ? 'Pago Pendiente' : 'Al corriente',
-                tone: conAdeudo ? BadgeTone.pending : BadgeTone.positive,
+                label: c.estatusDerivado,
+                tone: estatusTone,
               ),
             ],
           ),

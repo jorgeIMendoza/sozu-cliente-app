@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
@@ -21,6 +22,27 @@ Future<bool> downloadFile(String url, String filename) async {
   }
   _triggerAnchor(url, filename);
   return true;
+}
+
+/// Web: dispara la descarga de [bytes] ya en memoria como un archivo con
+/// nombre [filename] (crea un Blob + anchor `download`). Útil para archivos
+/// generados en el cliente (p. ej. un ZIP de facturas). Devuelve true si se
+/// lanzó la descarga.
+Future<bool> downloadBytes(List<int> bytes, String filename,
+    {String mimeType = 'application/octet-stream'}) async {
+  try {
+    final data = Uint8List.fromList(bytes).toJS;
+    final blob = web.Blob(
+      <JSAny>[data].toJS,
+      web.BlobPropertyBag(type: mimeType),
+    );
+    final objUrl = web.URL.createObjectURL(blob);
+    _triggerAnchor(objUrl, filename);
+    Timer(const Duration(seconds: 30), () => web.URL.revokeObjectURL(objUrl));
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 void _triggerAnchor(String href, String filename) {
