@@ -1262,18 +1262,21 @@ class PortalProgressBar extends StatelessWidget {
 }
 
 /// Chip de estatus de un producto adicional (STATUS_CFG de ClienteProductos del
-/// portal): "Pagado" y "En curso" en verde (primary), "Pendiente" en ámbar
-/// (warning). [small] = variante compacta del card resumen / tabs.
+/// portal): "Pagado", "Entregado" y "En curso" en verde (primary/success),
+/// "Pendiente" en ámbar (warning). [small] = variante compacta del card resumen
+/// / tabs.
 PortalStatusChip portalProductoStatusChip(String estatus, {bool small = false}) {
   final e = estatus.toLowerCase();
-  final (Color bg, Color fg) = e.contains('pagado')
-      ? (PortalColors.primarySoft15, PortalColors.primary)
+  final (Color bg, Color fg, String label) = e.contains('pagado')
+      ? (PortalColors.primarySoft15, PortalColors.primary, estatus)
+      : e.contains('entrega')
+      ? (PortalColors.primarySoft15, PortalColors.primary, 'Entregado')
       : e.contains('curso')
-      ? (PortalColors.primarySoft10, PortalColors.primary)
-      : (PortalColors.warningSoft15, PortalColors.warning);
+      ? (PortalColors.primarySoft10, PortalColors.primary, estatus)
+      : (PortalColors.warningSoft15, PortalColors.warning, estatus);
   return PortalStatusChip(
     small: small,
-    label: estatus,
+    label: label,
     background: bg,
     foreground: fg,
   );
