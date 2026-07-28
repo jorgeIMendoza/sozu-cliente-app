@@ -145,6 +145,68 @@ class _PwGateSheetState extends State<_PwGateSheet> {
   }
 }
 
+// ─── Catálogo de ocupaciones (espejo de portal-cliente/ocupaciones.ts) ───────
+
+/// Ocupaciones canónicas para el selector del perfil (Title Case, con acentos).
+/// El selector agrega "Otro" al final para capturar valores fuera del catálogo.
+const List<String> _kOcupaciones = [
+  'Abogado/a',
+  'Administrador/a',
+  'Agricultor/a',
+  'Ama de casa',
+  'Arquitecto/a',
+  'Asalariado/a',
+  'Comerciante',
+  'Consultor/a',
+  'Contador/a público/a',
+  'Dentista',
+  'Diseñador/a',
+  'Docente',
+  'Director/a',
+  'Empleado/a',
+  'Empleado/a privado/a',
+  'Empresario/a',
+  'Enfermero/a',
+  'Estudiante',
+  'Ingeniero/a',
+  'Independiente',
+  'Jubilado/a',
+  'Médico/a',
+  'Negocio propio',
+  'Pensionado/a',
+  'Profesionista',
+  'Profesor/a',
+  'Servidor/a público/a',
+  'Transportista',
+  'Ventas',
+];
+
+/// Normaliza texto libre de ocupación: recorta, colapsa espacios y pasa a Title
+/// Case (respetando conectores comunes en minúscula). Espejo de
+/// `normalizarOcupacion` del portal.
+String? _normalizarOcupacion(String? raw) {
+  if (raw == null) return null;
+  final limpio = raw.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (limpio.isEmpty) return null;
+  const minus = {'de', 'del', 'la', 'el', 'y', 'en', 'a'};
+  final palabras = limpio.toLowerCase().split(' ');
+  return [
+    for (var i = 0; i < palabras.length; i++)
+      if (i > 0 && minus.contains(palabras[i]))
+        palabras[i]
+      else if (palabras[i].isEmpty)
+        palabras[i]
+      else
+        '${palabras[i][0].toUpperCase()}${palabras[i].substring(1)}',
+  ].join(' ');
+}
+
+/// ¿El valor está fuera del catálogo (→ debe capturarse como "Otro")?
+bool _esOcupacionOtro(String? valor) {
+  if (valor == null || valor.isEmpty) return false;
+  return !_kOcupaciones.contains(valor);
+}
+
 // ─── Editar datos personales ─────────────────────────────────────────────────
 
 Future<void> showEditPersonalSheet(BuildContext context, ClientePerfil p) =>
@@ -165,6 +227,13 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
   late final _curp = TextEditingController(text: widget.perfil.curp ?? '');
   late final _tel = TextEditingController(text: widget.perfil.telefono ?? '');
   late String _clavePais = widget.perfil.clavePaisTelefono ?? '+52';
+  // Ocupación: valor del catálogo o modo "Otro" con texto libre (espejo del
+  // SearchSelect + "Otro" del portal).
+  late String? _ocupacion =
+      _esOcupacionOtro(widget.perfil.ocupacion) ? null : widget.perfil.ocupacion;
+  late bool _ocupacionOtro = _esOcupacionOtro(widget.perfil.ocupacion);
+  late final _ocupacionOtroCtrl = TextEditingController(
+      text: _ocupacionOtro ? (widget.perfil.ocupacion ?? '') : '');
   bool _busy = false;
 
   // Clave país con bandera, como el <select> del portal (ClientePerfil.tsx).
@@ -183,6 +252,7 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
     _rfc.dispose();
     _curp.dispose();
     _tel.dispose();
+    _ocupacionOtroCtrl.dispose();
     super.dispose();
   }
 
@@ -195,12 +265,15 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
     if (!mounted) return;
     setState(() => _busy = true);
     try {
+      final ocupacion = _normalizarOcupacion(
+          _ocupacionOtro ? _ocupacionOtroCtrl.text : _ocupacion);
       await updatePerfilPersonal(
         nombreLegal: _nombre.text.trim(),
         rfc: _rfc.text.trim().toUpperCase(),
         curp: _curp.text.trim().toUpperCase(),
         clavePaisTelefono: _clavePais,
         telefono: _tel.text.trim(),
+        ocupacion: ocupacion,
         impersonate: ref.read(impersonationProvider).idPersona,
       );
       ref.invalidate(clientePerfilProvider);
@@ -287,6 +360,43 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
             ),
           ],
         ),
+        const SizedBox(height: 14),
+        _FieldLabel('Ocupación'),
+        _PickerField(
+          value: _ocupacionOtro ? 'Otro' : _ocupacion,
+          placeholder: 'Selecciona tu ocupación...',
+          enabled: true,
+          onTap: () async {
+            final sel = await _pickOption(
+              context,
+              title: 'Ocupación',
+              options: [
+                for (final o in _kOcupaciones) (value: o, label: o),
+                (value: 'Otro', label: 'Otro'),
+              ],
+              selected: _ocupacionOtro ? 'Otro' : _ocupacion,
+            );
+            if (sel == null) return;
+            setState(() {
+              if (sel == 'Otro') {
+                _ocupacionOtro = true;
+                _ocupacion = null;
+              } else {
+                _ocupacionOtro = false;
+                _ocupacion = sel;
+                _ocupacionOtroCtrl.clear();
+              }
+            });
+          },
+        ),
+        if (_ocupacionOtro) ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: _ocupacionOtroCtrl,
+            decoration:
+                const InputDecoration(hintText: 'Especifica tu ocupación'),
+          ),
+        ],
         const SizedBox(height: 12),
         const _NoteBox(
           icon: Icons.mail_outline,

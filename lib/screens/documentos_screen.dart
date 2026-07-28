@@ -26,6 +26,7 @@ import '../widgets/portal_widgets.dart';
 const _kEstadosStats = [
   'pendiente',
   'rechazado',
+  'vencido',
   'recibido',
   'validado',
   'firmado',
@@ -33,6 +34,7 @@ const _kEstadosStats = [
 
 const _kOrdenGruposEstado = [
   'rechazado',
+  'vencido',
   'pendiente',
   'recibido',
   'validado',
@@ -43,10 +45,11 @@ const _kOrdenGruposEstado = [
 /// sortByActionPriority).
 const _kPrioridadEstado = {
   'rechazado': 0,
-  'pendiente': 1,
-  'recibido': 2,
-  'validado': 3,
-  'firmado': 4,
+  'vencido': 1,
+  'pendiente': 2,
+  'recibido': 3,
+  'validado': 4,
+  'firmado': 5,
 };
 
 const _kCategorias = [
@@ -64,6 +67,7 @@ String _estadoLabel(String estado) => switch (estado) {
   'recibido' => 'Recibido',
   'validado' => 'Validado',
   'rechazado' => 'Rechazado',
+  'vencido' => 'Vencido',
   'firmado' => 'Firmado',
   _ => estado,
 };
@@ -73,6 +77,7 @@ String _estadoLabel(String estado) => switch (estado) {
 Color _estadoColor(String estado, SozuTone tone) => switch (estado) {
   'pendiente' => SozuColors.amber600,
   'rechazado' => tone.negative,
+  'vencido' => SozuColors.amber600,
   'recibido' => SozuColors.emerald700,
   'validado' => SozuColors.emerald500,
   'firmado' => SozuColors.emerald600,
@@ -903,6 +908,17 @@ class _DocRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 11, color: tone.textSecondary),
                   ),
+                  // Motivo de rechazo bajo el subtítulo (portal DocumentListItem).
+                  if (d.estatus == 'rechazado' &&
+                      (d.motivoRechazo ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      d.motivoRechazo!.trim(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: tone.negative),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -913,13 +929,23 @@ class _DocRow extends StatelessWidget {
                 color: color.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: Text(
-                _estadoLabel(d.estatus),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Rayo para documentos firmados (portal: icono Zap).
+                  if (d.estatus == 'firmado') ...[
+                    Icon(Icons.bolt, size: 11, color: color),
+                    const SizedBox(width: 2),
+                  ],
+                  Text(
+                    _estadoLabel(d.estatus),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 4),
@@ -1491,6 +1517,41 @@ class _DetalleDocumento extends StatelessWidget {
                           ),
                           icon: const Icon(Icons.support_agent_outlined, size: 16),
                           label: const Text('Contactar a soporte'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // Aviso para vencidos (portal: bloque ámbar "Este documento
+              // venció…"). App de solo lectura: sin zona de subida.
+              if (d.estatus == 'vencido') ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: SozuColors.amber600.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: SozuColors.amber600.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.warning_amber_outlined,
+                          size: 16, color: SozuColors.amber600),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Este documento venció. Contacta a tu asesor para '
+                          'subir una versión vigente y volver a validarlo.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: tone.textPrimary,
+                            height: 1.4,
+                          ),
                         ),
                       ),
                     ],

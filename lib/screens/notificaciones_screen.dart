@@ -167,7 +167,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(top: 24, bottom: 32),
+      padding: const EdgeInsets.only(top: 24, bottom: 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -218,7 +218,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Row(
             children: [
               _portalTab('Todas ($total)', !_soloNoLeidas,
@@ -324,22 +324,22 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
   /// (fondo del icono, color del icono, icono) por tipo — typeInfo del portal.
   (Color, Color, IconData) _portalTipo(Notificacion n) => switch (n.tipo) {
     'urgente' => (
-      PortalColors.destructiveSoft10,
+      PortalColors.destructiveSoft15,
       PortalColors.destructive,
       Icons.error_outline,
     ),
     'accionable' => (
-      PortalColors.warningSoft10,
+      PortalColors.warningSoft15,
       PortalColors.warning,
       Icons.flash_on_outlined,
     ),
     'exito' => (
-      PortalColors.primarySoft10,
+      PortalColors.primarySoft15,
       PortalColors.primary,
       Icons.check_circle_outline,
     ),
     _ => (
-      PortalColors.primarySoft10,
+      PortalColors.primarySoft15,
       PortalColors.primary,
       Icons.info_outline,
     ),
@@ -373,7 +373,9 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                   child: Container(width: 2, color: PortalColors.primary),
                 ),
               Padding(
-                padding: const EdgeInsets.all(16),
+                // pr amplio: reserva el hueco del botón descartar (X), como el
+                // `pr-10` del portal para que el texto no colisione con la X.
+                padding: const EdgeInsets.fromLTRB(16, 16, 40, 16),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -401,7 +403,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: portalText(
-                                    size: 13,
+                                    size: 14,
                                     weight: n.leida
                                         ? FontWeight.w600
                                         : FontWeight.w700,
@@ -464,6 +466,38 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+              // Botón descartar (X): esquina superior derecha, como el portal
+              // (absolute top-3 right-3, hover:bg-muted). No dispara el onTap de
+              // la fila; llama la acción `descartar` del backend.
+              Positioned(
+                top: 12,
+                right: 12,
+                child: PortalHoverBuilder(
+                  builder: (context, xHovered) => Tooltip(
+                    message: 'Descartar',
+                    child: GestureDetector(
+                      onTap: () => _marcar(action: 'descartar', id: n.id),
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: xHovered
+                              ? PortalColors.muted
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          size: 14,
+                          color: PortalColors.mutedForeground,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],

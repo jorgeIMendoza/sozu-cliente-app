@@ -2285,7 +2285,10 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     final pendientes = d.acuerdos.where((a) => !a.pagadoCompleto).toList()
       ..sort((a, b) => (a.fecha ?? '').compareTo(b.fecha ?? ''));
     final proxima = pendientes.isEmpty ? null : pendientes.first;
-    final conAdeudo = d.saldoPendiente > 0.01;
+    // Chip = estatus REAL de la propiedad (getPropertyStatus del portal:
+    // "En Preventa"/"Pago Pendiente"/"Entregada"…), no un derivado del saldo.
+    // Mismo mapeo de color que el selector (warning si pendiente, si no primary).
+    final (chipBg, chipFg) = _portalEstatusStyle(c.estatusDerivado);
     final pct = d.precioFinal > 0
         ? ((d.totalPagado / d.precioFinal) * 100).clamp(0, 100).round()
         : 0;
@@ -2328,17 +2331,13 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Encabezado de marca + chip de estatus.
+          // 1. Encabezado de marca (logo SOZU) + chip de estatus real.
           Row(
             children: [
-              Text(
-                'sozu',
-                style: portalText(
-                  size: 15,
-                  weight: FontWeight.w700,
-                  letterSpacing: -0.6,
-                  height: 1,
-                ),
+              Image.asset(
+                'assets/sozu-logo-black.png',
+                height: 14,
+                fit: BoxFit.contain,
               ),
               const SizedBox(width: 8),
               Text(
@@ -2360,13 +2359,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
               const SizedBox(width: 8),
               PortalStatusChip(
                 small: true,
-                label: conAdeudo ? 'Pago Pendiente' : 'Al corriente',
-                background: conAdeudo
-                    ? PortalColors.warningSoft15
-                    : PortalColors.primarySoft15,
-                foreground: conAdeudo
-                    ? PortalColors.warning
-                    : PortalColors.primary,
+                label: c.estatusDerivado,
+                background: chipBg,
+                foreground: chipFg,
               ),
             ],
           ),

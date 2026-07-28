@@ -967,6 +967,7 @@ class _ConfirmarDatosFiscalesState
         curp: curp.isEmpty ? p?.curp : curp,
         clavePaisTelefono: p?.clavePaisTelefono,
         telefono: p?.telefono,
+        ocupacion: p?.ocupacion,
         impersonate: imp,
       );
       await updatePerfilFiscal(
@@ -1105,6 +1106,7 @@ class _ConfirmarDatosIdentidadState
         curp: curp.isEmpty ? p?.curp : curp,
         clavePaisTelefono: p?.clavePaisTelefono,
         telefono: p?.telefono,
+        ocupacion: p?.ocupacion,
         impersonate: imp,
       );
       ref.invalidate(clientePerfilProvider);

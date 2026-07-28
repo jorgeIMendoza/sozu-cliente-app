@@ -208,6 +208,16 @@ class HistorialPago {
   final String? urlRecibo;
   final String? urlCep;
 
+  // — Campos ricos del recibo (PaymentReceiptModal del portal). Additivos: si
+  //   el backend aún no los expone llegan null y la UI del recibo degrada. —
+  final String? rfc; // RFC del cliente
+  final String? clabe; // CLABE STP enmascarada (solo últimos 4)
+  final String? claveRastreo; // "Referencia bancaria" del recibo
+  final String? referenciaStp; // referencia STP (SOZU-<cuenta>)
+  final double? saldo; // saldo pendiente de la propiedad
+  final double? totalPagado; // total pagado acumulado de la propiedad
+  final double? valorActivo; // valor total del activo
+
   HistorialPago.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
       concepto = asString(j['concepto'], 'Pago'),
@@ -216,7 +226,14 @@ class HistorialPago {
       monto = asDouble(j['monto']),
       metodo = asString(j['metodo'], '—'),
       urlRecibo = j['url_recibo'] as String?,
-      urlCep = j['url_cep'] as String?;
+      urlCep = j['url_cep'] as String?,
+      rfc = j['rfc'] as String?,
+      clabe = j['clabe'] as String?,
+      claveRastreo = j['clave_rastreo'] as String?,
+      referenciaStp = j['referencia_stp'] as String?,
+      saldo = asDoubleOrNull(j['saldo']),
+      totalPagado = asDoubleOrNull(j['total_pagado']),
+      valorActivo = asDoubleOrNull(j['valor_activo']);
 }
 
 class ClientePagos {
@@ -1026,6 +1043,7 @@ class ClientePerfil {
   // Perfil extendido (espejo de ClientePerfil.tsx del portal). Con un backend
   // previo estos campos llegan null/vacíos y la UI degrada a "Sin dato".
   final String? clavePaisTelefono;
+  final String? ocupacion;
   final String? tipoPersona; // pf | pm | pe (o variantes largas)
   final String? rfc;
   final String? curp;
@@ -1067,6 +1085,7 @@ class ClientePerfil {
       tipo = asString(j['tipo'], 'Inversionista'),
       iniciales = asString(j['iniciales'], '?'),
       clavePaisTelefono = j['clave_pais_telefono'] as String?,
+      ocupacion = j['ocupacion'] as String?,
       tipoPersona = j['tipo_persona'] as String?,
       rfc = j['rfc'] as String?,
       curp = j['curp'] as String?,
