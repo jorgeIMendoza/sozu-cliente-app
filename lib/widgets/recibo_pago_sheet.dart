@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/format.dart';
 import '../core/open_media.dart';
@@ -25,6 +26,7 @@ class ReciboPagoData {
   final String? urlRecibo;
   final String? urlCep;
   final String? claveRastreo;
+  final String? producto; // nombre del producto (productName del portal)
 
   // — Campos ricos del recibo (espejo del PaymentReceiptModal del portal).
   //   Los provee cliente-pagos en `historial`; degradan a null en las tablas
@@ -46,6 +48,7 @@ class ReciboPagoData {
     this.urlRecibo,
     this.urlCep,
     this.claveRastreo,
+    this.producto,
     this.rfc,
     this.clabe,
     this.referenciaStp,
@@ -66,6 +69,7 @@ class ReciboPagoData {
       urlRecibo = p.urlRecibo,
       urlCep = p.urlCep,
       claveRastreo = claveRastreo ?? p.claveRastreo,
+      producto = p.producto,
       rfc = p.rfc,
       clabe = p.clabe,
       referenciaStp = p.referenciaStp,
@@ -87,6 +91,7 @@ class ReciboPagoData {
        urlRecibo = p.urlRecibo,
        urlCep = p.urlCep,
        claveRastreo = p.referencia,
+       producto = null,
        rfc = null,
        clabe = null,
        referenciaStp = null,
@@ -107,6 +112,7 @@ class ReciboPagoData {
        urlRecibo = a.urlRecibo,
        urlCep = a.urlCep,
        claveRastreo = a.claveRastreo,
+       producto = null,
        rfc = null,
        clabe = null,
        referenciaStp = null,
@@ -191,6 +197,58 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
     } finally {
       if (mounted) setState(() => _generando = false);
     }
+  }
+
+  /// Comparte un resumen del recibo (folio, concepto, monto, fecha, propiedad).
+  /// En web `share_plus` cae al Web Share API; si no está disponible o falla
+  /// mostramos un SnackBar en vez de romper. Si el recibo ya tiene URL firmada
+  /// la incluimos en el texto para que el receptor pueda abrir el PDF.
+  Future<void> _compartir() async {
+    final p = widget.data;
+
+    // Etiqueta de propiedad "Proyecto · U-###" si el proyecto está en caché.
+    final props = ref.read(clientePropiedadesProvider).valueOrNull;
+    String? proyecto;
+    for (final c in [...?props?.enAdquisicion, ...?props?.patrimonioActivo]) {
+      if (c.nombre == p.propiedad) {
+        proyecto = c.proyecto;
+        break;
+      }
+    }
+    final propLabel = proyecto != null
+        ? '$proyecto · U-${p.propiedad}'
+        : 'U${p.propiedad}';
+
+    final texto = <String>[
+      'Recibo de pago SOZU',
+      'Folio: $_folio',
+      'Concepto: ${p.concepto}',
+      if ((p.producto ?? '').isNotEmpty) 'Producto: ${p.producto}',
+      'Propiedad: $propLabel',
+      'Monto: ${formatMXN(p.monto)} MXN',
+      'Fecha: ${_fechaConfirmacion(p.fechaPago)}',
+      if ((p.urlRecibo ?? '').isNotEmpty) 'Recibo: ${p.urlRecibo}',
+    ].join('\n');
+
+    try {
+      await Share.share(texto, subject: 'Recibo SOZU $_folio');
+    } catch (_) {
+      if (mounted) _snack('No se pudo compartir en este dispositivo.');
+    }
+  }
+
+  /// Fecha de confirmación: si el dato trae hora la mostramos como
+  /// "DD/MM/YYYY HH:mm"; si no, solo "DD/MM/YYYY".
+  String _fechaConfirmacion(String? input) {
+    if (input == null || input.isEmpty) return '—';
+    final d = DateTime.tryParse(input);
+    if (d == null) return formatDate(input);
+    final tieneHora =
+        input.contains('T') && (d.hour != 0 || d.minute != 0 || d.second != 0);
+    if (!tieneHora) return formatDate(input);
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mm = d.minute.toString().padLeft(2, '0');
+    return '${formatDate(input)} $hh:$mm';
   }
 
   @override
@@ -382,6 +440,10 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                       Divider(color: tone.border, height: 1),
                     ],
                     _fila(tone, 'Propiedad', propiedadLabel),
+                    if ((p.producto ?? '').isNotEmpty) ...[
+                      Divider(color: tone.border, height: 1),
+                      _fila(tone, 'Producto', p.producto!),
+                    ],
                     Divider(color: tone.border, height: 1),
                     _fila(tone, 'Concepto', p.concepto),
                     Divider(color: tone.border, height: 1),
@@ -394,17 +456,34 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                       Divider(color: tone.border, height: 1),
                       _fila(
                         tone,
-                        'Referencia bancaria',
+                        'Clave de rastreo',
                         p.claveRastreo!,
                         mono: true,
                         onCopiar: () => _copiar(
                           p.claveRastreo!,
-                          'Referencia copiada',
+                          'Clave de rastreo copiada',
+                        ),
+                      ),
+                    ],
+                    if ((p.referenciaStp ?? '').isNotEmpty) ...[
+                      Divider(color: tone.border, height: 1),
+                      _fila(
+                        tone,
+                        'Referencia STP',
+                        p.referenciaStp!,
+                        mono: true,
+                        onCopiar: () => _copiar(
+                          p.referenciaStp!,
+                          'Referencia STP copiada',
                         ),
                       ),
                     ],
                     Divider(color: tone.border, height: 1),
-                    _fila(tone, 'Fecha de confirmación', formatDate(p.fechaPago)),
+                    _fila(
+                      tone,
+                      'Fecha de confirmación',
+                      _fechaConfirmacion(p.fechaPago),
+                    ),
                   ],
                 ),
               ),
@@ -566,6 +645,21 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                           : const Icon(Icons.picture_as_pdf_outlined, size: 18),
                       label: Text(_generando ? 'Generando…' : 'Ver PDF'),
                     ),
+                  ),
+                  const SizedBox(width: 10),
+                  OutlinedButton(
+                    onPressed: _compartir,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(52, 52),
+                      fixedSize: const Size(52, 52),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      side: BorderSide(color: tone.border),
+                      foregroundColor: tone.textPrimary,
+                    ),
+                    child: const Icon(Icons.ios_share, size: 18),
                   ),
                   if ((p.urlCep ?? '').isNotEmpty) ...[
                     const SizedBox(width: 10),

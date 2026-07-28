@@ -768,6 +768,12 @@ class PortalPatrimonyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final manto = mantenimiento;
     final mantoPendiente = manto != null && manto.saldoPendiente > 0;
+    // Banner muestra la CUOTA MENSUAL de mantenimiento (decisión de producto,
+    // igual que el portal: maintenance.monthlyFee). Degrada al saldo pendiente
+    // si el backend aún no manda la cuota (monthly_fee = 0).
+    final mantoBannerLabel = item.cuotaMensual > 0
+        ? '${formatMXN(item.cuotaMensual)} /mes'
+        : (manto != null ? formatMXN(manto.saldoPendiente) : '');
     final valor = (item.valorActual != null && item.valorActual! > 0)
         ? item.valorActual!
         : item.monto;
@@ -1054,8 +1060,7 @@ class PortalPatrimonyCard extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          'Mantenimiento pendiente · '
-                          '${formatMXN(manto.saldoPendiente)}',
+                          'Mantenimiento · $mantoBannerLabel',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: portalText(

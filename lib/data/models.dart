@@ -212,8 +212,9 @@ class HistorialPago {
   //   el backend aún no los expone llegan null y la UI del recibo degrada. —
   final String? rfc; // RFC del cliente
   final String? clabe; // CLABE STP enmascarada (solo últimos 4)
-  final String? claveRastreo; // "Referencia bancaria" del recibo
+  final String? claveRastreo; // "Clave de rastreo" del recibo
   final String? referenciaStp; // referencia STP (SOZU-<cuenta>)
+  final String? producto; // nombre del producto (productName del portal)
   final double? saldo; // saldo pendiente de la propiedad
   final double? totalPagado; // total pagado acumulado de la propiedad
   final double? valorActivo; // valor total del activo
@@ -231,6 +232,7 @@ class HistorialPago {
       clabe = j['clabe'] as String?,
       claveRastreo = j['clave_rastreo'] as String?,
       referenciaStp = j['referencia_stp'] as String?,
+      producto = (j['producto'] ?? j['product_name']) as String?,
       saldo = asDoubleOrNull(j['saldo']),
       totalPagado = asDoubleOrNull(j['total_pagado']),
       valorActivo = asDoubleOrNull(j['valor_activo']);
@@ -284,6 +286,10 @@ class PropiedadCard {
   final int docsPendientes;
   final String? entregadaDesde;
 
+  /// Cuota mensual de mantenimiento (backend `monthly_fee` = costo_mant_m2 × m2).
+  /// 0 si el proyecto no tiene costo de mantenimiento o la propiedad no tiene m2.
+  final double cuotaMensual;
+
   PropiedadCard.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
       nombre = asString(j['nombre'], '—'),
@@ -302,7 +308,8 @@ class PropiedadCard {
       saldoPendiente = asDouble(j['saldo_pendiente']),
       proximaFecha = j['proxima_fecha'] as String?,
       docsPendientes = asInt(j['docs_pendientes']),
-      entregadaDesde = j['entregada_desde'] as String?;
+      entregadaDesde = j['entregada_desde'] as String?,
+      cuotaMensual = asDouble(j['monthly_fee']);
 
   /// Etiqueta de estatus derivada de la etapa activa, como el portal
   /// (getStageInfo): NUNCA el estatus crudo de disponibilidad de la BD, que
@@ -773,6 +780,19 @@ class AvanceObra {
       hitos.isNotEmpty && (avanceGlobal > 0 || hitos.any((h) => h.pct > 0));
 }
 
+/// Foto de la galería de la propiedad (render + obra). Extensión ADITIVA:
+/// el backend puede desplegar `galeria` después; degrada a lista vacía.
+class GaleriaFoto {
+  final String url;
+
+  /// Categoría del portal (p.ej. render | fachada | interior | obra | amenidad).
+  final String categoria;
+
+  GaleriaFoto.fromJson(Map<String, dynamic> j)
+    : url = asString(j['url']),
+      categoria = asString(j['categoria'], 'otro');
+}
+
 class PropiedadDetalle {
   final int id;
   final String nombre;
@@ -795,6 +815,13 @@ class PropiedadDetalle {
   final int? numeroPiso;
   final int? totalPisos;
   final String? urlImagen;
+
+  /// Galería de fotos de la propiedad (render/obra). Extensión ADITIVA;
+  /// degrada a lista vacía si el backend aún no la manda.
+  final List<GaleriaFoto> galeria;
+
+  /// URL del video del avance de obra (embebido). null/ausente = sin video.
+  final String? videoObraUrl;
   final PropiedadUbicacion? ubicacion;
 
   /// Método de pago final elegido: RECURSOS_PROPIOS | CREDITO_HIPOTECARIO
@@ -846,6 +873,10 @@ class PropiedadDetalle {
       numeroPiso = asIntOrNull(j['numero_piso']),
       totalPisos = asIntOrNull(j['total_pisos']),
       urlImagen = j['url_imagen'] as String?,
+      galeria = ((j['galeria'] as List?) ?? [])
+          .map((e) => GaleriaFoto.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      videoObraUrl = j['video_obra_url'] as String?,
       ubicacion = j['ubicacion'] is Map
           ? PropiedadUbicacion.fromJson(
               Map<String, dynamic>.from(j['ubicacion'] as Map),
@@ -1040,6 +1071,10 @@ class ClientePerfil {
   final String tipo;
   final String iniciales;
 
+  /// URL firmada temporal de la foto de perfil (avatar). null si el cliente no
+  /// tiene foto o el backend aún no expone el campo (degrada a iniciales).
+  final String? fotoPerfilUrl;
+
   // Perfil extendido (espejo de ClientePerfil.tsx del portal). Con un backend
   // previo estos campos llegan null/vacíos y la UI degrada a "Sin dato".
   final String? clavePaisTelefono;
@@ -1084,6 +1119,7 @@ class ClientePerfil {
       telefono = j['telefono'] as String?,
       tipo = asString(j['tipo'], 'Inversionista'),
       iniciales = asString(j['iniciales'], '?'),
+      fotoPerfilUrl = j['foto_perfil_url'] as String?,
       clavePaisTelefono = j['clave_pais_telefono'] as String?,
       ocupacion = j['ocupacion'] as String?,
       tipoPersona = j['tipo_persona'] as String?,

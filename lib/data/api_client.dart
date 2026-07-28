@@ -259,6 +259,32 @@ Future<({int id, String nombre})> agregarBancoCatalogo(
   return (id: asInt(res['id']), nombre: asString(res['nombre'], nombre));
 }
 
+/// Sube la foto de perfil (avatar) del cliente. `base64` es el contenido de la
+/// imagen y `mime` su tipo (p.ej. image/jpeg). Devuelve la URL firmada de la
+/// foto resultante, o null si el backend no la regresa.
+Future<String?> avatarUpload({
+  required String base64,
+  required String mime,
+  int? impersonate,
+}) async {
+  final res = await _invoke(
+    'cliente-perfil',
+    body: {'action': 'avatar_upload', 'base64': base64, 'mime': mime},
+    impersonate: impersonate,
+  );
+  final url = res['foto_perfil_url'];
+  return url is String && url.isNotEmpty ? url : null;
+}
+
+/// Elimina la foto de perfil (avatar) del cliente.
+Future<void> avatarDelete({int? impersonate}) async {
+  await _invoke(
+    'cliente-perfil',
+    body: {'action': 'avatar_delete'},
+    impersonate: impersonate,
+  );
+}
+
 Future<ClienteDocumentos> fetchClienteDocumentos({int? impersonate}) async =>
     ClienteDocumentos.fromJson(
       await _invoke('cliente-documentos', impersonate: impersonate),
@@ -275,6 +301,15 @@ Future<ClienteNotificaciones> fetchClienteNotificaciones({
     impersonate: impersonate,
   ),
 );
+
+/// Marca una notificación como NO leída (revertir el "leído").
+Future<void> notifMarcarNoLeida(int id, {int? impersonate}) async {
+  await _invoke(
+    'cliente-notificaciones',
+    body: {'action': 'marcar_no_leida', 'id': id},
+    impersonate: impersonate,
+  );
+}
 
 Future<EstadoCuenta> fetchEstadoCuenta(
   int idCuenta, {

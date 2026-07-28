@@ -8,3 +8,12 @@ Future<bool> downloadFile(String url, String filename) async {
   if (uri == null) return false;
   return launchUrl(uri, mode: LaunchMode.externalApplication);
 }
+
+/// Móvil/escritorio: no hay descarga de bytes con blob (eso es propio del
+/// navegador). Devuelve false para que quien la llame recurra a descargar los
+/// archivos originales por su URL. La firma existe para paridad con la versión
+/// web (importación condicional).
+Future<bool> downloadBytes(List<int> bytes, String filename,
+    {String mimeType = 'application/octet-stream'}) async {
+  return false;
+}

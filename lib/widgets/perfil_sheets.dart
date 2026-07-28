@@ -13,6 +13,7 @@ import '../data/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
 import '../providers/impersonation_provider.dart';
+import 'network_image.dart';
 import 'password_rules.dart';
 import 'portal_widgets.dart' show showPortalDialog;
 
@@ -1175,6 +1176,179 @@ class _CambiarPasswordSheetState extends ConsumerState<_CambiarPasswordSheet> {
           onPressed: (_valido && !_busy) ? _guardar : null,
           child: Text(_busy ? 'Guardando...' : 'Actualizar contraseña'),
         ),
+        _CancelButton(onTap: () => Navigator.pop(context)),
+      ],
+    );
+  }
+}
+
+// ─── Foto de perfil (avatar) ─────────────────────────────────────────────────
+
+/// Abre el sheet/diálogo de gestión de la foto de perfil (espejo del modal
+/// "Foto de perfil" de ClientePerfil.tsx): subir/cambiar y, si ya hay foto,
+/// eliminar. Usa `avatarUpload`/`avatarDelete` (bucket `avatar` +
+/// usuarios.foto_perfil_url) e invalida el perfil al terminar.
+Future<void> showAvatarSheet(BuildContext context, ClientePerfil p) =>
+    _showPerfilModal<void>(context, _AvatarSheet(perfil: p));
+
+class _AvatarSheet extends ConsumerStatefulWidget {
+  final ClientePerfil perfil;
+  const _AvatarSheet({required this.perfil});
+
+  @override
+  ConsumerState<_AvatarSheet> createState() => _AvatarSheetState();
+}
+
+class _AvatarSheetState extends ConsumerState<_AvatarSheet> {
+  bool _busy = false;
+
+  bool get _tieneFoto => (widget.perfil.fotoPerfilUrl ?? '').isNotEmpty;
+
+  /// Deriva el mime de la extensión (png/jpg/jpeg/webp); default image/jpeg.
+  String _mimeFor(String nombre) {
+    switch (nombre.split('.').last.toLowerCase()) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'jpg':
+      case 'jpeg':
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  void _snack(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+
+  Future<void> _subir() async {
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(
+          label: 'Imagen',
+          extensions: ['png', 'jpg', 'jpeg', 'webp'],
+        ),
+      ],
+    );
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (bytes.length > 10 * 1024 * 1024) {
+      _snack('La imagen supera el límite de 10 MB.');
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _busy = true);
+    try {
+      await avatarUpload(
+        base64: base64Encode(bytes),
+        mime: _mimeFor(file.name),
+        impersonate: ref.read(impersonationProvider).idPersona,
+      );
+      ref.invalidate(clientePerfilProvider);
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.pop(context);
+      messenger.showSnackBar(const SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle_outline,
+                size: 18, color: SozuColors.emerald400),
+            SizedBox(width: 8),
+            Expanded(child: Text('Foto de perfil actualizada')),
+          ],
+        ),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _snack('No se pudo subir la foto. Intenta de nuevo.');
+    }
+  }
+
+  Future<void> _eliminar() async {
+    final tone = SozuTone.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar foto'),
+        content: const Text('¿Seguro que quieres eliminar tu foto de perfil?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Eliminar', style: TextStyle(color: tone.negative)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await avatarDelete(impersonate: ref.read(impersonationProvider).idPersona);
+      ref.invalidate(clientePerfilProvider);
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.pop(context);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Foto de perfil eliminada')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _snack('No se pudo eliminar la foto. Intenta de nuevo.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = SozuTone.of(context);
+    return _SheetShell(
+      icon: Icons.photo_camera_outlined,
+      title: 'Foto de perfil',
+      subtitle: 'Así te verán en tu portal',
+      children: [
+        if (_tieneFoto) ...[
+          Center(
+            child: ClipOval(
+              child: SizedBox(
+                width: 96,
+                height: 96,
+                child: SozuNetworkImage(
+                  url: widget.perfil.fotoPerfilUrl,
+                  placeholderIcon: Icons.person_outline,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+        FilledButton.icon(
+          onPressed: _busy ? null : _subir,
+          icon: _busy
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                )
+              : const Icon(Icons.upload_outlined, size: 18),
+          label: Text(_tieneFoto ? 'Cambiar foto' : 'Subir foto'),
+        ),
+        if (_tieneFoto) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _eliminar,
+            icon: Icon(Icons.delete_outline, size: 18, color: tone.negative),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: tone.negative,
+              side: BorderSide(color: tone.negative.withValues(alpha: 0.3)),
+            ),
+            label: const Text('Eliminar foto'),
+          ),
+        ],
         _CancelButton(onTap: () => Navigator.pop(context)),
       ],
     );

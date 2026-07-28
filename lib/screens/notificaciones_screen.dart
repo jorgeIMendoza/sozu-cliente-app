@@ -21,24 +21,14 @@ class NotificacionesScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
-  /// Filtro "Sin leer" — solo lo usa la vista portal (web ≥1024).
+  /// Filtro "Sin leer" — tabs Todas / Sin leer, compartido por la vista portal
+  /// (web ≥1024) y la vista móvil/angosta.
   bool _soloNoLeidas = false;
 
-  Future<void> _marcar({String? action, int? id}) async {
-    try {
-      await fetchClienteNotificaciones(action: action, id: id);
-    } catch (_) {}
-    ref.invalidate(clienteNotificacionesProvider);
-  }
+  Future<void> _marcar({String? action, int? id}) =>
+      marcarNotificacion(ref, action: action, id: id);
 
-  /// Al tocar una notificación: la marca como leída (si no lo está) y navega a
-  /// la ruta del app correspondiente a su `url_accion`. Si la URL no mapea a
-  /// ninguna ruta conocida, solo marca leída sin navegar (no rompe).
-  void _abrir(Notificacion n) {
-    if (!n.leida) _marcar(action: 'marcar_leida', id: n.id);
-    final ruta = _rutaAppDesdeUrl(n.urlAccion);
-    if (ruta != null) context.go(ruta);
-  }
+  void _abrir(Notificacion n) => abrirNotificacion(context, ref, n);
 
   @override
   Widget build(BuildContext context) {
@@ -105,47 +95,140 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
           ),
           data: (data) {
             if (portal) return _portalVista(data);
-            if (data.notificaciones.isEmpty) {
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  const SizedBox(height: 60),
-                  Column(
-                    children: [
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                            color: tone.primarySoft, shape: BoxShape.circle),
-                        child: const Icon(Icons.notifications_off_outlined,
-                            size: 30, color: SozuColors.emerald600),
-                      ),
-                      const SizedBox(height: 16),
-                      Text('Sin notificaciones',
-                          style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: tone.textPrimary)),
-                      const SizedBox(height: 4),
-                      Text('Aquí verás tus avisos SOZU.',
-                          style: TextStyle(
-                              fontSize: 14, color: tone.textSecondary)),
-                    ],
-                  ),
-                ],
-              );
-            }
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-              children: [
-                for (final n in _ordenadas(data.notificaciones)) ...[
-                  _NotifRow(n: n, onTap: () => _abrir(n)),
-                  const SizedBox(height: 10),
-                ],
-              ],
-            );
+            return _movilVista(data);
           },
         ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VISTA MÓVIL / ANGOSTA: tabs Todas / Sin leer (mismo conteo que el portal,
+  // responsive), filas con botón X descartar y estado vacío alineado al portal.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _movilVista(ClienteNotificaciones data) {
+    final total = data.notificaciones.length;
+    final noLeidas = data.noLeidas;
+    final ordenadas = ordenarNotificaciones(data.notificaciones);
+    final lista =
+        _soloNoLeidas ? ordenadas.where((n) => !n.leida).toList() : ordenadas;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      children: [
+        _movilTabs(total, noLeidas),
+        const SizedBox(height: 16),
+        if (lista.isEmpty)
+          _movilVacio()
+        else
+          for (final n in lista) ...[
+            _NotifRow(
+              n: n,
+              onTap: () => _abrir(n),
+              onDismiss: () => _marcar(action: 'descartar', id: n.id),
+              onToggleLeida: () => alternarLeidaNotificacion(ref, n),
+            ),
+            const SizedBox(height: 10),
+          ],
+      ],
+    );
+  }
+
+  /// Tabs segmentadas Todas / Sin leer para la vista móvil (mismo conteo que el
+  /// portal); espejo del control segmentado de NotificationSheet.
+  Widget _movilTabs(int total, int noLeidas) {
+    final tone = SozuTone.of(context);
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: tone.surfaceAlt,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _movilTab('Todas ($total)', !_soloNoLeidas,
+                () => setState(() => _soloNoLeidas = false), tone),
+          ),
+          Expanded(
+            child: _movilTab('Sin leer ($noLeidas)', _soloNoLeidas,
+                () => setState(() => _soloNoLeidas = true), tone),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _movilTab(String label, bool active, VoidCallback onTap, SozuTone tone) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? tone.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: active
+              ? const [
+                  BoxShadow(
+                    color: Color(0x14000000),
+                    offset: Offset(0, 1),
+                    blurRadius: 2,
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: active ? tone.textPrimary : tone.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Estado vacío móvil — mismos textos/icono que `_portalVacio` (campana
+  /// `notifications_outlined`; textos según el filtro activo).
+  Widget _movilVacio() {
+    final tone = SozuTone.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 60),
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration:
+                BoxDecoration(color: tone.primarySoft, shape: BoxShape.circle),
+            child: const Icon(Icons.notifications_outlined,
+                size: 30, color: SozuColors.emerald600),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _soloNoLeidas
+                ? 'Sin notificaciones nuevas'
+                : 'No tienes notificaciones',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: tone.textPrimary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _soloNoLeidas
+                ? 'Ya leíste todas tus notificaciones.'
+                : 'Aquí verás avisos importantes sobre tus propiedades.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: tone.textSecondary),
+          ),
+        ],
       ),
     );
   }
@@ -160,7 +243,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
   Widget _portalVista(ClienteNotificaciones data) {
     final total = data.notificaciones.length;
     final noLeidas = data.noLeidas;
-    final ordenadas = _ordenadas(data.notificaciones);
+    final ordenadas = ordenarNotificaciones(data.notificaciones);
     final lista = _soloNoLeidas
         ? ordenadas.where((n) => !n.leida).toList()
         : ordenadas;
@@ -321,34 +404,10 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
     );
   }
 
-  /// (fondo del icono, color del icono, icono) por tipo — typeInfo del portal.
-  (Color, Color, IconData) _portalTipo(Notificacion n) => switch (n.tipo) {
-    'urgente' => (
-      PortalColors.destructiveSoft15,
-      PortalColors.destructive,
-      Icons.error_outline,
-    ),
-    'accionable' => (
-      PortalColors.warningSoft15,
-      PortalColors.warning,
-      Icons.flash_on_outlined,
-    ),
-    'exito' => (
-      PortalColors.primarySoft15,
-      PortalColors.primary,
-      Icons.check_circle_outline,
-    ),
-    _ => (
-      PortalColors.primarySoft15,
-      PortalColors.primary,
-      Icons.info_outline,
-    ),
-  };
-
   /// Fila ancha del portal: borde izquierdo verde + punto cuando no está
   /// leída; tocarla la marca como leída (misma acción que móvil).
   Widget _portalNotifRow(Notificacion n) {
-    final (iconBg, iconFg, tipoIcon) = _portalTipo(n);
+    final (iconBg, iconFg, tipoIcon) = _tipoInfoPortal(n);
     // El glifo lo define la categoría; el color sigue por tipo/severidad.
     final icon = _iconoCategoria(n.categoria) ?? tipoIcon;
     final etiqueta = _etiquetaAccion(n);
@@ -373,9 +432,10 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                   child: Container(width: 2, color: PortalColors.primary),
                 ),
               Padding(
-                // pr amplio: reserva el hueco del botón descartar (X), como el
-                // `pr-10` del portal para que el texto no colisione con la X.
-                padding: const EdgeInsets.fromLTRB(16, 16, 40, 16),
+                // pr amplio: reserva el hueco de los botones de la esquina
+                // superior derecha (toggle leída + X descartar) para que el
+                // texto no colisione con ellos.
+                padding: const EdgeInsets.fromLTRB(16, 16, 74, 16),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -468,36 +528,46 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                   ],
                 ),
               ),
-              // Botón descartar (X): esquina superior derecha, como el portal
-              // (absolute top-3 right-3, hover:bg-muted). No dispara el onTap de
-              // la fila; llama la acción `descartar` del backend.
+              // Botones de la esquina superior derecha (top-3 right-3 del
+              // portal): toggle leída/no-leída + X descartar. Ninguno dispara el
+              // onTap de la fila.
               Positioned(
                 top: 12,
                 right: 12,
-                child: PortalHoverBuilder(
-                  builder: (context, xHovered) => Tooltip(
-                    message: 'Descartar',
-                    child: GestureDetector(
-                      onTap: () => _marcar(action: 'descartar', id: n.id),
-                      behavior: HitTestBehavior.opaque,
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: xHovered
-                              ? PortalColors.muted
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          size: 14,
-                          color: PortalColors.mutedForeground,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _ToggleLeidaBtn(
+                      n: n,
+                      onTap: () => alternarLeidaNotificacion(ref, n),
+                    ),
+                    const SizedBox(width: 2),
+                    PortalHoverBuilder(
+                      builder: (context, xHovered) => Tooltip(
+                        message: 'Descartar',
+                        child: GestureDetector(
+                          onTap: () => _marcar(action: 'descartar', id: n.id),
+                          behavior: HitTestBehavior.opaque,
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: xHovered
+                                  ? PortalColors.muted
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: PortalColors.mutedForeground,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -512,7 +582,19 @@ class _NotifRow extends StatelessWidget {
   final Notificacion n;
   final VoidCallback? onTap;
 
-  const _NotifRow({required this.n, this.onTap});
+  /// Acción `descartar` (X arriba a la derecha). Espejo del `_portalNotifRow`:
+  /// en móvil también debe poder descartarse una notificación.
+  final VoidCallback? onDismiss;
+
+  /// Toggle leída ↔ no-leída (icono junto a la X). Espejo del `_portalNotifRow`.
+  final VoidCallback? onToggleLeida;
+
+  const _NotifRow({
+    required this.n,
+    this.onTap,
+    this.onDismiss,
+    this.onToggleLeida,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -526,72 +608,122 @@ class _NotifRow extends StatelessWidget {
     // El glifo lo define la categoría; el color sigue por tipo/severidad.
     final icon = _iconoCategoria(n.categoria) ?? tipoIcon;
     final etiqueta = _etiquetaAccion(n);
-    return GestureDetector(
-      onTap: onTap,
-      child: Opacity(
-        opacity: n.leida ? 0.7 : 1,
-        child: AppCard(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 22, color: color),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: Opacity(
+            opacity: n.leida ? 0.7 : 1,
+            child: AppCard(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, size: 22, color: color),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(n.titulo,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: tone.textPrimary)),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(n.titulo,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: tone.textPrimary)),
+                            ),
+                            if (!n.leida)
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                    color: SozuColors.emerald500,
+                                    shape: BoxShape.circle),
+                              ),
+                            // Reserva el hueco de los botones (top-right) para
+                            // que el título/punto no colisionen con ellos
+                            // (toggle leída + X descartar).
+                            if (onDismiss != null || onToggleLeida != null)
+                              SizedBox(
+                                width: (onDismiss != null ? 28.0 : 0.0) +
+                                    (onToggleLeida != null ? 28.0 : 0.0),
+                              ),
+                          ],
                         ),
-                        if (!n.leida)
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                                color: SozuColors.emerald500,
-                                shape: BoxShape.circle),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(n.descripcion,
-                        style: TextStyle(
-                            fontSize: 12, color: tone.textSecondary)),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(_fechaRelativa(n.fecha),
+                        const SizedBox(height: 2),
+                        Text(n.descripcion,
                             style: TextStyle(
-                                fontSize: 11, color: tone.textMuted)),
-                        if (etiqueta != null)
-                          Flexible(
-                            child: Text('$etiqueta →',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.right,
+                                fontSize: 12, color: tone.textSecondary)),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(_fechaRelativa(n.fecha),
                                 style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: color)),
-                          ),
+                                    fontSize: 11, color: tone.textMuted)),
+                            if (etiqueta != null)
+                              Flexible(
+                                child: Text('$etiqueta →',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: color)),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-      ),
+        // Botones top-right: toggle leída/no-leída + X descartar. Mismo
+        // posicionamiento y acciones que en la vista portal.
+        if (onDismiss != null || onToggleLeida != null)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (onToggleLeida != null)
+                  _ToggleLeidaBtn(
+                    n: n,
+                    onTap: onToggleLeida!,
+                    iconSize: 16,
+                    color: tone.textMuted,
+                  ),
+                if (onDismiss != null)
+                  Tooltip(
+                    message: 'Descartar',
+                    child: GestureDetector(
+                      onTap: onDismiss,
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child:
+                            Icon(Icons.close, size: 16, color: tone.textMuted),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
@@ -633,7 +765,7 @@ int _prioridadTipo(String tipo) => switch (tipo) {
 };
 
 /// Ordena por prioridad de tipo y luego por fecha descendente.
-List<Notificacion> _ordenadas(List<Notificacion> src) {
+List<Notificacion> ordenarNotificaciones(List<Notificacion> src) {
   final l = [...src];
   l.sort((a, b) {
     final p = _prioridadTipo(a.tipo).compareTo(_prioridadTipo(b.tipo));
@@ -643,6 +775,288 @@ List<Notificacion> _ordenadas(List<Notificacion> src) {
     return db.compareTo(da);
   });
   return l;
+}
+
+/// Ejecuta una acción del endpoint de notificaciones (`marcar_leida`,
+/// `marcar_todas`, `descartar`) y refresca el provider. Compartida por la
+/// pantalla y por la vista previa de la campana ([NotificationBell]).
+Future<void> marcarNotificacion(
+  WidgetRef ref, {
+  String? action,
+  int? id,
+}) async {
+  try {
+    await fetchClienteNotificaciones(action: action, id: id);
+  } catch (_) {}
+  ref.invalidate(clienteNotificacionesProvider);
+}
+
+/// Marca una notificación como NO leída (revierte el "leído") y refresca el
+/// provider para actualizar el conteo. Análoga a [marcarNotificacion]; usa el
+/// método dedicado del ApiClient ([notifMarcarNoLeida]). Espejo de
+/// `useMarkAsUnread` del portal.
+Future<void> marcarNoLeidaNotificacion(WidgetRef ref, int id) async {
+  try {
+    await notifMarcarNoLeida(id);
+  } catch (_) {}
+  ref.invalidate(clienteNotificacionesProvider);
+}
+
+/// Alterna el estado leída ↔ no-leída de una notificación: si está leída la
+/// marca como NO leída (`marcar_no_leida`); si no, como leída (`marcar_leida`).
+/// Réplica del botón toggle de NotificationPopover/NotificationSheet.
+Future<void> alternarLeidaNotificacion(WidgetRef ref, Notificacion n) {
+  return n.leida
+      ? marcarNoLeidaNotificacion(ref, n.id)
+      : marcarNotificacion(ref, action: 'marcar_leida', id: n.id);
+}
+
+/// Al tocar una notificación: la marca como leída (si no lo está) y navega a
+/// la ruta del app correspondiente a su `url_accion`. Si la URL no mapea a
+/// ninguna ruta conocida, solo marca leída sin navegar (no rompe).
+void abrirNotificacion(BuildContext context, WidgetRef ref, Notificacion n) {
+  if (!n.leida) marcarNotificacion(ref, action: 'marcar_leida', id: n.id);
+  final ruta = _rutaAppDesdeUrl(n.urlAccion);
+  if (ruta != null) context.go(ruta);
+}
+
+/// (fondo del icono, color del icono, icono) por tipo — typeInfo del portal.
+/// Compartida por la fila del portal y la vista previa de la campana.
+(Color, Color, IconData) _tipoInfoPortal(Notificacion n) => switch (n.tipo) {
+  'urgente' => (
+    PortalColors.destructiveSoft15,
+    PortalColors.destructive,
+    Icons.error_outline,
+  ),
+  'accionable' => (
+    PortalColors.warningSoft15,
+    PortalColors.warning,
+    Icons.flash_on_outlined,
+  ),
+  'exito' => (
+    PortalColors.primarySoft15,
+    PortalColors.primary,
+    Icons.check_circle_outline,
+  ),
+  _ => (
+    PortalColors.primarySoft15,
+    PortalColors.primary,
+    Icons.info_outline,
+  ),
+};
+
+/// Botón toggle leída ↔ no-leída de una fila de notificación (espejo del
+/// `useMarkAsUnread` del portal). Se coloca junto al botón X de descartar: si
+/// la notificación está LEÍDA lo pinta como "marcar no leída"
+/// ([Icons.mark_email_unread_outlined]); si NO está leída, como "marcar leída"
+/// ([Icons.mark_email_read_outlined]). No dispara el onTap de la fila.
+class _ToggleLeidaBtn extends StatelessWidget {
+  final Notificacion n;
+  final VoidCallback onTap;
+  final double size;
+  final double iconSize;
+  final Color color;
+
+  const _ToggleLeidaBtn({
+    required this.n,
+    required this.onTap,
+    this.size = 28,
+    this.iconSize = 14,
+    this.color = PortalColors.mutedForeground,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final leida = n.leida;
+    return PortalHoverBuilder(
+      builder: (context, hovered) => Tooltip(
+        message: leida ? 'Marcar como no leída' : 'Marcar como leída',
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: hovered ? PortalColors.muted : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              leida
+                  ? Icons.mark_email_unread_outlined
+                  : Icons.mark_email_read_outlined,
+              size: iconSize,
+              color: color,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Fila compacta de la vista previa de la campana (popover web / bottom-sheet
+/// móvil). Réplica de NotificationPopover/NotificationSheet: icono por
+/// categoría/tipo, título, descripción (2 líneas), fecha relativa, punto
+/// no-leída y botón X para descartar. Al tocar dispara [onTap] (marcar leída +
+/// navegar + cerrar) y la X dispara [onDismiss] ('descartar').
+class NotifPreviewRow extends StatelessWidget {
+  final Notificacion n;
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+
+  /// Toggle leída ↔ no-leída (icono junto a la X). Espejo del portal.
+  final VoidCallback? onToggleLeida;
+
+  const NotifPreviewRow({
+    super.key,
+    required this.n,
+    required this.onTap,
+    required this.onDismiss,
+    this.onToggleLeida,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (iconBg, iconFg, tipoIcon) = _tipoInfoPortal(n);
+    final icon = _iconoCategoria(n.categoria) ?? tipoIcon;
+    return Stack(
+      children: [
+        PortalHoverBuilder(
+          builder: (context, hovered) => GestureDetector(
+            onTap: onTap,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              decoration: BoxDecoration(
+                color: hovered ? PortalColors.mutedSoft30 : Colors.transparent,
+                border: const Border(
+                  bottom: BorderSide(color: PortalColors.borderSoft),
+                ),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                12,
+                onToggleLeida != null ? 78 : 48,
+                12,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: iconBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, size: 16, color: iconFg),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                n.titulo,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: portalText(
+                                  size: 12,
+                                  weight: n.leida
+                                      ? FontWeight.w600
+                                      : FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            if (!n.leida) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                width: 6,
+                                height: 6,
+                                margin: const EdgeInsets.only(top: 4),
+                                decoration: const BoxDecoration(
+                                  color: PortalColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          n.descripcion,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: portalText(
+                            size: 11,
+                            color: PortalColors.mutedForeground,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _fechaRelativa(n.fecha),
+                          style: portalText(
+                            size: 10,
+                            color: PortalColors.mutedForeground,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 10,
+          right: 12,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (onToggleLeida != null)
+                _ToggleLeidaBtn(
+                  n: n,
+                  onTap: onToggleLeida!,
+                  size: 26,
+                ),
+              if (onToggleLeida != null) const SizedBox(width: 2),
+              PortalHoverBuilder(
+                builder: (context, xHovered) => Tooltip(
+                  message: 'Descartar',
+                  child: GestureDetector(
+                    onTap: onDismiss,
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color:
+                            xHovered ? PortalColors.muted : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 14,
+                        color: PortalColors.mutedForeground,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Icono Material según la `categoria` (glifo). El color sigue por

@@ -1,5 +1,8 @@
+import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 
 import '../core/file_download.dart';
 import '../core/format.dart';
@@ -1128,10 +1131,21 @@ class _FacturasSection extends StatelessWidget {
 
 // ─── Detalle de factura (FacturaDetailModal) ──────────────────────────────────
 
-class _DetalleFactura extends StatelessWidget {
+class _DetalleFactura extends StatefulWidget {
   final _FacturaEntry f;
 
   const _DetalleFactura({required this.f});
+
+  @override
+  State<_DetalleFactura> createState() => _DetalleFacturaState();
+}
+
+class _DetalleFacturaState extends State<_DetalleFactura> {
+  _FacturaEntry get f => widget.f;
+
+  /// True mientras se arma/descarga el ZIP (deshabilita el botón y muestra
+  /// spinner).
+  bool _zipping = false;
 
   @override
   Widget build(BuildContext context) {
@@ -1263,12 +1277,13 @@ class _DetalleFactura extends StatelessWidget {
     );
   }
 
-  /// Footer: "Descargar ZIP" (PDF+XML) + "Cerrar", como el portal. Sin una
-  /// librería de compresión se descargan ambos archivos en secuencia.
+  /// Footer: "Descargar ZIP" (PDF+XML) + "Cerrar", como el portal. Empaqueta
+  /// todos los archivos de la factura en un solo `.zip` (paridad con
+  /// `downloadFacturaZip` de ClienteDocumentos.tsx).
   Widget _acciones(BuildContext context, SozuTone tone) {
     final ambos = f.pdf != null && f.xml != null;
     final cerrar = TextButton(
-      onPressed: () => Navigator.of(context).pop(),
+      onPressed: _zipping ? null : () => Navigator.of(context).pop(),
       child: const Text('Cerrar'),
     );
     if (!ambos) return cerrar;
@@ -1276,7 +1291,7 @@ class _DetalleFactura extends StatelessWidget {
       children: [
         Expanded(
           child: FilledButton.icon(
-            onPressed: () => _descargarZip(context),
+            onPressed: _zipping ? null : () => _descargarZip(context),
             style: FilledButton.styleFrom(
               backgroundColor: tone.primarySoft,
               foregroundColor: tone.primaryDark,
@@ -1286,8 +1301,18 @@ class _DetalleFactura extends StatelessWidget {
                 borderRadius: BorderRadius.circular(6),
               ),
             ),
-            icon: const Icon(Icons.download_outlined, size: 18),
-            label: const Text('Descargar ZIP'),
+            icon: _zipping
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(tone.primaryDark),
+                    ),
+                  )
+                : const Icon(Icons.download_outlined, size: 18),
+            label: Text(_zipping ? 'Generando ZIP…' : 'Descargar ZIP'),
           ),
         ),
         const SizedBox(width: 8),
@@ -1307,10 +1332,69 @@ class _DetalleFactura extends StatelessWidget {
     }
   }
 
+  /// Descarga secuencial de los archivos originales (fallback y ruta no-web,
+  /// donde no existe descarga de bytes con blob). Comportamiento previo.
+  Future<void> _descargarEnSecuencia() async {
+    if (f.pdf != null) {
+      await downloadFile(f.pdf!, 'factura-${f.fileBase}.pdf');
+    }
+    if (f.pdf != null && f.xml != null) {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    }
+    if (f.xml != null) {
+      await downloadFile(f.xml!, 'factura-${f.fileBase}.xml');
+    }
+  }
+
+  /// Empaqueta el PDF + XML (los que existan) de la factura en un solo `.zip`
+  /// y lo dispara como una única descarga. Descarga los bytes de cada URL
+  /// firmada con `http`, arma el [Archive] y lo codifica con [ZipEncoder].
+  /// Fuera de web (sin blob) o ante cualquier error, cae a la descarga
+  /// secuencial de los archivos originales.
   Future<void> _descargarZip(BuildContext context) async {
-    await downloadFile(f.pdf!, 'factura-${f.fileBase}.pdf');
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    await downloadFile(f.xml!, 'factura-${f.fileBase}.xml');
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Móvil/escritorio: no hay descarga de bytes con blob; baja los originales.
+    if (!kIsWeb) {
+      await _descargarEnSecuencia();
+      return;
+    }
+
+    setState(() => _zipping = true);
+    try {
+      final archive = Archive();
+      Future<void> agregar(String url, String nombre) async {
+        final resp = await http.get(Uri.parse(url));
+        if (resp.statusCode == 200) {
+          archive.addFile(ArchiveFile.bytes(nombre, resp.bodyBytes));
+        }
+      }
+
+      if (f.pdf != null) await agregar(f.pdf!, 'factura-${f.fileBase}.pdf');
+      if (f.xml != null) await agregar(f.xml!, 'factura-${f.fileBase}.xml');
+      if (archive.isEmpty) throw Exception('sin archivos');
+
+      final bytes = ZipEncoder().encodeBytes(archive);
+      final ok = await downloadBytes(
+        bytes,
+        'Factura_${f.fileBase}.zip',
+        mimeType: 'application/zip',
+      );
+      if (!ok) throw Exception('descarga fallida');
+    } catch (_) {
+      // Fallback: descarga cada archivo por separado (como hacía antes).
+      await _descargarEnSecuencia();
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo generar el ZIP; se descargaron los '
+                'archivos por separado.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _zipping = false);
+    }
   }
 
   Widget _archivoBtn(
@@ -1600,7 +1684,8 @@ class _DetalleDocumento extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
-                  onPressed: () => openDoc(context, d.urlFirmada),
+                  onPressed: () =>
+                      _descargar(context, archivo ?? d.nombre),
                   icon: const Icon(Icons.download_outlined, size: 18),
                   label: const Text('Descargar'),
                 ),
@@ -1629,6 +1714,21 @@ class _DetalleDocumento extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// Descarga forzada del documento con nombre de archivo (paridad con
+  /// `downloadFile` de DocumentDetailSheet.tsx). En web crea un blob + anchor
+  /// `download`; fuera de web cae a abrir el archivo con el visor del sistema.
+  Future<void> _descargar(BuildContext context, String filename) async {
+    final url = d.urlFirmada;
+    if (url == null || url.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await downloadFile(url, filename);
+    if (!ok && context.mounted) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No se pudo descargar el documento.')),
+      );
+    }
   }
 
   Widget _fila(SozuTone tone, String etiqueta, String valor) {
