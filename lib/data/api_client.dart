@@ -116,6 +116,7 @@ Future<void> updatePerfilPersonal({
   String? curp,
   String? clavePaisTelefono,
   String? telefono,
+  String? ocupacion,
   int? impersonate,
 }) async {
   await _invoke(
@@ -127,6 +128,7 @@ Future<void> updatePerfilPersonal({
       'curp': curp,
       'clave_pais_telefono': clavePaisTelefono,
       'telefono': telefono,
+      'ocupacion': ocupacion,
     },
     impersonate: impersonate,
   );

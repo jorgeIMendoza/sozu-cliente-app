@@ -42,6 +42,7 @@ class PerfilPersonalScreen extends ConsumerWidget {
           value: p?.telefono != null
               ? '${p?.clavePaisTelefono ?? '+52'} ${p?.telefono}'
               : null),
+      PerfilInfoRow(label: 'Ocupación', value: p?.ocupacion),
       PerfilInfoRow(
           label: 'Correo electrónico',
           value: p?.email,
@@ -127,6 +128,8 @@ class PerfilPersonalScreen extends ConsumerWidget {
                             value: p?.telefono != null
                                 ? '${p?.clavePaisTelefono ?? '+52'} ${p?.telefono}'
                                 : null),
+                        PerfilInfoRow(
+                            label: 'Ocupación', value: p?.ocupacion),
                         PerfilInfoRow(
                             label: 'Correo electrónico',
                             value: p?.email,

@@ -41,6 +41,9 @@ class PortalColors {
   static const Color mutedHover = Color(0xFFF8F9FA); // bg-muted/60 (hover menú)
   static const Color mutedSoft30 = Color(0xFFFBFCFC); // bg-muted/30
   static const Color mutedSoft20 = Color(0xFFFCFDFD); // bg-muted/20
+  static const Color destructiveSoft15 = Color(
+    0xFFFDE3E3,
+  ); // bg-destructive/15 (fondo de icono notif. urgente)
 }
 
 // ---------------------------------------------------------------------------

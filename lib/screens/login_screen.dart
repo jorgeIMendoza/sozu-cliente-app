@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/biometric_service.dart';
 import '../core/theme.dart';
@@ -287,6 +288,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  /// Abre el onboarding de registro de propiedad (portal de propietarios).
+  Future<void> _registrarPropiedad() async {
+    final uri = Uri.parse('https://propietarios.sozu.com/registrar-propiedad');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el registro.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final porInactividad = ref.watch(inactivityLogoutProvider);
@@ -406,6 +418,100 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: AuthLink(
                   label: '¿Olvidaste tu contraseña?',
                   onPressed: () => context.push('/forgot-password'),
+                ),
+              ),
+
+              // Separador "o" (como el portal cliente).
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  const Expanded(child: Divider(color: AuthColors.separator)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'O',
+                      style: TextStyle(
+                        fontSize: 11,
+                        letterSpacing: 2,
+                        fontWeight: FontWeight.w500,
+                        color: AuthColors.textMuted.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider(color: AuthColors.separator)),
+                ],
+              ),
+              // Registro de dueño → propietarios.sozu.com/registrar-propiedad.
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _registrarPropiedad,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AuthColors.link.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AuthColors.link.withValues(alpha: 0.30),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AuthColors.link.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.vpn_key_outlined,
+                            size: 18, color: AuthColors.link),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '¿Ya eres dueño de una propiedad en un desarrollo SOZU?',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AuthColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Regístrala para activar tu portal de dueño y los beneficios de tu torre.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AuthColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Text(
+                                  'Registrar mi propiedad',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: AuthColors.link,
+                                  ),
+                                ),
+                                SizedBox(width: 4),
+                                Icon(Icons.arrow_forward,
+                                    size: 14, color: AuthColors.link),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
