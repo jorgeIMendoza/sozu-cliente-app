@@ -8,6 +8,13 @@
 > no los de `:root`. Donde `.inmob-portal` no define una variable (p.ej. `--border-soft`),
 > aplica el valor de `:root`.
 
+> **Divergencia deliberada (2026-07-28):** el verde primario de la app Flutter
+> ya no se toma de esta tabla. Se unificó en `lib/core/brand.dart`
+> (`SozuBrand.green = #239F71`, hsl 158 64% 38%) para que el login, el tema
+> móvil y el modo portal compartan un solo verde en web, Android e iOS. La
+> diferencia con `#239F6D` es imperceptible; si el CSS del admin cambia de
+> verde, sincronizar `brand.dart`, no las clases de color sueltas.
+
 ## 1. Paleta (valores efectivos dentro del portal cliente)
 
 | Token | CSS var (fuente) | HSL | HEX | Uso |
