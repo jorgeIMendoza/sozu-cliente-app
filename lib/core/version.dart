@@ -29,3 +29,25 @@ const String appEnv = String.fromEnvironment(
 );
 
 const bool isPreviewBuild = appEnv != 'prod';
+
+/// Compara dos versiones SemVer por X.Y.Z (ignora sufijos `-build`/`+meta` y
+/// cualquier caracter no numérico dentro de cada segmento). Web-safe.
+/// Devuelve `<0` si `a<b`, 0 si iguales, `>0` si `a>b`. Segmentos faltantes = 0.
+int compareSemver(String a, String b) {
+  List<int> parse(String v) {
+    final core = v.trim().split(RegExp(r'[-+ ]')).first;
+    final parts = core.split('.');
+    return List<int>.generate(3, (i) {
+      if (i >= parts.length) return 0;
+      final digits = parts[i].replaceAll(RegExp(r'[^0-9]'), '');
+      return int.tryParse(digits) ?? 0;
+    });
+  }
+
+  final pa = parse(a);
+  final pb = parse(b);
+  for (var i = 0; i < 3; i++) {
+    if (pa[i] != pb[i]) return pa[i].compareTo(pb[i]);
+  }
+  return 0;
+}
