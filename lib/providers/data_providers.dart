@@ -25,6 +25,17 @@ final authUserIdProvider = Provider<String?>((ref) {
   return ref.watch(authProvider).session?.user.id;
 });
 
+/// "Version gate" nativo: versión mínima/sugerida + URLs de store. No depende
+/// de la sesión (anon key, funciona pre-login). Ante cualquier error de
+/// red/backend devuelve null => la app NO gatea (nunca bloquea por fallo).
+final appVersionGateProvider = FutureProvider<AppVersionInfo?>((ref) async {
+  try {
+    return await fetchAppVersion();
+  } catch (_) {
+    return null;
+  }
+});
+
 final clienteResumenProvider = FutureProvider<ClienteResumen>((ref) {
   ref.watch(authUserIdProvider);
   final imp = ref.watch(impersonationProvider).idPersona;

@@ -32,6 +32,62 @@ int? asIntOrNull(Object? v) {
 
 String asString(Object? v, [String fallback = '']) => v?.toString() ?? fallback;
 
+/// String no vacío o null (para URLs/textos opcionales del backend).
+String? asStringOrNull(Object? v) {
+  if (v == null) return null;
+  final s = v.toString();
+  return s.isEmpty ? null : s;
+}
+
+// ─── cliente-app-version (version gate nativo) ───────────────────────────────
+
+/// Info de versión para el "version gate" de la app nativa (Android/iOS).
+/// La entrega la edge function `cliente-app-version` (anon key, pre-login).
+class AppVersionInfo {
+  /// Versión mínima soportada (SemVer, ej. "1.0.0"). Si la actual es menor,
+  /// se fuerza la actualización. null => sin mínimo.
+  final String? minVersion;
+
+  /// Última versión publicada (SemVer). Si la actual es menor (y cumple el
+  /// mínimo), se sugiere actualizar (aviso descartable). null => sin sugerencia.
+  final String? latestVersion;
+
+  /// Fuerza la actualización aunque la versión actual cumpla el mínimo.
+  final bool forceUpdate;
+
+  final String? androidStoreUrl;
+  final String? iosStoreUrl;
+
+  /// Texto opcional a mostrar en el aviso/pantalla de actualización.
+  final String? updateMessage;
+
+  const AppVersionInfo({
+    this.minVersion,
+    this.latestVersion,
+    this.forceUpdate = false,
+    this.androidStoreUrl,
+    this.iosStoreUrl,
+    this.updateMessage,
+  });
+
+  /// Info vacía (no gatea nada). Útil como degradación ante error.
+  const AppVersionInfo.empty()
+    : minVersion = null,
+      latestVersion = null,
+      forceUpdate = false,
+      androidStoreUrl = null,
+      iosStoreUrl = null,
+      updateMessage = null;
+
+  AppVersionInfo.fromJson(Map<String, dynamic> j)
+    : minVersion = asStringOrNull(j['min_version']),
+      latestVersion = asStringOrNull(j['latest_version']),
+      forceUpdate = j['force_update'] == true,
+      androidStoreUrl = asStringOrNull(j['android_store_url']),
+      iosStoreUrl = asStringOrNull(j['ios_store_url']),
+      updateMessage = asStringOrNull(j['update_message']);
+}
+
 // ─── cliente-resumen ─────────────────────────────────────────────────────────
 
 class ActividadItem {

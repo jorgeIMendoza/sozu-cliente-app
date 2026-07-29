@@ -11,6 +11,7 @@ import 'router.dart';
 import 'widgets/inactivity_watcher.dart';
 import 'widgets/preview_banner.dart';
 import 'widgets/push_registrar.dart';
+import 'widgets/version_gate.dart';
 
 /// SOZU — Portal del Cliente (Flutter).
 /// Seguridad: SOLO anon key + JWT; sesión en secure storage; todo dato
@@ -58,9 +59,11 @@ class SozuApp extends ConsumerWidget {
       darkTheme: sozuDarkTheme(),
       themeMode: themeMode,
       routerConfig: router,
-      builder: (context, child) => InactivityWatcher(
-        child: PushRegistrar(
-          child: PreviewBanner(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => VersionGate(
+        child: InactivityWatcher(
+          child: PushRegistrar(
+            child: PreviewBanner(child: child ?? const SizedBox.shrink()),
+          ),
         ),
       ),
     );
