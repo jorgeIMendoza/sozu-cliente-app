@@ -59,25 +59,42 @@ class _FadeSlideInState extends State<FadeSlideIn>
 }
 
 /// Cifra de dinero que "cuenta" desde 0 hasta el valor (hero del dashboard).
+///
+/// Parámetros opcionales (aditivos, sin romper llamadas existentes):
+/// - [prefix]: texto antepuesto al monto (p.ej. "+" para plusvalía).
+/// - [compact]: usa `formatMXNCompact` ("$2.46M") en vez de `formatMXN`.
+/// - [color]: conveniencia; si se pasa, tiñe el estilo (equivale a
+///   `style.copyWith(color: color)`).
 class CountUpMoney extends StatelessWidget {
   final double value;
   final TextStyle? style;
   final Duration duration;
+  final String prefix;
+  final bool compact;
+  final Color? color;
 
   const CountUpMoney({
     super.key,
     required this.value,
     this.style,
     this.duration = const Duration(milliseconds: 900),
+    this.prefix = '',
+    this.compact = false,
+    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveStyle =
+        color != null ? (style ?? const TextStyle()).copyWith(color: color) : style;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: value),
       duration: duration,
       curve: Curves.easeOutCubic,
-      builder: (context, v, _) => Text(formatMXN(v), style: style),
+      builder: (context, v, _) => Text(
+        '$prefix${compact ? formatMXNCompact(v) : formatMXN(v)}',
+        style: effectiveStyle,
+      ),
     );
   }
 }

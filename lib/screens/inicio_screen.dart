@@ -220,13 +220,13 @@ class InicioScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     _miniMetric(tone, 'Invertido total',
-                        formatMXN(r.invertidoTotal), tone.textPrimary),
+                        r.invertidoTotal, tone.textPrimary),
                     const SizedBox(height: 8),
                     _miniMetric(tone, 'Plusvalía generada',
-                        '+${formatMXN(r.plusvaliaGenerada)}', tone.positive),
+                        r.plusvaliaGenerada, tone.positive, prefix: '+'),
                     const SizedBox(height: 8),
                     _miniMetric(tone, 'Saldo pendiente',
-                        formatMXN(r.saldoPendiente), tone.pending),
+                        r.saldoPendiente, tone.pending),
                   ],
                 ),
               ],
@@ -430,14 +430,18 @@ class InicioScreen extends ConsumerWidget {
     ];
   }
 
-  Widget _miniMetric(SozuTone tone, String label, String value, Color color) {
+  Widget _miniMetric(SozuTone tone, String label, double value, Color color,
+      {String prefix = ''}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(label, style: TextStyle(fontSize: 10, color: tone.textMuted)),
-        Text(value,
-            style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+        CountUpMoney(
+          value: value,
+          prefix: prefix,
+          style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w700, color: color),
+        ),
       ],
     );
   }
@@ -1046,8 +1050,8 @@ class _PortalInicio extends ConsumerWidget {
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: Text(
-            formatMXN(r.patrimonioTotal),
+          child: CountUpMoney(
+            value: r.patrimonioTotal,
             style: portalText(
               size: 56,
               weight: FontWeight.w700,
@@ -1073,8 +1077,9 @@ class _PortalInicio extends ConsumerWidget {
                     color: PortalColors.primary,
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    '+${formatMXN(plusvalia)}',
+                  CountUpMoney(
+                    value: plusvalia,
+                    prefix: '+',
                     style: portalText(
                       size: 13,
                       weight: FontWeight.w600,
@@ -1149,8 +1154,8 @@ class _PortalInicio extends ConsumerWidget {
           style: portalText(size: 12, color: PortalColors.mutedForeground),
         ),
         const SizedBox(width: 6),
-        Text(
-          formatMXN(valor),
+        CountUpMoney(
+          value: valor,
           style: portalText(size: 12, weight: FontWeight.w600, tabular: true),
         ),
         const SizedBox(width: 6),
@@ -1163,7 +1168,9 @@ class _PortalInicio extends ConsumerWidget {
   }
 
   Widget _heroMetricas(ResumenFinanciero r, double plusvalia) {
-    Widget fila(String label, String valor, Color color) => Padding(
+    Widget fila(String label, double value, Color color,
+            {String prefix = ''}) =>
+        Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1173,8 +1180,9 @@ class _PortalInicio extends ConsumerWidget {
                 style:
                     portalText(size: 12, color: PortalColors.mutedForeground),
               ),
-              Text(
-                valor,
+              CountUpMoney(
+                value: value,
+                prefix: prefix,
                 style: portalText(
                   size: 14,
                   weight: FontWeight.w600,
@@ -1189,19 +1197,20 @@ class _PortalInicio extends ConsumerWidget {
       children: [
         fila(
           'Invertido total',
-          formatMXN(r.invertidoTotal),
+          r.invertidoTotal,
           PortalColors.foreground,
         ),
         const Divider(height: 1, color: PortalColors.borderSoft),
         fila(
           'Plusvalía generada',
-          '+${formatMXN(plusvalia)}',
+          plusvalia,
           PortalColors.primary,
+          prefix: '+',
         ),
         const Divider(height: 1, color: PortalColors.borderSoft),
         fila(
           'Saldo pendiente',
-          formatMXN(r.saldoPendiente),
+          r.saldoPendiente,
           PortalColors.foreground,
         ),
       ],

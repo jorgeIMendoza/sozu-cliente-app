@@ -18,7 +18,6 @@ import '../widgets/credito_hipotecario_drawer.dart';
 import '../widgets/cronograma_pagos.dart';
 import '../widgets/etapa_actual_stepper.dart';
 import '../widgets/fx.dart';
-import '../widgets/level_map.dart';
 import '../widgets/network_image.dart';
 import '../widgets/payment_method_badge.dart';
 import '../widgets/portal_widgets.dart';
@@ -2862,51 +2861,21 @@ class _FichaTecnica extends StatelessWidget {
                 ),
               ],
               // ¿Dónde está tu unidad? — diagrama del edificio (niveles) +
-              // rejilla del nivel, réplica del BuildingDiagram del portal.
+              // planta del nivel (LevelMap) consolidada en la columna derecha,
+              // réplica del BuildingDiagram del portal.
               if (ficha.numeroPiso != null) ...[
                 const SizedBox(height: 16),
                 BuildingDiagram(
                   numeroPiso: ficha.numeroPiso!,
                   totalPisos: ficha.totalPisos,
                   unidad: ficha.numeroDepa ?? '${ficha.numeroPiso}',
+                  regiones: ficha.regiones,
+                  numeroDepa: ficha.numeroDepa,
                 ),
               ],
-              // Ubicación en el nivel: mapa interactivo o imagen.
-              if (ficha.regiones.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text('UBICACIÓN EN EL NIVEL',
-                    style: TextStyle(
-                        fontSize: 11,
-                        letterSpacing: 1,
-                        fontWeight: FontWeight.w600,
-                        color: tone.textMuted)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: tone.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: tone.border),
-                  ),
-                  child: LevelMap(
-                      regiones: ficha.regiones, numeroDepa: ficha.numeroDepa),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                            color: SozuColors.emerald500,
-                            borderRadius: BorderRadius.circular(3))),
-                    const SizedBox(width: 6),
-                    Text('Tu unidad',
-                        style: TextStyle(
-                            fontSize: 11, color: tone.textSecondary)),
-                  ],
-                ),
-              ] else if (ficha.planoNivelUrl != null) ...[
+              // Fallback: imagen del nivel cuando no hay regiones (la planta
+              // interactiva vive dentro del BuildingDiagram cuando sí las hay).
+              if (ficha.regiones.isEmpty && ficha.planoNivelUrl != null) ...[
                 const SizedBox(height: 12),
                 _planoImage(context, tone, 'UBICACIÓN EN EL NIVEL',
                     ficha.planoNivelUrl!),
