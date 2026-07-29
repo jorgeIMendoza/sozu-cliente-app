@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../providers/auth_provider.dart';
-import 'auth_widgets.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/features/auth/components/auth_brand_image.dart';
+import 'package:sozu_cliente_app/features/auth/components/auth_buttons.dart';
+import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
+import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
+import 'package:sozu_cliente_app/features/auth/components/auth_text_field.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Recuperar contraseña. Réplica del card del portal admin: misma tarjeta,
 /// logo, textos y estado de éxito "Revisa tu correo". Respuesta neutra (no
@@ -54,23 +59,25 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AuthScaffold(
-      child: AuthCard(
+    return AuthLayout(
+      brand: const AuthBrandImage(),
+      child: AuthFormBody(
         children: _sent ? _successChildren() : _formChildren(),
       ),
     );
   }
 
   List<Widget> _formChildren() {
+    final t = context.s;
     return [
       const AuthLogo(),
-      const SizedBox(height: 28),
+      SizedBox(height: t.space.lg),
       const AuthTitle('Recuperar contraseña'),
-      const SizedBox(height: 10),
+      SizedBox(height: t.space.xs),
       const AuthSubtitle(
         'Ingresa tu correo electrónico para restablecer tu contraseña',
       ),
-      const SizedBox(height: 28),
+      SizedBox(height: t.space.lg),
       Form(
         key: _formKey,
         child: Column(
@@ -93,7 +100,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: t.space.md),
             AuthPrimaryButton(
               label: 'Validar',
               icon: Icons.mail_outline,
@@ -104,7 +111,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           ],
         ),
       ),
-      const SizedBox(height: 20),
+      SizedBox(height: t.space.md),
       Center(
         child: AuthLink(
           label: 'Volver al inicio de sesión',
@@ -116,45 +123,48 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   List<Widget> _successChildren() {
+    // Se lee una vez y se reutiliza: `context.s` no puede aparecer dentro de una
+    // expresion `const`, y estos bloques lo eran.
+    final t = context.s;
+    final c = t.color;
     return [
       const AuthLogo(),
-      const SizedBox(height: 28),
-      const Icon(Icons.check_circle, size: 56, color: AuthColors.success),
-      const SizedBox(height: 16),
+      SizedBox(height: t.space.lg),
+      Icon(Icons.check_circle, size: 56, color: c.primaryHover),
+      SizedBox(height: t.space.md),
       const AuthTitle('Revisa tu correo'),
-      const SizedBox(height: 12),
+      SizedBox(height: t.space.sm),
       const AuthSubtitle(
         'Si existe una cuenta activa con ese correo, te enviamos un enlace '
         'para restablecer tu contraseña.',
       ),
-      const SizedBox(height: 16),
+      SizedBox(height: t.space.md),
       Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AuthColors.infoBg,
-          borderRadius: BorderRadius.circular(12),
+        padding: EdgeInsets.symmetric(
+          horizontal: t.space.md,
+          vertical: t.space.sm,
         ),
-        child: const Row(
+        decoration: BoxDecoration(
+          color: c.infoSoft,
+          borderRadius: t.radius.mdBorder,
+        ),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.mail_outline, size: 20, color: AuthColors.infoIcon),
-            SizedBox(width: 12),
+            Icon(Icons.mail_outline, size: 20, color: c.info),
+            SizedBox(width: t.space.sm),
             Expanded(
               child: Text(
                 'Abre el enlace desde tu bandeja de entrada (revisa también la '
                 'carpeta de spam) para verificar tu identidad y definir una '
                 'nueva contraseña. El enlace es de un solo uso.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AuthColors.infoText,
-                  height: 1.35,
-                ),
+                style: t.text.body.copyWith(color: c.infoFg, height: 1.35),
               ),
             ),
           ],
         ),
       ),
-      const SizedBox(height: 24),
+      SizedBox(height: t.space.lg),
       AuthPrimaryButton(
         label: 'Volver al inicio de sesión',
         icon: Icons.arrow_back,

@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../core/biometric_service.dart';
-import '../core/portal_tracking.dart';
-import '../core/push_service.dart';
+import 'package:sozu_cliente_app/core/biometric_service.dart';
+import 'package:sozu_cliente_app/core/portal_tracking.dart';
+import 'package:sozu_cliente_app/core/push_service.dart';
 
 /// Estado de sesión/JWT + perfil (espejo de src/providers/AuthProvider.tsx).
 /// - Perfil vía RPC SECURITY DEFINER `get_current_user_profile` (por auth.uid()).
@@ -101,7 +101,8 @@ class AuthController extends ChangeNotifier {
         _profileForUserId = null;
         _profileReady = true;
         notifyListeners();
-      } else if (!locked && (changedUser || _profileForUserId != next.user.id)) {
+      } else if (!locked &&
+          (changedUser || _profileForUserId != next.user.id)) {
         // Bloqueada: no cargar perfil (se carga al desbloquear).
         _loadProfileFor(next.user.id);
       } else {
@@ -150,9 +151,40 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  /// Traduce el fallo de `signInWithPassword` a un mensaje accionable.
+  ///
+  /// Vive aqui y no en la pantalla porque interpretar un `AuthException` exige
+  /// importar `supabase_flutter`, y la capa de UI no debe conocer el backend.
+  ///
+  /// Antes todo caia en "Correo o contrasena incorrectos", incluido el 429 por
+  /// demasiados intentos y la red caida: el usuario reintentaba con la
+  /// contrasena correcta y volvia a fallar sin saber por que.
+  ///
+  /// Ojo con el caso mas comun: Supabase responde **400** en
+  /// `/auth/v1/token?grant_type=password` tanto para contrasena equivocada como
+  /// para usuario inexistente o correo sin confirmar. Se conserva el mensaje
+  /// generico para no revelar que cuentas existen.
+  static String mensajeErrorAcceso(Object e) {
+    if (e is AuthException) {
+      final code = e.code ?? '';
+      final status = int.tryParse(e.statusCode ?? '') ?? 0;
+      if (status == 429 || code == 'over_request_rate_limit') {
+        return 'Demasiados intentos. Espera un minuto y vuelve a probar.';
+      }
+      if (code == 'email_not_confirmed') {
+        return 'Tu correo aun no esta confirmado. Revisa tu bandeja.';
+      }
+      return 'Correo o contrasena incorrectos.';
+    }
+    // Sin AuthException no hubo respuesta del servidor: fue la red.
+    return 'No pudimos conectar. Revisa tu conexion e intenta de nuevo.';
+  }
+
   Future<void> signIn(String email, String password) async {
-    final res = await _sb.auth
-        .signInWithPassword(email: email.trim(), password: password);
+    final res = await _sb.auth.signInWithPassword(
+      email: email.trim(),
+      password: password,
+    );
     // Entrar por contraseña también levanta el candado biométrico.
     locked = false;
     await BiometricService.instance.desmarcarBloqueada();

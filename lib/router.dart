@@ -2,34 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'core/portal_theme.dart';
-import 'core/theme.dart';
-import 'core/version.dart';
-import 'providers/auth_provider.dart';
-import 'providers/data_providers.dart';
-import 'providers/impersonation_provider.dart';
-import 'screens/admin_avisos_screen.dart';
-import 'screens/adquisicion_screen.dart';
-import 'screens/cambiar_password_screen.dart';
-import 'screens/change_password_forced_screen.dart';
-import 'screens/documentos_screen.dart';
-import 'screens/estado_cuenta_screen.dart';
-import 'screens/expediente_screen.dart';
-import 'screens/forgot_password_screen.dart';
-import 'screens/inicio_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/notificaciones_screen.dart';
-import 'screens/pagar_screen.dart';
-import 'screens/pagos_screen.dart';
-import 'screens/patrimonio_screen.dart';
-import 'screens/perfil_screen.dart';
-import 'screens/producto_detalle_screen.dart';
-import 'screens/productos_screen.dart';
-import 'screens/propiedad_detalle_screen.dart';
-import 'screens/seleccionar_cliente_screen.dart';
-import 'widgets/fx.dart';
-import 'widgets/notificaciones_fx.dart';
-import 'widgets/portal_shell.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/core/version.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/screens/admin_avisos_screen.dart';
+import 'package:sozu_cliente_app/screens/adquisicion_screen.dart';
+import 'package:sozu_cliente_app/screens/cambiar_password_screen.dart';
+import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.dart';
+import 'package:sozu_cliente_app/screens/documentos_screen.dart';
+import 'package:sozu_cliente_app/screens/estado_cuenta_screen.dart';
+import 'package:sozu_cliente_app/screens/expediente_screen.dart';
+import 'package:sozu_cliente_app/features/auth/screens/forgot_password_screen.dart';
+import 'package:sozu_cliente_app/screens/inicio_screen.dart';
+import 'package:sozu_cliente_app/features/auth/screens/login_screen.dart';
+import 'package:sozu_cliente_app/screens/notificaciones_screen.dart';
+import 'package:sozu_cliente_app/screens/pagar_screen.dart';
+import 'package:sozu_cliente_app/screens/pagos_screen.dart';
+import 'package:sozu_cliente_app/screens/patrimonio_screen.dart';
+import 'package:sozu_cliente_app/screens/perfil_screen.dart';
+import 'package:sozu_cliente_app/screens/producto_detalle_screen.dart';
+import 'package:sozu_cliente_app/screens/productos_screen.dart';
+import 'package:sozu_cliente_app/screens/propiedad_detalle_screen.dart';
+import 'package:sozu_cliente_app/screens/seleccionar_cliente_screen.dart';
+import 'package:sozu_cliente_app/widgets/fx.dart';
+import 'package:sozu_cliente_app/widgets/notificaciones_fx.dart';
+import 'package:sozu_cliente_app/widgets/portal_shell.dart';
 
 /// Página secundaria con transición sutil (fade + deslizamiento) y contenido
 /// responsive (WebFrame) para web/desktop.
@@ -38,14 +38,22 @@ import 'widgets/portal_shell.dart';
 /// cuenta) no se limitan a los 900px del WebFrame en modo portal — el shell
 /// ya acota el contenido a 1280px; fuera del portal se comportan igual que
 /// siempre.
+///
+/// [sinMarco]: pantallas que ocupan el viewport completo y traen su propio
+/// layout responsive (las de acceso). El WebFrame les hacía daño: las metía en
+/// una caja de 900 px pintada con `scaffoldBackgroundColor`, que en tema
+/// oscuro es `slate900` — de ahí el marco navy alrededor del login.
 CustomTransitionPage<void> _slidePage(
   GoRouterState state,
   Widget child, {
   bool portalFullWidth = false,
+  bool sinMarco = false,
 }) {
   return CustomTransitionPage(
     key: state.pageKey,
-    child: portalFullWidth
+    child: sinMarco
+        ? child
+        : portalFullWidth
         ? _PortalAwareFrame(child: child)
         : WebFrame(child: child),
     transitionDuration: const Duration(milliseconds: 280),
@@ -131,19 +139,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         builder: (context, state) => const _SplashScreen(),
       ),
+      // Las tres pantallas de acceso van a sangre: su propio AuthScaffold
+      // resuelve el responsive y fuerza el tema claro.
       GoRoute(
         path: '/login',
-        pageBuilder: (context, state) => _slidePage(state, const LoginScreen()),
+        pageBuilder: (context, state) =>
+            _slidePage(state, const LoginScreen(), sinMarco: true),
       ),
       GoRoute(
         path: '/forgot-password',
         pageBuilder: (context, state) =>
-            _slidePage(state, const ForgotPasswordScreen()),
+            _slidePage(state, const ForgotPasswordScreen(), sinMarco: true),
       ),
       GoRoute(
         path: '/change-password',
         pageBuilder: (context, state) =>
-            _slidePage(state, const ChangePasswordForcedScreen()),
+            _slidePage(state, const ChangePasswordScreen(), sinMarco: true),
       ),
       // Admin sin cliente seleccionado (fuera del shell del portal).
       GoRoute(
@@ -171,10 +182,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           // portal y escritorio): observa la campana a nivel app y dispara la
           // animación de llegada hacia el destino visible de cada pantalla, sin
           // depender de que una campana concreta esté montada/visible.
-          return NotificacionesFx(
-            child: PortalShellWrapper(
-              currentPath: path,
-              child: _ClienteMobileChrome(currentPath: path, child: child),
+          // WebSelectable habilita seleccionar/copiar texto con el mouse en web.
+          // Va AQUÍ y no en el builder de MaterialApp porque SelectionArea
+          // necesita un Overlay ancestro (lo crea el Navigator) y el builder de
+          // MaterialApp está por encima de él. Un solo montaje cubre todas las
+          // pantallas del cliente: tabs y secundarias.
+          return WebSelectable(
+            child: NotificacionesFx(
+              child: PortalShellWrapper(
+                currentPath: path,
+                child: _ClienteMobileChrome(currentPath: path, child: child),
+              ),
             ),
           );
         },
@@ -458,7 +476,7 @@ class _ClienteBottomNav extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     // Menú completo del portal (misma resolución/orden/permisos que el sidebar,
     // vía cliente-menu con degradación). Los primeros ítems como tabs; el resto
     // tras "Más" (…) para que TODOS sean alcanzables aunque no quepan.
@@ -549,8 +567,8 @@ class _NavBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
-    final color = active ? tone.primary : tone.textMuted;
+    final tone = context.s.color;
+    final color = active ? tone.primary : tone.fgSubtle;
     return Expanded(
       child: InkWell(
         onTap: onTap,
@@ -591,7 +609,7 @@ class _ImpersonationBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final admin = ref.watch(authProvider).profile;
     final adminNombre = admin?.nombre ?? admin?.email ?? '';
     return Material(
@@ -605,7 +623,7 @@ class _ImpersonationBanner extends ConsumerWidget {
               Icon(
                 Icons.admin_panel_settings_outlined,
                 size: 18,
-                color: tone.primaryDark,
+                color: tone.primaryHover,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -626,7 +644,7 @@ class _ImpersonationBanner extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: tone.primaryDark,
+                    color: tone.primaryHover,
                   ),
                 ),
               ),
@@ -637,7 +655,7 @@ class _ImpersonationBanner extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: tone.primaryDark,
+                    color: tone.primaryHover,
                   ),
                 ),
               ),
@@ -648,7 +666,7 @@ class _ImpersonationBanner extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: tone.primaryDark,
+                    color: tone.primaryHover,
                   ),
                 ),
               ),
@@ -669,7 +687,7 @@ class _SideNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Container(
       width: 248,
       color: tone.surface,
@@ -687,7 +705,7 @@ class _SideNav extends StatelessWidget {
                     fontSize: 30,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -1,
-                    color: tone.textPrimary,
+                    color: tone.fg,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -697,7 +715,7 @@ class _SideNav extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 2.5,
-                    color: tone.textMuted,
+                    color: tone.fgSubtle,
                   ),
                 ),
               ],
@@ -725,8 +743,8 @@ class _SideNav extends StatelessWidget {
                         _navItems[i].$1,
                         size: 20,
                         color: i == currentIndex
-                            ? tone.primaryDark
-                            : tone.textSecondary,
+                            ? tone.primaryHover
+                            : tone.fgMuted,
                       ),
                       const SizedBox(width: 12),
                       Text(
@@ -737,8 +755,8 @@ class _SideNav extends StatelessWidget {
                               ? FontWeight.w700
                               : FontWeight.w500,
                           color: i == currentIndex
-                              ? tone.primaryDark
-                              : tone.textSecondary,
+                              ? tone.primaryHover
+                              : tone.fgMuted,
                         ),
                       ),
                     ],
@@ -751,7 +769,7 @@ class _SideNav extends StatelessWidget {
             padding: const EdgeInsets.all(24),
             child: Text(
               appVersionLabel,
-              style: TextStyle(fontSize: 11, color: tone.textMuted),
+              style: TextStyle(fontSize: 11, color: tone.fgSubtle),
             ),
           ),
         ],
@@ -778,9 +796,7 @@ class _SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(color: SozuColors.emerald500),
-      ),
+      body: Center(child: CircularProgressIndicator(color: SozuBrand.green500)),
     );
   }
 }

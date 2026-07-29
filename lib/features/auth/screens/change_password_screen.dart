@@ -2,23 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../providers/auth_provider.dart';
-import '../widgets/password_rules.dart';
-import 'auth_widgets.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/widgets/password_rules.dart';
+import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';
+import 'package:sozu_cliente_app/features/auth/components/auth_brand_image.dart';
+import 'package:sozu_cliente_app/features/auth/components/auth_buttons.dart';
+import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
+import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
+import 'package:sozu_cliente_app/features/auth/components/auth_text_field.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Cambio OBLIGATORIO de contraseña temporal (debe_cambiar_password=true).
 /// Réplica del card del portal admin (`auth/ChangePassword.tsx`): misma tarjeta
 /// blanca de auth, logo SOZU, textos y checklist de requisitos.
-class ChangePasswordForcedScreen extends ConsumerStatefulWidget {
-  const ChangePasswordForcedScreen({super.key});
+class ChangePasswordScreen extends ConsumerStatefulWidget {
+  const ChangePasswordScreen({super.key});
 
   @override
-  ConsumerState<ChangePasswordForcedScreen> createState() =>
-      _ChangePasswordForcedScreenState();
+  ConsumerState<ChangePasswordScreen> createState() =>
+      _ChangePasswordScreenState();
 }
 
-class _ChangePasswordForcedScreenState
-    extends ConsumerState<ChangePasswordForcedScreen> {
+class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _pwd = TextEditingController();
   final _confirm = TextEditingController();
@@ -75,18 +80,20 @@ class _ChangePasswordForcedScreenState
 
   @override
   Widget build(BuildContext context) {
-    return AuthScaffold(
-      child: AuthCard(
+    final t = context.s;
+    return AuthLayout(
+      brand: const AuthBrandImage(),
+      child: AuthFormBody(
         children: [
           const AuthLogo(),
-          const SizedBox(height: 28),
+          SizedBox(height: t.space.lg),
           const AuthTitle('Cambiar Contraseña'),
-          const SizedBox(height: 10),
+          SizedBox(height: t.space.xs),
           const AuthSubtitle(
             'Por seguridad, debes cambiar tu contraseña temporal antes de '
             'continuar',
           ),
-          const SizedBox(height: 28),
+          SizedBox(height: t.space.lg),
           Form(
             key: _formKey,
             child: Column(
@@ -98,7 +105,7 @@ class _ChangePasswordForcedScreenState
                     icon: Icons.error_outline,
                     message: _formError!,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: t.space.md),
                 ],
 
                 const AuthFieldLabel('Nueva contraseña'),
@@ -117,14 +124,15 @@ class _ChangePasswordForcedScreenState
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
                       size: 18,
-                      color: AuthColors.textMuted,
+                      color: context.s.color.fgMuted,
                     ),
                     onPressed: () => setState(() => _showPwd = !_showPwd),
                   ),
-                  validator: (v) =>
-                      passwordValida(v ?? '') ? null : 'Cumple todas las reglas',
+                  validator: (v) => passwordValida(v ?? '')
+                      ? null
+                      : 'Cumple todas las reglas',
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: t.space.md),
 
                 const AuthFieldLabel('Confirmar contraseña'),
                 AuthTextField(
@@ -143,7 +151,7 @@ class _ChangePasswordForcedScreenState
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
                       size: 18,
-                      color: AuthColors.textMuted,
+                      color: context.s.color.fgMuted,
                     ),
                     onPressed: () =>
                         setState(() => _showConfirm = !_showConfirm),
@@ -151,20 +159,18 @@ class _ChangePasswordForcedScreenState
                   validator: (v) =>
                       v == _pwd.text ? null : 'Las contraseñas no coinciden',
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: t.space.md),
 
                 // Checklist de requisitos con encabezado (como el portal).
-                const Text(
+                Text(
                   'Requisitos:',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AuthColors.textMuted,
+                  style: context.s.text.label.copyWith(
+                    color: context.s.color.fgMuted,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: t.space.xs),
                 PasswordRulesChecklist(value: _pwdValue),
-                const SizedBox(height: 20),
+                SizedBox(height: t.space.md),
 
                 AuthPrimaryButton(
                   label: 'Cambiar Contraseña',
@@ -176,7 +182,7 @@ class _ChangePasswordForcedScreenState
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: t.space.md),
           Center(
             child: AuthLink(
               label: 'Cerrar sesión',
