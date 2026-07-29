@@ -1,6 +1,6 @@
-# Feature `auth` — CERRADA
+# Feature `auth` - CERRADA
 
-Estado: **migrada y auditada** · 2026-07-28 · 10 archivos, ~1,800 LOC
+Estado: **migrada al design system global** · 2026-07-29 · 8 archivos
 
 Primera feature en el patrón nuevo. Sirve de plantilla: cualquier duda de "¿dónde
 va esto?" se resuelve mirando aquí.
@@ -11,17 +11,39 @@ va esto?" se resuelve mirando aquí.
 layouts/
   auth_layout.dart          AuthLayout + AuthFormBody + kAuthAlignment/kAuthTextAlign
 screens/
-  login_screen.dart         AuthLayout(brand:, child:) — 40 líneas
+  login_screen.dart         AuthLayout(brand:, child:) - 40 líneas
   forgot_password_screen.dart
   change_password_screen.dart
 components/
   auth_brand_image.dart     la imagen del panel izquierdo
   auth_header.dart          AuthLogo · AuthTitle · AuthSubtitle
-  auth_text_field.dart      AuthTextField · AuthFieldLabel
-  auth_buttons.dart         AuthPrimaryButton · AuthOutlineButton · AuthLink
   auth_alert.dart           AuthAlert · AuthAlertKind
   login_form.dart           el formulario completo del login
 ```
+
+### Campos y botones: del design system, no de auth
+
+Auth **no tiene** widgets de campo ni de botón. Usa los globales de
+`lib/ui/primitives/` (`import 'package:sozu_cliente_app/ui/ui.dart';`):
+
+| Necesidad | Componente global |
+|---|---|
+| Campo con etiqueta arriba | `STextField(label:, hint:, …)` |
+| Campo de contraseña | `STextField.password(...)` - el ojo lo maneja el campo |
+| Acción principal del formulario | `SButton(size: SButtonSize.lg, …)` |
+| Acción alterna (biometría) | `SButton.secondary(size: SButtonSize.lg, …)` |
+| Enlace de texto | `SButton.link(...)` |
+
+Lo específico de auth va por **props**, nunca por una copia del widget. Si algo
+no se puede expresar con una prop, la prop se agrega al componente GLOBAL - no se
+crea un componente de auth.
+
+`SButtonSize.lg` (52 px) es explícito en los botones de formulario: empareja el
+alto de `STextField` (que nace en `lg`). El default de `SButton` es `md` (44 px),
+correcto para toolbars y filas de acciones, bajo al lado de un campo.
+
+El error GLOBAL del formulario (`_formError`) se sigue mostrando con `AuthAlert`.
+`STextField.errorText` es para el error POR CAMPO.
 
 ### Por qué tres carpetas
 
@@ -34,13 +56,14 @@ components/
 `AuthFormBody` vive en `layouts/` y no en `components/` porque solo apila hijos
 con el aire correcto: eso es estructura, no una pieza de interfaz.
 
-## Auditoría de cierre — todo en 0
+## Auditoría de cierre - todo en 0
 
 ```
 PortalColors · isPortalMode · SozuTone · SozuColors · AuthColors
 SozuType.*   · Color(0x…)   · fontSize: · circular(N)
 EdgeInsets.all(N) · EdgeInsets.symmetric(N) · SizedBox(height: N)
 import '../…' · kPortalFontFallback
+AuthPrimaryButton · AuthOutlineButton · AuthLink · AuthTextField · AuthFieldLabel
 ```
 
 Se reproduce con:
@@ -49,38 +72,44 @@ F=lib/features/auth
 for p in "PortalColors" "isPortalMode" "SozuTone" "SozuColors" "AuthColors" \
          "SozuType\." "Color(0x" "fontSize:" "circular([0-9]" \
          "EdgeInsets.all([0-9]" "EdgeInsets.symmetric(horizontal: [0-9]" \
-         "SizedBox(height: [0-9]" "import '\.\./" "kPortalFontFallback"; do
+         "SizedBox(height: [0-9]" "import '\.\./" "kPortalFontFallback" \
+         "AuthPrimaryButton" "AuthOutlineButton" "AuthLink" "AuthTextField" \
+         "AuthFieldLabel"; do
   printf "%-42s %s\n" "$p" \
     "$(grep -rn "$p" $F --include=*.dart | grep -vE ':[0-9]+: *///' | wc -l)"
 done
 ```
 
-**Excepción documentada:** `auth_buttons.dart` usa `height: 52` y `height: 50`
-(alturas de control). No son espaciado sino destinos táctiles; no existe token de
-altura de control todavía. Si se crea uno, migrar aquí.
+Ya **no hay excepciones documentadas**: los `height: 52` / `height: 50` de
+`auth_buttons.dart` desaparecieron con el archivo. Las alturas de control ahora
+las decide `SButtonSize` / `STextFieldSize` en `lib/ui/primitives/`.
 
 ## Qué se eliminó al cerrar
 
 | Antes | Ahora |
 |---|---|
-| `auth_widgets.dart` — 766 líneas, un cajón con 13 clases | 6 componentes + 1 layout |
-| `login_screen.dart` — 546 líneas con layout + estado + biometría + atajos | `login_screen` (40) + `login_form` |
-| `AuthColors` — 20 constantes, 16 hex crudos | roles de `context.s.color` |
-| `AuthCard` — tarjeta blanca solo en móvil | `AuthFormBody`, el formulario va directo sobre la página |
+| `auth_widgets.dart` - 766 líneas, un cajón con 13 clases | 6 componentes + 1 layout |
+| `login_screen.dart` - 546 líneas con layout + estado + biometría + atajos | `login_screen` (40) + `login_form` |
+| `AuthColors` - 20 constantes, 16 hex crudos | roles de `context.s.color` |
+| `AuthCard` - tarjeta blanca solo en móvil | `AuthFormBody`, el formulario va directo sobre la página |
 | `kAuthSplitBreakpoint` (1024) · `kAuthCompactBreakpoint` (480) | `context.bp` del DS. El primero era **exactamente** `kSozuDesktopMin` |
 | `_LogoBlanco` + `ColorFiltered` a mano | `SozuLogo.onBrand` |
+| `auth_buttons.dart` (292) - `AuthPrimaryButton` · `AuthOutlineButton` · `AuthLink` · `_HoverUnderline` | `SButton` · `SButton.secondary` · `SButton.link` del DS global |
+| `auth_text_field.dart` (137) - `AuthTextField` · `AuthFieldLabel` | `STextField` (la etiqueta es la prop `label:`) |
+| `bool _isPasswordHidden` / `_showPwd` / `_showConfirm` + 3 `IconButton` del ojo | `STextField.password`: la visibilidad es estado del campo |
+| `CircularProgressIndicator` pasado como `icon:` al botón de biometría | `loading: true` - el spinner lo pone el botón |
 
 ## Bugs encontrados y corregidos al migrar
 
-1. **`AuthAlertKind.success` pintaba mal** — usaba el fondo ámbar de `warning`
+1. **`AuthAlertKind.success` pintaba mal** - usaba el fondo ámbar de `warning`
    con texto verde.
-2. **El logo era invisible en tema oscuro** — 4 de 5 usos pintaban el PNG negro
+2. **El logo era invisible en tema oscuro** - 4 de 5 usos pintaban el PNG negro
    crudo. `SozuLogo` lo recolorea con `srcIn`.
-3. **Todo error de acceso decía "Correo o contraseña incorrectos"** — incluidos
+3. **Todo error de acceso decía "Correo o contraseña incorrectos"** - incluidos
    el 429 por demasiados intentos y la red caída. Ahora `AuthController.mensajeErrorAcceso`
    los distingue. El mapeo vive en el provider, no en la UI: interpretar un
    `AuthException` exige importar `supabase_flutter`.
-4. **`¿Olvidaste tu contraseña?` tenía fondo de botón en hover** — ahora es
+4. **`¿Olvidaste tu contraseña?` tenía fondo de botón en hover** - ahora es
    subrayado, conservando los 44 px de destino táctil.
 
 ## Trampas a recordar

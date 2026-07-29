@@ -6,7 +6,7 @@ import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
 /// Pantalla de acceso.
 ///
 /// Solo **compone**: el andamio responsive, el panel de marca y el formulario.
-/// No tiene estado, no habla con providers y no valida nada — todo eso vive en
+/// No tiene estado, no habla con providers y no valida nada - todo eso vive en
 /// [LoginForm].
 ///
 /// ```
@@ -20,18 +20,19 @@ import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
 /// └── components/       ← piezas REUTILIZABLES (las usan 2+ pantallas)
 ///     ├── auth_brand_image.dart  la imagen
 ///     ├── auth_header.dart       logo, título, subtítulo
-///     ├── auth_text_field.dart   campo + etiqueta
-///     ├── auth_buttons.dart      primario, contorno, enlace
 ///     ├── auth_alert.dart        alertas
 ///     └── login_form.dart        el formulario (único del login, 1 componente)
 /// ```
 ///
+/// Campos y botones NO viven aquí: son `STextField` y `SButton` del design
+/// system global (`lib/ui/primitives/`). Lo propio de auth se pasa por props.
+///
 /// Criterio de las tres carpetas:
-/// * `layouts/` — envuelve pantallas y decide tema/scroll/breakpoints.
-/// * `components/` — se reutiliza. `login_form` es la excepción deliberada: es
+/// * `layouts/` - envuelve pantallas y decide tema/scroll/breakpoints.
+/// * `components/` - se reutiliza. `login_form` es la excepción deliberada: es
 ///   único del login, pero partirlo en sub-componentes por partirlo solo agrega
 ///   archivos sin quitar acoplamiento.
-/// * `screens/` — una pantalla no tiene lógica propia, ensambla.
+/// * `screens/` - una pantalla no tiene lógica propia, ensambla.
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 

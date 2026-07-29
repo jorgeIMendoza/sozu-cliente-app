@@ -7,14 +7,14 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 ///
 /// Vive en `layouts/` y no en `components/`: no es una pieza de interfaz
 /// reutilizable, es la **estructura** que envuelve a una pantalla. La distinción
-/// importa porque un layout puede imponer tema, scroll y breakpoints —cosas que
+/// importa porque un layout puede imponer tema, scroll y breakpoints -cosas que
 /// un componente nunca debería decidir por su cuenta.
 ///
 /// Dos layouts sobre el MISMO contenido, sin ramas de código en las pantallas:
 ///
 /// * **< 1024 px**: una columna, el formulario sobre el fondo con degradado
 ///   radial verde.
-/// * **>= 1024 px**: doble columna — panel de marca a la izquierda (55%) y
+/// * **>= 1024 px**: doble columna - panel de marca a la izquierda (55%) y
 ///   formulario a la derecha (45%). Evita el vacío enorme que dejaba el
 ///   formulario solo en medio de un monitor.
 ///
@@ -25,7 +25,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 ///
 /// **Breakpoints:** usa los del design system (`context.bp`), no unos propios.
 /// Antes tenía `kAuthSplitBreakpoint = 1024` y `kAuthCompactBreakpoint = 480`
-/// duplicando lo que ya define `ui/theme/breakpoints.dart` — y 1024 era
+/// duplicando lo que ya define `ui/theme/breakpoints.dart` - y 1024 era
 /// exactamente `kSozuDesktopMin`. Un sistema de breakpoints, no dos.
 class AuthLayout extends StatefulWidget {
   const AuthLayout({super.key, required this.child, required this.brand});
@@ -152,7 +152,7 @@ class _AuthLayoutState extends State<AuthLayout> {
 //
 // No es un atajo: leer un campo de un objeto `const` NO es una expresión
 // constante en Dart, así que `const BoxDecoration(colors: [roles.primarySoft])`
-// no compila —  "Not a constant expression". Las constantes de la paleta sí lo
+// no compila -  "Not a constant expression". Las constantes de la paleta sí lo
 // son, y así el degradado del fondo se mantiene `const` (se construye una vez,
 // no en cada rebuild).
 //

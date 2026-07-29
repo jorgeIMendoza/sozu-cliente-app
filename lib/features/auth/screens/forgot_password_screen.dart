@@ -4,10 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_brand_image.dart';
-import 'package:sozu_cliente_app/features/auth/components/auth_buttons.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
 import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
-import 'package:sozu_cliente_app/features/auth/components/auth_text_field.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Recuperar contraseña. Réplica del card del portal admin: misma tarjeta,
@@ -83,27 +81,28 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AuthFieldLabel('Correo electrónico'),
-            AuthTextField(
+            STextField(
               controller: _email,
-              hintText: 'tucorreo@ejemplo.com',
+              label: 'Correo electrónico',
+              hint: 'tucorreo@ejemplo.com',
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
               textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_) => _submit(),
+              onSubmitted: (_) => _submit(),
               validator: (v) {
-                final t = v?.trim() ?? '';
-                if (t.isEmpty) return 'Ingresa tu correo';
-                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(t)) {
+                final email = v?.trim() ?? '';
+                if (email.isEmpty) return 'Ingresa tu correo';
+                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
                   return 'Correo no válido';
                 }
                 return null;
               },
             ),
             SizedBox(height: t.space.md),
-            AuthPrimaryButton(
+            // lg: acción principal del formulario, al mismo alto que el campo.
+            SButton(
               label: 'Validar',
-              icon: Icons.mail_outline,
+              size: SButtonSize.lg,
               loading: _submitting,
               loadingLabel: 'Validando...',
               onPressed: _submitting ? null : _submit,
@@ -113,9 +112,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       ),
       SizedBox(height: t.space.md),
       Center(
-        child: AuthLink(
+        child: SButton.link(
           label: 'Volver al inicio de sesión',
           icon: Icons.arrow_back,
+          // Navega a otra pantalla: se anuncia como enlace, no como botón.
+          isNavigation: true,
           onPressed: _volverALogin,
         ),
       ),
@@ -165,8 +166,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         ),
       ),
       SizedBox(height: t.space.lg),
-      AuthPrimaryButton(
+      SButton(
         label: 'Volver al inicio de sesión',
+        size: SButtonSize.lg,
         icon: Icons.arrow_back,
         onPressed: _volverALogin,
       ),

@@ -8,10 +8,8 @@ import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/core/biometric_service.dart';
 import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';
-import 'package:sozu_cliente_app/features/auth/components/auth_buttons.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
 import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
-import 'package:sozu_cliente_app/features/auth/components/auth_text_field.dart';
 import 'package:sozu_cliente_app/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -43,7 +41,6 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   bool _isSubmitting = false;
   String? _formError;
   bool _isAdminMode = false;
-  bool _isPasswordHidden = true;
   bool _isBiometricAvailable = false;
   bool _isBiometricRunning = false;
 
@@ -97,7 +94,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   ///
   /// Va montado en `HardwareKeyboard` (handler global) y no en un `Focus`: un
   /// `Focus` solo recibe teclas cuando él o un descendiente tienen el foco, así
-  /// que al cargar el login —con nada enfocado todavía— el atajo se perdía.
+  /// que al cargar el login -con nada enfocado todavía- el atajo se perdía.
   ///
   /// Chrome/Edge se quedan Ctrl+Shift+A para su buscador de pestañas y la página
   /// no puede cancelarlo; por eso Ctrl+Alt+A queda como equivalente.
@@ -128,6 +125,14 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     auth.loginEnCurso = true;
     try {
       await auth.signIn(_emailController.text, _passwordController.text);
+      // Cierra el contexto de autofill PIDIENDO guardar. Es la mitad que faltaba:
+      // `AutofillGroup` + `autofillHints` hacen que el gestor de contrasenas
+      // RECONOZCA el formulario, pero el "quieres guardar esta contrasena?" solo
+      // aparece cuando la app avisa que la credencial se uso con exito.
+      //
+      // Va aqui y no en el `finally`: solo se guarda lo que de verdad funciono.
+      // Guardar tras un fallo entrenaria al gestor con una contrasena mala.
+      TextInput.finishAutofillContext();
     } catch (e) {
       auth.loginEnCurso = false;
       setState(() {
@@ -339,136 +344,132 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     final loggedOutByInactivity = ref.watch(inactivityLogoutProvider);
     final isSplit = context.bp.isDesktop;
 
-    return Form(
-      key: _formKey,
-      child: AuthFormBody(
-        children: [
-          const AuthLogo(),
-          SizedBox(height: isSplit ? 0 : t.space.lg),
-          const AuthTitle('Iniciar sesión'),
-          SizedBox(height: t.space.xs),
-          const AuthSubtitle('Entra a tu portal para seguir tu inversión.'),
-
-          // La pastilla solo aparece cuando el atajo activa el modo
-          // administrador, que es cuando de verdad comunica algo.
-          if (_isAdminMode) ...[
-            SizedBox(height: t.space.sm),
-            const _AdminModeBadge(),
-          ],
-
-          SizedBox(height: t.space.lg),
-
-          if (loggedOutByInactivity) ...[
-            const AuthAlert(
-              kind: AuthAlertKind.warning,
-              icon: Icons.schedule,
-              message:
-                  'Tu sesión se cerró por inactividad. '
-                  'Vuelve a iniciar sesión.',
-            ),
-            SizedBox(height: t.space.md),
-          ],
-
-          const AuthFieldLabel('Correo electrónico'),
-          AuthTextField(
-            controller: _emailController,
-            hintText: 'tucorreo@ejemplo.com',
-            keyboardType: TextInputType.emailAddress,
-            autofillHints: const [AutofillHints.email],
-            textInputAction: TextInputAction.next,
-            // Solo en escritorio: en móvil dispararía el teclado al entrar.
-            autofocus: isSplit,
-            validator: (value) {
-              final email = value?.trim() ?? '';
-              if (email.isEmpty) return 'Ingresa tu correo';
-              if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
-                return 'Correo no válido';
-              }
-              return null;
-            },
-          ),
-          SizedBox(height: t.space.sm),
-
-          const AuthFieldLabel('Contraseña'),
-          AuthTextField(
-            controller: _passwordController,
-            hintText: '••••••••',
-            obscureText: _isPasswordHidden,
-            autofillHints: const [AutofillHints.password],
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _submit(),
-            suffixIcon: IconButton(
-              tooltip: _isPasswordHidden
-                  ? 'Mostrar contraseña'
-                  : 'Ocultar contraseña',
-              icon: Icon(
-                _isPasswordHidden
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
-                size: 18,
-                color: t.color.fgSubtle,
-              ),
-              onPressed: () =>
-                  setState(() => _isPasswordHidden = !_isPasswordHidden),
-            ),
-            validator: (value) => (value == null || value.isEmpty)
-                ? 'Ingresa tu contraseña'
-                : null,
-          ),
-
-          if (_formError != null) ...[
-            SizedBox(height: t.space.sm),
-            AuthAlert(
-              kind: AuthAlertKind.error,
-              icon: Icons.error_outline,
-              message: _formError!,
-            ),
-          ],
-
-          SizedBox(height: t.space.md),
-          AuthPrimaryButton(
-            label: 'Iniciar sesión',
-            loading: _isSubmitting,
-            loadingLabel: 'Iniciando sesión...',
-            onPressed: _isSubmitting ? null : _submit,
-          ),
-
-          if (_isBiometricAvailable) ...[
+    // AutofillGroup es lo que le dice a la plataforma "estos campos son UNA
+    // credencial". Sin el, `autofillHints` en los campos no alcanza: el navegador
+    // no reconoce el par correo+contrasena como formulario de acceso, asi que ni
+    // autocompleta ni ofrece guardar. En Flutter web, este widget es el que hace
+    // que el motor emita los inputs nativos ocultos que el gestor de contrasenas
+    // necesita ver.
+    return AutofillGroup(
+      child: Form(
+        key: _formKey,
+        child: AuthFormBody(
+          children: [
+            const AuthLogo(),
+            SizedBox(height: isSplit ? 0 : t.space.lg),
+            const AuthTitle('Iniciar sesión'),
             SizedBox(height: t.space.xs),
-            AuthOutlineButton(
-              label: 'Entrar con huella o rostro',
-              loading: _isBiometricRunning,
-              onPressed: (_isSubmitting || _isBiometricRunning)
-                  ? null
-                  : _signInWithBiometrics,
-              icon: _isBiometricRunning
-                  ? SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        color: t.color.primary,
-                      ),
-                    )
-                  : const Icon(Icons.fingerprint),
+            const AuthSubtitle('Entra a tu portal para seguir tu inversión.'),
+
+            // La pastilla solo aparece cuando el atajo activa el modo
+            // administrador, que es cuando de verdad comunica algo.
+            if (_isAdminMode) ...[
+              SizedBox(height: t.space.sm),
+              const _AdminModeBadge(),
+            ],
+
+            SizedBox(height: t.space.lg),
+
+            if (loggedOutByInactivity) ...[
+              const AuthAlert(
+                kind: AuthAlertKind.warning,
+                icon: Icons.schedule,
+                message:
+                    'Tu sesión se cerró por inactividad. '
+                    'Vuelve a iniciar sesión.',
+              ),
+              SizedBox(height: t.space.md),
+            ],
+
+            STextField(
+              controller: _emailController,
+              label: 'Correo electrónico',
+              hint: 'tucorreo@ejemplo.com',
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
+              textInputAction: TextInputAction.next,
+              // Solo en escritorio: en móvil dispararía el teclado al entrar.
+              autofocus: isSplit,
+              validator: (value) {
+                final email = value?.trim() ?? '';
+                if (email.isEmpty) return 'Ingresa tu correo';
+                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+                  return 'Correo no válido';
+                }
+                return null;
+              },
+            ),
+            SizedBox(height: t.space.sm),
+
+            // El ojo de mostrar/ocultar lo trae el propio campo: la pantalla no
+            // guarda ningún `bool` de visibilidad.
+            STextField.password(
+              controller: _passwordController,
+              label: 'Contraseña',
+              hint: '••••••••',
+              autofillHints: const [AutofillHints.password],
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+              validator: (value) => (value == null || value.isEmpty)
+                  ? 'Ingresa tu contraseña'
+                  : null,
+            ),
+
+            if (_formError != null) ...[
+              SizedBox(height: t.space.sm),
+              AuthAlert(
+                kind: AuthAlertKind.error,
+                icon: Icons.error_outline,
+                message: _formError!,
+              ),
+            ],
+
+            SizedBox(height: t.space.md),
+            // lg: es la acción principal del formulario y empareja el alto de los
+            // campos (52 px). Con el tamaño por defecto (44) quedaría más bajo que
+            // el campo que tiene encima.
+            SButton(
+              label: 'Iniciar sesión',
+              size: SButtonSize.lg,
+              loading: _isSubmitting,
+              loadingLabel: 'Iniciando sesión...',
+              onPressed: _isSubmitting ? null : _submit,
+            ),
+
+            if (_isBiometricAvailable) ...[
+              SizedBox(height: t.space.xs),
+              // El spinner de carga lo pone `loading`: el icono se queda como
+              // `IconData` y el botón decide cuándo lo reemplaza.
+              SButton.secondary(
+                label: 'Entrar con huella o rostro',
+                size: SButtonSize.lg,
+                icon: Icons.fingerprint,
+                loading: _isBiometricRunning,
+                onPressed: (_isSubmitting || _isBiometricRunning)
+                    ? null
+                    : _signInWithBiometrics,
+              ),
+            ],
+
+            SizedBox(height: t.space.xs),
+            const Align(
+              alignment: kAuthAlignment,
+              child: _ForgotPasswordLink(),
+            ),
+
+            SizedBox(height: t.space.md),
+            _RegistrationLine(onTap: _openPropertyRegistration),
+
+            SizedBox(height: t.space.lg),
+            Text(
+              appVersionLabel,
+              textAlign: TextAlign.center,
+              style: t.text.overline.copyWith(
+                color: t.color.fgSubtle.withValues(alpha: 0.6),
+              ),
             ),
           ],
-
-          SizedBox(height: t.space.xs),
-          const Align(alignment: kAuthAlignment, child: _ForgotPasswordLink()),
-
-          SizedBox(height: t.space.md),
-          _RegistrationLine(onTap: _openPropertyRegistration),
-
-          SizedBox(height: t.space.lg),
-          Text(
-            appVersionLabel,
-            textAlign: TextAlign.center,
-            style: t.text.overline.copyWith(
-              color: t.color.fgSubtle.withValues(alpha: 0.6),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -478,8 +479,10 @@ class _ForgotPasswordLink extends StatelessWidget {
   const _ForgotPasswordLink();
 
   @override
-  Widget build(BuildContext context) => AuthLink(
+  Widget build(BuildContext context) => SButton.link(
     label: '¿Olvidaste tu contraseña?',
+    // Navega a otra pantalla: se anuncia como enlace, no como botón.
+    isNavigation: true,
     onPressed: () => context.push('/forgot-password'),
   );
 }

@@ -20,7 +20,7 @@ class AuthLogo extends StatelessWidget {
 ///
 /// Usa `context.s.text.h1`, que en móvil ya viene un escalón más chico por la
 /// densidad `compact` del design system. Antes esto se resolvía a mano con
-/// `SozuType.h1.copyWith(fontSize: 25)` — el mismo cálculo que la densidad hace
+/// `SozuType.h1.copyWith(fontSize: 25)` - el mismo cálculo que la densidad hace
 /// para toda la app.
 class AuthTitle extends StatelessWidget {
   const AuthTitle(this.text, {super.key});
