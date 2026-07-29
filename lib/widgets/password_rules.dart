@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../core/theme.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Reglas de contraseña SOZU (mismas del portal admin):
 /// min 8 + mayúscula + minúscula + número + símbolo.
@@ -15,7 +14,10 @@ final passwordRules = <PasswordRule>[
   PasswordRule('Una mayúscula', (v) => RegExp(r'[A-Z]').hasMatch(v)),
   PasswordRule('Una minúscula', (v) => RegExp(r'[a-z]').hasMatch(v)),
   PasswordRule('Un número', (v) => RegExp(r'[0-9]').hasMatch(v)),
-  PasswordRule('Un símbolo especial', (v) => RegExp(r'[^A-Za-z0-9]').hasMatch(v)),
+  PasswordRule(
+    'Un símbolo especial',
+    (v) => RegExp(r'[^A-Za-z0-9]').hasMatch(v),
+  ),
 ];
 
 bool passwordValida(String v) => passwordRules.every((r) => r.test(v));
@@ -28,7 +30,7 @@ class PasswordRulesChecklist extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -40,14 +42,14 @@ class PasswordRulesChecklist extends StatelessWidget {
                 Icon(
                   r.test(value) ? Icons.check_circle : Icons.circle_outlined,
                   size: 16,
-                  color: r.test(value) ? SozuColors.emerald500 : tone.textMuted,
+                  color: r.test(value) ? SozuBrand.green500 : tone.fgSubtle,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   r.label,
                   style: TextStyle(
                     fontSize: 12,
-                    color: r.test(value) ? tone.positive : tone.textMuted,
+                    color: r.test(value) ? tone.positive : tone.fgSubtle,
                   ),
                 ),
               ],

@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'models.dart';
+import 'package:sozu_cliente_app/data/models.dart';
 
 /// Capa de acceso a datos: SOLO Edge Functions (espejo de src/lib/api.ts).
 /// La app nunca consulta tablas. Cada invoke envía el JWT del usuario.
@@ -177,12 +177,15 @@ Map<String, dynamic> _cuentaBody({
   if (id != null) 'id': id,
   'id_banco': idBanco,
   'numero_cuenta': numeroCuenta,
-  if (cuentaClabe != null && cuentaClabe.isNotEmpty) 'cuenta_clabe': cuentaClabe,
-  if (cuentaSwift != null && cuentaSwift.isNotEmpty) 'cuenta_swift': cuentaSwift,
+  if (cuentaClabe != null && cuentaClabe.isNotEmpty)
+    'cuenta_clabe': cuentaClabe,
+  if (cuentaSwift != null && cuentaSwift.isNotEmpty)
+    'cuenta_swift': cuentaSwift,
   'titular': titular,
   if (evidenciaBase64 != null) 'evidencia_base64': evidenciaBase64,
   if (evidenciaNombre != null) 'evidencia_nombre': evidenciaNombre,
-  if (evidenciaContentType != null) 'evidencia_content_type': evidenciaContentType,
+  if (evidenciaContentType != null)
+    'evidencia_content_type': evidenciaContentType,
 };
 
 /// Alta de cuenta bancaria de dispersión. `numeroCuenta` (8–34) es la clave;
@@ -616,12 +619,14 @@ Future<ClienteExpediente> fetchClienteExpediente({int? impersonate}) async =>
 /// 5) o `datosActa` (Acta tipo 1) — solo uno viene poblado. Lanza
 /// [DocumentoInvalidoError] si el archivo no pasa la validación.
 Future<
-    ({
-      String estatus,
-      DatosFiscalesCSF? datosFiscales,
-      DatosCURP? datosCurp,
-      DatosActa? datosActa,
-    })> subirDocumentoExpediente({
+  ({
+    String estatus,
+    DatosFiscalesCSF? datosFiscales,
+    DatosCURP? datosCurp,
+    DatosActa? datosActa,
+  })
+>
+subirDocumentoExpediente({
   required int tipoId,
   required String nombreArchivo,
   required String archivoBase64,

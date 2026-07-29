@@ -1,9 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import '../core/media_cache.dart';
-import '../core/theme.dart';
-import 'common.dart';
+import 'package:sozu_cliente_app/core/media_cache.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// ImageProvider cacheado (misma clave estable y cache manager). Para usar en
 /// widgets que reciben un ImageProvider, ej. PhotoView del visor.
@@ -30,7 +30,7 @@ class SozuNetworkImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     if (url == null || url!.isEmpty) return _fallback(tone);
     return CachedNetworkImage(
       imageUrl: url!,
@@ -43,9 +43,9 @@ class SozuNetworkImage extends StatelessWidget {
     );
   }
 
-  Widget _fallback(SozuTone tone) => Container(
+  Widget _fallback(SozuColorRoles tone) => Container(
     color: tone.surfaceAlt,
     alignment: Alignment.center,
-    child: Icon(placeholderIcon, size: 40, color: tone.textMuted),
+    child: Icon(placeholderIcon, size: 40, color: tone.fgSubtle),
   );
 }

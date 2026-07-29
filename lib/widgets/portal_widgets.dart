@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../core/portal_theme.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
 
 /// Widgets base del "modo portal" web (réplica del Portal del Cliente de
 /// sozu-admin). Reutilizables entre pantallas: cards, pills de filtro, chips
@@ -515,7 +515,11 @@ class PortalPageHeader extends StatelessWidget {
       children: [
         Text(
           title,
-          style: portalText(size: 26, weight: FontWeight.w700, letterSpacing: -0.65),
+          style: portalText(
+            size: 26,
+            weight: FontWeight.w700,
+            letterSpacing: -0.65,
+          ),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 4),
@@ -569,7 +573,11 @@ class PortalDashedButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const PortalDashedButton({super.key, required this.label, required this.onTap});
+  const PortalDashedButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -633,7 +641,10 @@ class PortalEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: const _DashedRRectPainter(PortalColors.border, kPortalRadiusCard),
+      painter: const _DashedRRectPainter(
+        PortalColors.border,
+        kPortalRadiusCard,
+      ),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(40),
@@ -661,7 +672,10 @@ class PortalEmptyState extends StatelessWidget {
               child: Text(
                 message,
                 textAlign: TextAlign.center,
-                style: portalText(size: 13, color: PortalColors.mutedForeground),
+                style: portalText(
+                  size: 13,
+                  color: PortalColors.mutedForeground,
+                ),
               ),
             ),
           ],
@@ -742,9 +756,10 @@ class PortalCardGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, c) {
-        final cols = ((c.maxWidth + gap) / (minItemWidth + gap))
-            .floor()
-            .clamp(1, maxCols);
+        final cols = ((c.maxWidth + gap) / (minItemWidth + gap)).floor().clamp(
+          1,
+          maxCols,
+        );
         final itemW = (c.maxWidth - gap * (cols - 1)) / cols;
         return Wrap(
           spacing: gap,
@@ -924,7 +939,11 @@ class PortalBlockButton extends StatelessWidget {
                 ],
                 Text(
                   label,
-                  style: portalText(size: 13, weight: FontWeight.w700, color: fg),
+                  style: portalText(
+                    size: 13,
+                    weight: FontWeight.w700,
+                    color: fg,
+                  ),
                 ),
               ],
             ),
@@ -1005,7 +1024,7 @@ Color portalPropiedadDotColor(String? etapaActiva) {
 /// hace falta el estado de presión).
 class PortalPressable extends StatefulWidget {
   final Widget Function(BuildContext context, bool hovered, bool pressed)
-      builder;
+  builder;
 
   const PortalPressable({super.key, required this.builder});
 
@@ -1071,17 +1090,19 @@ class _PortalSkeletonBoxState extends State<PortalSkeletonBox>
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
-      opacity: Tween<double>(begin: 0.45, end: 1).animate(
-        CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-      ),
+      opacity: Tween<double>(
+        begin: 0.45,
+        end: 1,
+      ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
       child: Container(
         width: widget.width,
         height: widget.height,
         decoration: BoxDecoration(
           color: PortalColors.muted,
           shape: widget.circle ? BoxShape.circle : BoxShape.rectangle,
-          borderRadius:
-              widget.circle ? null : BorderRadius.circular(widget.radius),
+          borderRadius: widget.circle
+              ? null
+              : BorderRadius.circular(widget.radius),
         ),
       ),
     );
@@ -1237,11 +1258,7 @@ class PortalProgressBar extends StatelessWidget {
   final double percent;
   final double height;
 
-  const PortalProgressBar({
-    super.key,
-    required this.percent,
-    this.height = 8,
-  });
+  const PortalProgressBar({super.key, required this.percent, this.height = 8});
 
   @override
   Widget build(BuildContext context) {
@@ -1265,7 +1282,10 @@ class PortalProgressBar extends StatelessWidget {
 /// portal): "Pagado", "Entregado" y "En curso" en verde (primary/success),
 /// "Pendiente" en ámbar (warning). [small] = variante compacta del card resumen
 /// / tabs.
-PortalStatusChip portalProductoStatusChip(String estatus, {bool small = false}) {
+PortalStatusChip portalProductoStatusChip(
+  String estatus, {
+  bool small = false,
+}) {
   final e = estatus.toLowerCase();
   final (Color bg, Color fg, String label) = e.contains('pagado')
       ? (PortalColors.primarySoft15, PortalColors.primary, estatus)
@@ -1281,4 +1301,3 @@ PortalStatusChip portalProductoStatusChip(String estatus, {bool small = false}) 
     foreground: fg,
   );
 }
-

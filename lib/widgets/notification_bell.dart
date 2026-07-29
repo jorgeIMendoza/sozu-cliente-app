@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../screens/notificaciones_screen.dart';
-import 'animacion_llegada.dart';
-import 'notificaciones_fx.dart';
-import 'portal_widgets.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/screens/notificaciones_screen.dart';
+import 'package:sozu_cliente_app/widgets/animacion_llegada.dart';
+import 'package:sozu_cliente_app/widgets/notificaciones_fx.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Campana de notificaciones con contador de no leídas.
 ///
@@ -138,8 +138,10 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
     final pos = box.localToGlobal(Offset.zero);
     final screen = MediaQuery.sizeOf(context);
     final top = pos.dy + box.size.height + 8;
-    final right =
-        (screen.width - (pos.dx + box.size.width)).clamp(8.0, screen.width - 8);
+    final right = (screen.width - (pos.dx + box.size.width)).clamp(
+      8.0,
+      screen.width - 8,
+    );
 
     showDialog<void>(
       context: context,
@@ -161,7 +163,7 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
 
     // Reporta al controlador global si esta campana está visible (pestaña
     // activa / topbar): si lo está, ella anima la llegada y NotificacionesFx no
@@ -201,7 +203,7 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
         child: Badge.count(
           count: noLeidas,
           isLabelVisible: noLeidas > 0,
-          backgroundColor: tone.negative,
+          backgroundColor: tone.danger,
           textColor: Colors.white,
           child: AnimatedBuilder(
             animation: _vuelo,
@@ -209,7 +211,7 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
               variante: _variante,
               animando: _volando,
               v: _vuelo.value,
-              color: tone.textSecondary,
+              color: tone.fgMuted,
             ),
           ),
         ),
@@ -236,8 +238,9 @@ class _NotifPreviewPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(clienteNotificacionesProvider).valueOrNull;
-    final preview =
-        ordenarNotificaciones(data?.notificaciones ?? const []).take(8).toList();
+    final preview = ordenarNotificaciones(
+      data?.notificaciones ?? const [],
+    ).take(8).toList();
     final noLeidas = data?.noLeidas ?? 0;
 
     final panel = Column(
@@ -346,24 +349,32 @@ class _NotifPreviewPanel extends ConsumerWidget {
                 onTap: () => marcarNotificacion(ref, action: 'marcar_todas'),
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.check,
-                          size: 13, color: PortalColors.primary),
+                      const Icon(
+                        Icons.check,
+                        size: 13,
+                        color: PortalColors.primary,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'Marcar todas',
-                        style: portalText(
-                          size: 11,
-                          weight: FontWeight.w500,
-                          color: PortalColors.primary,
-                        ).copyWith(
-                          decoration:
-                              hovered ? TextDecoration.underline : null,
-                          decorationColor: PortalColors.primary,
-                        ),
+                        style:
+                            portalText(
+                              size: 11,
+                              weight: FontWeight.w500,
+                              color: PortalColors.primary,
+                            ).copyWith(
+                              decoration: hovered
+                                  ? TextDecoration.underline
+                                  : null,
+                              decorationColor: PortalColors.primary,
+                            ),
                       ),
                     ],
                   ),
@@ -394,18 +405,22 @@ class _NotifPreviewPanel extends ConsumerWidget {
               children: [
                 Text(
                   'Ver todas las notificaciones',
-                  style: portalText(
-                    size: 13,
-                    weight: FontWeight.w500,
-                    color: PortalColors.primary,
-                  ).copyWith(
-                    decoration: hovered ? TextDecoration.underline : null,
-                    decorationColor: PortalColors.primary,
-                  ),
+                  style:
+                      portalText(
+                        size: 13,
+                        weight: FontWeight.w500,
+                        color: PortalColors.primary,
+                      ).copyWith(
+                        decoration: hovered ? TextDecoration.underline : null,
+                        decorationColor: PortalColors.primary,
+                      ),
                 ),
                 const SizedBox(width: 4),
-                const Icon(Icons.chevron_right,
-                    size: 14, color: PortalColors.primary),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 14,
+                  color: PortalColors.primary,
+                ),
               ],
             ),
           ),
@@ -428,8 +443,11 @@ class _NotifPreviewPanel extends ConsumerWidget {
               color: PortalColors.muted,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.notifications_outlined,
-                size: 18, color: PortalColors.mutedForeground),
+            child: const Icon(
+              Icons.notifications_outlined,
+              size: 18,
+              color: PortalColors.mutedForeground,
+            ),
           ),
           const SizedBox(height: 12),
           Text(

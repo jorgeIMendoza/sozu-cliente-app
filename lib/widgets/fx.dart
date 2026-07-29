@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../core/format.dart';
+import 'package:sozu_cliente_app/core/format.dart';
 
 /// Efectos visuales sutiles del portal (animaciones de marca SOZU).
 
@@ -24,12 +24,18 @@ class FadeSlideIn extends StatefulWidget {
 
 class _FadeSlideInState extends State<FadeSlideIn>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: widget.duration);
-  late final Animation<double> _fade =
-      CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
-  late final Animation<Offset> _slide =
-      Tween(begin: const Offset(0, 0.08), end: Offset.zero).animate(_fade);
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+  );
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _c,
+    curve: Curves.easeOutCubic,
+  );
+  late final Animation<Offset> _slide = Tween(
+    begin: const Offset(0, 0.08),
+    end: Offset.zero,
+  ).animate(_fade);
 
   @override
   void initState() {
@@ -114,7 +120,8 @@ class _PressableScaleState extends State<PressableScale> {
 }
 
 /// Breakpoint de escritorio.
-bool isDesktop(BuildContext context) => MediaQuery.sizeOf(context).width >= 1024;
+bool isDesktop(BuildContext context) =>
+    MediaQuery.sizeOf(context).width >= 1024;
 
 /// Contenedor responsive para pantallas secundarias: limita el ancho de
 /// lectura en desktop; en móvil no altera nada.
@@ -175,13 +182,15 @@ class ResponsiveCardGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, c) {
-        final cols =
-            (c.maxWidth / (minCardWidth + gap)).floor().clamp(1, 3);
+        final cols = (c.maxWidth / (minCardWidth + gap)).floor().clamp(1, 3);
         if (cols <= 1) {
           return Column(
             children: [
               for (final w in children)
-                Padding(padding: EdgeInsets.only(bottom: gap), child: w),
+                Padding(
+                  padding: EdgeInsets.only(bottom: gap),
+                  child: w,
+                ),
             ],
           );
         }

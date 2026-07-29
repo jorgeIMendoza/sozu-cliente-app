@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/format.dart';
-import '../core/open_media.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/api_client.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
-import '../widgets/common.dart';
-import '../widgets/payment_method_badge.dart';
-import '../widgets/portal_widgets.dart';
-import '../widgets/recibo_pago_sheet.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/api_client.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/payment_method_badge.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/widgets/recibo_pago_sheet.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 const _kMeses = [
   'Enero',
@@ -88,11 +88,11 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   int? _generandoPortal; // id del pago cuyo recibo se genera en la tabla
   final Set<int> _proximosExpandidos = {}; // próximos con desglose abierto
 
-  Color _colorEstatus(SozuTone tone, String estatus) {
+  Color _colorEstatus(SozuColorRoles tone, String estatus) {
     final e = estatus.toLowerCase();
-    if (e.contains('pendiente') || e.contains('vencid')) return tone.pending;
+    if (e.contains('pendiente') || e.contains('vencid')) return tone.warningFg;
     if (e.contains('liquidad') || e.contains('entregad')) return tone.positive;
-    return tone.primaryDark;
+    return tone.primaryHover;
   }
 
   void _seleccionar(String? numero) => setState(() {
@@ -104,7 +104,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final portal = isPortalMode(context);
     final pagos = ref.watch(clientePagosProvider);
     final props = ref.watch(clientePropiedadesProvider);
@@ -116,31 +116,32 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
       appBar: portal
           ? null
           : AppBar(
-        title: const Text('Pagos'),
-        leading: _propiedad != null
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => _seleccionar(null),
-              )
-            // Flecha siempre presente: si no hay stack regresa a Inicio.
-            : IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () =>
-                    context.canPop() ? context.pop() : context.go('/inicio'),
-              ),
-        actions: [
-          TextButton(
-            onPressed: () => context.push('/estado-cuenta'),
-            child: Text(
-              'Estado de cuenta',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: tone.primaryDark,
-              ),
+              title: const Text('Pagos'),
+              leading: _propiedad != null
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => _seleccionar(null),
+                    )
+                  // Flecha siempre presente: si no hay stack regresa a Inicio.
+                  : IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => context.canPop()
+                          ? context.pop()
+                          : context.go('/inicio'),
+                    ),
+              actions: [
+                TextButton(
+                  onPressed: () => context.push('/estado-cuenta'),
+                  child: Text(
+                    'Estado de cuenta',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: tone.primaryHover,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(clientePagosProvider);
@@ -212,7 +213,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   }
 
   Widget _listaPropiedades(
-    SozuTone tone,
+    SozuColorRoles tone,
     ClientePagos data,
     List<String> propiedades,
     ClientePropiedades? props,
@@ -245,13 +246,13 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
         AppCard(
           child: Row(
             children: [
-              _saldoItem(tone, 'Total', data.saldoTotal, tone.textPrimary),
+              _saldoItem(tone, 'Total', data.saldoTotal, tone.fg),
               _saldoItem(tone, 'Pagado', data.saldoPagado, tone.positive),
               _saldoItem(
                 tone,
                 'Pendiente',
                 data.saldoPendiente,
-                tone.pending,
+                tone.warningFg,
                 alignEnd: true,
               ),
             ],
@@ -260,7 +261,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
         const SizedBox(height: 12),
         Text(
           'Selecciona una propiedad',
-          style: TextStyle(fontSize: 14, color: tone.textSecondary),
+          style: TextStyle(fontSize: 14, color: tone.fgMuted),
         ),
         const SizedBox(height: 12),
         if (propiedades.isEmpty)
@@ -293,7 +294,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   }
 
   Widget _cardPropiedad(
-    SozuTone tone,
+    SozuColorRoles tone,
     String numero,
     PropiedadCard? c,
     ClientePagos data,
@@ -339,7 +340,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: tone.textPrimary,
+                      color: tone.fg,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -347,19 +348,19 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
                     subtitulo,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: tone.textMuted),
+            Icon(Icons.chevron_right, color: tone.fgSubtle),
           ],
         ),
       ),
     );
   }
 
-  Widget _detalle(SozuTone tone, ClientePagos data, String propiedad) {
+  Widget _detalle(SozuColorRoles tone, ClientePagos data, String propiedad) {
     final proximos = data.proximosPagos
         .where((p) => p.propiedad == propiedad)
         .toList();
@@ -422,7 +423,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
       children: [
         Text(
           'U$propiedad',
-          style: TextStyle(fontSize: 13, color: tone.textMuted),
+          style: TextStyle(fontSize: 13, color: tone.fgSubtle),
         ),
         if (det?.tipoFinanciamiento != null) ...[
           const SizedBox(height: 12),
@@ -445,7 +446,10 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
             _ProximoRow(p: p, onPagar: () => context.push('/pagar?id=${p.id}')),
             const SizedBox(height: 12),
           ],
-        const SectionTitle(icon: Icons.receipt_long_outlined, text: 'Historial'),
+        const SectionTitle(
+          icon: Icons.receipt_long_outlined,
+          text: 'Historial',
+        ),
         if (items.isEmpty)
           const EmptyCard(
             icon: Icons.receipt_outlined,
@@ -478,7 +482,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   }
 
   /// Resumen de la propiedad: total pagado, # pagos y último pago.
-  Widget _resumenHistorial(SozuTone tone, List<_ItemHistorial> items) {
+  Widget _resumenHistorial(SozuColorRoles tone, List<_ItemHistorial> items) {
     final pagados = items.where((it) => it.pagado).toList()
       ..sort((a, b) => b.ordenKey.compareTo(a.ordenKey));
     final total = pagados.fold<double>(0, (s, it) => s + it.monto);
@@ -493,20 +497,20 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
         runSpacing: 12,
         children: [
           _kpi(tone, 'Total pagado', formatMXN(total), tone.positive),
-          _kpi(tone, 'Pagos realizados', '${pagados.length}', tone.textPrimary),
-          _kpi(tone, 'Último pago', ultimo, tone.textPrimary),
+          _kpi(tone, 'Pagos realizados', '${pagados.length}', tone.fg),
+          _kpi(tone, 'Último pago', ultimo, tone.fg),
         ],
       ),
     );
   }
 
-  Widget _kpi(SozuTone tone, String label, String value, Color color) {
+  Widget _kpi(SozuColorRoles tone, String label, String value, Color color) {
     return SizedBox(
       width: 110,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: tone.textMuted)),
+          Text(label, style: TextStyle(fontSize: 11, color: tone.fgSubtle)),
           const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -526,7 +530,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   }
 
   Widget _filtrosHistorial(
-    SozuTone tone,
+    SozuColorRoles tone,
     List<String> anios,
     bool conMantenimiento,
   ) {
@@ -605,13 +609,18 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
     );
   }
 
-  Widget _chip(SozuTone tone, String label, bool active, VoidCallback onTap) {
+  Widget _chip(
+    SozuColorRoles tone,
+    String label,
+    bool active,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: active ? tone.primaryDark : tone.surfaceAlt,
+          color: active ? tone.primaryHover : tone.surfaceAlt,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
@@ -619,7 +628,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: active ? Colors.white : tone.textSecondary,
+            color: active ? Colors.white : tone.fgMuted,
           ),
         ),
       ),
@@ -627,7 +636,11 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   }
 
   /// Encabezado de grupo mensual: "Mes Año" + subtotal pagado del mes.
-  Widget _mesHeader(SozuTone tone, String key, List<_ItemHistorial> items) {
+  Widget _mesHeader(
+    SozuColorRoles tone,
+    String key,
+    List<_ItemHistorial> items,
+  ) {
     final subtotal = items.fold<double>(
       0,
       (s, it) => s + (it.pagado ? it.monto : 0),
@@ -642,7 +655,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: tone.textSecondary,
+                color: tone.fgMuted,
               ),
             ),
           ),
@@ -651,7 +664,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: tone.textMuted,
+              color: tone.fgSubtle,
             ),
           ),
         ],
@@ -660,7 +673,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   }
 
   Widget _saldoItem(
-    SozuTone tone,
+    SozuColorRoles tone,
     String label,
     double value,
     Color color, {
@@ -672,7 +685,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: tone.textMuted)),
+          Text(label, style: TextStyle(fontSize: 11, color: tone.fgSubtle)),
           const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -713,10 +726,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   /// está en caché; no dispara fetching nuevo.
   PropiedadCard? _cardDe(String numero) {
     final props = ref.watch(clientePropiedadesProvider).valueOrNull;
-    for (final c in [
-      ...?props?.enAdquisicion,
-      ...?props?.patrimonioActivo,
-    ]) {
+    for (final c in [...?props?.enAdquisicion, ...?props?.patrimonioActivo]) {
       if (c.nombre == numero) return c;
     }
     return null;
@@ -1833,11 +1843,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
           const SizedBox(height: 4),
           PortalInfoRow(label: 'Periodo', value: periodo),
           sep(),
-          finRow(
-            'Total Pagado',
-            formatMXN(total),
-            color: PortalColors.primary,
-          ),
+          finRow('Total Pagado', formatMXN(total), color: PortalColors.primary),
           const SizedBox(height: 10),
           finRow('Pagos realizados', '${pagados.length}'),
           const SizedBox(height: 10),
@@ -1917,11 +1923,11 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final p = widget.p;
     final parcial = p.pagado > 0 && p.pagado < p.monto;
     return AppCard(
-      borderColor: p.vencido ? tone.negative.withValues(alpha: 0.4) : null,
+      borderColor: p.vencido ? tone.danger.withValues(alpha: 0.4) : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1939,14 +1945,14 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: tone.textPrimary,
+                        color: tone.fg,
                       ),
                     ),
                     Text(
                       '${p.propiedad} · vence ${formatDate(p.fechaPago)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                      style: TextStyle(fontSize: 12, color: tone.fgMuted),
                     ),
                     const SizedBox(height: 6),
                     Wrap(
@@ -1976,7 +1982,7 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: SozuColors.amber600,
+                          color: SozuAmber.strong,
                         ),
                       ),
                     ],
@@ -1991,7 +1997,7 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: tone.textPrimary,
+                      color: tone.fg,
                     ),
                   ),
                   if (parcial) ...[
@@ -2010,7 +2016,7 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: SozuColors.emerald500,
+                        color: SozuBrand.green500,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: const Text(
@@ -2039,7 +2045,7 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
                   const Icon(
                     Icons.layers_outlined,
                     size: 14,
-                    color: SozuColors.emerald600,
+                    color: SozuBrand.green600,
                   ),
                   const SizedBox(width: 6),
                   Expanded(
@@ -2049,14 +2055,14 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: tone.primaryDark,
+                        color: tone.primaryHover,
                       ),
                     ),
                   ),
                   Icon(
                     _expandido ? Icons.expand_less : Icons.expand_more,
                     size: 18,
-                    color: tone.textMuted,
+                    color: tone.fgSubtle,
                   ),
                 ],
               ),
@@ -2072,14 +2078,14 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
   }
 
   /// Sub-fila de un pago aplicado: método · monto · fecha + Recibo/CEP.
-  Widget _appRow(SozuTone tone, AplicacionPago a) {
+  Widget _appRow(SozuColorRoles tone, AplicacionPago a) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.only(left: 10),
       decoration: BoxDecoration(
         border: Border(
           left: BorderSide(
-            color: SozuColors.emerald500.withValues(alpha: 0.3),
+            color: SozuBrand.green500.withValues(alpha: 0.3),
             width: 2,
           ),
         ),
@@ -2094,7 +2100,7 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: tone.textPrimary,
+              color: tone.fg,
             ),
           ),
           Text(
@@ -2102,7 +2108,7 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
             '${(a.claveRastreo ?? '').isNotEmpty ? ' · Clave ${a.claveRastreo}' : ''}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 11, color: tone.textSecondary),
+            style: TextStyle(fontSize: 11, color: tone.fgMuted),
           ),
           const SizedBox(height: 6),
           Wrap(
@@ -2171,7 +2177,7 @@ class _HistorialRowState extends ConsumerState<_HistorialRow> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final h = widget.h;
     return GestureDetector(
       onTap: () => showReciboPagoSheet(context, pago: h),
@@ -2192,17 +2198,14 @@ class _HistorialRowState extends ConsumerState<_HistorialRow> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: tone.textPrimary,
+                          color: tone.fg,
                         ),
                       ),
                       Text(
                         '${h.propiedad} · ${formatDate(h.fechaPago)} · ${h.metodo}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: tone.textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 12, color: tone.fgMuted),
                       ),
                     ],
                   ),
@@ -2253,7 +2256,7 @@ class _MantenimientoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final e = m.estatus.toLowerCase();
     final (label, badgeTone) = e == 'pagado'
         ? ('Pagado', BadgeTone.positive)
@@ -2274,14 +2277,14 @@ class _MantenimientoRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: tone.textPrimary,
+                    color: tone.fg,
                   ),
                 ),
                 Text(
                   '${m.propiedad} · ${_mesLabel(m.mes)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 12, color: tone.fgMuted),
                 ),
                 const SizedBox(height: 6),
                 StatusBadge(label: label, tone: badgeTone),
@@ -2294,7 +2297,7 @@ class _MantenimientoRow extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: e == 'pagado' ? tone.positive : tone.textPrimary,
+              color: e == 'pagado' ? tone.positive : tone.fg,
             ),
           ),
         ],
@@ -2319,7 +2322,7 @@ class _DocChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return GestureDetector(
       onTap: loading ? null : onTap,
       child: Container(
@@ -2337,18 +2340,18 @@ class _DocChip extends StatelessWidget {
                 height: 14,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: SozuColors.emerald600,
+                  color: SozuBrand.green600,
                 ),
               )
             else
-              Icon(icon, size: 14, color: SozuColors.emerald600),
+              Icon(icon, size: 14, color: SozuBrand.green600),
             const SizedBox(width: 6),
             Text(
               loading ? 'Generando…' : label,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: tone.textSecondary,
+                color: tone.fgMuted,
               ),
             ),
           ],

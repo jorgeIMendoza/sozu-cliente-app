@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/format.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/api_client.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../widgets/common.dart';
-import '../widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/api_client.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Notificaciones del cliente: lista, marcar leída, marcar todas.
 class NotificacionesScreen extends ConsumerStatefulWidget {
@@ -32,7 +32,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final portal = isPortalMode(context);
     final notif = ref.watch(clienteNotificacionesProvider);
     final noLeidas = notif.valueOrNull?.noLeidas ?? 0;
@@ -43,24 +43,28 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
       appBar: portal
           ? null
           : AppBar(
-        title: const Text('Notificaciones'),
-        // Flecha siempre presente: si no hay stack (se llegó por deep link o
-        // notificación en frío) regresa a Inicio en lugar de desaparecer.
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () =>
-              context.canPop() ? context.pop() : context.go('/inicio'),
-        ),
-        actions: [
-          if (noLeidas > 0)
-            TextButton(
-              onPressed: () => _marcar(action: 'marcar_todas'),
-              child: Text('Marcar todas',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600, color: tone.primaryDark)),
+              title: const Text('Notificaciones'),
+              // Flecha siempre presente: si no hay stack (se llegó por deep link o
+              // notificación en frío) regresa a Inicio en lugar de desaparecer.
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/inicio'),
+              ),
+              actions: [
+                if (noLeidas > 0)
+                  TextButton(
+                    onPressed: () => _marcar(action: 'marcar_todas'),
+                    child: Text(
+                      'Marcar todas',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: tone.primaryHover,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(clienteNotificacionesProvider);
@@ -111,8 +115,9 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
     final total = data.notificaciones.length;
     final noLeidas = data.noLeidas;
     final ordenadas = ordenarNotificaciones(data.notificaciones);
-    final lista =
-        _soloNoLeidas ? ordenadas.where((n) => !n.leida).toList() : ordenadas;
+    final lista = _soloNoLeidas
+        ? ordenadas.where((n) => !n.leida).toList()
+        : ordenadas;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -139,7 +144,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
   /// Tabs segmentadas Todas / Sin leer para la vista móvil (mismo conteo que el
   /// portal); espejo del control segmentado de NotificationSheet.
   Widget _movilTabs(int total, int noLeidas) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
@@ -149,19 +154,32 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
       child: Row(
         children: [
           Expanded(
-            child: _movilTab('Todas ($total)', !_soloNoLeidas,
-                () => setState(() => _soloNoLeidas = false), tone),
+            child: _movilTab(
+              'Todas ($total)',
+              !_soloNoLeidas,
+              () => setState(() => _soloNoLeidas = false),
+              tone,
+            ),
           ),
           Expanded(
-            child: _movilTab('Sin leer ($noLeidas)', _soloNoLeidas,
-                () => setState(() => _soloNoLeidas = true), tone),
+            child: _movilTab(
+              'Sin leer ($noLeidas)',
+              _soloNoLeidas,
+              () => setState(() => _soloNoLeidas = true),
+              tone,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _movilTab(String label, bool active, VoidCallback onTap, SozuTone tone) {
+  Widget _movilTab(
+    String label,
+    bool active,
+    VoidCallback onTap,
+    SozuColorRoles tone,
+  ) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -187,7 +205,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: active ? tone.textPrimary : tone.textSecondary,
+            color: active ? tone.fg : tone.fgMuted,
           ),
         ),
       ),
@@ -197,7 +215,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
   /// Estado vacío móvil — mismos textos/icono que `_portalVacio` (campana
   /// `notifications_outlined`; textos según el filtro activo).
   Widget _movilVacio() {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Padding(
       padding: const EdgeInsets.only(top: 60),
       child: Column(
@@ -205,10 +223,15 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
           Container(
             width: 64,
             height: 64,
-            decoration:
-                BoxDecoration(color: tone.primarySoft, shape: BoxShape.circle),
-            child: const Icon(Icons.notifications_outlined,
-                size: 30, color: SozuColors.emerald600),
+            decoration: BoxDecoration(
+              color: tone.primarySoft,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.notifications_outlined,
+              size: 30,
+              color: SozuBrand.green600,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -216,9 +239,10 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                 ? 'Sin notificaciones nuevas'
                 : 'No tienes notificaciones',
             style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: tone.textPrimary),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: tone.fg,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -226,7 +250,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                 ? 'Ya leíste todas tus notificaciones.'
                 : 'Aquí verás avisos importantes sobre tus propiedades.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: tone.textSecondary),
+            style: TextStyle(fontSize: 14, color: tone.fgMuted),
           ),
         ],
       ),
@@ -259,9 +283,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
             children: [
               Expanded(
                 child: Text(
-                  noLeidas > 0
-                      ? 'Tienes $noLeidas sin leer.'
-                      : 'Estás al día.',
+                  noLeidas > 0 ? 'Tienes $noLeidas sin leer.' : 'Estás al día.',
                   style: portalText(
                     size: 12,
                     color: PortalColors.mutedForeground,
@@ -284,16 +306,17 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                         const SizedBox(width: 6),
                         Text(
                           'Marcar todas como leídas',
-                          style: portalText(
-                            size: 12,
-                            weight: FontWeight.w500,
-                            color: PortalColors.primary,
-                          ).copyWith(
-                            decoration: hovered
-                                ? TextDecoration.underline
-                                : null,
-                            decorationColor: PortalColors.primary,
-                          ),
+                          style:
+                              portalText(
+                                size: 12,
+                                weight: FontWeight.w500,
+                                color: PortalColors.primary,
+                              ).copyWith(
+                                decoration: hovered
+                                    ? TextDecoration.underline
+                                    : null,
+                                decorationColor: PortalColors.primary,
+                              ),
                         ),
                       ],
                     ),
@@ -304,11 +327,17 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
           const SizedBox(height: 20),
           Row(
             children: [
-              _portalTab('Todas ($total)', !_soloNoLeidas,
-                  () => setState(() => _soloNoLeidas = false)),
+              _portalTab(
+                'Todas ($total)',
+                !_soloNoLeidas,
+                () => setState(() => _soloNoLeidas = false),
+              ),
               const SizedBox(width: 8),
-              _portalTab('Sin leer ($noLeidas)', _soloNoLeidas,
-                  () => setState(() => _soloNoLeidas = true)),
+              _portalTab(
+                'Sin leer ($noLeidas)',
+                _soloNoLeidas,
+                () => setState(() => _soloNoLeidas = true),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -393,10 +422,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                   ? 'Ya leíste todas tus notificaciones.'
                   : 'Aquí verás avisos importantes sobre tus propiedades.',
               textAlign: TextAlign.center,
-              style: portalText(
-                size: 11,
-                color: PortalColors.mutedForeground,
-              ),
+              style: portalText(size: 11, color: PortalColors.mutedForeground),
             ),
           ],
         ),
@@ -496,8 +522,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                           ),
                           const SizedBox(height: 8),
                           Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
                                 _fechaRelativa(n.fecha),
@@ -598,12 +623,12 @@ class _NotifRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final (color, tipoIcon) = switch (n.tipo) {
-      'urgente' => (tone.negative, Icons.error_outline),
-      'accionable' => (SozuColors.amber600, Icons.flash_on_outlined),
-      'exito' => (SozuColors.emerald600, Icons.check_circle_outline),
-      _ => (SozuColors.emerald600, Icons.info_outline),
+      'urgente' => (tone.danger, Icons.error_outline),
+      'accionable' => (SozuAmber.strong, Icons.flash_on_outlined),
+      'exito' => (SozuBrand.green600, Icons.check_circle_outline),
+      _ => (SozuBrand.green600, Icons.info_outline),
     };
     // El glifo lo define la categoría; el color sigue por tipo/severidad.
     final icon = _iconoCategoria(n.categoria) ?? tipoIcon;
@@ -627,53 +652,66 @@ class _NotifRow extends StatelessWidget {
                         Row(
                           children: [
                             Expanded(
-                              child: Text(n.titulo,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: tone.textPrimary)),
+                              child: Text(
+                                n.titulo,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: tone.fg,
+                                ),
+                              ),
                             ),
                             if (!n.leida)
                               Container(
                                 width: 8,
                                 height: 8,
                                 decoration: const BoxDecoration(
-                                    color: SozuColors.emerald500,
-                                    shape: BoxShape.circle),
+                                  color: SozuBrand.green500,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
                             // Reserva el hueco de los botones (top-right) para
                             // que el título/punto no colisionen con ellos
                             // (toggle leída + X descartar).
                             if (onDismiss != null || onToggleLeida != null)
                               SizedBox(
-                                width: (onDismiss != null ? 28.0 : 0.0) +
+                                width:
+                                    (onDismiss != null ? 28.0 : 0.0) +
                                     (onToggleLeida != null ? 28.0 : 0.0),
                               ),
                           ],
                         ),
                         const SizedBox(height: 2),
-                        Text(n.descripcion,
-                            style: TextStyle(
-                                fontSize: 12, color: tone.textSecondary)),
+                        Text(
+                          n.descripcion,
+                          style: TextStyle(fontSize: 12, color: tone.fgMuted),
+                        ),
                         const SizedBox(height: 6),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(_fechaRelativa(n.fecha),
-                                style: TextStyle(
-                                    fontSize: 11, color: tone.textMuted)),
+                            Text(
+                              _fechaRelativa(n.fecha),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: tone.fgSubtle,
+                              ),
+                            ),
                             if (etiqueta != null)
                               Flexible(
-                                child: Text('$etiqueta →',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.right,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: color)),
+                                child: Text(
+                                  '$etiqueta →',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: color,
+                                  ),
+                                ),
                               ),
                           ],
                         ),
@@ -699,7 +737,7 @@ class _NotifRow extends StatelessWidget {
                     n: n,
                     onTap: onToggleLeida!,
                     iconSize: 16,
-                    color: tone.textMuted,
+                    color: tone.fgSubtle,
                   ),
                 if (onDismiss != null)
                   Tooltip(
@@ -715,8 +753,11 @@ class _NotifRow extends StatelessWidget {
                           color: Colors.transparent,
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child:
-                            Icon(Icons.close, size: 16, color: tone.textMuted),
+                        child: Icon(
+                          Icons.close,
+                          size: 16,
+                          color: tone.fgSubtle,
+                        ),
                       ),
                     ),
                   ),
@@ -733,8 +774,18 @@ class _NotifRow extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const _mesesCortos = [
-  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
 ];
 
 /// Fecha relativa estilo portal: "Ahora" / "Hace 5 min" / "Hace 2 h" /
@@ -838,11 +889,7 @@ void abrirNotificacion(BuildContext context, WidgetRef ref, Notificacion n) {
     PortalColors.primary,
     Icons.check_circle_outline,
   ),
-  _ => (
-    PortalColors.primarySoft15,
-    PortalColors.primary,
-    Icons.info_outline,
-  ),
+  _ => (PortalColors.primarySoft15, PortalColors.primary, Icons.info_outline),
 };
 
 /// Botón toggle leída ↔ no-leída de una fila de notificación (espejo del
@@ -1021,11 +1068,7 @@ class NotifPreviewRow extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (onToggleLeida != null)
-                _ToggleLeidaBtn(
-                  n: n,
-                  onTap: onToggleLeida!,
-                  size: 26,
-                ),
+                _ToggleLeidaBtn(n: n, onTap: onToggleLeida!, size: 26),
               if (onToggleLeida != null) const SizedBox(width: 2),
               PortalHoverBuilder(
                 builder: (context, xHovered) => Tooltip(
@@ -1038,8 +1081,9 @@ class NotifPreviewRow extends StatelessWidget {
                       height: 26,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color:
-                            xHovered ? PortalColors.muted : Colors.transparent,
+                        color: xHovered
+                            ? PortalColors.muted
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Icon(

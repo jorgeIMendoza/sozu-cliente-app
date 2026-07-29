@@ -6,16 +6,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/api_client.dart';
-import '../data/models.dart';
-import '../providers/auth_provider.dart';
-import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
-import 'network_image.dart';
-import 'password_rules.dart';
-import 'portal_widgets.dart' show showPortalDialog;
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/api_client.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/widgets/network_image.dart';
+import 'package:sozu_cliente_app/widgets/password_rules.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart'
+    show showPortalDialog;
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Sheets de edición del Perfil (espejo de los modales de ClientePerfil.tsx
 /// del portal): datos personales, datos fiscales y cuentas bancarias, con
@@ -122,8 +123,10 @@ class _PwGateSheetState extends State<_PwGateSheet> {
             hintText: 'Tu contraseña',
             errorText: _error,
             suffixIcon: IconButton(
-              icon: Icon(_show ? Icons.visibility_off : Icons.visibility,
-                  size: 20),
+              icon: Icon(
+                _show ? Icons.visibility_off : Icons.visibility,
+                size: 20,
+              ),
               onPressed: () => setState(() => _show = !_show),
             ),
           ),
@@ -136,7 +139,9 @@ class _PwGateSheetState extends State<_PwGateSheet> {
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Text('Continuar'),
         ),
@@ -218,8 +223,7 @@ class _EditPersonalSheet extends ConsumerStatefulWidget {
   const _EditPersonalSheet({required this.perfil});
 
   @override
-  ConsumerState<_EditPersonalSheet> createState() =>
-      _EditPersonalSheetState();
+  ConsumerState<_EditPersonalSheet> createState() => _EditPersonalSheetState();
 }
 
 class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
@@ -230,11 +234,13 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
   late String _clavePais = widget.perfil.clavePaisTelefono ?? '+52';
   // Ocupación: valor del catálogo o modo "Otro" con texto libre (espejo del
   // SearchSelect + "Otro" del portal).
-  late String? _ocupacion =
-      _esOcupacionOtro(widget.perfil.ocupacion) ? null : widget.perfil.ocupacion;
+  late String? _ocupacion = _esOcupacionOtro(widget.perfil.ocupacion)
+      ? null
+      : widget.perfil.ocupacion;
   late bool _ocupacionOtro = _esOcupacionOtro(widget.perfil.ocupacion);
   late final _ocupacionOtroCtrl = TextEditingController(
-      text: _ocupacionOtro ? (widget.perfil.ocupacion ?? '') : '');
+    text: _ocupacionOtro ? (widget.perfil.ocupacion ?? '') : '',
+  );
   bool _busy = false;
 
   // Clave país con bandera, como el <select> del portal (ClientePerfil.tsx).
@@ -267,7 +273,8 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
     setState(() => _busy = true);
     try {
       final ocupacion = _normalizarOcupacion(
-          _ocupacionOtro ? _ocupacionOtroCtrl.text : _ocupacion);
+        _ocupacionOtro ? _ocupacionOtroCtrl.text : _ocupacion,
+      );
       await updatePerfilPersonal(
         nombreLegal: _nombre.text.trim(),
         rfc: _rfc.text.trim().toUpperCase(),
@@ -281,16 +288,21 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      messenger.showSnackBar(const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_outline,
-                size: 18, color: SozuColors.emerald400),
-            SizedBox(width: 8),
-            Expanded(child: Text('Datos personales actualizados')),
-          ],
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                size: 18,
+                color: SozuBrand.green400,
+              ),
+              SizedBox(width: 8),
+              Expanded(child: Text('Datos personales actualizados')),
+            ],
+          ),
         ),
-      ));
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);
@@ -299,8 +311,7 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -313,8 +324,9 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
         _FieldLabel('Nombre completo *'),
         TextField(
           controller: _nombre,
-          decoration:
-              const InputDecoration(hintText: 'Nombre completo o razón social'),
+          decoration: const InputDecoration(
+            hintText: 'Nombre completo o razón social',
+          ),
         ),
         const SizedBox(height: 14),
         _FieldLabel('RFC con homoclave'),
@@ -323,7 +335,9 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
           maxLength: 13,
           textCapitalization: TextCapitalization.characters,
           decoration: const InputDecoration(
-              hintText: 'AAAA######AAA', counterText: ''),
+            hintText: 'AAAA######AAA',
+            counterText: '',
+          ),
         ),
         const SizedBox(height: 14),
         _FieldLabel('CURP'),
@@ -332,7 +346,9 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
           maxLength: 18,
           textCapitalization: TextCapitalization.characters,
           decoration: const InputDecoration(
-              hintText: '18 caracteres', counterText: ''),
+            hintText: '18 caracteres',
+            counterText: '',
+          ),
         ),
         const SizedBox(height: 14),
         _FieldLabel('Teléfono'),
@@ -344,7 +360,10 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
                 initialValue: _clavePais,
                 items: [
                   for (final (clave, bandera) in _claves)
-                    DropdownMenuItem(value: clave, child: Text('$bandera $clave')),
+                    DropdownMenuItem(
+                      value: clave,
+                      child: Text('$bandera $clave'),
+                    ),
                 ],
                 onChanged: (v) => setState(() => _clavePais = v ?? '+52'),
               ),
@@ -356,7 +375,9 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
                 keyboardType: TextInputType.phone,
                 maxLength: 15,
                 decoration: const InputDecoration(
-                    hintText: '10 dígitos', counterText: ''),
+                  hintText: '10 dígitos',
+                  counterText: '',
+                ),
               ),
             ),
           ],
@@ -394,8 +415,9 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
           const SizedBox(height: 8),
           TextField(
             controller: _ocupacionOtroCtrl,
-            decoration:
-                const InputDecoration(hintText: 'Especifica tu ocupación'),
+            decoration: const InputDecoration(
+              hintText: 'Especifica tu ocupación',
+            ),
           ),
         ],
         const SizedBox(height: 12),
@@ -434,12 +456,11 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
   late String? _usoCfdi = widget.perfil.usoCfdi;
   late final _cp = TextEditingController(text: widget.perfil.cp ?? '');
   late final _calle = TextEditingController(text: widget.perfil.calle ?? '');
-  late final _numExt =
-      TextEditingController(text: widget.perfil.numExt ?? '');
-  late final _numInt =
-      TextEditingController(text: widget.perfil.numInt ?? '');
-  late final _colonia =
-      TextEditingController(text: widget.perfil.colonia ?? '');
+  late final _numExt = TextEditingController(text: widget.perfil.numExt ?? '');
+  late final _numInt = TextEditingController(text: widget.perfil.numInt ?? '');
+  late final _colonia = TextEditingController(
+    text: widget.perfil.colonia ?? '',
+  );
   bool _busy = false;
 
   @override
@@ -450,7 +471,9 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
 
   Future<void> _loadCatalogos() async {
     try {
-      final c = await fetchPerfilCatalogos(impersonate: ref.read(impersonationProvider).idPersona);
+      final c = await fetchPerfilCatalogos(
+        impersonate: ref.read(impersonationProvider).idPersona,
+      );
       if (mounted) setState(() => _catalogos = c);
     } catch (_) {
       if (mounted) setState(() => _loadError = true);
@@ -504,21 +527,27 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      messenger.showSnackBar(const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_outline,
-                size: 18, color: SozuColors.emerald400),
-            SizedBox(width: 8),
-            Expanded(child: Text('Datos fiscales actualizados')),
-          ],
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                size: 18,
+                color: SozuBrand.green400,
+              ),
+              SizedBox(width: 8),
+              Expanded(child: Text('Datos fiscales actualizados')),
+            ],
+          ),
         ),
-      ));
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('No se pudo guardar. Intenta de nuevo.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo guardar. Intenta de nuevo.')),
+      );
     }
   }
 
@@ -535,8 +564,8 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
           placeholder: _loadError
               ? 'Catálogo no disponible'
               : (_catalogos == null
-                  ? 'Cargando catálogo...'
-                  : 'Buscar régimen fiscal...'),
+                    ? 'Cargando catálogo...'
+                    : 'Buscar régimen fiscal...'),
           enabled: _catalogos != null,
           onTap: () async {
             final sel = await _pickOption(
@@ -558,8 +587,8 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
           placeholder: _loadError
               ? 'Catálogo no disponible'
               : (_catalogos == null
-                  ? 'Cargando catálogo...'
-                  : 'Buscar uso CFDI...'),
+                    ? 'Cargando catálogo...'
+                    : 'Buscar uso CFDI...'),
           enabled: _catalogos != null,
           onTap: () async {
             final sel = await _pickOption(
@@ -581,15 +610,13 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
           maxLength: 5,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration:
-              const InputDecoration(hintText: '00000', counterText: ''),
+          decoration: const InputDecoration(hintText: '00000', counterText: ''),
         ),
         const SizedBox(height: 14),
         _FieldLabel('Calle'),
         TextField(
           controller: _calle,
-          decoration:
-              const InputDecoration(hintText: 'Nombre de la calle'),
+          decoration: const InputDecoration(hintText: 'Nombre de la calle'),
         ),
         const SizedBox(height: 14),
         Row(
@@ -626,8 +653,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
         _FieldLabel('Colonia'),
         TextField(
           controller: _colonia,
-          decoration:
-              const InputDecoration(hintText: 'Nombre de la colonia'),
+          decoration: const InputDecoration(hintText: 'Nombre de la colonia'),
         ),
         const SizedBox(height: 20),
         FilledButton(
@@ -645,8 +671,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
 Future<void> showCuentaBancariaSheet(
   BuildContext context, {
   CuentaBancariaPerfil? cuenta,
-}) =>
-    _showPerfilModal<void>(context, _CuentaSheet(cuenta: cuenta));
+}) => _showPerfilModal<void>(context, _CuentaSheet(cuenta: cuenta));
 
 class _CuentaSheet extends ConsumerStatefulWidget {
   final CuentaBancariaPerfil? cuenta;
@@ -661,12 +686,14 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
   bool _loadError = false;
   late int? _idBanco = widget.cuenta?.idBanco;
   late String? _bancoNombre = widget.cuenta?.banco;
-  late final _numeroCuenta =
-      TextEditingController(text: widget.cuenta?.numeroCuenta ?? '');
+  late final _numeroCuenta = TextEditingController(
+    text: widget.cuenta?.numeroCuenta ?? '',
+  );
   late final _clabe = TextEditingController(text: widget.cuenta?.clabe ?? '');
   late final _swift = TextEditingController(text: widget.cuenta?.swift ?? '');
-  late final _titular =
-      TextEditingController(text: widget.cuenta?.titular ?? '');
+  late final _titular = TextEditingController(
+    text: widget.cuenta?.titular ?? '',
+  );
 
   // Evidencia (carátula del estado de cuenta) — requerida en el alta, igual
   // que el portal (handleAddCuenta).
@@ -702,7 +729,9 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
 
   Future<void> _loadCatalogos() async {
     try {
-      final c = await fetchPerfilCatalogos(impersonate: ref.read(impersonationProvider).idPersona);
+      final c = await fetchPerfilCatalogos(
+        impersonate: ref.read(impersonationProvider).idPersona,
+      );
       if (mounted) setState(() => _catalogos = c);
     } catch (_) {
       if (mounted) setState(() => _loadError = true);
@@ -718,8 +747,8 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
     super.dispose();
   }
 
-  void _snack(String msg) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(msg)));
+  void _snack(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
   String _contentType(String nombre) {
     switch (nombre.split('.').last.toLowerCase()) {
@@ -761,8 +790,13 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
   /// Alta de un banco nuevo al catálogo (espejo de "Agregar «q»" del portal).
   Future<String?> _agregarBanco(String nombre) async {
     try {
-      final b = await agregarBancoCatalogo(nombre, impersonate: ref.read(impersonationProvider).idPersona);
-      final c = await fetchPerfilCatalogos(impersonate: ref.read(impersonationProvider).idPersona);
+      final b = await agregarBancoCatalogo(
+        nombre,
+        impersonate: ref.read(impersonationProvider).idPersona,
+      );
+      final c = await fetchPerfilCatalogos(
+        impersonate: ref.read(impersonationProvider).idPersona,
+      );
       if (!mounted) return null;
       setState(() => _catalogos = c);
       return '${b.id}';
@@ -781,8 +815,9 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
     try {
       final clabe = _clabe.text.trim();
       final swift = _swift.text.trim();
-      final b64 =
-          _evidenciaBytes != null ? base64Encode(_evidenciaBytes!) : null;
+      final b64 = _evidenciaBytes != null
+          ? base64Encode(_evidenciaBytes!)
+          : null;
       final ct = _evidenciaNombre != null
           ? _contentType(_evidenciaNombre!)
           : null;
@@ -816,23 +851,31 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      messenger.showSnackBar(SnackBar(
-          content: Text(_isEdit
-              ? 'Cuenta bancaria actualizada'
-              : 'Cuenta bancaria registrada')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            _isEdit
+                ? 'Cuenta bancaria actualizada'
+                : 'Cuenta bancaria registrada',
+          ),
+        ),
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('No se pudo guardar. Intenta de nuevo.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo guardar. Intenta de nuevo.')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
-    final nombreLegal =
-        ref.watch(clientePerfilProvider).valueOrNull?.nombreLegal;
+    final tone = context.s.color;
+    final nombreLegal = ref
+        .watch(clientePerfilProvider)
+        .valueOrNull
+        ?.nombreLegal;
     return _SheetShell(
       icon: Icons.credit_card_outlined,
       title: _isEdit ? 'Editar cuenta bancaria' : 'Nueva cuenta bancaria',
@@ -879,7 +922,9 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
           ],
           onChanged: (_) => setState(() {}),
           decoration: const InputDecoration(
-              hintText: 'Entre 8 y 34 caracteres', counterText: ''),
+            hintText: 'Entre 8 y 34 caracteres',
+            counterText: '',
+          ),
         ),
         const SizedBox(height: 14),
         Row(
@@ -897,7 +942,9 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
-                        hintText: '18 dígitos (opcional)', counterText: ''),
+                      hintText: '18 dígitos (opcional)',
+                      counterText: '',
+                    ),
                   ),
                 ],
               ),
@@ -914,12 +961,15 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
                     textCapitalization: TextCapitalization.characters,
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
-                      TextInputFormatter.withFunction((_, n) =>
-                          n.copyWith(text: n.text.toUpperCase())),
+                      TextInputFormatter.withFunction(
+                        (_, n) => n.copyWith(text: n.text.toUpperCase()),
+                      ),
                     ],
                     onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
-                        hintText: '8 u 11 (opcional)', counterText: ''),
+                      hintText: '8 u 11 (opcional)',
+                      counterText: '',
+                    ),
                   ),
                 ],
               ),
@@ -946,19 +996,18 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
                       value: _titularAuto,
                       onChanged: (v) => setState(() {
                         _titularAuto = v ?? false;
-                        _titular.text =
-                            _titularAuto ? nombreLegal!.trim() : '';
+                        _titular.text = _titularAuto ? nombreLegal!.trim() : '';
                       }),
                       visualDensity: VisualDensity.compact,
-                      materialTapTargetSize:
-                          MaterialTapTargetSize.shrinkWrap,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text('El titular es $nombreLegal',
-                        style: TextStyle(
-                            fontSize: 12.5, color: tone.textSecondary)),
+                    child: Text(
+                      'El titular es $nombreLegal',
+                      style: TextStyle(fontSize: 12.5, color: tone.fgMuted),
+                    ),
                   ),
                 ],
               ),
@@ -969,7 +1018,8 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
           controller: _titular,
           onChanged: (_) => setState(() {}),
           decoration: const InputDecoration(
-              hintText: 'Nombre completo del titular'),
+            hintText: 'Nombre completo del titular',
+          ),
         ),
         const SizedBox(height: 14),
         _FieldLabel(_isEdit ? 'Evidencia' : 'Evidencia *'),
@@ -983,9 +1033,11 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
         const SizedBox(height: 20),
         FilledButton(
           onPressed: (!_valid || _busy) ? null : _save,
-          child: Text(_busy
-              ? 'Guardando...'
-              : (_isEdit ? 'Guardar cambios' : 'Guardar cuenta')),
+          child: Text(
+            _busy
+                ? 'Guardando...'
+                : (_isEdit ? 'Guardar cambios' : 'Guardar cuenta'),
+          ),
         ),
         _CancelButton(onTap: () => Navigator.pop(context)),
       ],
@@ -1007,7 +1059,7 @@ class _EvidenciaPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final tiene = nombre != null;
     return InkWell(
       onTap: onPick,
@@ -1018,15 +1070,18 @@ class _EvidenciaPicker extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: tiene
-                ? SozuColors.emerald500.withValues(alpha: 0.4)
+                ? SozuBrand.green500.withValues(alpha: 0.4)
                 : tone.border,
           ),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         child: Row(
           children: [
-            Icon(tiene ? Icons.description_outlined : Icons.upload_outlined,
-                size: 20, color: tone.textSecondary),
+            Icon(
+              tiene ? Icons.description_outlined : Icons.upload_outlined,
+              size: 20,
+              color: tone.fgMuted,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -1035,16 +1090,19 @@ class _EvidenciaPicker extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 13,
-                  color: tiene ? tone.textPrimary : tone.textMuted,
+                  color: tiene ? tone.fg : tone.fgSubtle,
                 ),
               ),
             ),
             if (tiene)
-              Text('Cambiar',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: tone.primaryDark)),
+              Text(
+                'Cambiar',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: tone.primaryHover,
+                ),
+              ),
           ],
         ),
       ),
@@ -1101,9 +1159,9 @@ class _CambiarPasswordSheetState extends ConsumerState<_CambiarPasswordSheet> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Contraseña actualizada correctamente'),
-      ));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Contraseña actualizada correctamente')),
+      );
     } on WrongCurrentPasswordError {
       if (!mounted) return;
       setState(() {
@@ -1121,7 +1179,7 @@ class _CambiarPasswordSheetState extends ConsumerState<_CambiarPasswordSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return _SheetShell(
       icon: Icons.lock_outline,
       title: 'Cambiar contraseña',
@@ -1156,7 +1214,7 @@ class _CambiarPasswordSheetState extends ConsumerState<_CambiarPasswordSheet> {
           const SizedBox(height: 8),
           Text(
             'La nueva contraseña debe ser distinta a la actual.',
-            style: TextStyle(fontSize: 12, color: tone.negative),
+            style: TextStyle(fontSize: 12, color: tone.danger),
           ),
         ],
         if (_error != null) ...[
@@ -1164,11 +1222,13 @@ class _CambiarPasswordSheetState extends ConsumerState<_CambiarPasswordSheet> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: tone.negative.withValues(alpha: 0.1),
+              color: tone.danger.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Text(_error!,
-                style: TextStyle(fontSize: 13, color: tone.negative)),
+            child: Text(
+              _error!,
+              style: TextStyle(fontSize: 13, color: tone.danger),
+            ),
           ),
         ],
         const SizedBox(height: 20),
@@ -1224,10 +1284,7 @@ class _AvatarSheetState extends ConsumerState<_AvatarSheet> {
   Future<void> _subir() async {
     final file = await openFile(
       acceptedTypeGroups: const [
-        XTypeGroup(
-          label: 'Imagen',
-          extensions: ['png', 'jpg', 'jpeg', 'webp'],
-        ),
+        XTypeGroup(label: 'Imagen', extensions: ['png', 'jpg', 'jpeg', 'webp']),
       ],
     );
     if (file == null) return;
@@ -1248,16 +1305,21 @@ class _AvatarSheetState extends ConsumerState<_AvatarSheet> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      messenger.showSnackBar(const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_outline,
-                size: 18, color: SozuColors.emerald400),
-            SizedBox(width: 8),
-            Expanded(child: Text('Foto de perfil actualizada')),
-          ],
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                size: 18,
+                color: SozuBrand.green400,
+              ),
+              SizedBox(width: 8),
+              Expanded(child: Text('Foto de perfil actualizada')),
+            ],
+          ),
         ),
-      ));
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);
@@ -1266,7 +1328,7 @@ class _AvatarSheetState extends ConsumerState<_AvatarSheet> {
   }
 
   Future<void> _eliminar() async {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1279,7 +1341,7 @@ class _AvatarSheetState extends ConsumerState<_AvatarSheet> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Eliminar', style: TextStyle(color: tone.negative)),
+            child: Text('Eliminar', style: TextStyle(color: tone.danger)),
           ),
         ],
       ),
@@ -1287,7 +1349,9 @@ class _AvatarSheetState extends ConsumerState<_AvatarSheet> {
     if (ok != true || !mounted) return;
     setState(() => _busy = true);
     try {
-      await avatarDelete(impersonate: ref.read(impersonationProvider).idPersona);
+      await avatarDelete(
+        impersonate: ref.read(impersonationProvider).idPersona,
+      );
       ref.invalidate(clientePerfilProvider);
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
@@ -1304,7 +1368,7 @@ class _AvatarSheetState extends ConsumerState<_AvatarSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return _SheetShell(
       icon: Icons.photo_camera_outlined,
       title: 'Foto de perfil',
@@ -1332,7 +1396,9 @@ class _AvatarSheetState extends ConsumerState<_AvatarSheet> {
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Icon(Icons.upload_outlined, size: 18),
           label: Text(_tieneFoto ? 'Cambiar foto' : 'Subir foto'),
@@ -1341,10 +1407,10 @@ class _AvatarSheetState extends ConsumerState<_AvatarSheet> {
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: _busy ? null : _eliminar,
-            icon: Icon(Icons.delete_outline, size: 18, color: tone.negative),
+            icon: Icon(Icons.delete_outline, size: 18, color: tone.danger),
             style: OutlinedButton.styleFrom(
-              foregroundColor: tone.negative,
-              side: BorderSide(color: tone.negative.withValues(alpha: 0.3)),
+              foregroundColor: tone.danger,
+              side: BorderSide(color: tone.danger.withValues(alpha: 0.3)),
             ),
             label: const Text('Eliminar foto'),
           ),
@@ -1366,16 +1432,15 @@ Future<String?> _pickOption(
   required List<({String value, String label})> options,
   String? selected,
   Future<String?> Function(String nombre)? onAddNew,
-}) =>
-    _showPerfilModal<String>(
-      context,
-      _OptionPicker(
-        title: title,
-        options: options,
-        selected: selected,
-        onAddNew: onAddNew,
-      ),
-    );
+}) => _showPerfilModal<String>(
+  context,
+  _OptionPicker(
+    title: title,
+    options: options,
+    selected: selected,
+    onAddNew: onAddNew,
+  ),
+);
 
 class _OptionPicker extends StatefulWidget {
   final String title;
@@ -1413,15 +1478,16 @@ class _OptionPickerState extends State<_OptionPicker> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final q = _q.trim().toLowerCase();
     final filtered = q.isEmpty
         ? widget.options
         : widget.options
-            .where((o) => o.label.toLowerCase().contains(q))
-            .toList();
+              .where((o) => o.label.toLowerCase().contains(q))
+              .toList();
     // "Agregar «q»" cuando hay callback, la búsqueda es ≥2 y no hay match exacto.
-    final puedeAgregar = widget.onAddNew != null &&
+    final puedeAgregar =
+        widget.onAddNew != null &&
         q.length >= 2 &&
         !widget.options.any((o) => o.label.toLowerCase() == q);
     return SizedBox(
@@ -1433,11 +1499,14 @@ class _OptionPickerState extends State<_OptionPicker> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(widget.title,
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: tone.textPrimary)),
+                  child: Text(
+                    widget.title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: tone.fg,
+                    ),
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 20),
@@ -1471,13 +1540,13 @@ class _OptionPickerState extends State<_OptionPicker> {
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Icon(Icons.add, size: 20, color: tone.primaryDark),
+                        : Icon(Icons.add, size: 20, color: tone.primaryHover),
                     title: Text(
                       'Agregar «${_q.trim()}»',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: tone.primaryDark,
+                        color: tone.primaryHover,
                       ),
                     ),
                     onTap: _adding ? null : _add,
@@ -1492,9 +1561,8 @@ class _OptionPickerState extends State<_OptionPicker> {
                     o.label,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight:
-                          isSel ? FontWeight.w700 : FontWeight.w500,
-                      color: isSel ? tone.primaryDark : tone.textPrimary,
+                      fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                      color: isSel ? tone.primaryHover : tone.fg,
                     ),
                   ),
                   onTap: () => Navigator.pop(context, o.value),
@@ -1524,7 +1592,7 @@ class _PickerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return InkWell(
       onTap: enabled ? onTap : null,
       borderRadius: BorderRadius.circular(16),
@@ -1538,7 +1606,7 @@ class _PickerField extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 14,
-            color: value != null ? tone.textPrimary : tone.textMuted,
+            color: value != null ? tone.fg : tone.fgSubtle,
           ),
         ),
       ),
@@ -1562,10 +1630,11 @@ class _SheetShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Center(
@@ -1584,22 +1653,28 @@ class _SheetShell extends StatelessWidget {
                         color: tone.surfaceAlt,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child:
-                          Icon(icon, size: 18, color: tone.textSecondary),
+                      child: Icon(icon, size: 18, color: tone.fgMuted),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(title,
-                              style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: tone.textPrimary)),
-                          Text(subtitle,
-                              style: TextStyle(
-                                  fontSize: 12, color: tone.textMuted)),
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: tone.fg,
+                            ),
+                          ),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: tone.fgSubtle,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1626,14 +1701,17 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Text(text,
-          style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: tone.textPrimary)),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: tone.fg,
+        ),
+      ),
     );
   }
 }
@@ -1645,7 +1723,7 @@ class _NoteBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -1654,11 +1732,13 @@ class _NoteBox extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: tone.textMuted),
+          Icon(icon, size: 14, color: tone.fgSubtle),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(text,
-                style: TextStyle(fontSize: 12, color: tone.textSecondary)),
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 12, color: tone.fgMuted),
+            ),
           ),
         ],
       ),
@@ -1672,14 +1752,16 @@ class _CancelButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: TextButton(
         onPressed: onTap,
-        style: TextButton.styleFrom(foregroundColor: tone.negative),
-        child: const Text('Cancelar',
-            style: TextStyle(fontWeight: FontWeight.w600)),
+        style: TextButton.styleFrom(foregroundColor: tone.danger),
+        child: const Text(
+          'Cancelar',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }

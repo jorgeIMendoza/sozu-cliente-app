@@ -5,15 +5,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../core/format.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/api_client.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
-import 'portal_widgets.dart';
-import 'whatsapp_icon.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/api_client.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/widgets/whatsapp_icon.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Ancho del drawer lateral del portal (`max-w-[520px]`, usamos 460-480).
 const double _kDrawerWidth = 468;
@@ -202,10 +202,7 @@ class _CreditoHipotecarioDrawerState
       onPressed: enabled ? onPressed : () {},
     );
     if (enabled) return btn;
-    return Opacity(
-      opacity: 0.55,
-      child: IgnorePointer(child: btn),
-    );
+    return Opacity(opacity: 0.55, child: IgnorePointer(child: btn));
   }
 
   void _snack(String mensaje) {
@@ -315,10 +312,7 @@ class _CreditoHipotecarioDrawerState
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-            children: [
-              ..._cuerpo(),
-              if (widget.saldo > 0) _asesorBloque(),
-            ],
+            children: [..._cuerpo(), if (widget.saldo > 0) _asesorBloque()],
           ),
         ),
       ],
@@ -367,11 +361,7 @@ class _CreditoHipotecarioDrawerState
             ),
           ),
           const SizedBox(width: 4),
-          PortalIconBtn(
-            icon: Icons.close,
-            tooltip: 'Cerrar',
-            onTap: _cerrar,
-          ),
+          PortalIconBtn(icon: Icons.close, tooltip: 'Cerrar', onTap: _cerrar),
         ],
       ),
     );
@@ -668,10 +658,7 @@ class _CreditoHipotecarioDrawerState
                         'nuevo más tarde.'
                   : 'No hay bancos con convenio disponibles por ahora.',
               textAlign: TextAlign.center,
-              style: portalText(
-                size: 12,
-                color: PortalColors.mutedForeground,
-              ),
+              style: portalText(size: 12, color: PortalColors.mutedForeground),
             ),
           );
         }
@@ -881,10 +868,7 @@ class _CreditoHipotecarioDrawerState
           children: [
             Text(
               'Monto a financiar (MXN)',
-              style: portalText(
-                size: 12,
-                color: PortalColors.mutedForeground,
-              ),
+              style: portalText(size: 12, color: PortalColors.mutedForeground),
             ),
             const SizedBox(height: 6),
             TextField(
@@ -1054,9 +1038,7 @@ class _CreditoHipotecarioDrawerState
             Padding(
               padding: const EdgeInsets.only(top: 1),
               child: Icon(
-                _consiente
-                    ? Icons.check_box
-                    : Icons.check_box_outline_blank,
+                _consiente ? Icons.check_box : Icons.check_box_outline_blank,
                 size: 18,
                 color: _consiente
                     ? PortalColors.primary

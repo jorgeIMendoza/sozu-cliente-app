@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../widgets/common.dart';
-import '../widgets/fx.dart';
-import '../widgets/perfil_section_card.dart';
-import '../widgets/perfil_sheets.dart';
-import '../widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/fx.dart';
+import 'package:sozu_cliente_app/widgets/perfil_section_card.dart';
+import 'package:sozu_cliente_app/widgets/perfil_sheets.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Vistas de detalle del Perfil (espejo de las vistas personal/fiscal/cuentas
 /// de ClientePerfil.tsx del portal). En móvil se abren con Navigator.push
@@ -38,16 +38,18 @@ class PerfilPersonalScreen extends ConsumerWidget {
       PerfilInfoRow(label: 'RFC con homoclave', value: p?.rfc, mono: true),
       PerfilInfoRow(label: 'CURP', value: p?.curp, mono: true),
       PerfilInfoRow(
-          label: 'Teléfono',
-          value: p?.telefono != null
-              ? '${p?.clavePaisTelefono ?? '+52'} ${p?.telefono}'
-              : null),
+        label: 'Teléfono',
+        value: p?.telefono != null
+            ? '${p?.clavePaisTelefono ?? '+52'} ${p?.telefono}'
+            : null,
+      ),
       PerfilInfoRow(label: 'Ocupación', value: p?.ocupacion),
       PerfilInfoRow(
-          label: 'Correo electrónico',
-          value: p?.email,
-          note: 'No editable',
-          isLast: true),
+        label: 'Correo electrónico',
+        value: p?.email,
+        note: 'No editable',
+        isLast: true,
+      ),
     ];
 
     if (isPortalMode(context)) {
@@ -89,7 +91,7 @@ class PerfilPersonalScreen extends ConsumerWidget {
         child: child,
       );
     }
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Información personal')),
@@ -113,28 +115,36 @@ class PerfilPersonalScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         PerfilInfoRow(
-                            label: 'Tipo de persona',
-                            value: p?.tipoPersonaLabel),
+                          label: 'Tipo de persona',
+                          value: p?.tipoPersonaLabel,
+                        ),
                         PerfilInfoRow(
-                            label: 'Nombre completo',
-                            value: p?.nombreLegal),
+                          label: 'Nombre completo',
+                          value: p?.nombreLegal,
+                        ),
                         PerfilInfoRow(
-                            label: 'RFC con homoclave',
-                            value: p?.rfc,
-                            mono: true),
-                        PerfilInfoRow(label: 'CURP', value: p?.curp, mono: true),
+                          label: 'RFC con homoclave',
+                          value: p?.rfc,
+                          mono: true,
+                        ),
                         PerfilInfoRow(
-                            label: 'Teléfono',
-                            value: p?.telefono != null
-                                ? '${p?.clavePaisTelefono ?? '+52'} ${p?.telefono}'
-                                : null),
+                          label: 'CURP',
+                          value: p?.curp,
+                          mono: true,
+                        ),
                         PerfilInfoRow(
-                            label: 'Ocupación', value: p?.ocupacion),
+                          label: 'Teléfono',
+                          value: p?.telefono != null
+                              ? '${p?.clavePaisTelefono ?? '+52'} ${p?.telefono}'
+                              : null,
+                        ),
+                        PerfilInfoRow(label: 'Ocupación', value: p?.ocupacion),
                         PerfilInfoRow(
-                            label: 'Correo electrónico',
-                            value: p?.email,
-                            note: 'No editable',
-                            isLast: true),
+                          label: 'Correo electrónico',
+                          value: p?.email,
+                          note: 'No editable',
+                          isLast: true,
+                        ),
                       ],
                     ),
             ),
@@ -150,7 +160,7 @@ class PerfilPersonalScreen extends ConsumerWidget {
             Text(
               'Tus datos serán validados por el área correspondiente.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: tone.textMuted),
+              style: TextStyle(fontSize: 12, color: tone.fgSubtle),
             ),
           ],
         ),
@@ -182,7 +192,8 @@ class PerfilFiscalScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _AmberInfoBanner(
-              text: 'Tus datos serán validados por el área correspondiente.'),
+            text: 'Tus datos serán validados por el área correspondiente.',
+          ),
           const SizedBox(height: 12),
           if (perfil.isLoading)
             const _DetalleSkeleton()
@@ -227,7 +238,8 @@ class PerfilFiscalScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
             const _AmberInfoBanner(
-                text: 'Tus datos serán validados por el área correspondiente.'),
+              text: 'Tus datos serán validados por el área correspondiente.',
+            ),
             const SizedBox(height: 12),
             AppCard(
               child: perfil.isLoading
@@ -244,19 +256,26 @@ class PerfilFiscalScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         PerfilInfoRow(
-                            label: 'Régimen fiscal',
-                            value: p?.regimenDisplay),
+                          label: 'Régimen fiscal',
+                          value: p?.regimenDisplay,
+                        ),
                         PerfilInfoRow(
-                            label: 'Uso CFDI', value: p?.usoCfdiDisplay),
+                          label: 'Uso CFDI',
+                          value: p?.usoCfdiDisplay,
+                        ),
                         PerfilInfoRow(
-                            label: 'Código postal', value: p?.cp, mono: true),
+                          label: 'Código postal',
+                          value: p?.cp,
+                          mono: true,
+                        ),
                         PerfilInfoRow(label: 'Calle', value: p?.calle),
+                        PerfilInfoRow(label: 'Núm. exterior', value: p?.numExt),
+                        PerfilInfoRow(label: 'Núm. interior', value: p?.numInt),
                         PerfilInfoRow(
-                            label: 'Núm. exterior', value: p?.numExt),
-                        PerfilInfoRow(
-                            label: 'Núm. interior', value: p?.numInt),
-                        PerfilInfoRow(
-                            label: 'Colonia', value: p?.colonia, isLast: true),
+                          label: 'Colonia',
+                          value: p?.colonia,
+                          isLast: true,
+                        ),
                       ],
                     ),
             ),
@@ -283,7 +302,7 @@ class PerfilCuentasScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final perfil = ref.watch(clientePerfilProvider);
     final cuentas = perfil.valueOrNull?.cuentasBancarias ?? [];
 
@@ -291,31 +310,32 @@ class PerfilCuentasScreen extends ConsumerWidget {
     // vista "cuentas" de ClientePerfil.tsx: solo lectura; el alta se hace en
     // Documentos → Cuenta bancaria (no hay botón inline de "agregar").
     List<Widget> cuerpo() => [
-          if (perfil.isLoading)
-            const _DetalleSkeleton()
-          else if (perfil.hasError)
-            ErrorCard(
-              title: 'No pudimos cargar tus cuentas',
-              onRetry: () => ref.invalidate(clientePerfilProvider),
-            )
-          else if (cuentas.isEmpty)
-            const _CuentasEmptyBox()
-          else
-            for (final c in cuentas) ...[
-              _CuentaCard(cuenta: c),
-              const SizedBox(height: 10),
-            ],
-          const SizedBox(height: 4),
-          const _CuentasFooterLink(),
-        ];
+      if (perfil.isLoading)
+        const _DetalleSkeleton()
+      else if (perfil.hasError)
+        ErrorCard(
+          title: 'No pudimos cargar tus cuentas',
+          onRetry: () => ref.invalidate(clientePerfilProvider),
+        )
+      else if (cuentas.isEmpty)
+        const _CuentasEmptyBox()
+      else
+        for (final c in cuentas) ...[
+          _CuentaCard(cuenta: c),
+          const SizedBox(height: 10),
+        ],
+      const SizedBox(height: 4),
+      const _CuentasFooterLink(),
+    ];
 
     if (isPortalMode(context)) {
       final child = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _BlueInfoBanner(
-              text:
-                  'Por tu seguridad, toda alta o cambio de cuenta se notifica de inmediato.'),
+            text:
+                'Por tu seguridad, toda alta o cambio de cuenta se notifica de inmediato.',
+          ),
           const SizedBox(height: 12),
           ...cuerpo(),
         ],
@@ -344,24 +364,29 @@ class PerfilCuentasScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
               decoration: BoxDecoration(
                 color: tone.primarySoft,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                    color: SozuColors.emerald500.withValues(alpha: 0.25)),
+                  color: SozuBrand.green500.withValues(alpha: 0.25),
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.shield_outlined,
-                      size: 15, color: tone.primaryDark),
+                  Icon(
+                    Icons.shield_outlined,
+                    size: 15,
+                    color: tone.primaryHover,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Por tu seguridad, toda alta o cambio de cuenta se notifica de inmediato.',
                       style: TextStyle(
-                          fontSize: 12.5, color: tone.primaryDark),
+                        fontSize: 12.5,
+                        color: tone.primaryHover,
+                      ),
                     ),
                   ),
                 ],
@@ -410,8 +435,10 @@ class _PerfilDetalleInline extends StatelessWidget {
             style: TextButton.styleFrom(
               foregroundColor: PortalColors.mutedForeground,
               padding: const EdgeInsets.symmetric(horizontal: 4),
-              textStyle:
-                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             icon: const Icon(Icons.arrow_back, size: 15),
             label: const Text('Volver al Perfil'),
@@ -430,15 +457,19 @@ class _PerfilDetalleInline extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title,
-                            style:
-                                portalText(size: 18, weight: FontWeight.w700)),
+                        Text(
+                          title,
+                          style: portalText(size: 18, weight: FontWeight.w700),
+                        ),
                         if (subtitle != null) ...[
                           const SizedBox(height: 4),
-                          Text(subtitle!,
-                              style: portalText(
-                                  size: 13.5,
-                                  color: PortalColors.mutedForeground)),
+                          Text(
+                            subtitle!,
+                            style: portalText(
+                              size: 13.5,
+                              color: PortalColors.mutedForeground,
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -471,22 +502,26 @@ class _DetalleHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Row(
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: tone.textPrimary)),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: tone.fg,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(subtitle,
-                  style:
-                      TextStyle(fontSize: 13, color: tone.textSecondary)),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 13, color: tone.fgMuted),
+              ),
             ],
           ),
         ),
@@ -494,15 +529,17 @@ class _DetalleHeader extends StatelessWidget {
           OutlinedButton(
             onPressed: onEdit,
             style: OutlinedButton.styleFrom(
-              foregroundColor: tone.textPrimary,
+              foregroundColor: tone.fg,
               side: BorderSide(color: tone.border),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               minimumSize: Size.zero,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              textStyle:
-                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             child: const Text('Editar'),
           ),
@@ -517,24 +554,23 @@ class _AmberInfoBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
       decoration: BoxDecoration(
-        color: tone.pendingSoft,
+        color: tone.warningSoft,
         borderRadius: BorderRadius.circular(10),
-        border:
-            Border.all(color: SozuColors.amber500.withValues(alpha: 0.35)),
+        border: Border.all(color: SozuAmber.base.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline,
-              size: 15, color: SozuColors.amber600),
+          const Icon(Icons.error_outline, size: 15, color: SozuAmber.strong),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(text,
-                style: const TextStyle(
-                    fontSize: 12.5, color: SozuColors.amber600)),
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 12.5, color: SozuAmber.strong),
+            ),
           ),
         ],
       ),
@@ -565,8 +601,7 @@ class _BlueInfoBanner extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style:
-                  portalText(size: 12.5, weight: FontWeight.w500, color: fg),
+              style: portalText(size: 12.5, weight: FontWeight.w500, color: fg),
             ),
           ),
         ],
@@ -594,7 +629,7 @@ class _CuentaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final (label, badgeTone) = _badge;
     return AppCard(
       child: Row(
@@ -606,29 +641,39 @@ class _CuentaCard extends StatelessWidget {
               color: tone.primarySoft,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.credit_card_outlined,
-                size: 19, color: tone.primaryDark),
+            child: Icon(
+              Icons.credit_card_outlined,
+              size: 19,
+              color: tone.primaryHover,
+            ),
           ),
           const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(cuenta.banco,
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: tone.textPrimary)),
+                Text(
+                  cuenta.banco,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: tone.fg,
+                  ),
+                ),
                 if (cuenta.cuentaMasked != null)
-                  Text(cuenta.cuentaMasked!,
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontFamily: 'monospace',
-                          color: tone.textSecondary)),
+                  Text(
+                    cuenta.cuentaMasked!,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontFamily: 'monospace',
+                      color: tone.fgMuted,
+                    ),
+                  ),
                 if (cuenta.titular != null)
-                  Text('Titular: ${cuenta.titular!}',
-                      style: TextStyle(
-                          fontSize: 12, color: tone.textMuted)),
+                  Text(
+                    'Titular: ${cuenta.titular!}',
+                    style: TextStyle(fontSize: 12, color: tone.fgSubtle),
+                  ),
               ],
             ),
           ),
@@ -646,7 +691,7 @@ class _CuentasEmptyBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 28),
@@ -661,15 +706,16 @@ class _CuentasEmptyBox extends StatelessWidget {
             'Sin cuentas registradas.',
             textAlign: TextAlign.center,
             style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: tone.textPrimary),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: tone.fg,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             'Regístrala en Documentos → Cuenta bancaria.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12.5, color: tone.textMuted),
+            style: TextStyle(fontSize: 12.5, color: tone.fgSubtle),
           ),
         ],
       ),
@@ -684,8 +730,8 @@ class _CuentasFooterLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
-    final muted = TextStyle(fontSize: 12, color: tone.textMuted);
+    final tone = context.s.color;
+    final muted = TextStyle(fontSize: 12, color: tone.fgSubtle);
     return Wrap(
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -696,9 +742,10 @@ class _CuentasFooterLink extends StatelessWidget {
           child: Text(
             'Documentos → Cuenta bancaria',
             style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: tone.primaryDark),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: tone.primaryHover,
+            ),
           ),
         ),
         Text('.', style: muted),

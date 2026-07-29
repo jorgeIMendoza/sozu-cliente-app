@@ -7,8 +7,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
-import '../core/theme.dart';
-import '../widgets/pulsing_pin.dart';
+import 'package:sozu_cliente_app/widgets/pulsing_pin.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Modo de viaje para la ruta, trazada con OSRM (servidores públicos de
 /// FOSSGIS/OpenStreetMap, sin API key).
@@ -110,7 +110,8 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
       _origen = LatLng(pos.latitude, pos.longitude);
       await _trazarRuta();
       _escucharMovimiento();
-      _cargarDuraciones(); // ETAs de los otros modos, en segundo plano
+      // Fire-and-forget: los ETAs de los otros modos no bloquean el mapa.
+      unawaited(_cargarDuraciones());
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -133,28 +134,33 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
             accuracy: LocationAccuracy.high,
             distanceFilter: _metrosPorEvento,
           ),
-        ).listen((pos) {
-          if (!mounted) return;
-          final nueva = LatLng(pos.latitude, pos.longitude);
-          setState(() => _origen = nueva);
-          if (_seguir) {
-            _mapController.move(nueva, _mapController.camera.zoom);
-          }
-          // Desvío grande respecto a la ruta vigente: recalcular.
-          final base = _origenRuta;
-          if (base != null && !_cargando) {
-            final desvio = Geolocator.distanceBetween(
-              base.latitude,
-              base.longitude,
-              nueva.latitude,
-              nueva.longitude,
-            );
-            if (desvio > _metrosRecalculo) {
-              _trazarRuta(ajustarCamara: false).catchError((_) {});
-              _cargarDuraciones();
+        ).listen(
+          (pos) {
+            if (!mounted) return;
+            final nueva = LatLng(pos.latitude, pos.longitude);
+            setState(() => _origen = nueva);
+            if (_seguir) {
+              _mapController.move(nueva, _mapController.camera.zoom);
             }
-          }
-        }, onError: (_) {/* GPS intermitente: se conserva la última posición */});
+            // Desvío grande respecto a la ruta vigente: recalcular.
+            final base = _origenRuta;
+            if (base != null && !_cargando) {
+              final desvio = Geolocator.distanceBetween(
+                base.latitude,
+                base.longitude,
+                nueva.latitude,
+                nueva.longitude,
+              );
+              if (desvio > _metrosRecalculo) {
+                _trazarRuta(ajustarCamara: false).catchError((_) {});
+                _cargarDuraciones();
+              }
+            }
+          },
+          onError: (_) {
+            /* GPS intermitente: se conserva la última posición */
+          },
+        );
   }
 
   Future<Position> _obtenerPosicion() async {
@@ -188,22 +194,26 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
   Future<void> _cargarDuraciones() async {
     final origen = _origen;
     if (origen == null) return;
-    await Future.wait(_TravelMode.values.map((m) async {
-      try {
-        final url = Uri.parse(
-          'https://routing.openstreetmap.de/${m.osrmServer}/route/v1/${m.osrmProfile}/'
-          '${origen.longitude},${origen.latitude};${_destino.longitude},${_destino.latitude}'
-          '?overview=false',
-        );
-        final res = await http.get(url).timeout(const Duration(seconds: 15));
-        if (res.statusCode != 200) return;
-        final routes =
-            (jsonDecode(res.body) as Map<String, dynamic>)['routes'] as List?;
-        if (routes == null || routes.isEmpty) return;
-        final dur = ((routes.first as Map)['duration'] as num).toDouble();
-        if (mounted) setState(() => _duraciones[m] = dur);
-      } catch (_) {/* sin ETA para ese modo */}
-    }));
+    await Future.wait(
+      _TravelMode.values.map((m) async {
+        try {
+          final url = Uri.parse(
+            'https://routing.openstreetmap.de/${m.osrmServer}/route/v1/${m.osrmProfile}/'
+            '${origen.longitude},${origen.latitude};${_destino.longitude},${_destino.latitude}'
+            '?overview=false',
+          );
+          final res = await http.get(url).timeout(const Duration(seconds: 15));
+          if (res.statusCode != 200) return;
+          final routes =
+              (jsonDecode(res.body) as Map<String, dynamic>)['routes'] as List?;
+          if (routes == null || routes.isEmpty) return;
+          final dur = ((routes.first as Map)['duration'] as num).toDouble();
+          if (mounted) setState(() => _duraciones[m] = dur);
+        } catch (_) {
+          /* sin ETA para ese modo */
+        }
+      }),
+    );
   }
 
   String _fmtDuracion(double seg) {
@@ -234,10 +244,12 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
       throw Exception('sin rutas');
     }
     final route = routes.first as Map<String, dynamic>;
-    final coords =
-        ((route['geometry'] as Map)['coordinates'] as List)
-            .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
-            .toList();
+    final coords = ((route['geometry'] as Map)['coordinates'] as List)
+        // Cada punto llega como [lon, lat]; se tipa antes de indexar para no
+        // hacer accesos sobre `dynamic`.
+        .cast<List<dynamic>>()
+        .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+        .toList();
     if (!mounted) return;
     setState(() {
       _ruta = _Ruta(
@@ -254,11 +266,7 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
   }
 
   void _ajustarVista() {
-    final puntos = [
-      if (_origen != null) _origen!,
-      _destino,
-      ...?_ruta?.puntos,
-    ];
+    final puntos = [if (_origen != null) _origen!, _destino, ...?_ruta?.puntos];
     if (puntos.length < 2) return;
     _mapController.fitCamera(
       CameraFit.coordinates(
@@ -282,7 +290,7 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Scaffold(
       appBar: AppBar(title: const Text('Cómo llegar')),
       body: Stack(
@@ -308,7 +316,7 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                     Polyline(
                       points: _ruta!.puntos,
                       strokeWidth: 5,
-                      color: SozuColors.emerald500,
+                      color: SozuBrand.green500,
                     ),
                   ],
                 ),
@@ -329,10 +337,7 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                             height: 1,
                             shadows: [
                               Shadow(color: Colors.black38, blurRadius: 6),
-                              Shadow(
-                                color: Colors.white,
-                                blurRadius: 12,
-                              ),
+                              Shadow(color: Colors.white, blurRadius: 12),
                             ],
                           ),
                         ),
@@ -375,7 +380,7 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: tone.textPrimary,
+                        color: tone.fg,
                       ),
                     ),
                     if (widget.direccion != null &&
@@ -384,10 +389,7 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                         widget.direccion!,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: tone.textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 12, color: tone.fgMuted),
                       ),
                     const SizedBox(height: 10),
                     SizedBox(
@@ -464,10 +466,7 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                         children: [
                           Text(
                             _error!,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: tone.negative,
-                            ),
+                            style: TextStyle(fontSize: 13, color: tone.danger),
                           ),
                           const SizedBox(height: 8),
                           TextButton(
@@ -478,7 +477,7 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                       )
                     : Row(
                         children: [
-                          Icon(_mode.icon, color: tone.primaryDark),
+                          Icon(_mode.icon, color: tone.primaryHover),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
@@ -486,7 +485,7 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: tone.textPrimary,
+                                color: tone.fg,
                               ),
                             ),
                           ),
@@ -505,7 +504,7 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
                               _seguir
                                   ? Icons.my_location
                                   : Icons.location_searching,
-                              color: _seguir ? tone.primaryDark : null,
+                              color: _seguir ? tone.primaryHover : null,
                             ),
                           ),
                           IconButton(

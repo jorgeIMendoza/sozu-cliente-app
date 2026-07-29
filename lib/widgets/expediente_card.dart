@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import 'portal_widgets.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Estado de una sección del Perfil (validada / en proceso / pendiente).
 /// Espejo del arreglo `secciones` del overview de ClientePerfil.tsx del portal.
@@ -45,10 +45,8 @@ class PerfilSeccionesEstado {
 
   List<SeccionEstado> get _todas => [documentos, personal, fiscal, cuentas];
 
-  int get validadas =>
-      _todas.where((e) => e == SeccionEstado.validada).length;
-  int get enProceso =>
-      _todas.where((e) => e == SeccionEstado.enProceso).length;
+  int get validadas => _todas.where((e) => e == SeccionEstado.validada).length;
+  int get enProceso => _todas.where((e) => e == SeccionEstado.enProceso).length;
   int get pendientes =>
       _todas.where((e) => e == SeccionEstado.pendiente).length;
 }
@@ -69,8 +67,8 @@ PerfilSeccionesEstado computePerfilSeccionesEstado(
   final docState = docsAllVerified
       ? SeccionEstado.validada
       : subidos > 0
-          ? SeccionEstado.enProceso
-          : SeccionEstado.pendiente;
+      ? SeccionEstado.enProceso
+      : SeccionEstado.pendiente;
 
   // CSF (tipo 6) aprobada = fuente de los datos fiscales (fila fiscal completa).
   final csfVerificada =
@@ -87,14 +85,15 @@ PerfilSeccionesEstado computePerfilSeccionesEstado(
   // → validada; con evidencia pero no todas validadas → en proceso.
   final cuentas = p?.cuentasBancarias ?? const <CuentaBancariaPerfil>[];
   final todasConEvidencia =
-      cuentas.isNotEmpty && cuentas.every((c) => (c.evidencia ?? '').isNotEmpty);
+      cuentas.isNotEmpty &&
+      cuentas.every((c) => (c.evidencia ?? '').isNotEmpty);
   final todasValidadas =
       cuentas.isNotEmpty && cuentas.every((c) => c.estatus == 2);
   final cuentasState = !todasConEvidencia
       ? SeccionEstado.pendiente
       : todasValidadas
-          ? SeccionEstado.validada
-          : SeccionEstado.enProceso;
+      ? SeccionEstado.validada
+      : SeccionEstado.enProceso;
 
   return PerfilSeccionesEstado(
     documentos: docState,
@@ -144,26 +143,29 @@ class ExpedienteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final portal = isPortalMode(context);
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final dark = Theme.of(context).brightness == Brightness.dark;
 
     // Colores del contenedor.
-    final Gradient? gradient =
-        portal ? const LinearGradient(colors: [_heroGradA, _heroGradB]) : null;
+    final Gradient? gradient = portal
+        ? const LinearGradient(colors: [_heroGradA, _heroGradB])
+        : null;
     final Color bg = portal
         ? _heroGradA
         : dark
-            ? tone.primarySoft
-            : const Color(0xFFEEF7F1);
+        ? tone.primarySoft
+        : const Color(0xFFEEF7F1);
     final Color border = portal
         ? _heroBorder
         : dark
-            ? SozuColors.emerald700
-            : const Color(0xFFD8ECDF);
+        ? SozuBrand.green700
+        : const Color(0xFFD8ECDF);
 
-    final Color eyebrowColor = portal ? PortalColors.primary : tone.primaryDark;
-    final Color titleColor = portal ? _heroTitle : tone.textPrimary;
-    final Color bodyColor = portal ? _heroBody : tone.textSecondary;
+    final Color eyebrowColor = portal
+        ? PortalColors.primary
+        : tone.primaryHover;
+    final Color titleColor = portal ? _heroTitle : tone.fg;
+    final Color bodyColor = portal ? _heroBody : tone.fgMuted;
 
     Widget txt(String s, TextStyle style) =>
         portal ? Text(s, style: _p(style)) : Text(s, style: style);
@@ -220,8 +222,10 @@ class ExpedienteCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(kPortalRadiusMd),
                       )
                     : null,
-                textStyle:
-                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                textStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               icon: const Icon(Icons.description_outlined, size: 16),
               label: const Text('Gestionar documentos'),
@@ -267,11 +271,7 @@ class ExpedienteCard extends StatelessWidget {
           }
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              izquierda,
-              const SizedBox(height: 18),
-              estadoBox,
-            ],
+            children: [izquierda, const SizedBox(height: 18), estadoBox],
           );
         },
       ),
@@ -280,12 +280,12 @@ class ExpedienteCard extends StatelessWidget {
 
   /// Aplica la familia tipográfica del portal a un [TextStyle] arbitrario.
   TextStyle _p(TextStyle s) => portalText(
-        size: s.fontSize ?? 13,
-        weight: s.fontWeight ?? FontWeight.w400,
-        color: s.color ?? PortalColors.foreground,
-        letterSpacing: s.letterSpacing,
-        height: s.height,
-      );
+    size: s.fontSize ?? 13,
+    weight: s.fontWeight ?? FontWeight.w400,
+    color: s.color ?? PortalColors.foreground,
+    letterSpacing: s.letterSpacing,
+    height: s.height,
+  );
 }
 
 /// Caja "ESTADO DE SECCIONES" con los tres renglones de conteo.
@@ -297,26 +297,26 @@ class _EstadoSeccionesBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
 
     final tally = <({int n, String label, Color bg, Color fg})>[
       (
         n: estado.validadas,
         label: 'validadas',
         bg: portal ? _valBg : tone.primarySoft,
-        fg: portal ? PortalColors.primary : tone.primaryDark,
+        fg: portal ? PortalColors.primary : tone.primaryHover,
       ),
       (
         n: estado.enProceso,
         label: 'en proceso',
-        bg: portal ? _procBg : tone.pendingSoft,
-        fg: portal ? _procFg : SozuColors.amber600,
+        bg: portal ? _procBg : tone.warningSoft,
+        fg: portal ? _procFg : SozuAmber.strong,
       ),
       (
         n: estado.pendientes,
         label: 'pendientes',
         bg: portal ? _pendBg : tone.surfaceAlt,
-        fg: portal ? _pendFg : tone.textSecondary,
+        fg: portal ? _pendFg : tone.fgMuted,
       ),
     ];
 
@@ -330,7 +330,7 @@ class _EstadoSeccionesBox extends StatelessWidget {
         : TextStyle(
             fontSize: 9.5,
             fontWeight: FontWeight.w700,
-            color: tone.textMuted,
+            color: tone.fgSubtle,
             letterSpacing: 0.8,
           );
 
@@ -374,7 +374,7 @@ class _EstadoSeccionesBox extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: portal ? _tallyLabel : tone.textSecondary,
+                    color: portal ? _tallyLabel : tone.fgMuted,
                   ),
                 ),
               ],
@@ -392,51 +392,51 @@ class _EstadoSeccionesBox extends StatelessWidget {
 /// Pendiente/Opcional neutro.
 ({Color dot, Color bg, Color fg, String label}) expedienteEstatusStyle(
   String estatus,
-  SozuTone tone,
+  SozuColorRoles tone,
 ) {
   switch (estatus) {
     case 'aprobado':
       return (
-        dot: SozuColors.emerald500,
+        dot: SozuBrand.green500,
         bg: tone.primarySoft,
-        fg: tone.primaryDark,
+        fg: tone.primaryHover,
         label: 'Aprobado',
       );
     case 'revision':
       return (
-        dot: SozuColors.amber500,
-        bg: tone.pendingSoft,
-        fg: SozuColors.amber600,
+        dot: SozuAmber.base,
+        bg: tone.warningSoft,
+        fg: SozuAmber.strong,
         label: 'En revisión',
       );
     case 'expirado':
       // Gris neutro (no ámbar), como el portal: punto #d1d5db, chip
       // #6b7280 sobre #f3f4f6 (aquí vía tokens neutros theme-aware).
       return (
-        dot: SozuColors.slate300,
+        dot: SozuNeutral.n300,
         bg: tone.surfaceAlt,
-        fg: tone.textSecondary,
+        fg: tone.fgMuted,
         label: 'Expirado',
       );
     case 'rechazado':
       return (
-        dot: tone.negative,
-        bg: tone.negative.withValues(alpha: 0.1),
-        fg: tone.negative,
+        dot: tone.danger,
+        bg: tone.danger.withValues(alpha: 0.1),
+        fg: tone.danger,
         label: 'Rechazado',
       );
     case 'opcional':
       return (
-        dot: SozuColors.slate300,
+        dot: SozuNeutral.n300,
         bg: tone.surfaceAlt,
-        fg: tone.textSecondary,
+        fg: tone.fgMuted,
         label: 'Opcional',
       );
     default: // pendiente
       return (
-        dot: SozuColors.slate300,
+        dot: SozuNeutral.n300,
         bg: tone.surfaceAlt,
-        fg: tone.textSecondary,
+        fg: tone.fgMuted,
         label: 'Pendiente',
       );
   }

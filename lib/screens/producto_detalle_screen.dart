@@ -3,14 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/format.dart';
-import '../core/open_media.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../widgets/common.dart';
-import '../widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Detalle/historial de un producto adicional (paridad con
 /// ProductoHistorialView del portal admin): resumen con KPIs y progreso,
@@ -107,7 +107,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
   }
 
   Widget _contenido(ProductoCliente p) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
 
     // Años disponibles (derivados de las fechas de los acuerdos).
     final anios = <String>{
@@ -132,7 +132,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
   }
 
   // ── Resumen ────────────────────────────────────────────────────────────────
-  Widget _resumen(SozuTone tone, ProductoCliente p) {
+  Widget _resumen(SozuColorRoles tone, ProductoCliente p) {
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,7 +146,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: tone.textPrimary,
+                    color: tone.fg,
                   ),
                 ),
               ),
@@ -158,7 +158,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
             const SizedBox(height: 4),
             Text(
               p.descripcion!.trim(),
-              style: TextStyle(fontSize: 13, color: tone.textSecondary),
+              style: TextStyle(fontSize: 13, color: tone.fgMuted),
             ),
           ],
           const SizedBox(height: 12),
@@ -166,16 +166,11 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
             spacing: 12,
             runSpacing: 12,
             children: [
-              _kpi(tone, 'Valor', formatMXN(p.precioFinal), tone.textPrimary),
+              _kpi(tone, 'Valor', formatMXN(p.precioFinal), tone.fg),
               _kpi(tone, 'Pagado', formatMXN(p.totalPagado), tone.positive),
-              _kpi(tone, 'Saldo', formatMXN(p.saldoPendiente), tone.pending),
+              _kpi(tone, 'Saldo', formatMXN(p.saldoPendiente), tone.warningFg),
               if ((p.proximaFecha ?? '').isNotEmpty)
-                _kpi(
-                  tone,
-                  'Próx. pago',
-                  formatDate(p.proximaFecha),
-                  tone.textPrimary,
-                ),
+                _kpi(tone, 'Próx. pago', formatDate(p.proximaFecha), tone.fg),
             ],
           ),
           Divider(color: tone.border, height: 24),
@@ -184,7 +179,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
               Expanded(
                 child: Text(
                   'Progreso de pago',
-                  style: TextStyle(fontSize: 11, color: tone.textMuted),
+                  style: TextStyle(fontSize: 11, color: tone.fgSubtle),
                 ),
               ),
               Text(
@@ -192,7 +187,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: tone.textPrimary,
+                  color: tone.fg,
                 ),
               ),
             ],
@@ -206,13 +201,13 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.shield_outlined, size: 16, color: tone.primaryDark),
+                Icon(Icons.shield_outlined, size: 16, color: tone.primaryHover),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Realiza tu transferencia (STP) solo a esta CLABE. '
                     'Está vinculada exclusivamente a este producto.',
-                    style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
                   ),
                 ),
               ],
@@ -223,14 +218,14 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
     );
   }
 
-  Widget _clabeRow(SozuTone tone, String clabe) {
+  Widget _clabeRow(SozuColorRoles tone, String clabe) {
     return Row(
       children: [
         SizedBox(
           width: 70,
           child: Text(
             'CLABE',
-            style: TextStyle(fontSize: 13, color: tone.textSecondary),
+            style: TextStyle(fontSize: 13, color: tone.fgMuted),
           ),
         ),
         Expanded(
@@ -243,7 +238,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
                 fontFamily: 'monospace',
-                color: tone.textPrimary,
+                color: tone.fg,
               ),
             ),
           ),
@@ -251,7 +246,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
         IconButton(
           tooltip: 'Copiar',
           iconSize: 16,
-          icon: Icon(Icons.copy_outlined, color: tone.textMuted),
+          icon: Icon(Icons.copy_outlined, color: tone.fgSubtle),
           onPressed: () => _copiar(clabe, 'CLABE'),
         ),
       ],
@@ -278,13 +273,13 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
     return BadgeTone.neutral; // En curso
   }
 
-  Widget _kpi(SozuTone tone, String label, String value, Color color) {
+  Widget _kpi(SozuColorRoles tone, String label, String value, Color color) {
     return SizedBox(
       width: 150,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: tone.textMuted)),
+          Text(label, style: TextStyle(fontSize: 11, color: tone.fgSubtle)),
           const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -304,7 +299,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
   }
 
   // ── Filtros ────────────────────────────────────────────────────────────────
-  Widget _filtros(SozuTone tone, List<String> anios) {
+  Widget _filtros(SozuColorRoles tone, List<String> anios) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -353,13 +348,18 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
     );
   }
 
-  Widget _chip(SozuTone tone, String label, bool active, VoidCallback onTap) {
+  Widget _chip(
+    SozuColorRoles tone,
+    String label,
+    bool active,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: active ? tone.primaryDark : tone.surfaceAlt,
+          color: active ? tone.primaryHover : tone.surfaceAlt,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
@@ -367,7 +367,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: active ? Colors.white : tone.textSecondary,
+            color: active ? Colors.white : tone.fgMuted,
           ),
         ),
       ),
@@ -375,7 +375,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
   }
 
   // ── Historial agrupado por mes ─────────────────────────────────────────────
-  List<Widget> _historial(SozuTone tone, ProductoCliente p) {
+  List<Widget> _historial(SozuColorRoles tone, ProductoCliente p) {
     final acuerdos = p.acuerdos.where((a) {
       if (_estatus == 'pagado' && !a.completado) return false;
       if (_estatus == 'pendiente' && a.completado) return false;
@@ -411,7 +411,11 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
     ];
   }
 
-  Widget _mesHeader(SozuTone tone, String ym, List<ProductoAcuerdo> items) {
+  Widget _mesHeader(
+    SozuColorRoles tone,
+    String ym,
+    List<ProductoAcuerdo> items,
+  ) {
     final totalMes = items.fold<double>(0, (s, a) => s + a.monto);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
@@ -423,13 +427,13 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: tone.textPrimary,
+                color: tone.fg,
               ),
             ),
           ),
           Text(
             formatMXN(totalMes),
-            style: TextStyle(fontSize: 12, color: tone.textSecondary),
+            style: TextStyle(fontSize: 12, color: tone.fgMuted),
           ),
         ],
       ),
@@ -443,7 +447,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
     return '${_meses[mes - 1]} ${ym.substring(0, 4)}';
   }
 
-  Widget _acuerdoRow(SozuTone tone, ProductoAcuerdo a) {
+  Widget _acuerdoRow(SozuColorRoles tone, ProductoAcuerdo a) {
     final parcial = !a.completado && a.pagado > 0.01 && a.pagado < a.monto;
     final faltante = (a.monto - a.pagado).clamp(0, a.monto).toDouble();
     // Fecha real de pago si difiere de la fecha compromiso.
@@ -467,7 +471,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: tone.textPrimary,
+                    color: tone.fg,
                   ),
                 ),
               ),
@@ -493,12 +497,12 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
             children: [
               Text(
                 formatDate(a.fecha),
-                style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                style: TextStyle(fontSize: 12, color: tone.fgMuted),
               ),
               if (pagadoOtroDia)
                 Text(
                   'Pagado el ${formatDate(a.fechaPago)}',
-                  style: TextStyle(fontSize: 12, color: tone.textMuted),
+                  style: TextStyle(fontSize: 12, color: tone.fgSubtle),
                 ),
             ],
           ),
@@ -508,7 +512,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: tone.textPrimary,
+              color: tone.fg,
             ),
           ),
           if (parcial) ...[
@@ -518,7 +522,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: SozuColors.amber600,
+                color: SozuAmber.strong,
               ),
             ),
           ],
@@ -551,7 +555,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
   }
 
   Widget _docBtn(
-    SozuTone tone,
+    SozuColorRoles tone,
     IconData icon,
     String label,
     VoidCallback onTap,
@@ -567,14 +571,14 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 15, color: tone.primaryDark),
+            Icon(icon, size: 15, color: tone.primaryHover),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: tone.primaryDark,
+                color: tone.primaryHover,
               ),
             ),
           ],
@@ -753,14 +757,16 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
     }.toList()..sort((a, b) => b.compareTo(a));
 
     // Mismos filtros que la vista móvil; tabla plana más reciente primero.
-    final acuerdos = p.acuerdos.where((a) {
-      if (_estatus == 'pagado' && !a.completado) return false;
-      if (_estatus == 'pendiente' && a.completado) return false;
-      if (_anio != 'todos' && !(a.fecha ?? '').startsWith(_anio)) return false;
-      return true;
-    }).toList()..sort(
-      (a, b) => (_fechaMov(b) ?? '').compareTo(_fechaMov(a) ?? ''),
-    );
+    final acuerdos =
+        p.acuerdos.where((a) {
+            if (_estatus == 'pagado' && !a.completado) return false;
+            if (_estatus == 'pendiente' && a.completado) return false;
+            if (_anio != 'todos' && !(a.fecha ?? '').startsWith(_anio)) {
+              return false;
+            }
+            return true;
+          }).toList()
+          ..sort((a, b) => (_fechaMov(b) ?? '').compareTo(_fechaMov(a) ?? ''));
 
     final izquierda = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1190,11 +1196,7 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
         children: [
           Row(
             children: [
-              Image.asset(
-                'assets/sozu-logo-black.png',
-                height: 14,
-                fit: BoxFit.contain,
-              ),
+              const SozuLogo.onLight(height: 14),
               const SizedBox(width: 8),
               Text(
                 '-',
@@ -1220,10 +1222,7 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
           PortalInfoRow(label: 'Producto', value: p.nombre),
           if (g != null) ...[
             const SizedBox(height: 4),
-            PortalInfoRow(
-              label: 'Propiedad',
-              value: '${g.proyecto} · $unidad',
-            ),
+            PortalInfoRow(label: 'Propiedad', value: '${g.proyecto} · $unidad'),
           ],
           const SizedBox(height: 4),
           PortalInfoRow(label: 'Periodo', value: periodo),

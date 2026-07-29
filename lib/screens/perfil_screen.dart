@@ -2,24 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/format.dart';
-import '../core/portal_theme.dart';
-import '../core/push_service.dart';
-import '../core/theme.dart';
-import '../data/api_client.dart';
-import '../providers/auth_provider.dart';
-import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
-import '../providers/theme_provider.dart';
-import '../widgets/biometric_tile.dart';
-import '../widgets/common.dart';
-import '../widgets/expediente_card.dart';
-import '../widgets/fx.dart';
-import '../widgets/network_image.dart';
-import '../widgets/perfil_section_card.dart';
-import '../widgets/perfil_sheets.dart';
-import '../widgets/portal_widgets.dart';
-import 'perfil_detalle_screens.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/core/push_service.dart';
+import 'package:sozu_cliente_app/data/api_client.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/providers/theme_provider.dart';
+import 'package:sozu_cliente_app/widgets/biometric_tile.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/expediente_card.dart';
+import 'package:sozu_cliente_app/widgets/fx.dart';
+import 'package:sozu_cliente_app/widgets/network_image.dart';
+import 'package:sozu_cliente_app/widgets/perfil_section_card.dart';
+import 'package:sozu_cliente_app/widgets/perfil_sheets.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/screens/perfil_detalle_screens.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Perfil del cliente (espejo de ClientePerfil.tsx del portal web): identidad
 /// con % de perfil completado y estatus de verificación, tarjetas de
@@ -42,7 +42,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final auth = ref.watch(authProvider);
     final perfil = ref.watch(clientePerfilProvider);
     final impersonating = ref.watch(impersonationProvider).active;
@@ -54,8 +54,10 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
     // Estado de las 4 secciones del overview (docs + personal + fiscal +
     // cuentas), derivado del perfil y el expediente igual que el portal.
     final expediente = ref.watch(clienteExpedienteProvider);
-    final estadoSecciones =
-        computePerfilSeccionesEstado(p, expediente.valueOrNull);
+    final estadoSecciones = computePerfilSeccionesEstado(
+      p,
+      expediente.valueOrNull,
+    );
 
     Future<void> confirmarSalir() async {
       final ok = await showDialog<bool>(
@@ -70,8 +72,10 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Cerrar sesión',
-                  style: TextStyle(color: tone.negative)),
+              child: Text(
+                'Cerrar sesión',
+                style: TextStyle(color: tone.danger),
+              ),
             ),
           ],
         ),
@@ -103,8 +107,9 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
         _PerfilSeccion.fiscal => const PerfilFiscalScreen(),
         _PerfilSeccion.cuentas => const PerfilCuentasScreen(),
       };
-      Navigator.of(context)
-          .push(MaterialPageRoute<void>(builder: (_) => screen));
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => screen));
     }
 
     // ── Overview espejo del portal: hero "motor" + estado de secciones y las
@@ -118,21 +123,21 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
         ok ? PerfilPillEstado.completo : PerfilPillEstado.pendiente;
 
     Widget seccionesLabel() => Text(
-          'SECCIONES DE TU PERFIL',
-          style: portal
-              ? portalText(
-                  size: 10.5,
-                  weight: FontWeight.w700,
-                  color: const Color(0xFF9AA3AD),
-                  letterSpacing: 1,
-                )
-              : TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  color: tone.textMuted,
-                  letterSpacing: 1,
-                ),
-        );
+      'SECCIONES DE TU PERFIL',
+      style: portal
+          ? portalText(
+              size: 10.5,
+              weight: FontWeight.w700,
+              color: const Color(0xFF9AA3AD),
+              letterSpacing: 1,
+            )
+          : TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: tone.fgSubtle,
+              letterSpacing: 1,
+            ),
+    );
 
     final seccionRows = <Widget>[
       PerfilSectionRow(
@@ -181,12 +186,12 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
     // de la topbar). Reemplaza el que estaba en la tarjeta "Seguridad".
     final cerrarSesionButton = OutlinedButton.icon(
       onPressed: confirmarSalir,
-      icon: Icon(Icons.logout, size: 18, color: tone.negative),
+      icon: Icon(Icons.logout, size: 18, color: tone.danger),
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
-        foregroundColor: tone.negative,
-        backgroundColor: tone.negative.withValues(alpha: 0.05),
-        side: BorderSide(color: tone.negative.withValues(alpha: 0.3)),
+        foregroundColor: tone.danger,
+        backgroundColor: tone.danger.withValues(alpha: 0.05),
+        side: BorderSide(color: tone.danger.withValues(alpha: 0.3)),
       ),
       label: const Text('Cerrar sesión'),
     );
@@ -281,7 +286,9 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                               : Text(
                                   '$completado%',
                                   style: portalText(
-                                      size: 12, weight: FontWeight.w700),
+                                    size: 12,
+                                    weight: FontWeight.w700,
+                                  ),
                                 ),
                         ],
                       ),
@@ -294,10 +301,8 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: FractionallySizedBox(
-                              widthFactor:
-                                  (completado / 100).clamp(0.0, 1.0),
-                              child:
-                                  Container(color: PortalColors.primary),
+                              widthFactor: (completado / 100).clamp(0.0, 1.0),
+                              child: Container(color: PortalColors.primary),
                             ),
                           ),
                         ),
@@ -341,7 +346,9 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                   'El portal web siempre se muestra en tema claro; esta '
                   'preferencia aplica a la app móvil.',
                   style: portalText(
-                      size: 11, color: PortalColors.mutedForeground),
+                    size: 11,
+                    color: PortalColors.mutedForeground,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 _ThemeSelector(tone: tone),
@@ -365,7 +372,9 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                           Text(
                             'Notificaciones push',
                             style: portalText(
-                                size: 13, weight: FontWeight.w600),
+                              size: 13,
+                              weight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           ValueListenableBuilder<String>(
@@ -479,8 +488,9 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                                 ? () => showAvatarSheet(context, p)
                                 : null,
                             fallback: SozuAvatar(
-                                iniciales: p?.iniciales ?? initials(nombre),
-                                size: 52),
+                              iniciales: p?.iniciales ?? initials(nombre),
+                              size: 52,
+                            ),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -492,25 +502,25 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                      fontSize: wide ? 20 : 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: tone.textPrimary),
+                                    fontSize: wide ? 20 : 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: tone.fg,
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 Wrap(
                                   spacing: 6,
                                   runSpacing: 4,
-                                  crossAxisAlignment:
-                                      WrapCrossAlignment.center,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     _estatusBadge(estatus),
                                     Text(
-                                      p?.tipoPersonaLabel ??
-                                          'Persona física',
+                                      p?.tipoPersonaLabel ?? 'Persona física',
                                       style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                          color: tone.textSecondary),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: tone.fgMuted,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -523,21 +533,26 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Perfil completado',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: tone.textSecondary)),
+                              Text(
+                                'Perfil completado',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: tone.fgMuted,
+                                ),
+                              ),
                               perfil.isLoading
                                   ? const Skeleton(width: 32, height: 12)
-                                  : Text('$completado%',
+                                  : Text(
+                                      '$completado%',
                                       style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: tone.textPrimary)),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: tone.fg,
+                                      ),
+                                    ),
                             ],
                           ),
                           const SizedBox(height: 5),
@@ -608,26 +623,35 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.notifications_active_outlined,
-                          size: 20, color: SozuColors.emerald600),
+                      const Icon(
+                        Icons.notifications_active_outlined,
+                        size: 20,
+                        color: SozuBrand.green600,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Notificaciones push',
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: tone.textPrimary)),
+                            Text(
+                              'Notificaciones push',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: tone.fg,
+                              ),
+                            ),
                             const SizedBox(height: 2),
                             // Estado de diagnóstico (útil para soporte en campo).
                             ValueListenableBuilder<String>(
                               valueListenable: PushService.estado,
-                              builder: (_, estado, __) => Text(estado,
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: tone.textSecondary)),
+                              builder: (_, estado, __) => Text(
+                                estado,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: tone.fgMuted,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -661,23 +685,23 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
   Widget _portalEstatusChip(String estatus) {
     return switch (estatus) {
       'verified' => const PortalStatusChip(
-          label: 'Perfil verificado',
-          icon: Icons.check_circle_outline,
-          background: PortalColors.primarySoft10,
-          foreground: PortalColors.primary,
-        ),
+        label: 'Perfil verificado',
+        icon: Icons.check_circle_outline,
+        background: PortalColors.primarySoft10,
+        foreground: PortalColors.primary,
+      ),
       'review' => const PortalStatusChip(
-          label: 'En revisión',
-          icon: Icons.schedule,
-          background: PortalColors.warningSoft10,
-          foreground: Color(0xFF92400E),
-        ),
+        label: 'En revisión',
+        icon: Icons.schedule,
+        background: PortalColors.warningSoft10,
+        foreground: Color(0xFF92400E),
+      ),
       _ => const PortalStatusChip(
-          label: 'Información incompleta',
-          icon: Icons.error_outline,
-          background: PortalColors.destructiveSoft10,
-          foreground: PortalColors.destructive,
-        ),
+        label: 'Información incompleta',
+        icon: Icons.error_outline,
+        background: PortalColors.destructiveSoft10,
+        foreground: PortalColors.destructive,
+      ),
     };
   }
 
@@ -685,23 +709,32 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
   /// ≥50 en revisión, resto incompleto).
   Widget _estatusBadge(String estatus) {
     return switch (estatus) {
-      'verified' =>
-        const StatusBadge(label: 'Perfil verificado', tone: BadgeTone.positive),
-      'review' =>
-        const StatusBadge(label: 'En revisión', tone: BadgeTone.pending),
+      'verified' => const StatusBadge(
+        label: 'Perfil verificado',
+        tone: BadgeTone.positive,
+      ),
+      'review' => const StatusBadge(
+        label: 'En revisión',
+        tone: BadgeTone.pending,
+      ),
       _ => const StatusBadge(
-          label: 'Información incompleta', tone: BadgeTone.negative),
+        label: 'Información incompleta',
+        tone: BadgeTone.negative,
+      ),
     };
   }
 
-  Widget _sectionLabel(SozuTone tone, String text) {
+  Widget _sectionLabel(SozuColorRoles tone, String text) {
     return Padding(
       padding: const EdgeInsets.only(top: 24, bottom: 8),
-      child: Text(text,
-          style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: tone.textSecondary)),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: tone.fgMuted,
+        ),
+      ),
     );
   }
 }
@@ -751,45 +784,50 @@ class _PushPrefSwitchState extends State<_PushPrefSwitch> {
     try {
       await setPushPref(valor);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(valor
-            ? 'Notificaciones activadas'
-            : 'Notificaciones desactivadas'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            valor ? 'Notificaciones activadas' : 'Notificaciones desactivadas',
+          ),
+        ),
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _activo = anterior);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('No se pudo guardar la preferencia. Intenta de nuevo.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo guardar la preferencia. Intenta de nuevo.'),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Row(
       children: [
         Expanded(
-          child: Text('Recibir notificaciones push',
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: tone.textPrimary)),
+          child: Text(
+            'Recibir notificaciones push',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: tone.fg,
+            ),
+          ),
         ),
         if (_cargando)
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2)),
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           )
         else
-          Switch(
-            value: _activo,
-            onChanged: _disponible ? _cambiar : null,
-          ),
+          Switch(value: _activo, onChanged: _disponible ? _cambiar : null),
       ],
     );
   }
@@ -818,7 +856,7 @@ class _PerfilAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final hasFoto = (fotoUrl ?? '').isNotEmpty;
     final img = hasFoto
         ? ClipOval(
@@ -860,8 +898,7 @@ class _PerfilAvatar extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Icon(Icons.photo_camera,
-                    size: 12, color: tone.textSecondary),
+                child: Icon(Icons.photo_camera, size: 12, color: tone.fgMuted),
               ),
             ),
         ],
@@ -882,7 +919,7 @@ class _PerfilAvatar extends StatelessWidget {
 }
 
 class _ThemeSelector extends ConsumerWidget {
-  final SozuTone tone;
+  final SozuColorRoles tone;
 
   const _ThemeSelector({required this.tone});
 
@@ -903,21 +940,25 @@ class _ThemeSelector extends ConsumerWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: theme.mode == mode ? tone.primarySoft : tone.surfaceAlt,
+                  color: theme.mode == mode
+                      ? tone.primarySoft
+                      : tone.surfaceAlt,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: theme.mode == mode
-                        ? SozuColors.emerald500
+                        ? SozuBrand.green500
                         : tone.border,
                   ),
                 ),
                 child: Column(
                   children: [
-                    Icon(icon,
-                        size: 20,
-                        color: theme.mode == mode
-                            ? SozuColors.emerald600
-                            : tone.textMuted),
+                    Icon(
+                      icon,
+                      size: 20,
+                      color: theme.mode == mode
+                          ? SozuBrand.green600
+                          : tone.fgSubtle,
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       label,
@@ -925,8 +966,8 @@ class _ThemeSelector extends ConsumerWidget {
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: theme.mode == mode
-                            ? tone.primaryDark
-                            : tone.textSecondary,
+                            ? tone.primaryHover
+                            : tone.fgMuted,
                       ),
                     ),
                   ],

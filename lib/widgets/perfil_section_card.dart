@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import 'common.dart';
-import 'portal_widgets.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Tarjetas de sección del Perfil (espejo de SectionCard en ClientePerfil.tsx
 /// del portal): icono, título/subtítulo, semáforo de estado, filas
@@ -49,7 +49,7 @@ class PerfilInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final hasValue = value != null && value!.trim().isNotEmpty;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -57,9 +57,7 @@ class PerfilInfoRow extends StatelessWidget {
         border: isLast
             ? null
             : Border(
-                bottom: BorderSide(
-                  color: tone.border.withValues(alpha: 0.6),
-                ),
+                bottom: BorderSide(color: tone.border.withValues(alpha: 0.6)),
               ),
       ),
       child: Row(
@@ -70,7 +68,7 @@ class PerfilInfoRow extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w500,
-              color: tone.textSecondary,
+              color: tone.fgMuted,
             ),
           ),
           const SizedBox(width: 12),
@@ -88,13 +86,13 @@ class PerfilInfoRow extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     fontStyle: hasValue ? FontStyle.normal : FontStyle.italic,
                     fontFamily: hasValue && mono ? 'monospace' : null,
-                    color: hasValue ? tone.textPrimary : tone.textMuted,
+                    color: hasValue ? tone.fg : tone.fgSubtle,
                   ),
                 ),
                 if (note != null)
                   Text(
                     note!,
-                    style: TextStyle(fontSize: 10.5, color: tone.textMuted),
+                    style: TextStyle(fontSize: 10.5, color: tone.fgSubtle),
                   ),
               ],
             ),
@@ -129,8 +127,8 @@ class PerfilSectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isPortalMode(context)) return _buildPortal(context);
-    final tone = SozuTone.of(context);
-    final statusColor = statusOk ? tone.positive : tone.textMuted;
+    final tone = context.s.color;
+    final statusColor = statusOk ? tone.positive : tone.fgSubtle;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -145,7 +143,7 @@ class PerfilSectionCard extends StatelessWidget {
                   color: tone.primarySoft,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, size: 18, color: tone.primaryDark),
+                child: Icon(icon, size: 18, color: tone.primaryHover),
               ),
               const SizedBox(width: 11),
               Expanded(
@@ -157,14 +155,13 @@ class PerfilSectionCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: tone.textPrimary,
+                        color: tone.fg,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style:
-                          TextStyle(fontSize: 12, color: tone.textMuted),
+                      style: TextStyle(fontSize: 12, color: tone.fgSubtle),
                     ),
                   ],
                 ),
@@ -288,8 +285,7 @@ class PerfilSectionCard extends StatelessWidget {
               onPressed: actions[i].onTap,
               style: switch (actions[i].style) {
                 PerfilActionStyle.primary => PortalBlockButtonStyle.primary,
-                PerfilActionStyle.secondary =>
-                  PortalBlockButtonStyle.secondary,
+                PerfilActionStyle.secondary => PortalBlockButtonStyle.secondary,
                 PerfilActionStyle.danger => PortalBlockButtonStyle.danger,
               },
             ),
@@ -300,15 +296,17 @@ class PerfilSectionCard extends StatelessWidget {
   }
 
   Widget _actionButton(BuildContext context, PerfilCardAction a) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     switch (a.style) {
       case PerfilActionStyle.primary:
         return FilledButton(
           onPressed: a.onTap,
           style: FilledButton.styleFrom(
             minimumSize: const Size.fromHeight(44),
-            textStyle:
-                const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+            textStyle: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           child: Text(a.label),
         );
@@ -317,13 +315,15 @@ class PerfilSectionCard extends StatelessWidget {
           onPressed: a.onTap,
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(44),
-            foregroundColor: tone.textPrimary,
+            foregroundColor: tone.fg,
             side: BorderSide(color: tone.border),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            textStyle:
-                const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+            textStyle: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           child: Text(a.label),
         );
@@ -331,18 +331,20 @@ class PerfilSectionCard extends StatelessWidget {
         return OutlinedButton.icon(
           onPressed: a.onTap,
           icon: a.icon != null
-              ? Icon(a.icon, size: 15, color: tone.negative)
+              ? Icon(a.icon, size: 15, color: tone.danger)
               : const SizedBox.shrink(),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(44),
-            foregroundColor: tone.negative,
-            backgroundColor: tone.negative.withValues(alpha: 0.05),
-            side: BorderSide(color: tone.negative.withValues(alpha: 0.3)),
+            foregroundColor: tone.danger,
+            backgroundColor: tone.danger.withValues(alpha: 0.05),
+            side: BorderSide(color: tone.danger.withValues(alpha: 0.3)),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            textStyle:
-                const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+            textStyle: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           label: Text(a.label),
         );
@@ -376,19 +378,22 @@ class PerfilSectionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final portal = isPortalMode(context);
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
 
     final Color bg = portal ? PortalColors.surface : tone.surface;
     final Color border = portal ? const Color(0xFFECEEF0) : tone.border;
-    final Color titleColor = portal ? const Color(0xFF171A1D) : tone.textPrimary;
-    final Color descColor = portal ? const Color(0xFF9AA3AD) : tone.textMuted;
+    final Color titleColor = portal ? const Color(0xFF171A1D) : tone.fg;
+    final Color descColor = portal ? const Color(0xFF9AA3AD) : tone.fgSubtle;
 
-    Widget titleWidget = Text(
+    final Widget titleWidget = Text(
       title,
       style: portal
           ? portalText(size: 13.5, weight: FontWeight.w700, color: titleColor)
           : TextStyle(
-              fontSize: 13.5, fontWeight: FontWeight.w700, color: titleColor),
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: titleColor,
+            ),
     );
 
     return Material(
@@ -425,19 +430,23 @@ class PerfilSectionRow extends StatelessWidget {
                           ? portalText(
                               size: 11.5,
                               weight: FontWeight.w500,
-                              color: descColor)
+                              color: descColor,
+                            )
                           : TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w500,
-                              color: descColor),
+                              color: descColor,
+                            ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(Icons.chevron_right,
-                  size: 18,
-                  color: portal ? const Color(0xFF9AA3AD) : tone.textMuted),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: portal ? const Color(0xFF9AA3AD) : tone.fgSubtle,
+              ),
             ],
           ),
         ),
@@ -445,23 +454,23 @@ class PerfilSectionRow extends StatelessWidget {
     );
   }
 
-  Widget _pill(bool portal, SozuTone tone, PerfilPillEstado e) {
+  Widget _pill(bool portal, SozuColorRoles tone, PerfilPillEstado e) {
     final (String label, Color fg, Color bg) = switch (e) {
       PerfilPillEstado.completo => (
-          'Completado',
-          portal ? PortalColors.primary : tone.primaryDark,
-          portal ? const Color(0xFFE8F5EE) : tone.primarySoft,
-        ),
+        'Completado',
+        portal ? PortalColors.primary : tone.primaryHover,
+        portal ? const Color(0xFFE8F5EE) : tone.primarySoft,
+      ),
       PerfilPillEstado.enProceso => (
-          'En proceso',
-          portal ? const Color(0xFFB5730A) : SozuColors.amber600,
-          portal ? const Color(0xFFFBEFD9) : tone.pendingSoft,
-        ),
+        'En proceso',
+        portal ? const Color(0xFFB5730A) : SozuAmber.strong,
+        portal ? const Color(0xFFFBEFD9) : tone.warningSoft,
+      ),
       PerfilPillEstado.pendiente => (
-          'Pendiente',
-          portal ? const Color(0xFF6B7280) : tone.textSecondary,
-          portal ? const Color(0xFFF2F4F5) : tone.surfaceAlt,
-        ),
+        'Pendiente',
+        portal ? const Color(0xFF6B7280) : tone.fgMuted,
+        portal ? const Color(0xFFF2F4F5) : tone.surfaceAlt,
+      ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -471,11 +480,7 @@ class PerfilSectionRow extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 9.5,
-          fontWeight: FontWeight.w700,
-          color: fg,
-        ),
+        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: fg),
       ),
     );
   }
@@ -494,23 +499,20 @@ class PerfilBannerCompletar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
       decoration: BoxDecoration(
-        color: tone.pendingSoft,
+        color: tone.warningSoft,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: SozuColors.amber500.withValues(alpha: 0.35),
-        ),
+        border: Border.all(color: SozuAmber.base.withValues(alpha: 0.35)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 1),
-            child: Icon(Icons.error_outline,
-                size: 15, color: SozuColors.amber600),
+            child: Icon(Icons.error_outline, size: 15, color: SozuAmber.strong),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -524,7 +526,7 @@ class PerfilBannerCompletar extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: SozuColors.amber600,
+                    color: SozuAmber.strong,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -532,7 +534,7 @@ class PerfilBannerCompletar extends StatelessWidget {
                   'Sube tus documentos y llena tus datos personales y fiscales.',
                   style: TextStyle(
                     fontSize: 12,
-                    color: SozuColors.amber600.withValues(alpha: 0.85),
+                    color: SozuAmber.strong.withValues(alpha: 0.85),
                   ),
                 ),
               ],
@@ -542,19 +544,18 @@ class PerfilBannerCompletar extends StatelessWidget {
           OutlinedButton(
             onPressed: onCompletar,
             style: OutlinedButton.styleFrom(
-              foregroundColor: SozuColors.amber600,
-              side: BorderSide(
-                color: SozuColors.amber500.withValues(alpha: 0.5),
-              ),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+              foregroundColor: SozuAmber.strong,
+              side: BorderSide(color: SozuAmber.base.withValues(alpha: 0.5)),
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               textStyle: const TextStyle(
-                  fontSize: 11.5, fontWeight: FontWeight.w700),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             child: const Text('Completar'),
           ),

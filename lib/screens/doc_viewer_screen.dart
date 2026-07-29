@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdfx/pdfx.dart';
 
-import '../core/file_download.dart';
-import '../core/media_cache.dart';
-import '../core/open_doc.dart';
-import '../core/theme.dart';
-import '../widgets/network_image.dart';
+import 'package:sozu_cliente_app/core/file_download.dart';
+import 'package:sozu_cliente_app/core/media_cache.dart';
+import 'package:sozu_cliente_app/core/open_doc.dart';
+import 'package:sozu_cliente_app/widgets/network_image.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 enum _MediaKind { image, pdf, unknown }
 
@@ -65,15 +65,15 @@ class _DocViewerScreenState extends State<DocViewerScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await downloadFile(widget.url, _downloadName());
     if (!ok && mounted) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('No se pudo descargar el documento.'),
-      ));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No se pudo descargar el documento.')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -133,7 +133,7 @@ class _DocViewerScreenState extends State<DocViewerScreen> {
     );
   }
 
-  Widget _fallback(SozuTone tone) => Center(
+  Widget _fallback(SozuColorRoles tone) => Center(
     child: Padding(
       padding: const EdgeInsets.all(24),
       child: Column(

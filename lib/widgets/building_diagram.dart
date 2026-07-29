@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-
-import '../core/theme.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Diagrama "¿Dónde está tu unidad?" — réplica del BuildingDiagram del Portal
 /// del Cliente (FichaTecnicaSection.tsx de sozu-admin).
@@ -33,7 +32,8 @@ class BuildingDiagram extends StatelessWidget {
 
   // ── Niveles a mostrar (descendente), ventana compacta centrada en el piso ──
   List<int> _niveles() {
-    final total = (totalPisos != null && totalPisos! >= numeroPiso && totalPisos! > 0)
+    final total =
+        (totalPisos != null && totalPisos! >= numeroPiso && totalPisos! > 0)
         ? totalPisos!
         : numeroPiso;
     const maxVisible = 8;
@@ -64,9 +64,10 @@ class BuildingDiagram extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final niveles = _niveles();
-    final total = (totalPisos != null && totalPisos! >= numeroPiso && totalPisos! > 0)
+    final total =
+        (totalPisos != null && totalPisos! >= numeroPiso && totalPisos! > 0)
         ? totalPisos!
         : numeroPiso;
 
@@ -79,7 +80,7 @@ class BuildingDiagram extends StatelessWidget {
             fontSize: 11,
             letterSpacing: 1,
             fontWeight: FontWeight.w700,
-            color: tone.textMuted,
+            color: tone.fgSubtle,
           ),
         ),
         const SizedBox(height: 12),
@@ -131,7 +132,7 @@ class BuildingDiagram extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               'Tu unidad',
-              style: TextStyle(fontSize: 11, color: tone.textSecondary),
+              style: TextStyle(fontSize: 11, color: tone.fgMuted),
             ),
           ],
         ),
@@ -142,10 +143,14 @@ class BuildingDiagram extends StatelessWidget {
 
 class _Columna extends StatelessWidget {
   final String label;
-  final SozuTone tone;
+  final SozuColorRoles tone;
   final Widget child;
 
-  const _Columna({required this.label, required this.tone, required this.child});
+  const _Columna({
+    required this.label,
+    required this.tone,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +163,7 @@ class _Columna extends StatelessWidget {
             fontSize: 10,
             letterSpacing: 0.6,
             fontWeight: FontWeight.w600,
-            color: tone.textMuted,
+            color: tone.fgSubtle,
           ),
         ),
         const SizedBox(height: 8),
@@ -181,7 +186,7 @@ class _ListaNiveles extends StatelessWidget {
   final List<int> niveles;
   final int total;
   final int numeroPiso;
-  final SozuTone tone;
+  final SozuColorRoles tone;
 
   const _ListaNiveles({
     required this.niveles,
@@ -200,7 +205,7 @@ class _ListaNiveles extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 4),
           child: CustomPaint(
             size: const Size(double.infinity, 12),
-            painter: _TechoPainter(tone.textPrimary.withValues(alpha: 0.8)),
+            painter: _TechoPainter(tone.fg.withValues(alpha: 0.8)),
           ),
         ),
         for (final n in niveles) ...[
@@ -220,7 +225,7 @@ class _ListaNiveles extends StatelessWidget {
         ),
         const SizedBox(height: 3),
         // Base del edificio.
-        Container(height: 4, color: tone.textPrimary),
+        Container(height: 4, color: tone.fg),
       ],
     );
   }
@@ -230,7 +235,7 @@ class _FilaNivel extends StatelessWidget {
   final String texto;
   final bool resaltado;
   final bool oscuro;
-  final SozuTone tone;
+  final SozuColorRoles tone;
 
   const _FilaNivel({
     required this.texto,
@@ -244,13 +249,13 @@ class _FilaNivel extends StatelessWidget {
     final Color fondo = resaltado
         ? tone.primary
         : oscuro
-            ? tone.textPrimary
-            : tone.surfaceAlt;
+        ? tone.fg
+        : tone.surfaceAlt;
     final Color texColor = resaltado
         ? Colors.white
         : oscuro
-            ? tone.surface
-            : tone.textSecondary;
+        ? tone.surface
+        : tone.fgMuted;
 
     return Row(
       children: [
@@ -261,9 +266,7 @@ class _FilaNivel extends StatelessWidget {
             decoration: BoxDecoration(
               color: fondo,
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: resaltado ? tone.primary : tone.border,
-              ),
+              border: Border.all(color: resaltado ? tone.primary : tone.border),
             ),
             child: Text(
               texto,
@@ -304,7 +307,7 @@ class _RejillaUnidades extends StatelessWidget {
   final int numeroPiso;
   final String unidad;
   final int posicion;
-  final SozuTone tone;
+  final SozuColorRoles tone;
 
   const _RejillaUnidades({
     required this.numeroPiso,
@@ -355,7 +358,7 @@ class _RejillaUnidades extends StatelessWidget {
           style: TextStyle(
             fontSize: 10.5,
             fontWeight: FontWeight.w700,
-            color: resaltado ? Colors.white : tone.textSecondary,
+            color: resaltado ? Colors.white : tone.fgMuted,
           ),
         ),
       ),

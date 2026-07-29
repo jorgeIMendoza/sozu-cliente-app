@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import 'common.dart';
-import 'portal_widgets.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Sección "Copropietarios" del detalle de propiedad: lista cada
 /// copropietario (avatar con iniciales, nombre y email si está disponible)
@@ -26,7 +26,7 @@ class CopropietariosSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (copropietarios.length < 2) return const SizedBox.shrink();
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     if (portal) {
       return PortalCard(
         padding: const EdgeInsets.all(20),
@@ -46,8 +46,7 @@ class CopropietariosSection extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             for (var i = 0; i < copropietarios.length; i++) ...[
-              if (i > 0)
-                const Divider(height: 24, color: PortalColors.border),
+              if (i > 0) const Divider(height: 24, color: PortalColors.border),
               if (i == 0) const SizedBox(height: 12),
               _CopropietarioRow(c: copropietarios[i]),
             ],
@@ -105,7 +104,7 @@ class _CopropietarioRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final email = c.email;
     return Row(
       children: [
@@ -122,7 +121,7 @@ class _CopropietarioRow extends StatelessWidget {
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: SozuColors.emerald600,
+              color: SozuBrand.green600,
             ),
           ),
         ),
@@ -138,7 +137,7 @@ class _CopropietarioRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: tone.textPrimary,
+                  color: tone.fg,
                 ),
               ),
               if (email != null && email.trim().isNotEmpty)
@@ -146,7 +145,7 @@ class _CopropietarioRow extends StatelessWidget {
                   email,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 12, color: tone.fgMuted),
                 ),
             ],
           ),
@@ -160,12 +159,12 @@ class _CopropietarioRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: tone.textPrimary,
+                color: tone.fg,
               ),
             ),
             Text(
               'copropiedad',
-              style: TextStyle(fontSize: 10, color: tone.textMuted),
+              style: TextStyle(fontSize: 10, color: tone.fgSubtle),
             ),
           ],
         ),

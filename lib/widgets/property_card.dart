@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/format.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import 'common.dart';
-import 'fx.dart';
-import 'network_image.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/fx.dart';
+import 'package:sozu_cliente_app/widgets/network_image.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Tarjeta de propiedad: imagen, proyecto, ubicación, métricas (valor
 /// estimado / plusvalía / avance de pago), chips informativos y CTA de pago.
@@ -15,11 +15,15 @@ class PropertyCardWidget extends StatelessWidget {
   final PropiedadCard item;
   final VoidCallback onTap;
 
-  const PropertyCardWidget({super.key, required this.item, required this.onTap});
+  const PropertyCardWidget({
+    super.key,
+    required this.item,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
 
     final ubicacion = item.ubicacion?.trim();
     final tieneUbicacion = ubicacion != null && ubicacion.isNotEmpty;
@@ -47,7 +51,7 @@ class PropertyCardWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: SozuColors.slate900.withValues(alpha: 0.08),
+              color: SozuNeutral.n900.withValues(alpha: 0.08),
               offset: const Offset(0, 4),
               blurRadius: 12,
             ),
@@ -68,11 +72,7 @@ class PropertyCardWidget extends StatelessWidget {
                     child: SozuNetworkImage(url: item.urlImagen),
                   ),
                 ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: _estatusBadge(item),
-                ),
+                Positioned(top: 8, right: 8, child: _estatusBadge(item)),
               ],
             ),
             Padding(
@@ -88,7 +88,7 @@ class PropertyCardWidget extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.8,
-                      color: tone.primaryDark,
+                      color: tone.primaryHover,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -103,13 +103,13 @@ class PropertyCardWidget extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: tone.textPrimary,
+                            color: tone.fg,
                           ),
                         ),
                       ),
                       Text(
                         item.modelo,
-                        style: TextStyle(fontSize: 12, color: tone.textMuted),
+                        style: TextStyle(fontSize: 12, color: tone.fgSubtle),
                       ),
                     ],
                   ),
@@ -117,16 +117,21 @@ class PropertyCardWidget extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.place_outlined,
-                            size: 13, color: tone.textMuted),
+                        Icon(
+                          Icons.place_outlined,
+                          size: 13,
+                          color: tone.fgSubtle,
+                        ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             ubicacion,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style:
-                                TextStyle(fontSize: 11, color: tone.textMuted),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: tone.fgSubtle,
+                            ),
                           ),
                         ),
                       ],
@@ -138,7 +143,7 @@ class PropertyCardWidget extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: tone.textPrimary,
+                      color: tone.fg,
                     ),
                   ),
 
@@ -160,7 +165,7 @@ class PropertyCardWidget extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: tone.textPrimary,
+                                color: tone.fg,
                               ),
                             ),
                           ),
@@ -179,7 +184,7 @@ class PropertyCardWidget extends StatelessWidget {
                     children: [
                       Text(
                         'Avance de pago',
-                        style: TextStyle(fontSize: 11, color: tone.textMuted),
+                        style: TextStyle(fontSize: 11, color: tone.fgSubtle),
                       ),
                       Text(
                         '${item.avancePago}%',
@@ -212,7 +217,7 @@ class PropertyCardWidget extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: tone.primaryDark,
+                            color: tone.primaryHover,
                           ),
                         ),
                       ),
@@ -222,8 +227,7 @@ class PropertyCardWidget extends StatelessWidget {
                               context.push('/propiedad/${item.id}'),
                           style: FilledButton.styleFrom(
                             minimumSize: const Size(0, 34),
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 18),
+                            padding: const EdgeInsets.symmetric(horizontal: 18),
                             visualDensity: VisualDensity.compact,
                             textStyle: const TextStyle(
                               fontSize: 12,
@@ -264,7 +268,7 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -275,7 +279,7 @@ class _Metric extends StatelessWidget {
             fontSize: 9,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.6,
-            color: tone.textMuted,
+            color: tone.fgSubtle,
           ),
         ),
         const SizedBox(height: 2),
@@ -293,9 +297,9 @@ class _PlusvaliaValue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final sube = pct >= 0;
-    final color = sube ? tone.positive : tone.negative;
+    final color = sube ? tone.positive : tone.danger;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme.dart';
-import '../data/models.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Mapa del nivel dibujado desde `regiones` (polígonos 0–100), resaltando la
 /// unidad del cliente con un pulso animado (glow). Port de LevelMap.tsx.
@@ -89,14 +89,14 @@ class _LevelPainter extends CustomPainter {
         path,
         Paint()
           ..style = PaintingStyle.fill
-          ..color = SozuColors.slate100,
+          ..color = SozuNeutral.n100,
       );
       canvas.drawPath(
         path,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1
-          ..color = SozuColors.slate300,
+          ..color = SozuNeutral.n300,
       );
     }
 
@@ -113,7 +113,7 @@ class _LevelPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 6 + 16 * t
-          ..color = SozuColors.emerald400.withValues(alpha: 0.15 + 0.35 * t)
+          ..color = SozuBrand.green400.withValues(alpha: 0.15 + 0.35 * t)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
       );
       // Halo interior más definido.
@@ -122,7 +122,7 @@ class _LevelPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3 + 6 * t
-          ..color = SozuColors.emerald400.withValues(alpha: 0.35 + 0.45 * t)
+          ..color = SozuBrand.green400.withValues(alpha: 0.35 + 0.45 * t)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
       );
       // Relleno que aclara notablemente al inhalar.
@@ -130,15 +130,14 @@ class _LevelPainter extends CustomPainter {
         path,
         Paint()
           ..style = PaintingStyle.fill
-          ..color =
-              Color.lerp(SozuColors.emerald600, SozuColors.emerald400, t)!,
+          ..color = Color.lerp(SozuBrand.green600, SozuBrand.green400, t)!,
       );
       canvas.drawPath(
         path,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2 + 1.5 * t
-          ..color = SozuColors.emerald700,
+          ..color = SozuBrand.green700,
       );
     }
 
@@ -163,7 +162,7 @@ class _LevelPainter extends CustomPainter {
           style: TextStyle(
             fontSize: fontSize,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? Colors.white : SozuColors.slate500,
+            color: active ? Colors.white : SozuNeutral.n500,
           ),
         ),
         textDirection: TextDirection.ltr,

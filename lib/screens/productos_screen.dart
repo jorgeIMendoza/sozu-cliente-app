@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/format.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../widgets/common.dart';
-import '../widgets/fx.dart';
-import '../widgets/portal_widgets.dart';
-import 'producto_detalle_screen.dart' show ProductoPortalHistorial;
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/fx.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/screens/producto_detalle_screen.dart'
+    show ProductoPortalHistorial;
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Productos adicionales del cliente agrupados por propiedad (paridad con
 /// ClienteProductos del portal admin): buscador en vivo, tarjetas con avance
@@ -59,14 +60,15 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
   }
 
   String _tituloGrupo(ProductosPropiedad g) {
-    final unidad =
-        g.propiedad.startsWith('U-') ? g.propiedad : 'U-${g.propiedad}';
+    final unidad = g.propiedad.startsWith('U-')
+        ? g.propiedad
+        : 'U-${g.propiedad}';
     return '${g.proyecto} · $unidad';
   }
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final portal = isPortalMode(context);
     final productos = ref.watch(clienteProductosProvider);
 
@@ -138,8 +140,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
             final grupos = data.propiedades
                 .where((g) => g.productos.isNotEmpty)
                 .toList();
-            final n =
-                grupos.fold<int>(0, (s, g) => s + g.productos.length);
+            final n = grupos.fold<int>(0, (s, g) => s + g.productos.length);
             final filtrados = _filtrar(grupos);
             if (portal) return _portalVista(n, filtrados, grupos);
             return ListView(
@@ -150,7 +151,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
                   n > 0
                       ? 'Productos adicionales · $n ${n == 1 ? 'producto' : 'productos'}'
                       : 'Productos adicionales',
-                  style: TextStyle(fontSize: 14, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 14, color: tone.fgMuted),
                 ),
                 const SizedBox(height: 16),
                 if (n == 0)
@@ -162,14 +163,19 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
                   TextField(
                     onChanged: (v) => setState(() => _busqueda = v),
                     textInputAction: TextInputAction.search,
-                    style: TextStyle(fontSize: 14, color: tone.textPrimary),
+                    style: TextStyle(fontSize: 14, color: tone.fg),
                     decoration: InputDecoration(
                       hintText: 'Buscar producto o propiedad…',
-                      prefixIcon:
-                          Icon(Icons.search, size: 20, color: tone.textMuted),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        size: 20,
+                        color: tone.fgSubtle,
+                      ),
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                   if (filtrados.isEmpty) ...[
@@ -185,9 +191,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
                         text: _tituloGrupo(g),
                       ),
                       ResponsiveCardGrid(
-                        children: [
-                          for (final p in prods) _ProductoCard(p: p),
-                        ],
+                        children: [for (final p in prods) _ProductoCard(p: p)],
                       ),
                     ],
                 ],
@@ -313,12 +317,15 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
   /// número de productos, título y agregado "{pct}% pagado · $total".
   Widget _portalPropiedadRow(ProductosPropiedad g) {
     final total = g.productos.length;
-    final totalPagado =
-        g.productos.fold<double>(0, (s, p) => s + p.totalPagado);
-    final totalPrecio =
-        g.productos.fold<double>(0, (s, p) => s + p.precioFinal);
-    final pct =
-        totalPrecio > 0 ? (totalPagado / totalPrecio * 100).round() : 0;
+    final totalPagado = g.productos.fold<double>(
+      0,
+      (s, p) => s + p.totalPagado,
+    );
+    final totalPrecio = g.productos.fold<double>(
+      0,
+      (s, p) => s + p.precioFinal,
+    );
+    final pct = totalPrecio > 0 ? (totalPagado / totalPrecio * 100).round() : 0;
 
     return PortalHoverBuilder(
       builder: (context, hovered) => GestureDetector(
@@ -548,9 +555,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
                   style: portalText(
                     size: 12,
                     weight: FontWeight.w500,
-                    color: active
-                        ? Colors.white
-                        : PortalColors.mutedForeground,
+                    color: active ? Colors.white : PortalColors.mutedForeground,
                   ),
                 ),
               ),
@@ -631,7 +636,7 @@ class _ProductoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final descripcion = p.descripcion?.trim();
     return PressableScale(
       onTap: () => context.push('/productos/${p.cuentaId}'),
@@ -646,9 +651,14 @@ class _ProductoCard extends StatelessWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                      color: tone.primarySoft, shape: BoxShape.circle),
-                  child: const Icon(Icons.inventory_2_outlined,
-                      size: 18, color: SozuColors.emerald600),
+                    color: tone.primarySoft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.inventory_2_outlined,
+                    size: 18,
+                    color: SozuBrand.green600,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -660,17 +670,17 @@ class _ProductoCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: tone.textPrimary),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: tone.fg,
+                        ),
                       ),
                       if (descripcion != null && descripcion.isNotEmpty)
                         Text(
                           descripcion,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 12, color: tone.textSecondary),
+                          style: TextStyle(fontSize: 12, color: tone.fgMuted),
                         ),
                     ],
                   ),
@@ -687,8 +697,7 @@ class _ProductoCard extends StatelessWidget {
                     '${formatMXN(p.totalPagado)} de ${formatMXN(p.precioFinal)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style:
-                        TextStyle(fontSize: 12, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
                   ),
                 ),
                 if (p.saldoPendiente > 0) ...[
@@ -696,9 +705,10 @@ class _ProductoCard extends StatelessWidget {
                   Text(
                     'Faltan ${formatMXN(p.saldoPendiente)}',
                     style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: tone.pending),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: tone.warningFg,
+                    ),
                   ),
                 ],
               ],
@@ -711,9 +721,10 @@ class _ProductoCard extends StatelessWidget {
                 Text(
                   '${p.avancePct.round()}%',
                   style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: tone.textSecondary),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: tone.fgMuted,
+                  ),
                 ),
               ],
             ),
@@ -727,16 +738,21 @@ class _ProductoCard extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              color: tone.pendingSoft,
+                              color: tone.warningSoft,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.event_outlined,
-                                    size: 12, color: SozuColors.amber600),
+                                const Icon(
+                                  Icons.event_outlined,
+                                  size: 12,
+                                  color: SozuAmber.strong,
+                                ),
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
@@ -744,9 +760,10 @@ class _ProductoCard extends StatelessWidget {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: SozuColors.amber600),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: SozuAmber.strong,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -758,12 +775,16 @@ class _ProductoCard extends StatelessWidget {
                 const Text(
                   'Ver historial',
                   style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: SozuColors.emerald600),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: SozuBrand.green600,
+                  ),
                 ),
-                const Icon(Icons.chevron_right,
-                    size: 16, color: SozuColors.emerald600),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 16,
+                  color: SozuBrand.green600,
+                ),
               ],
             ),
           ],

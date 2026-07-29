@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../core/format.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import 'common.dart';
-import 'fx.dart';
-import 'network_image.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/fx.dart';
+import 'package:sozu_cliente_app/widgets/network_image.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Tarjeta de propiedad entregada para "Mi patrimonio" (espejo de
 /// PatrimonyCard de ClientePatrimonio.tsx del portal admin).
@@ -29,7 +29,7 @@ class PatrimonioCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final manto = mantenimiento;
     final mantoPendiente = manto != null && manto.saldoPendiente > 0;
     final tieneValor = item.valorActual != null;
@@ -49,7 +49,7 @@ class PatrimonioCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: SozuColors.slate900.withValues(alpha: 0.08),
+              color: SozuNeutral.n900.withValues(alpha: 0.08),
               offset: const Offset(0, 4),
               blurRadius: 12,
             ),
@@ -74,7 +74,9 @@ class PatrimonioCard extends StatelessWidget {
                   top: 8,
                   right: 8,
                   child: StatusBadge(
-                      label: 'Entregada', tone: BadgeTone.positive),
+                    label: 'Entregada',
+                    tone: BadgeTone.positive,
+                  ),
                 ),
               ],
             ),
@@ -94,12 +96,12 @@ class PatrimonioCard extends StatelessWidget {
                                 text: item.proyecto,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  color: tone.textPrimary,
+                                  color: tone.fg,
                                 ),
                               ),
                               TextSpan(
                                 text: ' · $unidad',
-                                style: TextStyle(color: tone.textSecondary),
+                                style: TextStyle(color: tone.fgMuted),
                               ),
                             ],
                           ),
@@ -115,7 +117,7 @@ class PatrimonioCard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
-                            color: tone.textMuted,
+                            color: tone.fgSubtle,
                           ),
                         ),
                       ],
@@ -126,16 +128,21 @@ class PatrimonioCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.place_outlined,
-                            size: 12, color: tone.textMuted),
+                        Icon(
+                          Icons.place_outlined,
+                          size: 12,
+                          color: tone.fgSubtle,
+                        ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             item.ubicacion!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style:
-                                TextStyle(fontSize: 11, color: tone.textMuted),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: tone.fgSubtle,
+                            ),
                           ),
                         ),
                       ],
@@ -165,7 +172,7 @@ class PatrimonioCard extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
-                                    color: tone.textPrimary,
+                                    color: tone.fg,
                                   ),
                                 ),
                               ),
@@ -174,8 +181,9 @@ class PatrimonioCard extends StatelessWidget {
                             Container(
                               width: 1,
                               height: 34,
-                              margin:
-                                  const EdgeInsets.symmetric(horizontal: 12),
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               color: tone.border,
                             ),
                           if (tienePlusvalia)
@@ -207,15 +215,16 @@ class PatrimonioCard extends StatelessWidget {
                 children: [
                   if (manto != null && !mantoPendiente)
                     const StatusBadge(
-                        label: 'Mantenimiento al día',
-                        tone: BadgeTone.positive),
+                      label: 'Mantenimiento al día',
+                      tone: BadgeTone.positive,
+                    ),
                   const Spacer(),
                   Text(
                     'Ver detalle ›',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: tone.primaryDark,
+                      color: tone.primaryHover,
                     ),
                   ),
                 ],
@@ -228,15 +237,14 @@ class PatrimonioCard extends StatelessWidget {
   }
 
   /// Banner ámbar de mantenimiento pendiente (quick win sin backend nuevo).
-  Widget _bannerMantenimiento(SozuTone tone, MantenimientoCard m) {
+  Widget _bannerMantenimiento(SozuColorRoles tone, MantenimientoCard m) {
     return Container(
       width: double.infinity,
-      color: tone.pendingSoft,
+      color: tone.warningSoft,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          const Icon(Icons.build_outlined,
-              size: 14, color: SozuColors.amber600),
+          const Icon(Icons.build_outlined, size: 14, color: SozuAmber.strong),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -250,7 +258,7 @@ class PatrimonioCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: SozuColors.amber600,
+                color: SozuAmber.strong,
               ),
             ),
           ),
@@ -258,8 +266,7 @@ class PatrimonioCard extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               'Próx. ${formatDate(m.proximoPago)}',
-              style:
-                  const TextStyle(fontSize: 11, color: SozuColors.amber600),
+              style: const TextStyle(fontSize: 11, color: SozuAmber.strong),
             ),
           ],
         ],
@@ -277,7 +284,7 @@ class _Metrica extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -287,7 +294,7 @@ class _Metrica extends StatelessWidget {
             fontSize: 10,
             fontWeight: FontWeight.w600,
             letterSpacing: 1.2,
-            color: tone.textMuted,
+            color: tone.fgSubtle,
           ),
         ),
         const SizedBox(height: 4),
@@ -306,9 +313,9 @@ class _Plusvalia extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final positiva = (pct ?? monto ?? 0) >= 0;
-    final color = positiva ? tone.positive : tone.negative;
+    final color = positiva ? tone.positive : tone.danger;
     final principal = pct != null
         ? '${pct! >= 0 ? '+' : ''}${pct!.toStringAsFixed(1)}%'
         : '${monto! >= 0 ? '+' : ''}${formatMXN(monto)}';
@@ -318,8 +325,11 @@ class _Plusvalia extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(positiva ? Icons.trending_up : Icons.trending_down,
-                size: 14, color: color),
+            Icon(
+              positiva ? Icons.trending_up : Icons.trending_down,
+              size: 14,
+              color: color,
+            ),
             const SizedBox(width: 4),
             Flexible(
               child: Text(

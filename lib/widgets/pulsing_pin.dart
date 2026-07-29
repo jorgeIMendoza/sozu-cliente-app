@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../core/theme.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Pin de mapa con efecto de "respiración": un círculo que crece y se
 /// desvanece alrededor del pin, en loop suave (~2 s, curva easeOut).
@@ -23,7 +22,7 @@ class PulsingPin extends StatefulWidget {
 
   const PulsingPin({
     super.key,
-    this.color = SozuColors.emerald600,
+    this.color = SozuBrand.green600,
     this.pinSize = 40,
   });
 

@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/portal_theme.dart';
-import '../core/theme.dart' show sozuLightTheme;
-import '../core/version.dart';
-import '../data/models.dart';
-import '../providers/auth_provider.dart';
-import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
-import 'notification_bell.dart';
-import 'portal_shell_widgets.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/core/version.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/widgets/notification_bell.dart';
+import 'package:sozu_cliente_app/widgets/portal_shell_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Shell web "modo portal": réplica del layout del Portal del Cliente de
 /// sozu-admin (docs/web_portal_spec/shell.md) — sidebar blanca fija de 256px
@@ -320,12 +320,10 @@ class _PortalSidebar extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Wordmark SOZU: el mismo PNG negro del logo que usa el login
-                // (assets/sozu-logo-black.png), a 24px de alto como el portal.
-                Image.asset(
-                  'assets/sozu-logo-black.png',
+                // Wordmark SOZU a 24px como el portal. `onLight` porque la
+                // sidebar es blanca por definición (el portal es light-only).
+                const SozuLogo.onLight(
                   height: 24,
-                  fit: BoxFit.contain,
                   alignment: Alignment.centerLeft,
                 ),
                 const SizedBox(height: 4),

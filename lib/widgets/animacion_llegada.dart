@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-
-import '../core/theme.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Variantes de la animación de llegada de notificaciones (configurables por
 /// el admin en "Enviar avisos"; llegan al cliente vía cliente-notificaciones).
@@ -102,7 +101,7 @@ Widget _frameSobre(double v, Offset centro, Offset destino) {
             width: tam,
             height: tam,
             decoration: const BoxDecoration(
-              color: SozuColors.emerald500,
+              color: SozuBrand.green500,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(

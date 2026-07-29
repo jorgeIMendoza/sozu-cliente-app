@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/data_providers.dart';
-import 'animacion_llegada.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/widgets/animacion_llegada.dart';
 
 /// GlobalKey del destino de notificaciones en la barra inferior flotante
 /// (móvil): apunta al ítem "Notificaciones" cuando es una pestaña visible, o
@@ -149,8 +149,10 @@ class _NotificacionesFxState extends ConsumerState<NotificacionesFx>
         _animarLlegada();
       }
     });
-    _mostradas ??=
-        ref.watch(clienteNotificacionesProvider).valueOrNull?.noLeidas;
+    _mostradas ??= ref
+        .watch(clienteNotificacionesProvider)
+        .valueOrNull
+        ?.noLeidas;
     return widget.child;
   }
 }

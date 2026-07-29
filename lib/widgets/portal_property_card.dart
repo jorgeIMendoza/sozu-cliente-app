@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../core/format.dart';
-import '../core/portal_theme.dart';
-import '../data/models.dart';
-import 'network_image.dart';
-import 'portal_widgets.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/widgets/network_image.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 
 /// Cards de propiedad del "modo portal" web (réplicas 1:1 de las cards del
 /// Portal del Cliente de sozu-admin). NO sustituyen a PropertyCardWidget ni a
@@ -87,9 +87,7 @@ class _MetricCell extends StatelessWidget {
       decoration: first
           ? null
           : const BoxDecoration(
-              border: Border(
-                left: BorderSide(color: PortalColors.borderSoft),
-              ),
+              border: Border(left: BorderSide(color: PortalColors.borderSoft)),
             ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,8 +135,11 @@ class _PlusvaliaText extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(sube ? Icons.trending_up : Icons.trending_down,
-            size: 12, color: color),
+        Icon(
+          sube ? Icons.trending_up : Icons.trending_down,
+          size: 12,
+          color: color,
+        ),
         const SizedBox(width: 3),
         Flexible(
           child: Text(
@@ -167,14 +168,15 @@ class _VerDetalle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = portalText(
-      size: 12,
-      weight: FontWeight.w500,
-      color: PortalColors.primary,
-    ).copyWith(
-      decoration: hovered ? TextDecoration.underline : TextDecoration.none,
-      decorationColor: PortalColors.primary,
-    );
+    final style =
+        portalText(
+          size: 12,
+          weight: FontWeight.w500,
+          color: PortalColors.primary,
+        ).copyWith(
+          decoration: hovered ? TextDecoration.underline : TextDecoration.none,
+          decorationColor: PortalColors.primary,
+        );
     if (arrow) return Text('Ver detalle →', style: style);
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -477,7 +479,9 @@ class PortalAcquisitionCard extends StatelessWidget {
                       right: 12,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(999),
@@ -526,33 +530,39 @@ class PortalAcquisitionCard extends StatelessWidget {
                               children: [
                                 TextSpan(
                                   text: item.proyecto,
-                                  style: portalText(
-                                    size: 17,
-                                    weight: FontWeight.w700,
-                                    color: Colors.white,
-                                    height: 1.15,
-                                  ).copyWith(shadows: const [
-                                    Shadow(
-                                      color: Color(0x99000000),
-                                      offset: Offset(0, 1),
-                                      blurRadius: 3,
-                                    ),
-                                  ]),
+                                  style:
+                                      portalText(
+                                        size: 17,
+                                        weight: FontWeight.w700,
+                                        color: Colors.white,
+                                        height: 1.15,
+                                      ).copyWith(
+                                        shadows: const [
+                                          Shadow(
+                                            color: Color(0x99000000),
+                                            offset: Offset(0, 1),
+                                            blurRadius: 3,
+                                          ),
+                                        ],
+                                      ),
                                 ),
                                 TextSpan(
                                   text: ' · ${_unidadLabel(item)}',
-                                  style: portalText(
-                                    size: 17,
-                                    weight: FontWeight.w500,
-                                    color: const Color(0xD9FFFFFF),
-                                    height: 1.15,
-                                  ).copyWith(shadows: const [
-                                    Shadow(
-                                      color: Color(0x99000000),
-                                      offset: Offset(0, 1),
-                                      blurRadius: 3,
-                                    ),
-                                  ]),
+                                  style:
+                                      portalText(
+                                        size: 17,
+                                        weight: FontWeight.w500,
+                                        color: const Color(0xD9FFFFFF),
+                                        height: 1.15,
+                                      ).copyWith(
+                                        shadows: const [
+                                          Shadow(
+                                            color: Color(0x99000000),
+                                            offset: Offset(0, 1),
+                                            blurRadius: 3,
+                                          ),
+                                        ],
+                                      ),
                                 ),
                               ],
                             ),
@@ -575,16 +585,19 @@ class PortalAcquisitionCard extends StatelessWidget {
                                     ubicacion,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: portalText(
-                                      size: 11,
-                                      color: const Color(0xE6FFFFFF),
-                                    ).copyWith(shadows: const [
-                                      Shadow(
-                                        color: Color(0xB3000000),
-                                        offset: Offset(0, 1),
-                                        blurRadius: 2,
-                                      ),
-                                    ]),
+                                    style:
+                                        portalText(
+                                          size: 11,
+                                          color: const Color(0xE6FFFFFF),
+                                        ).copyWith(
+                                          shadows: const [
+                                            Shadow(
+                                              color: Color(0xB3000000),
+                                              offset: Offset(0, 1),
+                                              blurRadius: 2,
+                                            ),
+                                          ],
+                                        ),
                                   ),
                                 ),
                               ],
@@ -647,8 +660,10 @@ class PortalAcquisitionCard extends StatelessWidget {
               ),
               // ── Footer: próximo pago / docs + Ver detalle ──
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: const BoxDecoration(
                   color: PortalColors.mutedSoft20,
                   border: Border(
@@ -841,7 +856,9 @@ class PortalPatrimonyCard extends StatelessWidget {
                       right: 12,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(999),
@@ -884,7 +901,9 @@ class PortalPatrimonyCard extends StatelessWidget {
                         left: 12,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0x8C000000), // black/55
                             borderRadius: BorderRadius.circular(999),
@@ -927,8 +946,9 @@ class PortalPatrimonyCard extends StatelessWidget {
                                     style: portalText(
                                       size: 17,
                                       weight: FontWeight.w500,
-                                      color:
-                                          Colors.white.withValues(alpha: .85),
+                                      color: Colors.white.withValues(
+                                        alpha: .85,
+                                      ),
                                       height: 1.15,
                                     ),
                                   ),
@@ -955,8 +975,9 @@ class PortalPatrimonyCard extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                       style: portalText(
                                         size: 11,
-                                        color:
-                                            Colors.white.withValues(alpha: .9),
+                                        color: Colors.white.withValues(
+                                          alpha: .9,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1009,8 +1030,10 @@ class PortalPatrimonyCard extends StatelessWidget {
               ),
               // ── Footer: chip de mantenimiento + Ver detalle ──
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: const BoxDecoration(
                   color: PortalColors.mutedSoft20,
                   border: Border(
@@ -1045,8 +1068,10 @@ class PortalPatrimonyCard extends StatelessWidget {
               // ── Banner ámbar de mantenimiento pendiente ──
               if (mantoPendiente)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: PortalColors.warningSoft10,
                     border: Border(

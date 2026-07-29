@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../core/portal_tracking.dart';
-import '../core/push_service.dart';
-import '../providers/auth_provider.dart';
-import '../providers/data_providers.dart';
-import '../router.dart';
+import 'package:sozu_cliente_app/core/portal_tracking.dart';
+import 'package:sozu_cliente_app/core/push_service.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/router.dart';
 
 /// Con sesión de un Cliente real:
 /// - Móvil: registra el dispositivo para push (FCM) y conecta sus handlers
@@ -73,8 +73,10 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
         },
       );
       canal.subscribe((status, error) {
-        debugPrint('[realtime] canal notificaciones: $status'
-            '${error != null ? ' · $error' : ''} (email=$email)');
+        debugPrint(
+          '[realtime] canal notificaciones: $status'
+          '${error != null ? ' · $error' : ''} (email=$email)',
+        );
       });
       _canalNotif = canal;
       _emailSuscrito = email;

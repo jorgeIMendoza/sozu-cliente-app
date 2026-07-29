@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/portal_theme.dart';
-import '../data/models.dart';
-import '../providers/auth_provider.dart';
-import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
 
 /// Widgets de la topbar del "modo portal" que replican piezas del Portal del
 /// Cliente de sozu-admin: el buscador global (PortalSearchInput.tsx) y el
@@ -126,7 +126,10 @@ class _PortalTopBarSearchState extends ConsumerState<PortalTopBarSearch> {
   List<PropiedadCard> _propiedades() {
     final data = ref.watch(clientePropiedadesProvider).valueOrNull;
     if (data == null) return const [];
-    final all = <PropiedadCard>[...data.enAdquisicion, ...data.patrimonioActivo];
+    final all = <PropiedadCard>[
+      ...data.enAdquisicion,
+      ...data.patrimonioActivo,
+    ];
     return all
         .where(
           (p) =>

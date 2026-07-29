@@ -5,27 +5,27 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../core/format.dart';
-import '../core/open_media.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../widgets/building_diagram.dart';
-import '../widgets/common.dart';
-import '../widgets/copropietarios_section.dart';
-import '../widgets/credito_hipotecario_drawer.dart';
-import '../widgets/cronograma_pagos.dart';
-import '../widgets/etapa_actual_stepper.dart';
-import '../widgets/fx.dart';
-import '../widgets/level_map.dart';
-import '../widgets/network_image.dart';
-import '../widgets/payment_method_badge.dart';
-import '../widgets/portal_widgets.dart';
-import '../widgets/pulsing_pin.dart';
-import '../widgets/whatsapp_icon.dart';
-import 'como_llegar_screen.dart';
-import 'pago_final_screen.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/widgets/building_diagram.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/copropietarios_section.dart';
+import 'package:sozu_cliente_app/widgets/credito_hipotecario_drawer.dart';
+import 'package:sozu_cliente_app/widgets/cronograma_pagos.dart';
+import 'package:sozu_cliente_app/widgets/etapa_actual_stepper.dart';
+import 'package:sozu_cliente_app/widgets/fx.dart';
+import 'package:sozu_cliente_app/widgets/level_map.dart';
+import 'package:sozu_cliente_app/widgets/network_image.dart';
+import 'package:sozu_cliente_app/widgets/payment_method_badge.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/widgets/pulsing_pin.dart';
+import 'package:sozu_cliente_app/widgets/whatsapp_icon.dart';
+import 'package:sozu_cliente_app/screens/como_llegar_screen.dart';
+import 'package:sozu_cliente_app/screens/pago_final_screen.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Pestañas del detalle en modo portal (espejo de DETAIL_TABS del portal
 /// admin): Pagos · Avance de obra · Documentos · Ficha técnica.
@@ -54,7 +54,7 @@ class _PropiedadDetalleScreenState
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final detalle = ref.watch(propiedadDetalleProvider(widget.cuentaId));
 
     // Modo portal (web ≥1024): el shell (sidebar + topbar) ya envuelve la
@@ -69,8 +69,8 @@ class _PropiedadDetalleScreenState
               detalle.isLoading
                   ? 'cargando'
                   : detalle.hasError
-                      ? 'error'
-                      : 'datos',
+                  ? 'error'
+                  : 'datos',
             ),
             child: _portalBody(detalle),
           ),
@@ -91,8 +91,8 @@ class _PropiedadDetalleScreenState
             detalle.isLoading
                 ? 'cargando'
                 : detalle.hasError
-                    ? 'error'
-                    : 'datos',
+                ? 'error'
+                : 'datos',
           ),
           child: _body(context, tone, detalle),
         ),
@@ -102,261 +102,281 @@ class _PropiedadDetalleScreenState
 
   Widget _body(
     BuildContext context,
-    SozuTone tone,
+    SozuColorRoles tone,
     AsyncValue<PropiedadDetalle> detalle,
   ) {
     return detalle.when(
-        loading: () => ListView(
-          padding: const EdgeInsets.all(16),
-          children: const [
-            Skeleton(height: 180, radius: 16),
-            SizedBox(height: 16),
-            Skeleton(width: 200, height: 20),
-            SizedBox(height: 16),
-            Skeleton(height: 120, radius: 16),
-          ],
-        ),
-        error: (_, __) => ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            ErrorCard(
-              title: 'No pudimos cargar esta propiedad',
-              onRetry: () =>
-                  ref.invalidate(propiedadDetalleProvider(widget.cuentaId)),
-            ),
-          ],
-        ),
-        data: (d) => ListView(
-          padding: const EdgeInsets.only(bottom: 32),
-          children: [
-            // Hero (transición compartida con la imagen de la tarjeta). Si el
-            // backend manda galería, se reemplaza por un carrusel (mismo alto).
-            if (d.galeria.isEmpty)
-              Hero(
-                tag: 'prop-img-${widget.cuentaId}',
-                child: SizedBox(
-                  height: 200,
-                  width: double.infinity,
-                  child: SozuNetworkImage(url: d.urlImagen),
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: _GaleriaCarrusel(
-                  fotos: _galeriaItems(d),
-                  titulo: '${d.proyecto} · U-${d.unidad}',
-                  radius: 16,
-                  height: 200,
-                ),
+      loading: () => ListView(
+        padding: const EdgeInsets.all(16),
+        children: const [
+          Skeleton(height: 180, radius: 16),
+          SizedBox(height: 16),
+          Skeleton(width: 200, height: 20),
+          SizedBox(height: 16),
+          Skeleton(height: 120, radius: 16),
+        ],
+      ),
+      error: (_, __) => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          ErrorCard(
+            title: 'No pudimos cargar esta propiedad',
+            onRetry: () =>
+                ref.invalidate(propiedadDetalleProvider(widget.cuentaId)),
+          ),
+        ],
+      ),
+      data: (d) => ListView(
+        padding: const EdgeInsets.only(bottom: 32),
+        children: [
+          // Hero (transición compartida con la imagen de la tarjeta). Si el
+          // backend manda galería, se reemplaza por un carrusel (mismo alto).
+          if (d.galeria.isEmpty)
+            Hero(
+              tag: 'prop-img-${widget.cuentaId}',
+              child: SizedBox(
+                height: 200,
+                width: double.infinity,
+                child: SozuNetworkImage(url: d.urlImagen),
               ),
+            )
+          else
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: _GaleriaCarrusel(
+                fotos: _galeriaItems(d),
+                titulo: '${d.proyecto} · U-${d.unidad}',
+                radius: 16,
+                height: 200,
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
 
-                  // Propiedad en proceso legal → modo solo lectura (paso 17):
-                  // banner arriba y sin CTAs de pago en toda la pantalla.
-                  if (d.enDemanda) ...[
-                    const _DemandaBanner(),
-                    const SizedBox(height: 16),
+                // Propiedad en proceso legal → modo solo lectura (paso 17):
+                // banner arriba y sin CTAs de pago en toda la pantalla.
+                if (d.enDemanda) ...[
+                  const _DemandaBanner(),
+                  const SizedBox(height: 16),
+                ],
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            d.proyecto.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.8,
+                              color: tone.primaryHover,
+                            ),
+                          ),
+                          Text(
+                            d.nombre,
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: tone.fg,
+                            ),
+                          ),
+                          Text(
+                            '${d.modelo} · ${d.tipo}',
+                            style: TextStyle(fontSize: 14, color: tone.fgMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _estatusChip(d),
                   ],
-                  Row(
+                ),
+                const SizedBox(height: 16),
+
+                // Método de pago final elegido (espejo del portal); el badge
+                // no renderiza nada si tipoFinanciamiento es null.
+                if (d.tipoFinanciamiento != null) ...[
+                  PaymentMethodBadge(
+                    tipoFinanciamiento: d.tipoFinanciamiento,
+                    solicitud: d.solicitudCredito,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // Avance
+                AppCard(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(d.proyecto.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.8,
-                                  color: tone.primaryDark,
-                                )),
-                            Text(d.nombre,
-                                style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    color: tone.textPrimary)),
-                            Text('${d.modelo} · ${d.tipo}',
-                                style: TextStyle(
-                                    fontSize: 14, color: tone.textSecondary)),
-                          ],
-                        ),
-                      ),
-                      _estatusChip(d),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Método de pago final elegido (espejo del portal); el badge
-                  // no renderiza nada si tipoFinanciamiento es null.
-                  if (d.tipoFinanciamiento != null) ...[
-                    PaymentMethodBadge(
-                      tipoFinanciamiento: d.tipoFinanciamiento,
-                      solicitud: d.solicitudCredito,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // Avance
-                  AppCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                                'Avance de pago · ${d.avancePagoEfectivo.round()}%',
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: tone.textPrimary)),
-                            Text(
-                                '${formatMXN(d.pagadoEfectivo)} de ${formatMXN(d.montoEfectivo)}',
-                                style: TextStyle(
-                                    fontSize: 12, color: tone.textSecondary)),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        SozuProgressBar(percent: d.avancePagoEfectivo),
-                        if (d.saldoPendienteEfectivo > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                                'Saldo pendiente: ${formatMXN(d.saldoPendienteEfectivo)}',
-                                style: TextStyle(
-                                    fontSize: 12, color: tone.pending)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Avance de pago · ${d.avancePagoEfectivo.round()}%',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: tone.fg,
+                            ),
                           ),
-                      ],
-                    ),
+                          Text(
+                            '${formatMXN(d.pagadoEfectivo)} de ${formatMXN(d.montoEfectivo)}',
+                            style: TextStyle(fontSize: 12, color: tone.fgMuted),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      SozuProgressBar(percent: d.avancePagoEfectivo),
+                      if (d.saldoPendienteEfectivo > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Saldo pendiente: ${formatMXN(d.saldoPendienteEfectivo)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: tone.warningFg,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
+                ),
 
-                  // CTA de pago (etapa pago_final con saldo; oculto en
-                  // demanda → solo lectura).
-                  if (!d.enDemanda &&
-                      d.etapaActivaEfectiva == 'pago_final' &&
-                      d.saldoPendienteEfectivo > 0) ...[
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: () => _pagar(context, d),
-                      icon: Icon(
-                          d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO'
-                              ? Icons.account_balance_outlined
-                              : Icons.payments_outlined,
-                          size: 18),
-                      label: Text(d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO'
+                // CTA de pago (etapa pago_final con saldo; oculto en
+                // demanda → solo lectura).
+                if (!d.enDemanda &&
+                    d.etapaActivaEfectiva == 'pago_final' &&
+                    d.saldoPendienteEfectivo > 0) ...[
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: () => _pagar(context, d),
+                    icon: Icon(
+                      d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO'
+                          ? Icons.account_balance_outlined
+                          : Icons.payments_outlined,
+                      size: 18,
+                    ),
+                    label: Text(
+                      d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO'
                           ? 'Ver crédito hipotecario'
-                          : 'Pagar ${formatMXN(d.saldoPendienteEfectivo)}'),
-                    ),
-                  ],
-
-                  // CTA de preventa (paso 15, espejo de getContextualCTA del
-                  // portal): botón secundario que lleva a pagar el siguiente
-                  // acuerdo pendiente (o al cronograma si no hay pendientes).
-                  if (!d.enDemanda &&
-                      d.etapaActivaEfectiva == 'preventa' &&
-                      d.saldoPendienteEfectivo > 0) ...[
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: () => _confirmarPlan(context, d),
-                      icon: const Icon(Icons.event_available_outlined,
-                          size: 18),
-                      label: const Text('Confirmar plan de pagos'),
-                    ),
-                  ],
-
-                  // Datos técnicos
-                  const SectionTitle(
-                      icon: Icons.construction_outlined,
-                      text: 'Datos técnicos'),
-                  AppCard(
-                    child: Wrap(
-                      runSpacing: 12,
-                      children: [
-                        _dato(tone, 'PROYECTO', d.proyecto),
-                        _dato(tone, 'UNIDAD', 'U-${d.unidad}'),
-                        _dato(tone, 'TIPO', d.tipo),
-                        _dato(
-                            tone,
-                            'ÁREA',
-                            d.m2Interiores != null
-                                ? '${d.m2Interiores} m²'
-                                : '—'),
-                        _dato(tone, 'RECÁMARAS', '${d.recamaras}'),
-                        _dato(tone, 'BAÑOS', '${d.banos}'),
-                        _dato(tone, 'PISO',
-                            d.numeroPiso != null ? '${d.numeroPiso}' : '—'),
-                        _dato(tone, 'ENTREGA', d.entrega),
-                      ],
+                          : 'Pagar ${formatMXN(d.saldoPendienteEfectivo)}',
                     ),
                   ),
-
-                  // Copropietarios (solo si la cuenta tiene más de un
-                  // propietario; el widget se oculta solo en caso contrario).
-                  CopropietariosSection(copropietarios: d.copropietarios),
-
-                  // Ubicación del proyecto (solo si tiene coordenadas)
-                  if (d.ubicacion != null)
-                    _UbicacionSection(
-                      ubicacion: d.ubicacion!,
-                      proyecto: d.proyecto,
-                    ),
-
-                  // Productos adicionales
-                  if (d.productos.isNotEmpty) ...[
-                    SectionTitle(
-                        icon: Icons.inventory_2_outlined,
-                        text: 'Productos adicionales · ${d.productos.length}'),
-                    for (final p in d.productos) ...[
-                      _ProductoRow(p: p),
-                      const SizedBox(height: 10),
-                    ],
-                  ],
-
-                  // Etapa actual (stepper estilo portal del cliente)
-                  EtapaActualStepper(
-                    stages: d.stagesEfectivos,
-                    activa: d.etapaActivaEfectiva,
-                    saldoPendiente: d.saldoPendienteEfectivo,
-                  ),
-
-                  // Cronograma de pagos (tarjeta colapsable estilo portal
-                  // del cliente, con pagos aplicados y CEP por concepto).
-                  KeyedSubtree(
-                    key: _cronoKey,
-                    child: CronogramaPagos(esquemaPago: d.esquemaPago),
-                  ),
-
-                  // Ficha técnica
-                  if (d.ficha.numeroPiso != null ||
-                      d.ficha.planoNivelUrl != null ||
-                      d.ficha.planoDistribucionUrl != null ||
-                      d.ficha.regiones.isNotEmpty)
-                    _FichaTecnica(ficha: d.ficha),
-
-                  // Documentos
-                  const SectionTitle(
-                      icon: Icons.description_outlined, text: 'Documentos'),
-                  if (d.documentos.isEmpty)
-                    const EmptyCard(
-                        icon: Icons.folder_open_outlined,
-                        text: 'Sin documentos para esta propiedad')
-                  else
-                    for (final doc in d.documentos) ...[
-                      _DocRow(d: doc),
-                      const SizedBox(height: 10),
-                    ],
                 ],
-              ),
+
+                // CTA de preventa (paso 15, espejo de getContextualCTA del
+                // portal): botón secundario que lleva a pagar el siguiente
+                // acuerdo pendiente (o al cronograma si no hay pendientes).
+                if (!d.enDemanda &&
+                    d.etapaActivaEfectiva == 'preventa' &&
+                    d.saldoPendienteEfectivo > 0) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () => _confirmarPlan(context, d),
+                    icon: const Icon(Icons.event_available_outlined, size: 18),
+                    label: const Text('Confirmar plan de pagos'),
+                  ),
+                ],
+
+                // Datos técnicos
+                const SectionTitle(
+                  icon: Icons.construction_outlined,
+                  text: 'Datos técnicos',
+                ),
+                AppCard(
+                  child: Wrap(
+                    runSpacing: 12,
+                    children: [
+                      _dato(tone, 'PROYECTO', d.proyecto),
+                      _dato(tone, 'UNIDAD', 'U-${d.unidad}'),
+                      _dato(tone, 'TIPO', d.tipo),
+                      _dato(
+                        tone,
+                        'ÁREA',
+                        d.m2Interiores != null ? '${d.m2Interiores} m²' : '—',
+                      ),
+                      _dato(tone, 'RECÁMARAS', '${d.recamaras}'),
+                      _dato(tone, 'BAÑOS', '${d.banos}'),
+                      _dato(
+                        tone,
+                        'PISO',
+                        d.numeroPiso != null ? '${d.numeroPiso}' : '—',
+                      ),
+                      _dato(tone, 'ENTREGA', d.entrega),
+                    ],
+                  ),
+                ),
+
+                // Copropietarios (solo si la cuenta tiene más de un
+                // propietario; el widget se oculta solo en caso contrario).
+                CopropietariosSection(copropietarios: d.copropietarios),
+
+                // Ubicación del proyecto (solo si tiene coordenadas)
+                if (d.ubicacion != null)
+                  _UbicacionSection(
+                    ubicacion: d.ubicacion!,
+                    proyecto: d.proyecto,
+                  ),
+
+                // Productos adicionales
+                if (d.productos.isNotEmpty) ...[
+                  SectionTitle(
+                    icon: Icons.inventory_2_outlined,
+                    text: 'Productos adicionales · ${d.productos.length}',
+                  ),
+                  for (final p in d.productos) ...[
+                    _ProductoRow(p: p),
+                    const SizedBox(height: 10),
+                  ],
+                ],
+
+                // Etapa actual (stepper estilo portal del cliente)
+                EtapaActualStepper(
+                  stages: d.stagesEfectivos,
+                  activa: d.etapaActivaEfectiva,
+                  saldoPendiente: d.saldoPendienteEfectivo,
+                ),
+
+                // Cronograma de pagos (tarjeta colapsable estilo portal
+                // del cliente, con pagos aplicados y CEP por concepto).
+                KeyedSubtree(
+                  key: _cronoKey,
+                  child: CronogramaPagos(esquemaPago: d.esquemaPago),
+                ),
+
+                // Ficha técnica
+                if (d.ficha.numeroPiso != null ||
+                    d.ficha.planoNivelUrl != null ||
+                    d.ficha.planoDistribucionUrl != null ||
+                    d.ficha.regiones.isNotEmpty)
+                  _FichaTecnica(ficha: d.ficha),
+
+                // Documentos
+                const SectionTitle(
+                  icon: Icons.description_outlined,
+                  text: 'Documentos',
+                ),
+                if (d.documentos.isEmpty)
+                  const EmptyCard(
+                    icon: Icons.folder_open_outlined,
+                    text: 'Sin documentos para esta propiedad',
+                  )
+                else
+                  for (final doc in d.documentos) ...[
+                    _DocRow(d: doc),
+                    const SizedBox(height: 10),
+                  ],
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -412,8 +432,7 @@ class _PropiedadDetalleScreenState
   /// pendiente (lo mismo que hace el portal al confirmar el plan); si no hay
   /// acuerdos pendientes, hace scroll al cronograma para revisarlo.
   void _confirmarPlan(BuildContext context, PropiedadDetalle d) {
-    final siguiente =
-        d.esquemaPago.where((e) => !e.pagoCompletado).firstOrNull;
+    final siguiente = d.esquemaPago.where((e) => !e.pagoCompletado).firstOrNull;
     if (siguiente != null) {
       context.push('/pagar?id=${siguiente.id}');
     } else if (_cronoKey.currentContext != null) {
@@ -433,19 +452,19 @@ class _PropiedadDetalleScreenState
     if (MediaQuery.of(context).size.width >= 700) return null;
 
     Widget? boton;
-    if (d.etapaActivaEfectiva == 'pago_final' &&
-        d.saldoPendienteEfectivo > 0) {
+    if (d.etapaActivaEfectiva == 'pago_final' && d.saldoPendienteEfectivo > 0) {
       final esCredito = d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO';
       boton = FilledButton.icon(
         onPressed: () => _pagar(context, d),
         icon: Icon(
-            esCredito
-                ? Icons.account_balance_outlined
-                : Icons.payments_outlined,
-            size: 18),
-        label: Text(esCredito
-            ? 'Ver crédito hipotecario'
-            : 'Pagar ${formatMXN(d.saldoPendienteEfectivo)}'),
+          esCredito ? Icons.account_balance_outlined : Icons.payments_outlined,
+          size: 18,
+        ),
+        label: Text(
+          esCredito
+              ? 'Ver crédito hipotecario'
+              : 'Pagar ${formatMXN(d.saldoPendienteEfectivo)}',
+        ),
       );
     } else if (d.etapaActivaEfectiva == 'preventa' &&
         d.saldoPendienteEfectivo > 0) {
@@ -457,7 +476,7 @@ class _PropiedadDetalleScreenState
     }
     if (boton == null) return null;
 
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Container(
       decoration: BoxDecoration(
         color: tone.surface,
@@ -481,30 +500,38 @@ class _PropiedadDetalleScreenState
       'entrega' => ('Por Entregar', BadgeTone.positive),
       'post_entrega' => ('Entregada', BadgeTone.positive),
       _ => (
-          d.estatus,
-          d.categoria == 'patrimonio' ? BadgeTone.positive : BadgeTone.neutral,
-        ),
+        d.estatus,
+        d.categoria == 'patrimonio' ? BadgeTone.positive : BadgeTone.neutral,
+      ),
     };
     return StatusBadge(label: label, tone: tone);
   }
 
-  Widget _dato(SozuTone tone, String label, String value) {
+  Widget _dato(SozuColorRoles tone, String label, String value) {
     return FractionallySizedBox(
       widthFactor: 0.5,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: TextStyle(
-                  fontSize: 10, letterSpacing: 0.8, color: tone.textMuted)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              letterSpacing: 0.8,
+              color: tone.fgSubtle,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: tone.textPrimary)),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: tone.fg,
+            ),
+          ),
         ],
       ),
     );
@@ -692,8 +719,8 @@ class _PropiedadDetalleScreenState
         final Color fg = active
             ? PortalColors.foreground
             : hovered
-                ? PortalColors.foreground
-                : PortalColors.mutedForeground;
+            ? PortalColors.foreground
+            : PortalColors.mutedForeground;
         return GestureDetector(
           onTap: () => setState(() => _portalTab = id),
           behavior: HitTestBehavior.opaque,
@@ -725,7 +752,11 @@ class _PropiedadDetalleScreenState
                   Text(
                     label,
                     maxLines: 1,
-                    style: portalText(size: 12, weight: FontWeight.w500, color: fg),
+                    style: portalText(
+                      size: 12,
+                      weight: FontWeight.w500,
+                      color: fg,
+                    ),
                   ),
                 ],
               ),
@@ -776,7 +807,8 @@ class _PropiedadDetalleScreenState
       // Ficha técnica → ficha (¿dónde está tu unidad? + distribución),
       // ubicación/mapa y copropietarios.
       case _DetailTab.ficha:
-        final tieneFicha = d.ficha.numeroPiso != null ||
+        final tieneFicha =
+            d.ficha.numeroPiso != null ||
             d.ficha.planoNivelUrl != null ||
             d.ficha.planoDistribucionUrl != null ||
             d.ficha.regiones.isNotEmpty;
@@ -992,30 +1024,30 @@ class _PropiedadDetalleScreenState
   Widget _portalStageChip(PropiedadDetalle d) {
     final (label, bg, fg) = switch (d.etapaActivaEfectiva) {
       'preventa' => (
-          'En Preventa',
-          PortalColors.primarySoft10,
-          PortalColors.primary,
-        ),
+        'En Preventa',
+        PortalColors.primarySoft10,
+        PortalColors.primary,
+      ),
       'pago_final' => (
-          'Pago Pendiente',
-          PortalColors.warningSoft15,
-          PortalColors.warning,
-        ),
+        'Pago Pendiente',
+        PortalColors.warningSoft15,
+        PortalColors.warning,
+      ),
       'escrituracion' => (
-          'En Escrituración',
-          PortalColors.primarySoft15,
-          PortalColors.primary,
-        ),
+        'En Escrituración',
+        PortalColors.primarySoft15,
+        PortalColors.primary,
+      ),
       'entrega' => (
-          'Por Entregar',
-          PortalColors.primarySoft15,
-          PortalColors.primary,
-        ),
+        'Por Entregar',
+        PortalColors.primarySoft15,
+        PortalColors.primary,
+      ),
       'post_entrega' => (
-          'Entregada',
-          PortalColors.primarySoft15,
-          PortalColors.primary,
-        ),
+        'Entregada',
+        PortalColors.primarySoft15,
+        PortalColors.primary,
+      ),
       _ => (d.estatus, PortalColors.muted, PortalColors.mutedForeground),
     };
     return Container(
@@ -1128,25 +1160,26 @@ class _PropiedadDetalleScreenState
     // Chip de estatus (bg/fg) + punto de color por estatus (dot del portal).
     final (bg, fg, dot) = switch (p.estatus) {
       'Pagado' => (
-          PortalColors.primarySoft10,
-          PortalColors.primary,
-          PortalColors.primary,
-        ),
+        PortalColors.primarySoft10,
+        PortalColors.primary,
+        PortalColors.primary,
+      ),
       'En curso' => (
-          PortalColors.primarySoft10,
-          PortalColors.primary,
-          PortalColors.primary,
-        ),
+        PortalColors.primarySoft10,
+        PortalColors.primary,
+        PortalColors.primary,
+      ),
       _ => (
-          PortalColors.warningSoft10,
-          PortalColors.warning,
-          PortalColors.warning,
-        ),
+        PortalColors.warningSoft10,
+        PortalColors.warning,
+        PortalColors.warning,
+      ),
     };
     // El backend ya entrega avance y monto; el pendiente se deriva.
     final paidPct = p.avance.clamp(0, 100).toDouble();
-    final pendiente =
-        (p.monto * (1 - paidPct / 100)).clamp(0, p.monto).toDouble();
+    final pendiente = (p.monto * (1 - paidPct / 100))
+        .clamp(0, p.monto)
+        .toDouble();
 
     return PortalHoverBuilder(
       builder: (context, hovered) => GestureDetector(
@@ -1183,8 +1216,10 @@ class _PropiedadDetalleScreenState
                             p.nombre,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style:
-                                portalText(size: 13, weight: FontWeight.w600),
+                            style: portalText(
+                              size: 13,
+                              weight: FontWeight.w600,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -1237,9 +1272,7 @@ class _PropiedadDetalleScreenState
                                 child: FractionallySizedBox(
                                   alignment: Alignment.centerLeft,
                                   widthFactor: (paidPct / 100).clamp(0.0, 1.0),
-                                  child: Container(
-                                    color: PortalColors.primary,
-                                  ),
+                                  child: Container(color: PortalColors.primary),
                                 ),
                               ),
                             ),
@@ -1523,10 +1556,7 @@ class _PropiedadDetalleScreenState
                         ),
                         TextSpan(
                           text: d.entrega,
-                          style: portalText(
-                            size: 11,
-                            weight: FontWeight.w500,
-                          ),
+                          style: portalText(size: 11, weight: FontWeight.w500),
                         ),
                       ],
                     ),
@@ -1535,10 +1565,7 @@ class _PropiedadDetalleScreenState
               ],
             ),
           ],
-          if (cta != null) ...[
-            const SizedBox(height: 16),
-            cta,
-          ],
+          if (cta != null) ...[const SizedBox(height: 16), cta],
         ],
       ),
     );
@@ -1557,15 +1584,20 @@ class _PropiedadDetalleScreenState
     double nonNeg(double v) => v < 0 ? 0.0 : v;
     // Restante por producto = precio total × (1 − avance%); el modelo del
     // detalle no expone saldo_pendiente por producto, se deriva de avance.
-    double restanteDe(ProductoDetalle p) =>
-        (p.monto * (1 - (p.avance / 100))).clamp(0.0, nonNeg(p.monto)).toDouble();
+    double restanteDe(ProductoDetalle p) => (p.monto * (1 - (p.avance / 100)))
+        .clamp(0.0, nonNeg(p.monto))
+        .toDouble();
 
     final precioDepto = nonNeg(d.montoEfectivo);
     final restanteDepto = nonNeg(d.saldoPendienteEfectivo);
-    final precioComplementos =
-        complementos.fold<double>(0, (s, p) => s + nonNeg(p.monto));
-    final restanteComplementos =
-        complementos.fold<double>(0, (s, p) => s + restanteDe(p));
+    final precioComplementos = complementos.fold<double>(
+      0,
+      (s, p) => s + nonNeg(p.monto),
+    );
+    final restanteComplementos = complementos.fold<double>(
+      0,
+      (s, p) => s + restanteDe(p),
+    );
     final precioTotal = precioDepto + precioComplementos;
     final totalEscriturar = restanteDepto + restanteComplementos;
 
@@ -1617,9 +1649,7 @@ class _PropiedadDetalleScreenState
           color: background,
           border: first
               ? null
-              : const Border(
-                  top: BorderSide(color: PortalColors.borderSoft),
-                ),
+              : const Border(top: BorderSide(color: PortalColors.borderSoft)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
@@ -1741,8 +1771,7 @@ class _PropiedadDetalleScreenState
   /// mismas condiciones de visibilidad que la vista móvil (nunca en demanda).
   Widget? _portalCta(PropiedadDetalle d) {
     if (d.enDemanda) return null;
-    if (d.etapaActivaEfectiva == 'pago_final' &&
-        d.saldoPendienteEfectivo > 0) {
+    if (d.etapaActivaEfectiva == 'pago_final' && d.saldoPendienteEfectivo > 0) {
       final esCredito = d.tipoFinanciamiento == 'CREDITO_HIPOTECARIO';
       return _PortalCtaButton(
         label: esCredito
@@ -1976,9 +2005,7 @@ class _PropiedadDetalleScreenState
                 ? (hovered ? PortalColors.primaryHover : PortalColors.primary)
                 : (hovered ? PortalColors.mutedHover : PortalColors.surface),
             borderRadius: BorderRadius.circular(kPortalRadiusMd),
-            border: filled
-                ? null
-                : Border.all(color: PortalColors.border),
+            border: filled ? null : Border.all(color: PortalColors.border),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -2033,7 +2060,9 @@ class _PropiedadDetalleScreenState
   // externamente. Se muestra solo si el backend manda `video_obra_url`.
   Widget _portalVideoObra(String url) {
     final id = _youtubeId(url);
-    final thumb = id != null ? 'https://img.youtube.com/vi/$id/hqdefault.jpg' : null;
+    final thumb = id != null
+        ? 'https://img.youtube.com/vi/$id/hqdefault.jpg'
+        : null;
     return PortalCard(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -2276,8 +2305,8 @@ class _PropiedadDetalleScreenState
                 color: h.completado
                     ? PortalColors.foreground
                     : actual
-                        ? PortalColors.primary
-                        : PortalColors.mutedForeground,
+                    ? PortalColors.primary
+                    : PortalColors.mutedForeground,
               ),
             ),
           ),
@@ -2485,7 +2514,11 @@ class _GaleriaCarruselState extends State<_GaleriaCarrusel> {
     final imagen = ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: widget.height != null
-          ? SizedBox(height: widget.height, width: double.infinity, child: stack)
+          ? SizedBox(
+              height: widget.height,
+              width: double.infinity,
+              child: stack,
+            )
           : AspectRatio(
               aspectRatio: widget.aspectRatio ?? 16 / 9,
               child: stack,
@@ -2549,21 +2582,18 @@ class _DemandaBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: tone.pendingSoft,
+        color: tone.warningSoft,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: SozuColors.amber500.withValues(alpha: 0.5),
-        ),
+        border: Border.all(color: SozuAmber.base.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.gavel_outlined,
-              size: 18, color: SozuColors.amber600),
+          const Icon(Icons.gavel_outlined, size: 18, color: SozuAmber.strong),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -2571,7 +2601,7 @@ class _DemandaBanner extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: tone.textPrimary,
+                color: tone.fg,
               ),
             ),
           ),
@@ -2621,7 +2651,7 @@ class _UbicacionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final mapa = ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
@@ -2727,7 +2757,7 @@ class _UbicacionSection extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   ubicacion.direccion!,
-                  style: TextStyle(fontSize: 13, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 13, color: tone.fgMuted),
                 ),
               ],
               const SizedBox(height: 12),
@@ -2776,7 +2806,7 @@ class _ProductoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final badgeTone = switch (p.estatus) {
       'Pagado' => BadgeTone.positive,
       'En curso' => BadgeTone.neutral,
@@ -2790,35 +2820,46 @@ class _ProductoRow extends StatelessWidget {
             Container(
               width: 36,
               height: 36,
-              decoration:
-                  BoxDecoration(color: tone.primarySoft, shape: BoxShape.circle),
-              child: const Icon(Icons.inventory_2_outlined,
-                  size: 18, color: SozuColors.emerald600),
+              decoration: BoxDecoration(
+                color: tone.primarySoft,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.inventory_2_outlined,
+                size: 18,
+                color: SozuBrand.green600,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(p.nombre,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: tone.textPrimary)),
+                  Text(
+                    p.nombre,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: tone.fg,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   StatusBadge(label: p.estatus, tone: badgeTone),
                 ],
               ),
             ),
-            Text(formatMXN(p.monto),
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: tone.textPrimary)),
+            Text(
+              formatMXN(p.monto),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: tone.fg,
+              ),
+            ),
             const SizedBox(width: 4),
-            Icon(Icons.chevron_right, color: tone.textMuted),
+            Icon(Icons.chevron_right, color: tone.fgSubtle),
           ],
         ),
       ),
@@ -2837,88 +2878,105 @@ class _FichaTecnica extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final contenido = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Ubicación, nivel y distribución de tu unidad'
+          '${ficha.modelo != '—' ? ' · Modelo ${ficha.modelo}' : ''}',
+          style: TextStyle(fontSize: 12, color: tone.fgMuted),
+        ),
+        if (ficha.numeroDepa != null || ficha.numeroPiso != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            [
+              if (ficha.numeroDepa != null) 'Unidad ${ficha.numeroDepa}',
+              if (ficha.numeroPiso != null)
+                'Nivel ${ficha.numeroPiso}${ficha.totalPisos != null ? ' de ${ficha.totalPisos}' : ''}',
+              if (ficha.m2Total != null) '${ficha.m2Total} m²',
+            ].join(' · '),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: tone.fg,
+            ),
+          ),
+        ],
+        // ¿Dónde está tu unidad? — diagrama del edificio (niveles) +
+        // rejilla del nivel, réplica del BuildingDiagram del portal.
+        if (ficha.numeroPiso != null) ...[
+          const SizedBox(height: 16),
+          BuildingDiagram(
+            numeroPiso: ficha.numeroPiso!,
+            totalPisos: ficha.totalPisos,
+            unidad: ficha.numeroDepa ?? '${ficha.numeroPiso}',
+          ),
+        ],
+        // Ubicación en el nivel: mapa interactivo o imagen.
+        if (ficha.regiones.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            'UBICACIÓN EN EL NIVEL',
+            style: TextStyle(
+              fontSize: 11,
+              letterSpacing: 1,
+              fontWeight: FontWeight.w600,
+              color: tone.fgSubtle,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: tone.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: tone.border),
+            ),
+            child: LevelMap(
+              regiones: ficha.regiones,
+              numeroDepa: ficha.numeroDepa,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
             children: [
-              Text(
-                'Ubicación, nivel y distribución de tu unidad'
-                '${ficha.modelo != '—' ? ' · Modelo ${ficha.modelo}' : ''}',
-                style: TextStyle(fontSize: 12, color: tone.textSecondary),
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: SozuBrand.green500,
+                  borderRadius: BorderRadius.circular(3),
+                ),
               ),
-              if (ficha.numeroDepa != null || ficha.numeroPiso != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  [
-                    if (ficha.numeroDepa != null) 'Unidad ${ficha.numeroDepa}',
-                    if (ficha.numeroPiso != null)
-                      'Nivel ${ficha.numeroPiso}${ficha.totalPisos != null ? ' de ${ficha.totalPisos}' : ''}',
-                    if (ficha.m2Total != null) '${ficha.m2Total} m²',
-                  ].join(' · '),
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: tone.textPrimary),
-                ),
-              ],
-              // ¿Dónde está tu unidad? — diagrama del edificio (niveles) +
-              // rejilla del nivel, réplica del BuildingDiagram del portal.
-              if (ficha.numeroPiso != null) ...[
-                const SizedBox(height: 16),
-                BuildingDiagram(
-                  numeroPiso: ficha.numeroPiso!,
-                  totalPisos: ficha.totalPisos,
-                  unidad: ficha.numeroDepa ?? '${ficha.numeroPiso}',
-                ),
-              ],
-              // Ubicación en el nivel: mapa interactivo o imagen.
-              if (ficha.regiones.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text('UBICACIÓN EN EL NIVEL',
-                    style: TextStyle(
-                        fontSize: 11,
-                        letterSpacing: 1,
-                        fontWeight: FontWeight.w600,
-                        color: tone.textMuted)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: tone.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: tone.border),
-                  ),
-                  child: LevelMap(
-                      regiones: ficha.regiones, numeroDepa: ficha.numeroDepa),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                            color: SozuColors.emerald500,
-                            borderRadius: BorderRadius.circular(3))),
-                    const SizedBox(width: 6),
-                    Text('Tu unidad',
-                        style: TextStyle(
-                            fontSize: 11, color: tone.textSecondary)),
-                  ],
-                ),
-              ] else if (ficha.planoNivelUrl != null) ...[
-                const SizedBox(height: 12),
-                _planoImage(context, tone, 'UBICACIÓN EN EL NIVEL',
-                    ficha.planoNivelUrl!),
-              ],
-              if (ficha.planoDistribucionUrl != null) ...[
-                const SizedBox(height: 12),
-                _planoImage(context, tone, 'DISTRIBUCIÓN',
-                    ficha.planoDistribucionUrl!,
-                    height: 360),
-              ],
+              const SizedBox(width: 6),
+              Text(
+                'Tu unidad',
+                style: TextStyle(fontSize: 11, color: tone.fgMuted),
+              ),
             ],
-          );
+          ),
+        ] else if (ficha.planoNivelUrl != null) ...[
+          const SizedBox(height: 12),
+          _planoImage(
+            context,
+            tone,
+            'UBICACIÓN EN EL NIVEL',
+            ficha.planoNivelUrl!,
+          ),
+        ],
+        if (ficha.planoDistribucionUrl != null) ...[
+          const SizedBox(height: 12),
+          _planoImage(
+            context,
+            tone,
+            'DISTRIBUCIÓN',
+            ficha.planoDistribucionUrl!,
+            height: 360,
+          ),
+        ],
+      ],
+    );
 
     if (portal) {
       return PortalCard(
@@ -2995,24 +3053,33 @@ class _FichaTecnica extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SectionTitle(
-            icon: Icons.map_outlined, text: 'Ficha técnica de tu propiedad'),
+          icon: Icons.map_outlined,
+          text: 'Ficha técnica de tu propiedad',
+        ),
         AppCard(child: contenido),
       ],
     );
   }
 
   Widget _planoImage(
-      BuildContext context, SozuTone tone, String label, String url,
-      {double height = 200}) {
+    BuildContext context,
+    SozuColorRoles tone,
+    String label,
+    String url, {
+    double height = 200,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-                fontSize: 11,
-                letterSpacing: 1,
-                fontWeight: FontWeight.w600,
-                color: tone.textMuted)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            letterSpacing: 1,
+            fontWeight: FontWeight.w600,
+            color: tone.fgSubtle,
+          ),
+        ),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: () => openMedia(context, url, titulo: label),
@@ -3033,10 +3100,12 @@ class _FichaTecnica extends StatelessWidget {
         const SizedBox(height: 6),
         Row(
           children: [
-            Icon(Icons.zoom_in, size: 14, color: tone.textMuted),
+            Icon(Icons.zoom_in, size: 14, color: tone.fgSubtle),
             const SizedBox(width: 4),
-            Text('Toca para ampliar',
-                style: TextStyle(fontSize: 11, color: tone.textMuted)),
+            Text(
+              'Toca para ampliar',
+              style: TextStyle(fontSize: 11, color: tone.fgSubtle),
+            ),
           ],
         ),
       ],
@@ -3051,7 +3120,7 @@ class _DocRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return PressableScale(
       onTap: () => openMedia(context, d.urlFirmada, titulo: d.nombre),
       child: AppCard(
@@ -3061,30 +3130,38 @@ class _DocRow extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                  color: tone.primarySoft, shape: BoxShape.circle),
-              child: const Icon(Icons.description_outlined,
-                  size: 18, color: SozuColors.emerald600),
+                color: tone.primarySoft,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.description_outlined,
+                size: 18,
+                color: SozuBrand.green600,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(d.nombre,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: tone.textPrimary)),
-                  Text('${d.tipo} · ${formatDate(d.fecha)}',
-                      style:
-                          TextStyle(fontSize: 12, color: tone.textSecondary)),
+                  Text(
+                    d.nombre,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: tone.fg,
+                    ),
+                  ),
+                  Text(
+                    '${d.tipo} · ${formatDate(d.fecha)}',
+                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
+                  ),
                 ],
               ),
             ),
-            const Icon(Icons.open_in_new,
-                size: 18, color: SozuColors.emerald600),
+            const Icon(Icons.open_in_new, size: 18, color: SozuBrand.green600),
           ],
         ),
       ),

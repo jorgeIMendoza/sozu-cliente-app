@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../core/theme.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Widgets base del sistema de diseño SOZU (espejo de src/components del RN).
 
@@ -19,7 +18,7 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Container(
       width: double.infinity,
       padding: padding,
@@ -29,7 +28,7 @@ class AppCard extends StatelessWidget {
         border: borderColor != null ? Border.all(color: borderColor!) : null,
         boxShadow: [
           BoxShadow(
-            color: SozuColors.slate900.withValues(alpha: 0.08),
+            color: SozuNeutral.n900.withValues(alpha: 0.08),
             offset: const Offset(0, 4),
             blurRadius: 12,
           ),
@@ -47,20 +46,27 @@ class StatusBadge extends StatelessWidget {
   final String label;
   final BadgeTone tone;
 
-  const StatusBadge({super.key, required this.label, this.tone = BadgeTone.neutral});
+  const StatusBadge({
+    super.key,
+    required this.label,
+    this.tone = BadgeTone.neutral,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final t = SozuTone.of(context);
+    final t = context.s.color;
     final (bg, fg) = switch (tone) {
-      BadgeTone.positive => (t.primarySoft, t.primaryDark),
-      BadgeTone.pending => (t.pendingSoft, SozuColors.amber600),
-      BadgeTone.negative => (t.negative.withValues(alpha: 0.1), t.negative),
-      BadgeTone.neutral => (t.surfaceAlt, t.textSecondary),
+      BadgeTone.positive => (t.primarySoft, t.primaryHover),
+      BadgeTone.pending => (t.warningSoft, SozuAmber.strong),
+      BadgeTone.negative => (t.danger.withValues(alpha: 0.1), t.danger),
+      BadgeTone.neutral => (t.surfaceAlt, t.fgMuted),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
       child: Text(
         label,
         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fg),
@@ -82,7 +88,7 @@ class SozuAvatar extends StatelessWidget {
       width: size,
       height: size,
       decoration: const BoxDecoration(
-        color: SozuColors.emerald500,
+        color: SozuBrand.green500,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
@@ -106,7 +112,7 @@ class SozuProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final clamped = percent.clamp(0, 100) / 100;
     return ClipRRect(
       borderRadius: BorderRadius.circular(999),
@@ -118,7 +124,7 @@ class SozuProgressBar extends StatelessWidget {
           value: value,
           minHeight: 10,
           backgroundColor: tone.surfaceAlt,
-          valueColor: const AlwaysStoppedAnimation(SozuColors.emerald500),
+          valueColor: const AlwaysStoppedAnimation(SozuBrand.green500),
         ),
       ),
     );
@@ -137,7 +143,8 @@ class Skeleton extends StatefulWidget {
   State<Skeleton> createState() => _SkeletonState();
 }
 
-class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin {
+class _SkeletonState extends State<Skeleton>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1300),
@@ -152,8 +159,8 @@ class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final base = dark ? SozuColors.slate700 : SozuColors.slate200;
-    final highlight = dark ? SozuColors.slate600 : SozuColors.slate100;
+    final base = dark ? SozuNeutral.n700 : SozuNeutral.n200;
+    final highlight = dark ? SozuNeutral.n600 : SozuNeutral.n100;
 
     return AnimatedBuilder(
       animation: _c,
@@ -190,16 +197,21 @@ class SectionTitle extends StatelessWidget {
   final String text;
   final Widget? trailing;
 
-  const SectionTitle({super.key, required this.icon, required this.text, this.trailing});
+  const SectionTitle({
+    super.key,
+    required this.icon,
+    required this.text,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Padding(
       padding: const EdgeInsets.only(top: 24, bottom: 8),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: SozuColors.emerald600),
+          Icon(icon, size: 16, color: SozuBrand.green600),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -207,7 +219,7 @@ class SectionTitle extends StatelessWidget {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: tone.textPrimary,
+                color: tone.fg,
               ),
             ),
           ),
@@ -227,17 +239,17 @@ class EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return AppCard(
       padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
       child: Column(
         children: [
-          Icon(icon, size: 36, color: tone.textMuted),
+          Icon(icon, size: 36, color: tone.fgSubtle),
           const SizedBox(height: 8),
           Text(
             text,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: tone.textSecondary),
+            style: TextStyle(fontSize: 14, color: tone.fgMuted),
           ),
         ],
       ),
@@ -254,11 +266,11 @@ class ErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return AppCard(
       child: Column(
         children: [
-          Icon(Icons.cloud_off_outlined, size: 40, color: tone.textMuted),
+          Icon(Icons.cloud_off_outlined, size: 40, color: tone.fgSubtle),
           const SizedBox(height: 12),
           Text(
             title,
@@ -266,15 +278,13 @@ class ErrorCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: tone.textPrimary,
+              color: tone.fg,
             ),
           ),
           const SizedBox(height: 16),
           FilledButton(
             onPressed: onRetry,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(160, 44),
-            ),
+            style: FilledButton.styleFrom(minimumSize: const Size(160, 44)),
             child: const Text('Reintentar'),
           ),
         ],

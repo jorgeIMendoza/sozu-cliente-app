@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/biometric_service.dart';
-import '../core/theme.dart';
-import 'common.dart';
+import 'package:sozu_cliente_app/core/biometric_service.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Card de Perfil para activar/desactivar el inicio de sesión con biometría.
 /// Autocontenida: se oculta (SizedBox.shrink) si el dispositivo no soporta
@@ -52,9 +52,7 @@ class _BiometricSettingTileState extends ConsumerState<BiometricSettingTile> {
       });
       if (!ok) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo activar la biometría.'),
-          ),
+          const SnackBar(content: Text('No se pudo activar la biometría.')),
         );
       }
     } else {
@@ -70,23 +68,16 @@ class _BiometricSettingTileState extends ConsumerState<BiometricSettingTile> {
   @override
   Widget build(BuildContext context) {
     if (!_soportado) return const SizedBox.shrink();
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     // Margen propio: al colapsar en web no debe quedar hueco en Perfil.
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: _card(tone),
-    );
+    return Padding(padding: const EdgeInsets.only(top: 12), child: _card(tone));
   }
 
-  Widget _card(SozuTone tone) {
+  Widget _card(SozuColorRoles tone) {
     return AppCard(
       child: Row(
         children: [
-          const Icon(
-            Icons.fingerprint,
-            size: 20,
-            color: SozuColors.emerald600,
-          ),
+          const Icon(Icons.fingerprint, size: 20, color: SozuBrand.green600),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -97,7 +88,7 @@ class _BiometricSettingTileState extends ConsumerState<BiometricSettingTile> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: tone.textPrimary,
+                    color: tone.fg,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -105,14 +96,14 @@ class _BiometricSettingTileState extends ConsumerState<BiometricSettingTile> {
                   _habilitada
                       ? 'Entras con tu huella o rostro'
                       : 'Usa tu huella o rostro para entrar',
-                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 12, color: tone.fgMuted),
                 ),
               ],
             ),
           ),
           Switch(
             value: _habilitada,
-            activeTrackColor: SozuColors.emerald500,
+            activeTrackColor: SozuBrand.green500,
             onChanged: _ocupado ? null : _toggle,
           ),
         ],

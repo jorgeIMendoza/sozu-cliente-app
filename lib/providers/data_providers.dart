@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/api_client.dart';
-import '../data/models.dart';
-import 'auth_provider.dart';
-import 'impersonation_provider.dart';
+import 'package:sozu_cliente_app/data/api_client.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
 
 /// Providers de datos (equivalente a los hooks react-query del app RN).
 /// FutureProvider cachea hasta invalidar; refresh = ref.invalidate(provider).

@@ -4,18 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-import '../core/file_download.dart';
-import '../core/format.dart';
-import '../core/open_doc.dart';
-import '../core/open_media.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../widgets/common.dart';
-import '../widgets/fx.dart';
-import '../widgets/portal_top_bar.dart';
-import '../widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/core/file_download.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/open_doc.dart';
+import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/fx.dart';
+import 'package:sozu_cliente_app/widgets/portal_top_bar.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Documentos del cliente — espejo de la sección "Documentos" del Portal del
 /// cliente (ClienteDocumentos.tsx): barra de stats por estatus, filtros por
@@ -77,14 +77,14 @@ String _estadoLabel(String estado) => switch (estado) {
 
 /// Color principal del estatus (mismos tonos que el portal: warning /
 /// primary / success / destructive).
-Color _estadoColor(String estado, SozuTone tone) => switch (estado) {
-  'pendiente' => SozuColors.amber600,
-  'rechazado' => tone.negative,
-  'vencido' => SozuColors.amber600,
-  'recibido' => SozuColors.emerald700,
-  'validado' => SozuColors.emerald500,
-  'firmado' => SozuColors.emerald600,
-  _ => tone.textMuted,
+Color _estadoColor(String estado, SozuColorRoles tone) => switch (estado) {
+  'pendiente' => SozuAmber.strong,
+  'rechazado' => tone.danger,
+  'vencido' => SozuAmber.strong,
+  'recibido' => SozuBrand.green700,
+  'validado' => SozuBrand.green500,
+  'firmado' => SozuBrand.green600,
+  _ => tone.fgSubtle,
 };
 
 String _categoriaLabel(String categoria) => switch (categoria) {
@@ -140,14 +140,17 @@ class DocumentosScreen extends ConsumerStatefulWidget {
 }
 
 class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
-  String? _filtroEstado; // pendiente | rechazado | recibido | validado | firmado
+  String?
+  _filtroEstado; // pendiente | rechazado | recibido | validado | firmado
   int? _filtroCuenta; // id cuenta de cobranza
   String? _filtroCategoria; // contrato | escritura | ... | otro
   bool _agruparPorEstado = false; // false = por propiedad (default del portal)
   final Set<String> _colapsados = {};
 
   bool get _hayFiltros =>
-      _filtroEstado != null || _filtroCuenta != null || _filtroCategoria != null;
+      _filtroEstado != null ||
+      _filtroCuenta != null ||
+      _filtroCategoria != null;
 
   void _limpiarFiltros() => setState(() {
     _filtroEstado = null;
@@ -157,7 +160,7 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final docs = ref.watch(clienteDocumentosProvider);
 
     // Modo portal (web ≥1024): el shell pinta sidebar + topbar y el fondo
@@ -205,7 +208,11 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
     );
   }
 
-  Widget _contenido(BuildContext context, SozuTone tone, ClienteDocumentos data) {
+  Widget _contenido(
+    BuildContext context,
+    SozuColorRoles tone,
+    ClienteDocumentos data,
+  ) {
     final portal = isPortalMode(context);
     // ── Stats sobre TODOS los documentos (como el portal) ──
     final stats = <String, int>{for (final e in _kEstadosStats) e: 0};
@@ -223,7 +230,9 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
     }
     for (final f in data.facturas) {
       propiedades.putIfAbsent(
-          f.idCuenta, () => f.propiedad ?? 'Propiedad ${f.idCuenta}');
+        f.idCuenta,
+        () => f.propiedad ?? 'Propiedad ${f.idCuenta}',
+      );
     }
 
     // ── Filtrado ──
@@ -244,17 +253,22 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
       }
     } else {
       for (final d in filtrados) {
-        grupos.putIfAbsent(d.idCuenta?.toString() ?? 'persona', () => []).add(d);
+        grupos
+            .putIfAbsent(d.idCuenta?.toString() ?? 'persona', () => [])
+            .add(d);
       }
       for (final lista in grupos.values) {
         lista.sort(
-          (a, b) => (_kPrioridadEstado[a.estatus] ?? 9)
-              .compareTo(_kPrioridadEstado[b.estatus] ?? 9),
+          (a, b) => (_kPrioridadEstado[a.estatus] ?? 9).compareTo(
+            _kPrioridadEstado[b.estatus] ?? 9,
+          ),
         );
       }
     }
     final clavesOrdenadas = _agruparPorEstado
-        ? _kOrdenGruposEstado.where((k) => (grupos[k] ?? []).isNotEmpty).toList()
+        ? _kOrdenGruposEstado
+              .where((k) => (grupos[k] ?? []).isNotEmpty)
+              .toList()
         : grupos.keys.toList();
 
     // ── Facturas: respetan filtros como el portal (sin estatus; tipo=cfdi) ──
@@ -263,7 +277,9 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
             (_filtroCategoria != null && _filtroCategoria != 'cfdi'))
         ? <FacturaDocumento>[]
         : data.facturas
-              .where((f) => _filtroCuenta == null || f.idCuenta == _filtroCuenta)
+              .where(
+                (f) => _filtroCuenta == null || f.idCuenta == _filtroCuenta,
+              )
               .toList();
     final mantVisibles =
         (_filtroEstado != null ||
@@ -272,7 +288,8 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
         ? <FacturaMantenimientoDoc>[]
         : data.facturasMantenimiento;
 
-    final sinNada = data.documentos.isEmpty &&
+    final sinNada =
+        data.documentos.isEmpty &&
         data.facturas.isEmpty &&
         data.facturasMantenimiento.isEmpty;
     final sinResultados =
@@ -293,13 +310,15 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
             Text(
               'Documentos',
               style: portalText(
-                  size: 26, weight: FontWeight.w700, letterSpacing: -0.65),
+                size: 26,
+                weight: FontWeight.w700,
+                letterSpacing: -0.65,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               subtitulo,
-              style:
-                  portalText(size: 13, color: PortalColors.mutedForeground),
+              style: portalText(size: 13, color: PortalColors.mutedForeground),
             ),
             const SizedBox(height: 20),
           ],
@@ -316,115 +335,114 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
     // gutters, como ClienteDocumentos.tsx); en móvil se conserva el frame
     // de 900 con padding lateral.
     final lista = ListView(
-        padding: portal
-            ? const EdgeInsets.only(top: 24, bottom: 32)
-            : const EdgeInsets.fromLTRB(16, 0, 16, 32),
-        children: [
-          // Header de página del portal (h1 + subtítulo); en móvil el título
-          // vive en el AppBar y solo se muestra el subtítulo.
-          if (portal) ...[
-            Text(
-              'Documentos',
-              style: portalText(
-                  size: 26, weight: FontWeight.w700, letterSpacing: -0.65),
+      padding: portal
+          ? const EdgeInsets.only(top: 24, bottom: 32)
+          : const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      children: [
+        // Header de página del portal (h1 + subtítulo); en móvil el título
+        // vive en el AppBar y solo se muestra el subtítulo.
+        if (portal) ...[
+          Text(
+            'Documentos',
+            style: portalText(
+              size: 26,
+              weight: FontWeight.w700,
+              letterSpacing: -0.65,
             ),
-            const SizedBox(height: 4),
-            Text(
-              subtitulo,
-              style:
-                  portalText(size: 13, color: PortalColors.mutedForeground),
-            ),
-            const SizedBox(height: 20),
-          ] else ...[
-            Text(
-              subtitulo,
-              style: TextStyle(fontSize: 13, color: tone.textSecondary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitulo,
+            style: portalText(size: 13, color: PortalColors.mutedForeground),
+          ),
+          const SizedBox(height: 20),
+        ] else ...[
+          Text(subtitulo, style: TextStyle(fontSize: 13, color: tone.fgMuted)),
+          const SizedBox(height: 12),
+        ],
+
+        // Barra de stats por estatus (chips clicables).
+        _StatsBar(
+          stats: stats,
+          total: data.total,
+          activo: _filtroEstado,
+          onSeleccionar: (e) => setState(() => _filtroEstado = e),
+        ),
+        const SizedBox(height: 8),
+
+        // Filtros: propiedad, tipo, agrupar, limpiar.
+        _FiltrosRow(
+          propiedades: propiedades,
+          filtroCuenta: _filtroCuenta,
+          filtroCategoria: _filtroCategoria,
+          agruparPorEstado: _agruparPorEstado,
+          hayFiltros: _hayFiltros,
+          onCuenta: (v) => setState(() => _filtroCuenta = v),
+          onCategoria: (v) => setState(() => _filtroCategoria = v),
+          onAgrupar: (porEstado) =>
+              setState(() => _agruparPorEstado = porEstado),
+          onLimpiar: _limpiarFiltros,
+        ),
+        const SizedBox(height: 12),
+
+        if (sinResultados)
+          _SinResultados(onLimpiar: _limpiarFiltros)
+        else ...[
+          for (final clave in clavesOrdenadas) ...[
+            _GrupoSection(
+              titulo: _agruparPorEstado
+                  ? _estadoLabel(clave)
+                  : (clave == 'persona'
+                        ? 'Documentos personales'
+                        : (grupos[clave]!.first.propiedad ??
+                              'Propiedad $clave')),
+              docs: grupos[clave]!,
+              colapsado: _colapsados.contains(clave),
+              onToggle: () => setState(() {
+                _colapsados.contains(clave)
+                    ? _colapsados.remove(clave)
+                    : _colapsados.add(clave);
+              }),
+              onVerDoc: (d) => _mostrarDetalle(context, d),
             ),
             const SizedBox(height: 12),
           ],
-
-          // Barra de stats por estatus (chips clicables).
-          _StatsBar(
-            stats: stats,
-            total: data.total,
-            activo: _filtroEstado,
-            onSeleccionar: (e) => setState(() => _filtroEstado = e),
-          ),
-          const SizedBox(height: 8),
-
-          // Filtros: propiedad, tipo, agrupar, limpiar.
-          _FiltrosRow(
-            propiedades: propiedades,
-            filtroCuenta: _filtroCuenta,
-            filtroCategoria: _filtroCategoria,
-            agruparPorEstado: _agruparPorEstado,
-            hayFiltros: _hayFiltros,
-            onCuenta: (v) => setState(() => _filtroCuenta = v),
-            onCategoria: (v) => setState(() => _filtroCategoria = v),
-            onAgrupar: (porEstado) =>
-                setState(() => _agruparPorEstado = porEstado),
-            onLimpiar: _limpiarFiltros,
-          ),
-          const SizedBox(height: 12),
-
-          if (sinResultados)
-            _SinResultados(onLimpiar: _limpiarFiltros)
-          else ...[
-            for (final clave in clavesOrdenadas) ...[
-              _GrupoSection(
-                titulo: _agruparPorEstado
-                    ? _estadoLabel(clave)
-                    : (clave == 'persona'
-                          ? 'Documentos personales'
-                          : (grupos[clave]!.first.propiedad ??
-                              'Propiedad $clave')),
-                docs: grupos[clave]!,
-                colapsado: _colapsados.contains(clave),
-                onToggle: () => setState(() {
-                  _colapsados.contains(clave)
-                      ? _colapsados.remove(clave)
-                      : _colapsados.add(clave);
-                }),
-                onVerDoc: (d) => _mostrarDetalle(context, d),
-              ),
-              const SizedBox(height: 12),
-            ],
-            if (facturasVisibles.isNotEmpty) ...[
-              _FacturasSection(
-                titulo: 'Facturas · Propiedad',
-                items: [
-                  for (final f in facturasVisibles)
-                    _FacturaEntry(
-                      titulo: 'Factura CFDI',
-                      subtitulo: f.propiedad ?? 'Propiedad ${f.idCuenta}',
-                      fileBase: '${f.idCuenta}',
-                      pdf: f.pdf,
-                      xml: f.xml,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-            ],
-            if (mantVisibles.isNotEmpty) ...[
-              _FacturasSection(
-                titulo: 'Facturas · Mantenimiento',
-                items: [
-                  for (final f in mantVisibles)
-                    _FacturaEntry(
-                      titulo: 'Factura mantenimiento',
-                      subtitulo:
-                          'Pago #${f.idPago}${f.fecha != null ? ' · ${formatDate(f.fecha)}' : ''}',
-                      fileBase: 'pago-${f.idPago}',
-                      pdf: f.pdf,
-                      xml: f.xml,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-            ],
+          if (facturasVisibles.isNotEmpty) ...[
+            _FacturasSection(
+              titulo: 'Facturas · Propiedad',
+              items: [
+                for (final f in facturasVisibles)
+                  _FacturaEntry(
+                    titulo: 'Factura CFDI',
+                    subtitulo: f.propiedad ?? 'Propiedad ${f.idCuenta}',
+                    fileBase: '${f.idCuenta}',
+                    pdf: f.pdf,
+                    xml: f.xml,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (mantVisibles.isNotEmpty) ...[
+            _FacturasSection(
+              titulo: 'Facturas · Mantenimiento',
+              items: [
+                for (final f in mantVisibles)
+                  _FacturaEntry(
+                    titulo: 'Factura mantenimiento',
+                    subtitulo:
+                        'Pago #${f.idPago}${f.fecha != null ? ' · ${formatDate(f.fecha)}' : ''}',
+                    fileBase: 'pago-${f.idPago}',
+                    pdf: f.pdf,
+                    xml: f.xml,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
           ],
         ],
-      );
+      ],
+    );
 
     return portal ? lista : ContentFrame(maxWidth: 900, child: lista);
   }
@@ -437,7 +455,9 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
         context: context,
         builder: (_) => Dialog(
           clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 460),
             child: _DetalleDocumento(d: d),
@@ -471,7 +491,7 @@ class _StatsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -480,7 +500,7 @@ class _StatsBar extends StatelessWidget {
             tone: tone,
             label: 'Todos',
             count: total,
-            color: tone.textPrimary,
+            color: tone.fg,
             seleccionado: activo == null,
             conPunto: false,
             onTap: () => onSeleccionar(null),
@@ -503,7 +523,7 @@ class _StatsBar extends StatelessWidget {
   }
 
   Widget _chip({
-    required SozuTone tone,
+    required SozuColorRoles tone,
     required String label,
     required int count,
     required Color color,
@@ -547,7 +567,7 @@ class _StatsBar extends StatelessWidget {
                 fontWeight: FontWeight.w700,
                 color: seleccionado
                     ? color
-                    : (apagado ? tone.textMuted : tone.textPrimary),
+                    : (apagado ? tone.fgSubtle : tone.fg),
               ),
             ),
             const SizedBox(width: 5),
@@ -557,7 +577,7 @@ class _StatsBar extends StatelessWidget {
                 fontSize: 11,
                 color: seleccionado
                     ? color
-                    : (apagado ? tone.textMuted : tone.textSecondary),
+                    : (apagado ? tone.fgSubtle : tone.fgMuted),
               ),
             ),
           ],
@@ -594,7 +614,7 @@ class _FiltrosRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -650,11 +670,19 @@ class _FiltrosRow extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: Row(
               children: [
-                _segmento(tone, 'Propiedad', !agruparPorEstado,
-                    () => onAgrupar(false)),
+                _segmento(
+                  tone,
+                  'Propiedad',
+                  !agruparPorEstado,
+                  () => onAgrupar(false),
+                ),
                 Container(width: 1, color: tone.border),
-                _segmento(tone, 'Estado', agruparPorEstado,
-                    () => onAgrupar(true)),
+                _segmento(
+                  tone,
+                  'Estado',
+                  agruparPorEstado,
+                  () => onAgrupar(true),
+                ),
               ],
             ),
           ),
@@ -667,22 +695,22 @@ class _FiltrosRow extends StatelessWidget {
                 height: 32,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
-                  color: tone.negative.withValues(alpha: 0.08),
+                  color: tone.danger.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: tone.negative.withValues(alpha: 0.25),
+                    color: tone.danger.withValues(alpha: 0.25),
                   ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.close, size: 13, color: tone.negative),
+                    Icon(Icons.close, size: 13, color: tone.danger),
                     const SizedBox(width: 4),
                     Text(
                       'Limpiar',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: tone.negative,
+                        color: tone.danger,
                       ),
                     ),
                   ],
@@ -697,7 +725,7 @@ class _FiltrosRow extends StatelessWidget {
 
   Widget _dropdown<T>({
     required BuildContext context,
-    required SozuTone tone,
+    required SozuColorRoles tone,
     required String texto,
     required bool activo,
     required List<PopupMenuEntry<T>> opciones,
@@ -714,7 +742,9 @@ class _FiltrosRow extends StatelessWidget {
           color: activo ? tone.primarySoft : tone.surface,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: activo ? SozuColors.emerald500.withValues(alpha: 0.4) : tone.border,
+            color: activo
+                ? SozuBrand.green500.withValues(alpha: 0.4)
+                : tone.border,
           ),
         ),
         child: Row(
@@ -724,14 +754,14 @@ class _FiltrosRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: activo ? tone.primaryDark : tone.textSecondary,
+                color: activo ? tone.primaryHover : tone.fgMuted,
               ),
             ),
             const SizedBox(width: 4),
             Icon(
               Icons.keyboard_arrow_down,
               size: 15,
-              color: activo ? tone.primaryDark : tone.textMuted,
+              color: activo ? tone.primaryHover : tone.fgSubtle,
             ),
           ],
         ),
@@ -740,7 +770,7 @@ class _FiltrosRow extends StatelessWidget {
   }
 
   Widget _segmento(
-    SozuTone tone,
+    SozuColorRoles tone,
     String label,
     bool activo,
     VoidCallback onTap,
@@ -750,16 +780,14 @@ class _FiltrosRow extends StatelessWidget {
       child: Container(
         height: 32,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        color: activo
-            ? tone.textPrimary.withValues(alpha: 0.08)
-            : Colors.transparent,
+        color: activo ? tone.fg.withValues(alpha: 0.08) : Colors.transparent,
         alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: activo ? tone.textPrimary : tone.textSecondary,
+            color: activo ? tone.fg : tone.fgMuted,
           ),
         ),
       ),
@@ -786,7 +814,7 @@ class _GrupoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -820,13 +848,13 @@ class _GrupoSection extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: tone.textPrimary,
+                        color: tone.fg,
                       ),
                     ),
                   ),
                   Text(
                     '${docs.length} doc${docs.length == 1 ? '' : 's'}',
-                    style: TextStyle(fontSize: 11, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 11, color: tone.fgMuted),
                   ),
                   const SizedBox(width: 6),
                   Icon(
@@ -834,7 +862,7 @@ class _GrupoSection extends StatelessWidget {
                         ? Icons.keyboard_arrow_down
                         : Icons.keyboard_arrow_up,
                     size: 16,
-                    color: tone.textSecondary,
+                    color: tone.fgMuted,
                   ),
                 ],
               ),
@@ -866,7 +894,7 @@ class _DocRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final color = _estadoColor(d.estatus, tone);
     final ext = _extension(d.urlFirmada);
     final subtitulo = [
@@ -901,7 +929,7 @@ class _DocRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: tone.textPrimary,
+                      color: tone.fg,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -909,7 +937,7 @@ class _DocRow extends StatelessWidget {
                     subtitulo,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 11, color: tone.fgMuted),
                   ),
                   // Motivo de rechazo bajo el subtítulo (portal DocumentListItem).
                   if (d.estatus == 'rechazado' &&
@@ -919,7 +947,7 @@ class _DocRow extends StatelessWidget {
                       d.motivoRechazo!.trim(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, color: tone.negative),
+                      style: TextStyle(fontSize: 11, color: tone.danger),
                     ),
                   ],
                 ],
@@ -952,7 +980,7 @@ class _DocRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            Icon(Icons.chevron_right, size: 16, color: tone.textMuted),
+            Icon(Icons.chevron_right, size: 16, color: tone.fgSubtle),
           ],
         ),
       ),
@@ -988,7 +1016,7 @@ class _FacturasSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1000,7 +1028,7 @@ class _FacturasSection extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w600,
               letterSpacing: 1,
-              color: tone.textMuted,
+              color: tone.fgSubtle,
             ),
           ),
         ),
@@ -1029,7 +1057,11 @@ class _FacturasSection extends StatelessWidget {
     );
   }
 
-  Widget _facturaRow(BuildContext context, SozuTone tone, _FacturaEntry f) {
+  Widget _facturaRow(
+    BuildContext context,
+    SozuColorRoles tone,
+    _FacturaEntry f,
+  ) {
     return InkWell(
       onTap: () => _mostrarFactura(context, f),
       child: Padding(
@@ -1046,7 +1078,7 @@ class _FacturasSection extends StatelessWidget {
               child: const Icon(
                 Icons.receipt_outlined,
                 size: 18,
-                color: SozuColors.emerald600,
+                color: SozuBrand.green600,
               ),
             ),
             const SizedBox(width: 12),
@@ -1059,7 +1091,7 @@ class _FacturasSection extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: tone.textPrimary,
+                      color: tone.fg,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1067,25 +1099,25 @@ class _FacturasSection extends StatelessWidget {
                     f.subtitulo,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 11, color: tone.fgMuted),
                   ),
                 ],
               ),
             ),
-            if (f.pdf != null) _archivoTag(tone, 'PDF', tone.negative),
+            if (f.pdf != null) _archivoTag(tone, 'PDF', tone.danger),
             if (f.xml != null) ...[
               const SizedBox(width: 4),
               _archivoTag(tone, 'XML', const Color(0xFF2563EB)),
             ],
             const SizedBox(width: 4),
-            Icon(Icons.chevron_right, size: 16, color: tone.textMuted),
+            Icon(Icons.chevron_right, size: 16, color: tone.fgSubtle),
           ],
         ),
       ),
     );
   }
 
-  Widget _archivoTag(SozuTone tone, String label, Color color) {
+  Widget _archivoTag(SozuColorRoles tone, String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -1112,7 +1144,9 @@ class _FacturasSection extends StatelessWidget {
         context: context,
         builder: (_) => Dialog(
           clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: detalle,
@@ -1149,7 +1183,7 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1169,7 +1203,7 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
                 child: const Icon(
                   Icons.receipt_outlined,
                   size: 20,
-                  color: SozuColors.emerald600,
+                  color: SozuBrand.green600,
                 ),
               ),
               const SizedBox(width: 12),
@@ -1182,14 +1216,14 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: tone.textPrimary,
+                        color: tone.fg,
                       ),
                     ),
                     Text(
                       f.subtitulo,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                      style: TextStyle(fontSize: 12, color: tone.fgMuted),
                     ),
                   ],
                 ),
@@ -1209,7 +1243,7 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1,
-                  color: tone.textMuted,
+                  color: tone.fgSubtle,
                 ),
               ),
               const SizedBox(height: 10),
@@ -1225,7 +1259,7 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
 
   /// Lista de archivos disponibles: grid de 2 columnas (PDF | XML) en ancho,
   /// apilados en angosto — espejo de `grid grid-cols-2` de FacturaModalContent.
-  Widget _archivos(BuildContext context, SozuTone tone) {
+  Widget _archivos(BuildContext context, SozuColorRoles tone) {
     final ancho = MediaQuery.sizeOf(context).width >= 768;
     // En móvil se previsualiza in-app (comportamiento previo); en modo portal
     // web se descarga con nombre de archivo, como el portal.
@@ -1236,7 +1270,7 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
             context,
             tone,
             icono: Icons.picture_as_pdf_outlined,
-            color: tone.negative,
+            color: tone.danger,
             titulo: 'PDF',
             subtitulo: 'Factura imprimible',
             onTap: () => portal
@@ -1280,7 +1314,7 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
   /// Footer: "Descargar ZIP" (PDF+XML) + "Cerrar", como el portal. Empaqueta
   /// todos los archivos de la factura en un solo `.zip` (paridad con
   /// `downloadFacturaZip` de ClienteDocumentos.tsx).
-  Widget _acciones(BuildContext context, SozuTone tone) {
+  Widget _acciones(BuildContext context, SozuColorRoles tone) {
     final ambos = f.pdf != null && f.xml != null;
     final cerrar = TextButton(
       onPressed: _zipping ? null : () => Navigator.of(context).pop(),
@@ -1294,7 +1328,7 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
             onPressed: _zipping ? null : () => _descargarZip(context),
             style: FilledButton.styleFrom(
               backgroundColor: tone.primarySoft,
-              foregroundColor: tone.primaryDark,
+              foregroundColor: tone.primaryHover,
               elevation: 0,
               minimumSize: const Size(0, 44),
               shape: RoundedRectangleBorder(
@@ -1307,8 +1341,9 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(tone.primaryDark),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        tone.primaryHover,
+                      ),
                     ),
                   )
                 : const Icon(Icons.download_outlined, size: 18),
@@ -1322,7 +1357,10 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
   }
 
   Future<void> _descargar(
-      BuildContext context, String url, String filename) async {
+    BuildContext context,
+    String url,
+    String filename,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await downloadFile(url, 'factura-$filename');
     if (!ok && context.mounted) {
@@ -1387,8 +1425,10 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
       if (mounted) {
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('No se pudo generar el ZIP; se descargaron los '
-                'archivos por separado.'),
+            content: Text(
+              'No se pudo generar el ZIP; se descargaron los '
+              'archivos por separado.',
+            ),
           ),
         );
       }
@@ -1399,7 +1439,7 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
 
   Widget _archivoBtn(
     BuildContext context,
-    SozuTone tone, {
+    SozuColorRoles tone, {
     required IconData icono,
     required Color color,
     required String titulo,
@@ -1436,17 +1476,17 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: tone.textPrimary,
+                      color: tone.fg,
                     ),
                   ),
                   Text(
                     subtitulo,
-                    style: TextStyle(fontSize: 11, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 11, color: tone.fgMuted),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.download_outlined, size: 18, color: tone.textMuted),
+            Icon(Icons.download_outlined, size: 18, color: tone.fgSubtle),
           ],
         ),
       ),
@@ -1463,7 +1503,7 @@ class _DetalleDocumento extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final color = _estadoColor(d.estatus, tone);
     final archivo = _nombreArchivo(d.urlFirmada);
     final ext = _extension(d.urlFirmada);
@@ -1485,7 +1525,11 @@ class _DetalleDocumento extends StatelessWidget {
                   color: color.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(_categoriaIcono(d.categoria), size: 20, color: color),
+                child: Icon(
+                  _categoriaIcono(d.categoria),
+                  size: 20,
+                  color: color,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1499,14 +1543,14 @@ class _DetalleDocumento extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: tone.textPrimary,
+                        color: tone.fg,
                       ),
                     ),
                     Text(
                       '${_categoriaLabel(d.categoria)} · ${d.propiedad ?? 'Documento personal'}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                      style: TextStyle(fontSize: 12, color: tone.fgMuted),
                     ),
                   ],
                 ),
@@ -1541,10 +1585,10 @@ class _DetalleDocumento extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: tone.negative.withValues(alpha: 0.08),
+                    color: tone.danger.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: tone.negative.withValues(alpha: 0.2),
+                      color: tone.danger.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Column(
@@ -1553,8 +1597,11 @@ class _DetalleDocumento extends StatelessWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.error_outline,
-                              size: 16, color: tone.negative),
+                          Icon(
+                            Icons.error_outline,
+                            size: 16,
+                            color: tone.danger,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -1562,7 +1609,7 @@ class _DetalleDocumento extends StatelessWidget {
                               'asesor para subir una nueva versión.',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: tone.textPrimary,
+                                color: tone.fg,
                                 height: 1.4,
                               ),
                             ),
@@ -1577,7 +1624,7 @@ class _DetalleDocumento extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: tone.negative,
+                            color: tone.danger,
                             height: 1.4,
                           ),
                         ),
@@ -1587,19 +1634,25 @@ class _DetalleDocumento extends StatelessWidget {
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: () => openDoc(context, 'mailto:soporte@sozu.com'
-                              '?subject=${Uri.encodeComponent('Documento rechazado: ${d.nombre}')}'),
+                          onPressed: () => openDoc(
+                            context,
+                            'mailto:soporte@sozu.com'
+                            '?subject=${Uri.encodeComponent('Documento rechazado: ${d.nombre}')}',
+                          ),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: tone.negative,
+                            foregroundColor: tone.danger,
                             side: BorderSide(
-                              color: tone.negative.withValues(alpha: 0.35),
+                              color: tone.danger.withValues(alpha: 0.35),
                             ),
                             minimumSize: const Size(0, 40),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(6),
                             ),
                           ),
-                          icon: const Icon(Icons.support_agent_outlined, size: 16),
+                          icon: const Icon(
+                            Icons.support_agent_outlined,
+                            size: 16,
+                          ),
                           label: const Text('Contactar a soporte'),
                         ),
                       ),
@@ -1615,17 +1668,20 @@ class _DetalleDocumento extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: SozuColors.amber600.withValues(alpha: 0.08),
+                    color: SozuAmber.strong.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: SozuColors.amber600.withValues(alpha: 0.2),
+                      color: SozuAmber.strong.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.warning_amber_outlined,
-                          size: 16, color: SozuColors.amber600),
+                      const Icon(
+                        Icons.warning_amber_outlined,
+                        size: 16,
+                        color: SozuAmber.strong,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -1633,7 +1689,7 @@ class _DetalleDocumento extends StatelessWidget {
                           'subir una versión vigente y volver a validarlo.',
                           style: TextStyle(
                             fontSize: 12,
-                            color: tone.textPrimary,
+                            color: tone.fg,
                             height: 1.4,
                           ),
                         ),
@@ -1661,7 +1717,7 @@ class _DetalleDocumento extends StatelessWidget {
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1,
-                        color: tone.textMuted,
+                        color: tone.fgSubtle,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -1684,8 +1740,7 @@ class _DetalleDocumento extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
-                  onPressed: () =>
-                      _descargar(context, archivo ?? d.nombre),
+                  onPressed: () => _descargar(context, archivo ?? d.nombre),
                   icon: const Icon(Icons.download_outlined, size: 18),
                   label: const Text('Descargar'),
                 ),
@@ -1700,7 +1755,7 @@ class _DetalleDocumento extends StatelessWidget {
                   child: Text(
                     'Este documento no tiene un archivo asociado.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1731,16 +1786,13 @@ class _DetalleDocumento extends StatelessWidget {
     }
   }
 
-  Widget _fila(SozuTone tone, String etiqueta, String valor) {
+  Widget _fila(SozuColorRoles tone, String etiqueta, String valor) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            etiqueta,
-            style: TextStyle(fontSize: 12, color: tone.textSecondary),
-          ),
+          Text(etiqueta, style: TextStyle(fontSize: 12, color: tone.fgMuted)),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -1751,7 +1803,7 @@ class _DetalleDocumento extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: tone.textPrimary,
+                color: tone.fg,
               ),
             ),
           ),
@@ -1770,7 +1822,7 @@ class _SinResultados extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 48),
       child: Column(
@@ -1785,7 +1837,7 @@ class _SinResultados extends StatelessWidget {
             child: Icon(
               Icons.description_outlined,
               size: 24,
-              color: tone.textMuted,
+              color: tone.fgSubtle,
             ),
           ),
           const SizedBox(height: 14),
@@ -1794,14 +1846,14 @@ class _SinResultados extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: tone.textPrimary,
+              color: tone.fg,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             'Ajusta o limpia los filtros para ver más documentos.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: tone.textSecondary),
+            style: TextStyle(fontSize: 13, color: tone.fgMuted),
           ),
           const SizedBox(height: 12),
           TextButton(
@@ -1823,7 +1875,7 @@ class _SheetWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return SafeArea(
       child: Container(
         margin: EdgeInsets.only(

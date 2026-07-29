@@ -3,17 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/format.dart';
-import '../core/open_media.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/api_client.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
-import '../widgets/common.dart';
-import '../widgets/portal_widgets.dart';
-import '../widgets/recibo_pago_sheet.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/api_client.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/widgets/recibo_pago_sheet.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Estado de cuenta POR PROPIEDAD (paridad con el portal admin):
 /// lista de propiedades (buscador) → detalle con resumen (KPIs), filtros
@@ -52,11 +52,11 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     'Diciembre',
   ];
 
-  Color _colorEstatus(SozuTone tone, String estatus) {
+  Color _colorEstatus(SozuColorRoles tone, String estatus) {
     final e = estatus.toLowerCase();
-    if (e.contains('pendiente') || e.contains('vencid')) return tone.pending;
+    if (e.contains('pendiente') || e.contains('vencid')) return tone.warningFg;
     if (e.contains('liquidad') || e.contains('entregad')) return tone.positive;
-    return tone.primaryDark;
+    return tone.primaryHover;
   }
 
   Future<void> _descargarPdf(int cuentaId) async {
@@ -186,7 +186,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
   // ── Lista de propiedades ──────────────────────────────────────────────────
   Widget _lista(List<PropiedadCard> cuentas) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final q = _query.trim().toLowerCase();
     final filtradas = q.isEmpty
         ? cuentas
@@ -203,7 +203,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
       children: [
         Text(
           'Selecciona una propiedad',
-          style: TextStyle(fontSize: 14, color: tone.textSecondary),
+          style: TextStyle(fontSize: 14, color: tone.fgMuted),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -228,7 +228,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  Widget _cardPropiedad(SozuTone tone, PropiedadCard c) {
+  Widget _cardPropiedad(SozuColorRoles tone, PropiedadCard c) {
     final color = _colorEstatus(tone, c.estatusDerivado);
     return GestureDetector(
       onTap: () => setState(() {
@@ -271,7 +271,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: tone.textPrimary,
+                      color: tone.fg,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -279,12 +279,12 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                     '${c.estatusDerivado} · ${c.avancePago.round()}% pagado · ${formatMXN(c.monto)}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: tone.textMuted),
+            Icon(Icons.chevron_right, color: tone.fgSubtle),
           ],
         ),
       ),
@@ -293,7 +293,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
   // ── Detalle ────────────────────────────────────────────────────────────────
   Widget _detalle(PropiedadCard c) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final edo = ref.watch(estadoCuentaProvider(c.id));
     return edo.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -310,7 +310,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  Widget _contenido(SozuTone tone, PropiedadCard c, EstadoCuenta d) {
+  Widget _contenido(SozuColorRoles tone, PropiedadCard c, EstadoCuenta d) {
     // Años de acuerdos Y pagos (antes solo acuerdos → faltaba 2026).
     final anios = <String>{
       for (final a in d.acuerdos)
@@ -324,7 +324,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
       children: [
         Text(
           '${c.proyecto} · U${c.nombre}',
-          style: TextStyle(fontSize: 13, color: tone.textMuted),
+          style: TextStyle(fontSize: 13, color: tone.fgSubtle),
         ),
         const SizedBox(height: 8),
         _resumen(tone, c, d),
@@ -343,13 +343,13 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         Text(
           'Estado de cuenta generado automáticamente por SOZU.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 11, color: tone.textMuted),
+          style: TextStyle(fontSize: 11, color: tone.fgSubtle),
         ),
       ],
     );
   }
 
-  Widget _resumen(SozuTone tone, PropiedadCard c, EstadoCuenta d) {
+  Widget _resumen(SozuColorRoles tone, PropiedadCard c, EstadoCuenta d) {
     final now = DateTime.now();
     final periodo = '${_meses[now.month - 1]} ${now.year}';
 
@@ -380,13 +380,10 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
               Expanded(
                 child: Text(
                   'Periodo · $periodo',
-                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 12, color: tone.fgMuted),
                 ),
               ),
-              StatusBadge(
-                label: c.estatusDerivado,
-                tone: estatusTone,
-              ),
+              StatusBadge(label: c.estatusDerivado, tone: estatusTone),
             ],
           ),
           const SizedBox(height: 12),
@@ -394,12 +391,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
             spacing: 12,
             runSpacing: 12,
             children: [
-              _kpi(
-                tone,
-                'Valor del activo',
-                formatMXN(d.precioFinal),
-                tone.textPrimary,
-              ),
+              _kpi(tone, 'Valor del activo', formatMXN(d.precioFinal), tone.fg),
               _kpi(
                 tone,
                 'Total pagado',
@@ -407,12 +399,12 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                 tone.positive,
               ),
               if (d.totalMultas > 0)
-                _kpi(tone, 'Multas', formatMXN(d.totalMultas), tone.negative),
+                _kpi(tone, 'Multas', formatMXN(d.totalMultas), tone.danger),
               _kpi(
                 tone,
                 'Saldo pendiente',
                 formatMXN(d.saldoPendiente),
-                tone.pending,
+                tone.warningFg,
               ),
             ],
           ),
@@ -424,7 +416,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
-                color: tone.textMuted,
+                color: tone.fgSubtle,
               ),
             ),
             const SizedBox(height: 4),
@@ -438,12 +430,12 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: tone.textPrimary,
+                    color: tone.fg,
                   ),
                 ),
                 Text(
                   '${formatMXN(proxima.monto)} · vence ${formatDate(proxima.fecha)}',
-                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 12, color: tone.fgMuted),
                 ),
               ],
             ),
@@ -454,7 +446,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
               Expanded(
                 child: Text(
                   'Progreso de pago',
-                  style: TextStyle(fontSize: 11, color: tone.textMuted),
+                  style: TextStyle(fontSize: 11, color: tone.fgSubtle),
                 ),
               ),
               Text(
@@ -462,7 +454,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: tone.textPrimary,
+                  color: tone.fg,
                 ),
               ),
             ],
@@ -476,7 +468,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
                 widthFactor: progreso,
-                child: Container(color: tone.primaryDark),
+                child: Container(color: tone.primaryHover),
               ),
             ),
           ),
@@ -488,13 +480,13 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   String _conceptoAcuerdo(AcuerdoPago a) =>
       a.concepto == 'Parcialidad' ? 'Parcialidad ${a.orden}' : a.concepto;
 
-  Widget _kpi(SozuTone tone, String label, String value, Color color) {
+  Widget _kpi(SozuColorRoles tone, String label, String value, Color color) {
     return SizedBox(
       width: 150,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: tone.textMuted)),
+          Text(label, style: TextStyle(fontSize: 11, color: tone.fgSubtle)),
           const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -513,7 +505,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  Widget _tabs(SozuTone tone, EstadoCuenta d) {
+  Widget _tabs(SozuColorRoles tone, EstadoCuenta d) {
     Widget tab(int i, String label, int count) {
       final active = _tab == i;
       return Expanded(
@@ -522,7 +514,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
-              color: active ? tone.primaryDark : tone.surfaceAlt,
+              color: active ? tone.primaryHover : tone.surfaceAlt,
               borderRadius: BorderRadius.circular(10),
             ),
             alignment: Alignment.center,
@@ -531,7 +523,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: active ? Colors.white : tone.textSecondary,
+                color: active ? Colors.white : tone.fgMuted,
               ),
             ),
           ),
@@ -548,7 +540,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  Widget _filtros(SozuTone tone, List<String> anios) {
+  Widget _filtros(SozuColorRoles tone, List<String> anios) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -597,7 +589,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         const SizedBox(height: 8),
         Row(
           children: [
-            Icon(Icons.swap_vert, size: 18, color: tone.textMuted),
+            Icon(Icons.swap_vert, size: 18, color: tone.fgSubtle),
             const SizedBox(width: 4),
             TextButton(
               onPressed: () => setState(() => _ordenDesc = !_ordenDesc),
@@ -607,7 +599,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: tone.primaryDark,
+                  color: tone.primaryHover,
                 ),
               ),
             ),
@@ -617,13 +609,18 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  Widget _chip(SozuTone tone, String label, bool active, VoidCallback onTap) {
+  Widget _chip(
+    SozuColorRoles tone,
+    String label,
+    bool active,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: active ? tone.primaryDark : tone.surfaceAlt,
+          color: active ? tone.primaryHover : tone.surfaceAlt,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
@@ -631,7 +628,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: active ? Colors.white : tone.textSecondary,
+            color: active ? Colors.white : tone.fgMuted,
           ),
         ),
       ),
@@ -643,7 +640,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     return _ordenDesc ? -r : r;
   }
 
-  List<Widget> _listaAcuerdos(SozuTone tone, EstadoCuenta d) {
+  List<Widget> _listaAcuerdos(SozuColorRoles tone, EstadoCuenta d) {
     final acuerdos = d.acuerdos.where((a) {
       if (_estatus == 'pagado' && !a.pagadoCompleto) return false;
       if (_estatus == 'pendiente' && a.pagadoCompleto) return false;
@@ -686,7 +683,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     ];
   }
 
-  List<Widget> _listaPagos(SozuTone tone, EstadoCuenta d) {
+  List<Widget> _listaPagos(SozuColorRoles tone, EstadoCuenta d) {
     final pagos = d.pagos.where((p) {
       if (_anio != 'todos' && !(p.fecha ?? '').startsWith(_anio)) return false;
       return true;
@@ -706,7 +703,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     ];
   }
 
-  Widget _mesHeader(SozuTone tone, String ym, List<AcuerdoPago> items) {
+  Widget _mesHeader(SozuColorRoles tone, String ym, List<AcuerdoPago> items) {
     final pagadoMes = items.fold<double>(0, (s, a) => s + a.pagado);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
@@ -718,13 +715,13 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: tone.textPrimary,
+                color: tone.fg,
               ),
             ),
           ),
           Text(
             '${formatMXN(pagadoMes)} pagado',
-            style: TextStyle(fontSize: 12, color: tone.textSecondary),
+            style: TextStyle(fontSize: 12, color: tone.fgMuted),
           ),
         ],
       ),
@@ -738,7 +735,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     return '${_meses[mes - 1]} ${ym.substring(0, 4)}';
   }
 
-  Widget _acuerdoRow(SozuTone tone, AcuerdoPago a) {
+  Widget _acuerdoRow(SozuColorRoles tone, AcuerdoPago a) {
     final parcial = !a.pagadoCompleto && a.pagado > 0.01;
     final apps = a.aplicaciones;
     final key = '${a.orden}-${a.concepto}-${a.fecha ?? ''}';
@@ -761,7 +758,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: tone.textPrimary,
+                        color: tone.fg,
                       ),
                     ),
                     if (apps.isNotEmpty) _pagosBadge(tone, apps.length),
@@ -781,19 +778,19 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
           const SizedBox(height: 4),
           Text(
             formatDate(a.fecha),
-            style: TextStyle(fontSize: 12, color: tone.textSecondary),
+            style: TextStyle(fontSize: 12, color: tone.fgMuted),
           ),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _mini(tone, 'Monto', formatMXN(a.monto), tone.textPrimary),
+              _mini(tone, 'Monto', formatMXN(a.monto), tone.fg),
               _mini(tone, 'Pagado', formatMXN(a.pagado), tone.positive),
               _mini(
                 tone,
                 'Pendiente',
                 formatMXN(a.pendiente),
-                a.pendiente > 0 ? tone.pending : tone.textMuted,
+                a.pendiente > 0 ? tone.warningFg : tone.fgSubtle,
               ),
             ],
           ),
@@ -804,7 +801,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: SozuColors.amber600,
+                color: SozuAmber.strong,
               ),
             ),
           ],
@@ -823,7 +820,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                   Icon(
                     expanded ? Icons.expand_less : Icons.expand_more,
                     size: 18,
-                    color: tone.primaryDark,
+                    color: tone.primaryHover,
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -833,7 +830,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: tone.primaryDark,
+                      color: tone.primaryHover,
                     ),
                   ),
                 ],
@@ -847,7 +844,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  Widget _pagosBadge(SozuTone tone, int n) {
+  Widget _pagosBadge(SozuColorRoles tone, int n) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -857,14 +854,14 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.layers_outlined, size: 12, color: tone.primaryDark),
+          Icon(Icons.layers_outlined, size: 12, color: tone.primaryHover),
           const SizedBox(width: 4),
           Text(
             n == 1 ? '1 pago' : '$n pagos',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: tone.primaryDark,
+              color: tone.primaryHover,
             ),
           ),
         ],
@@ -872,7 +869,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  Widget _aplicacionRow(SozuTone tone, AplicacionPago app) {
+  Widget _aplicacionRow(SozuColorRoles tone, AplicacionPago app) {
     final clave = (app.claveRastreo ?? '').trim();
     return Container(
       margin: const EdgeInsets.only(top: 10),
@@ -888,13 +885,13 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: tone.textPrimary,
+              color: tone.fg,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             formatDate(app.fecha),
-            style: TextStyle(fontSize: 12, color: tone.textSecondary),
+            style: TextStyle(fontSize: 12, color: tone.fgMuted),
           ),
           if (clave.isNotEmpty) ...[
             const SizedBox(height: 2),
@@ -909,11 +906,11 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                       'Clave $clave',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                      style: TextStyle(fontSize: 12, color: tone.fgMuted),
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Icon(Icons.copy_outlined, size: 13, color: tone.textMuted),
+                  Icon(Icons.copy_outlined, size: 13, color: tone.fgSubtle),
                 ],
               ),
             ),
@@ -976,7 +973,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     }
   }
 
-  Widget _multaRow(SozuTone tone, MultaItem m) {
+  Widget _multaRow(SozuColorRoles tone, MultaItem m) {
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -989,7 +986,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: tone.textPrimary,
+                    color: tone.fg,
                   ),
                 ),
               ),
@@ -1003,13 +1000,13 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _mini(tone, 'Monto', formatMXN(m.monto), tone.textPrimary),
+              _mini(tone, 'Monto', formatMXN(m.monto), tone.fg),
               _mini(tone, 'Pagado', formatMXN(m.pagado), tone.positive),
               _mini(
                 tone,
                 'Pendiente',
                 formatMXN(m.pendiente),
-                m.pendiente > 0 ? tone.pending : tone.textMuted,
+                m.pendiente > 0 ? tone.warningFg : tone.fgSubtle,
               ),
             ],
           ),
@@ -1042,7 +1039,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     }
   }
 
-  Widget _pagoRow(SozuTone tone, PagoRealizado p) {
+  Widget _pagoRow(SozuColorRoles tone, PagoRealizado p) {
     final tieneCep = (p.urlCep ?? '').isNotEmpty;
     return AppCard(
       child: Column(
@@ -1059,7 +1056,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                 child: const Icon(
                   Icons.arrow_downward,
                   size: 16,
-                  color: SozuColors.emerald600,
+                  color: SozuBrand.green600,
                 ),
               ),
               const SizedBox(width: 12),
@@ -1072,14 +1069,14 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: tone.textPrimary,
+                        color: tone.fg,
                       ),
                     ),
                     Text(
                       '${formatDate(p.fecha)}${p.referencia != null ? ' · ${p.referencia}' : ''}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                      style: TextStyle(fontSize: 12, color: tone.fgMuted),
                     ),
                   ],
                 ),
@@ -1130,7 +1127,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   }
 
   Widget _docBtn(
-    SozuTone tone,
+    SozuColorRoles tone,
     IconData icon,
     String label,
     VoidCallback onTap,
@@ -1146,14 +1143,14 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 15, color: tone.primaryDark),
+            Icon(icon, size: 15, color: tone.primaryHover),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: tone.primaryDark,
+                color: tone.primaryHover,
               ),
             ),
           ],
@@ -1162,7 +1159,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  Widget _totalPagos(SozuTone tone, double total) {
+  Widget _totalPagos(SozuColorRoles tone, double total) {
     return AppCard(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1172,7 +1169,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: tone.textPrimary,
+              color: tone.fg,
             ),
           ),
           Text(
@@ -1188,11 +1185,11 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  Widget _mini(SozuTone tone, String label, String value, Color color) {
+  Widget _mini(SozuColorRoles tone, String label, String value, Color color) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: tone.textMuted)),
+        Text(label, style: TextStyle(fontSize: 11, color: tone.fgSubtle)),
         Text(
           value,
           style: TextStyle(
@@ -1206,7 +1203,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   }
 
   // ── Instrucciones de pago ─────────────────────────────────────────────────
-  Widget _instruccionesPago(SozuTone tone, InstruccionesPago i) {
+  Widget _instruccionesPago(SozuColorRoles tone, InstruccionesPago i) {
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1217,7 +1214,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
               fontSize: 11,
               fontWeight: FontWeight.w600,
               letterSpacing: 2,
-              color: tone.textMuted,
+              color: tone.fgSubtle,
             ),
           ),
           const SizedBox(height: 8),
@@ -1234,13 +1231,13 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.shield_outlined, size: 16, color: tone.primaryDark),
+              Icon(Icons.shield_outlined, size: 16, color: tone.primaryHover),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Realiza tu transferencia solo a esta cuenta. '
                   'CLABE vinculada exclusivamente a tu propiedad.',
-                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 12, color: tone.fgMuted),
                 ),
               ),
             ],
@@ -1250,14 +1247,14 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  Widget _filaInfo(SozuTone tone, String label, String value) {
+  Widget _filaInfo(SozuColorRoles tone, String label, String value) {
     return Row(
       children: [
         SizedBox(
           width: 100,
           child: Text(
             label,
-            style: TextStyle(fontSize: 13, color: tone.textSecondary),
+            style: TextStyle(fontSize: 13, color: tone.fgMuted),
           ),
         ),
         Expanded(
@@ -1267,7 +1264,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: tone.textPrimary,
+              color: tone.fg,
             ),
           ),
         ),
@@ -1278,7 +1275,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   }
 
   Widget _filaCopiable(
-    SozuTone tone,
+    SozuColorRoles tone,
     String label,
     String value, {
     bool mono = false,
@@ -1289,7 +1286,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
           width: 100,
           child: Text(
             label,
-            style: TextStyle(fontSize: 13, color: tone.textSecondary),
+            style: TextStyle(fontSize: 13, color: tone.fgMuted),
           ),
         ),
         Expanded(
@@ -1300,14 +1297,14 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
               fontSize: 14,
               fontWeight: FontWeight.w700,
               fontFamily: mono ? 'monospace' : null,
-              color: tone.textPrimary,
+              color: tone.fg,
             ),
           ),
         ),
         IconButton(
           tooltip: 'Copiar',
           iconSize: 16,
-          icon: Icon(Icons.copy_outlined, color: tone.textMuted),
+          icon: Icon(Icons.copy_outlined, color: tone.fgSubtle),
           onPressed: () => _copiar(value, label),
         ),
       ],
@@ -2339,11 +2336,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
           // 1. Encabezado de marca (logo SOZU) + chip de estatus real.
           Row(
             children: [
-              Image.asset(
-                'assets/sozu-logo-black.png',
-                height: 14,
-                fit: BoxFit.contain,
-              ),
+              const SozuLogo.onLight(height: 14),
               const SizedBox(width: 8),
               Text(
                 '-',

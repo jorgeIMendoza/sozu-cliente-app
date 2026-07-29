@@ -5,19 +5,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/format.dart';
-import '../core/open_media.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/api_client.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
-import '../widgets/common.dart';
-import '../widgets/expediente_card.dart' show expedienteEstatusStyle;
-import '../widgets/perfil_sheets.dart' show showCuentaBancariaSheet;
-import '../widgets/portal_widgets.dart';
-import 'perfil_detalle_screens.dart' show PerfilCuentasScreen;
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/api_client.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/expediente_card.dart'
+    show expedienteEstatusStyle;
+import 'package:sozu_cliente_app/widgets/perfil_sheets.dart'
+    show showCuentaBancariaSheet;
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/screens/perfil_detalle_screens.dart'
+    show PerfilCuentasScreen;
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 const _maxArchivoBytes = 10 * 1024 * 1024; // 10 MB (límite del backend)
 
@@ -47,16 +50,31 @@ bool _esCamara(String key) =>
 /// Normaliza para ordenar alfabéticamente (minúsculas + sin acentos), igual
 /// que el `localeCompare('es')` del portal.
 String _normLabel(String s) => s.toLowerCase().replaceAllMapped(
-      RegExp('[áàäâéèëêíìïîóòöôúùüûñ]'),
-      (m) => const {
-        'á': 'a', 'à': 'a', 'ä': 'a', 'â': 'a',
-        'é': 'e', 'è': 'e', 'ë': 'e', 'ê': 'e',
-        'í': 'i', 'ì': 'i', 'ï': 'i', 'î': 'i',
-        'ó': 'o', 'ò': 'o', 'ö': 'o', 'ô': 'o',
-        'ú': 'u', 'ù': 'u', 'ü': 'u', 'û': 'u',
-        'ñ': 'n',
-      }[m[0]]!,
-    );
+  RegExp('[áàäâéèëêíìïîóòöôúùüûñ]'),
+  (m) => const {
+    'á': 'a',
+    'à': 'a',
+    'ä': 'a',
+    'â': 'a',
+    'é': 'e',
+    'è': 'e',
+    'ë': 'e',
+    'ê': 'e',
+    'í': 'i',
+    'ì': 'i',
+    'ï': 'i',
+    'î': 'i',
+    'ó': 'o',
+    'ò': 'o',
+    'ö': 'o',
+    'ô': 'o',
+    'ú': 'u',
+    'ù': 'u',
+    'ü': 'u',
+    'û': 'u',
+    'ñ': 'n',
+  }[m[0]]!,
+);
 
 /// Expediente de identidad: documentos agrupados ("Personales" / "Fiscal y
 /// financiero"), con estatus, subida/captura de archivos (validados por el
@@ -89,9 +107,9 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
     final bytes = await file.readAsBytes();
 
     if (bytes.length > _maxArchivoBytes) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('El archivo supera el límite de 10 MB.'),
-      ));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('El archivo supera el límite de 10 MB.')),
+      );
       return;
     }
 
@@ -118,23 +136,28 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
       } else if (res.datosActa != null) {
         await _confirmarIdentidad(acta: res.datosActa);
       } else {
-        messenger.showSnackBar(SnackBar(
-          content: Text(res.estatus == 'aprobado'
-              ? 'Documento verificado y aprobado'
-              : 'Documento enviado para revisión'),
-        ));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              res.estatus == 'aprobado'
+                  ? 'Documento verificado y aprobado'
+                  : 'Documento enviado para revisión',
+            ),
+          ),
+        );
       }
     } on DocumentoInvalidoError catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(e.reason),
-        duration: const Duration(seconds: 7),
-      ));
+      messenger.showSnackBar(
+        SnackBar(content: Text(e.reason), duration: const Duration(seconds: 7)),
+      );
     } catch (_) {
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(
-        content: Text('No se pudo subir el documento. Intenta de nuevo.'),
-      ));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo subir el documento. Intenta de nuevo.'),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _subiendo = null);
     }
@@ -159,8 +182,9 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
         barrierDismissible: false,
         builder: (_) => Dialog(
           clipBehavior: Clip.antiAlias,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
             child: SingleChildScrollView(child: child),
@@ -216,7 +240,7 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     // Modo portal (web ≥1024): mismo contenido centrado tipo card grande del
     // portal, pero con la card y tipografía del portal y fondo del shell.
     final portal = isPortalMode(context);
@@ -225,24 +249,28 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
     // bancaria" (bajo los documentos financieros), espejo del portal.
     final cuentas =
         ref.watch(clientePerfilProvider).valueOrNull?.cuentasBancarias ??
-            const <CuentaBancariaPerfil>[];
+        const <CuentaBancariaPerfil>[];
 
     final cardBody = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Documentos',
-            style: portal
-                ? portalText(size: 18, weight: FontWeight.w700)
-                : TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: tone.textPrimary)),
+        Text(
+          'Documentos',
+          style: portal
+              ? portalText(size: 18, weight: FontWeight.w700)
+              : TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: tone.fg,
+                ),
+        ),
         const SizedBox(height: 4),
-        Text('Sube cada documento; validamos los datos por ti.',
-            style: portal
-                ? portalText(
-                    size: 13.5, color: PortalColors.mutedForeground)
-                : TextStyle(fontSize: 13.5, color: tone.textSecondary)),
+        Text(
+          'Sube cada documento; validamos los datos por ti.',
+          style: portal
+              ? portalText(size: 13.5, color: PortalColors.mutedForeground)
+              : TextStyle(fontSize: 13.5, color: tone.fgMuted),
+        ),
         const SizedBox(height: 18),
         _grupos(exp, cuentas),
       ],
@@ -267,10 +295,12 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
                     style: TextButton.styleFrom(
                       foregroundColor: portal
                           ? PortalColors.mutedForeground
-                          : tone.textSecondary,
+                          : tone.fgMuted,
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       textStyle: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     icon: const Icon(Icons.arrow_back, size: 15),
                     label: const Text('Volver al Perfil'),
@@ -278,15 +308,9 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
                 ),
                 const SizedBox(height: 8),
                 if (portal)
-                  PortalCard(
-                    padding: const EdgeInsets.all(22),
-                    child: cardBody,
-                  )
+                  PortalCard(padding: const EdgeInsets.all(22), child: cardBody)
                 else
-                  AppCard(
-                    padding: const EdgeInsets.all(22),
-                    child: cardBody,
-                  ),
+                  AppCard(padding: const EdgeInsets.all(22), child: cardBody),
               ],
             ),
           ),
@@ -324,10 +348,13 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
           );
         }
 
-        List<ExpedienteSlot> deGrupo(String grupo) => data.slots
-            .where((s) => (_slotGrupo[s.key] ?? _grupoPersonal) == grupo)
-            .toList()
-          ..sort((a, b) => _normLabel(a.nombre).compareTo(_normLabel(b.nombre)));
+        List<ExpedienteSlot> deGrupo(String grupo) =>
+            data.slots
+                .where((s) => (_slotGrupo[s.key] ?? _grupoPersonal) == grupo)
+                .toList()
+              ..sort(
+                (a, b) => _normLabel(a.nombre).compareTo(_normLabel(b.nombre)),
+              );
 
         final grupos = <({String titulo, String key})>[
           (titulo: 'PERSONALES', key: _grupoPersonal),
@@ -343,26 +370,30 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
           secciones.add(_GrupoHeader(titulo: grupo.titulo));
           secciones.add(const SizedBox(height: 10));
           for (var i = 0; i < slots.length; i++) {
-            secciones.add(_SlotRow(
-              slot: slots[i],
-              subiendo: _subiendo == slots[i].key,
-              bloqueado: _subiendo != null,
-              onSubir: () => _subirArchivo(slots[i],
-                  camara: _esCamara(slots[i].key)),
-            ));
+            secciones.add(
+              _SlotRow(
+                slot: slots[i],
+                subiendo: _subiendo == slots[i].key,
+                bloqueado: _subiendo != null,
+                onSubir: () =>
+                    _subirArchivo(slots[i], camara: _esCamara(slots[i].key)),
+              ),
+            );
             secciones.add(const SizedBox(height: 10));
           }
           // Cuenta bancaria: fila estructurada al final del grupo financiero
           // (banco, número, CLABE/SWIFT, titular, evidencia). Alta disponible
           // también al impersonar (la impersonación es admin-only).
           if (grupo.key == _grupoFinanciero) {
-            secciones.add(_CuentaBancariaRow(
-              cuentas: cuentas,
-              onSubir: () => showCuentaBancariaSheet(context),
-              onVer: cuentas.any((c) => c.evidencia != null)
-                  ? () => _verCuentas()
-                  : null,
-            ));
+            secciones.add(
+              _CuentaBancariaRow(
+                cuentas: cuentas,
+                onSubir: () => showCuentaBancariaSheet(context),
+                onVer: cuentas.any((c) => c.evidencia != null)
+                    ? () => _verCuentas()
+                    : null,
+              ),
+            );
           } else {
             // Quita el SizedBox sobrante tras el último documento del grupo.
             secciones.removeLast();
@@ -385,14 +416,14 @@ class _GrupoHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Text(
       titulo,
       style: TextStyle(
         fontSize: 10.5,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.8,
-        color: tone.textMuted,
+        color: tone.fgSubtle,
       ),
     );
   }
@@ -415,10 +446,12 @@ class _SlotRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     // Badge: 'opcional' se muestra como 'Pendiente' (neutro), igual que el
     // portal (documentos faltantes → "Pendiente").
-    final estatusBadge = slot.estatus == 'opcional' ? 'pendiente' : slot.estatus;
+    final estatusBadge = slot.estatus == 'opcional'
+        ? 'pendiente'
+        : slot.estatus;
     final st = expedienteEstatusStyle(estatusBadge, tone);
     final esCamara = _esCamara(slot.key);
     final tieneDoc = slot.fecha != null;
@@ -438,13 +471,17 @@ class _SlotRow extends StatelessWidget {
           child: CircularProgressIndicator(strokeWidth: 2),
         );
       }
-      final color =
-          puedeActuar ? tone.textSecondary : tone.textMuted.withValues(alpha: 0.4);
+      final color = puedeActuar
+          ? tone.fgMuted
+          : tone.fgSubtle.withValues(alpha: 0.4);
       if (esCamara) {
         return Icon(Icons.photo_camera_outlined, size: 16, color: color);
       }
-      return Icon(tieneDoc ? Icons.edit_outlined : Icons.upload_outlined,
-          size: 16, color: color);
+      return Icon(
+        tieneDoc ? Icons.edit_outlined : Icons.upload_outlined,
+        size: 16,
+        color: color,
+      );
     }
 
     return Container(
@@ -464,8 +501,11 @@ class _SlotRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             alignment: Alignment.center,
-            child: Icon(Icons.description_outlined,
-                size: 17, color: tone.textSecondary),
+            child: Icon(
+              Icons.description_outlined,
+              size: 17,
+              color: tone.fgMuted,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -479,33 +519,44 @@ class _SlotRow extends StatelessWidget {
                   runSpacing: 4,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text(slot.nombre,
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: tone.textPrimary)),
+                    Text(
+                      slot.nombre,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: tone.fg,
+                      ),
+                    ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: st.bg,
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: Text(st.label,
-                          style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                              color: st.fg)),
+                      child: Text(
+                        st.label,
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          color: st.fg,
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  tieneDoc ? 'Subido el ${formatDateEsMX(slot.fecha)}' : 'Sin cargar',
+                  tieneDoc
+                      ? 'Subido el ${formatDateEsMX(slot.fecha)}'
+                      : 'Sin cargar',
                   style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w500,
-                      color: tone.textMuted),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: tone.fgSubtle,
+                  ),
                 ),
               ],
             ),
@@ -516,8 +567,8 @@ class _SlotRow extends StatelessWidget {
             tooltip: esCamara
                 ? 'Capturar con cámara'
                 : tieneDoc
-                    ? 'Reemplazar documento'
-                    : 'Subir documento',
+                ? 'Reemplazar documento'
+                : 'Subir documento',
             onTap: puedeActuar ? onSubir : null,
             child: iconoAccion(),
           ),
@@ -528,8 +579,11 @@ class _SlotRow extends StatelessWidget {
               tooltip: 'Ver documento',
               onTap: () =>
                   openMedia(context, slot.urlFirmada, titulo: slot.nombre),
-              child: Icon(Icons.visibility_outlined,
-                  size: 16, color: tone.textSecondary),
+              child: Icon(
+                Icons.visibility_outlined,
+                size: 16,
+                color: tone.fgMuted,
+              ),
             ),
           ],
         ],
@@ -559,23 +613,23 @@ class _CuentaBancariaRow extends StatelessWidget {
   /// Badge agregado, igual que el portal: sin cuentas → Pendiente; si alguna no
   /// tiene carátula → Incompleto; todas validadas (estatus 2) → Validada; el
   /// resto → En revisión.
-  (String, Color, Color) _badge(SozuTone tone) {
+  (String, Color, Color) _badge(SozuColorRoles tone) {
     if (cuentas.isEmpty) {
-      return ('Pendiente', tone.surfaceAlt, tone.textSecondary);
+      return ('Pendiente', tone.surfaceAlt, tone.fgMuted);
     }
     final todasEvidencia = cuentas.every((c) => c.evidencia != null);
     if (!todasEvidencia) {
-      return ('Incompleto', tone.negative.withValues(alpha: 0.1), tone.negative);
+      return ('Incompleto', tone.danger.withValues(alpha: 0.1), tone.danger);
     }
     if (cuentas.every((c) => c.estatus == 2)) {
-      return ('Validada', tone.primarySoft, tone.primaryDark);
+      return ('Validada', tone.primarySoft, tone.primaryHover);
     }
-    return ('En revisión', tone.pendingSoft, SozuColors.amber600);
+    return ('En revisión', tone.warningSoft, SozuAmber.strong);
   }
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final (label, bg, fg) = _badge(tone);
     final n = cuentas.length;
     final subtitulo = n > 0
@@ -598,8 +652,11 @@ class _CuentaBancariaRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             alignment: Alignment.center,
-            child: Icon(Icons.credit_card_outlined,
-                size: 17, color: tone.textSecondary),
+            child: Icon(
+              Icons.credit_card_outlined,
+              size: 17,
+              color: tone.fgMuted,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -609,36 +666,47 @@ class _CuentaBancariaRow extends StatelessWidget {
                 Row(
                   children: [
                     Flexible(
-                      child: Text('Cuenta bancaria',
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: tone.textPrimary)),
+                      child: Text(
+                        'Cuenta bancaria',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: tone.fg,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: bg,
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: Text(label,
-                          style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                              color: fg)),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          color: fg,
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text(subtitulo,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                        color: tone.textMuted)),
+                Text(
+                  subtitulo,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: tone.fgSubtle,
+                  ),
+                ),
               ],
             ),
           ),
@@ -646,16 +714,18 @@ class _CuentaBancariaRow extends StatelessWidget {
           _IconBtn(
             tooltip: 'Agregar cuenta bancaria',
             onTap: onSubir,
-            child: Icon(Icons.upload_outlined,
-                size: 16, color: tone.textSecondary),
+            child: Icon(Icons.upload_outlined, size: 16, color: tone.fgMuted),
           ),
           if (onVer != null) ...[
             const SizedBox(width: 6),
             _IconBtn(
               tooltip: 'Ver cuentas',
               onTap: onVer,
-              child: Icon(Icons.visibility_outlined,
-                  size: 16, color: tone.textSecondary),
+              child: Icon(
+                Icons.visibility_outlined,
+                size: 16,
+                color: tone.fgMuted,
+              ),
             ),
           ],
         ],
@@ -677,7 +747,7 @@ class _IconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -708,10 +778,12 @@ class _CsfSheetWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return SafeArea(
       child: Container(
-        margin: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        margin: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.9,
         ),
@@ -744,7 +816,7 @@ class _CampoConfirm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -752,11 +824,14 @@ class _CampoConfirm extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: tone.textPrimary)),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: tone.fg,
+              ),
+            ),
           ),
           TextField(
             controller: controller,
@@ -789,7 +864,7 @@ class _ConfirmShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Column(
@@ -801,16 +876,19 @@ class _ConfirmShell extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(titulo,
-                    style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: tone.textPrimary)),
+                Text(
+                  titulo,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: tone.fg,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   'Extrajimos estos datos de tu documento. Verifica que sean '
                   'correctos; se guardarán en tu perfil.',
-                  style: TextStyle(fontSize: 13, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 13, color: tone.fgMuted),
                 ),
               ],
             ),
@@ -833,7 +911,8 @@ class _ConfirmShell extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(0, 44),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: const Text('Cancelar'),
                   ),
@@ -845,14 +924,17 @@ class _ConfirmShell extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(0, 44),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: busy
                         ? const SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text('Sí, es correcta'),
                   ),
@@ -900,8 +982,9 @@ class _ConfirmarDatosFiscalesState
     _rfc = TextEditingController(text: d.rfc ?? p?.rfc ?? '');
     _curp = TextEditingController(text: d.curp ?? p?.curp ?? '');
     _nombre = TextEditingController(text: d.nombre ?? p?.nombreLegal ?? '');
-    _regimen =
-        TextEditingController(text: d.regimen ?? p?.regimenDisplay ?? '');
+    _regimen = TextEditingController(
+      text: d.regimen ?? p?.regimenDisplay ?? '',
+    );
     _cp = TextEditingController(text: d.codigoPostal ?? p?.cp ?? '');
     _calle = TextEditingController(text: d.calle ?? p?.calle ?? '');
     _numExt = TextEditingController(text: d.numExt ?? p?.numExt ?? '');
@@ -984,15 +1067,19 @@ class _ConfirmarDatosFiscalesState
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Documento verificado y datos guardados en tu perfil'),
-      ));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Documento verificado y datos guardados en tu perfil'),
+        ),
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('No se pudieron guardar los datos. Intenta de nuevo.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudieron guardar los datos. Intenta de nuevo.'),
+        ),
+      );
     }
   }
 
@@ -1017,21 +1104,22 @@ class _ConfirmarDatosFiscalesState
         _CampoConfirm(label: 'Nombre / Razón social', controller: _nombre),
         _CampoConfirm(label: 'Régimen fiscal', controller: _regimen),
         _CampoConfirm(
-            label: 'Código postal',
-            controller: _cp,
-            keyboard: TextInputType.number,
-            maxLength: 5),
+          label: 'Código postal',
+          controller: _cp,
+          keyboard: TextInputType.number,
+          maxLength: 5,
+        ),
         _CampoConfirm(label: 'Calle', controller: _calle),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-                child:
-                    _CampoConfirm(label: 'Núm. exterior', controller: _numExt)),
+              child: _CampoConfirm(label: 'Núm. exterior', controller: _numExt),
+            ),
             const SizedBox(width: 12),
             Expanded(
-                child:
-                    _CampoConfirm(label: 'Núm. interior', controller: _numInt)),
+              child: _CampoConfirm(label: 'Núm. interior', controller: _numInt),
+            ),
           ],
         ),
         _CampoConfirm(label: 'Colonia', controller: _colonia),
@@ -1071,14 +1159,14 @@ class _ConfirmarDatosIdentidadState
     final p = ref.read(clientePerfilProvider).valueOrNull;
     final c = widget.curp;
     final a = widget.acta;
-    _curp = TextEditingController(
-        text: c?.curp ?? a?.curp ?? p?.curp ?? '');
+    _curp = TextEditingController(text: c?.curp ?? a?.curp ?? p?.curp ?? '');
     _nombre = TextEditingController(
-        text: c?.nombre ?? a?.nombre ?? p?.nombreLegal ?? '');
+      text: c?.nombre ?? a?.nombre ?? p?.nombreLegal ?? '',
+    );
     _fecha = TextEditingController(
-        text: c?.fechaNacimiento ?? a?.fechaNacimiento ?? '');
-    _sexo = TextEditingController(
-        text: c?.sexoLabel ?? a?.sexoLabel ?? '');
+      text: c?.fechaNacimiento ?? a?.fechaNacimiento ?? '',
+    );
+    _sexo = TextEditingController(text: c?.sexoLabel ?? a?.sexoLabel ?? '');
     _lugar = TextEditingController(text: a?.lugarNacimiento ?? '');
   }
 
@@ -1113,15 +1201,19 @@ class _ConfirmarDatosIdentidadState
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Documento verificado y datos guardados en tu perfil'),
-      ));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Documento verificado y datos guardados en tu perfil'),
+        ),
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('No se pudieron guardar los datos. Intenta de nuevo.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudieron guardar los datos. Intenta de nuevo.'),
+        ),
+      );
     }
   }
 

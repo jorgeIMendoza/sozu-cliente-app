@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../core/portal_theme.dart';
-import 'notification_bell.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/widgets/notification_bell.dart';
 
 /// Encabezado de sección: título + campana con contador de no leídas.
 class PortalTopBar extends StatelessWidget implements PreferredSizeWidget {

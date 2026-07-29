@@ -4,8 +4,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
-import '../data/api_client.dart';
-import '../firebase_options.dart';
+import 'package:sozu_cliente_app/data/api_client.dart';
+import 'package:sozu_cliente_app/firebase_options.dart';
 
 /// Push (FCM) — solo móvil. Web queda fuera: ahí vive la campana in-app.
 ///
@@ -87,7 +87,9 @@ class PushService {
         try {
           await registrarPushToken(nuevo, _plataforma());
           _ultimoToken = nuevo;
-        } catch (_) {/* reintenta en el próximo arranque */}
+        } catch (_) {
+          /* reintenta en el próximo arranque */
+        }
       });
     } catch (e) {
       estado.value = 'Error al registrar: $e';
@@ -112,7 +114,9 @@ class PushService {
     if (token == null) return;
     try {
       await eliminarPushToken(token);
-    } catch (_) {/* best-effort */}
+    } catch (_) {
+      /* best-effort */
+    }
   }
 
   /// Mensajes con la app abierta (FCM no muestra notificación del sistema

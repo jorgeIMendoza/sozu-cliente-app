@@ -3,14 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../core/format.dart';
-import '../core/open_media.dart';
-import '../core/theme.dart';
-import '../data/api_client.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
-import 'common.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/data/api_client.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Datos que el recibo in-app necesita, desacoplados del modelo de origen para
 /// poder alimentarlo desde HistorialPago, PagoRealizado o AplicacionPago
@@ -253,7 +253,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final p = widget.data;
 
     // Datos ricos del recibo (espejo del PaymentReceiptModal del portal). El
@@ -318,7 +318,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                   Icon(
                     Icons.receipt_long_outlined,
                     size: 22,
-                    color: SozuColors.emerald600,
+                    color: SozuBrand.green600,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -330,20 +330,20 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: tone.textPrimary,
+                            color: tone.fg,
                           ),
                         ),
                         Text(
                           'Comprobante electrónico',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: tone.textSecondary,
-                          ),
+                          style: TextStyle(fontSize: 12, color: tone.fgMuted),
                         ),
                       ],
                     ),
                   ),
-                  const StatusBadge(label: 'Aplicado', tone: BadgeTone.positive),
+                  const StatusBadge(
+                    label: 'Aplicado',
+                    tone: BadgeTone.positive,
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -358,10 +358,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                       children: [
                         Text(
                           'Folio',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: tone.textMuted,
-                          ),
+                          style: TextStyle(fontSize: 11, color: tone.fgSubtle),
                         ),
                         const SizedBox(height: 2),
                         Row(
@@ -375,7 +372,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 0.4,
-                                  color: tone.textPrimary,
+                                  color: tone.fg,
                                 ),
                               ),
                             ),
@@ -385,7 +382,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                               child: Icon(
                                 Icons.copy_outlined,
                                 size: 14,
-                                color: SozuColors.emerald600,
+                                color: SozuBrand.green600,
                               ),
                             ),
                           ],
@@ -398,7 +395,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                     children: [
                       Text(
                         'Fecha de emisión',
-                        style: TextStyle(fontSize: 11, color: tone.textMuted),
+                        style: TextStyle(fontSize: 11, color: tone.fgSubtle),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -406,7 +403,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: tone.textPrimary,
+                          color: tone.fg,
                         ),
                       ),
                     ],
@@ -420,7 +417,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1,
-                  color: tone.textMuted,
+                  color: tone.fgSubtle,
                 ),
               ),
               const SizedBox(height: 8),
@@ -472,10 +469,8 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                         'Referencia STP',
                         p.referenciaStp!,
                         mono: true,
-                        onCopiar: () => _copiar(
-                          p.referenciaStp!,
-                          'Referencia STP copiada',
-                        ),
+                        onCopiar: () =>
+                            _copiar(p.referenciaStp!, 'Referencia STP copiada'),
                       ),
                     ],
                     Divider(color: tone.border, height: 1),
@@ -499,7 +494,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                   children: [
                     Text(
                       'Monto pagado',
-                      style: TextStyle(fontSize: 11, color: tone.textSecondary),
+                      style: TextStyle(fontSize: 11, color: tone.fgMuted),
                     ),
                     const SizedBox(height: 4),
                     FittedBox(
@@ -509,14 +504,14 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                         style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w800,
-                          color: tone.primaryDark,
+                          color: tone.primaryHover,
                         ),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'MXN',
-                      style: TextStyle(fontSize: 11, color: tone.textMuted),
+                      style: TextStyle(fontSize: 11, color: tone.fgSubtle),
                     ),
                   ],
                 ),
@@ -529,7 +524,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 1,
-                    color: tone.textMuted,
+                    color: tone.fgSubtle,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -551,7 +546,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                         tone,
                         'Total pagado acumulado',
                         formatMXN(p.totalPagado ?? 0),
-                        color: tone.primaryDark,
+                        color: tone.primaryHover,
                       ),
                       const SizedBox(height: 12),
                       _resumenRow(
@@ -567,7 +562,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                               'Progreso de pago',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: tone.textSecondary,
+                                color: tone.fgMuted,
                               ),
                             ),
                           ),
@@ -576,7 +571,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: tone.textPrimary,
+                              color: tone.fg,
                             ),
                           ),
                         ],
@@ -589,7 +584,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                           minHeight: 6,
                           backgroundColor: tone.surfaceAlt,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            tone.primaryDark,
+                            tone.primaryHover,
                           ),
                         ),
                       ),
@@ -610,7 +605,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                     Icon(
                       Icons.shield_outlined,
                       size: 14,
-                      color: tone.primaryDark,
+                      color: tone.primaryHover,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -620,7 +615,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                         style: TextStyle(
                           fontSize: 10,
                           height: 1.4,
-                          color: tone.textSecondary,
+                          color: tone.fgMuted,
                         ),
                       ),
                     ),
@@ -657,7 +652,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       side: BorderSide(color: tone.border),
-                      foregroundColor: tone.textPrimary,
+                      foregroundColor: tone.fg,
                     ),
                     child: const Icon(Icons.ios_share, size: 18),
                   ),
@@ -673,7 +668,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           side: BorderSide(color: tone.border),
-                          foregroundColor: tone.textPrimary,
+                          foregroundColor: tone.fg,
                         ),
                         icon: const Icon(
                           Icons.verified_user_outlined,
@@ -695,7 +690,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: tone.textSecondary,
+                      color: tone.fgMuted,
                     ),
                   ),
                 ),
@@ -708,7 +703,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
   }
 
   Widget _fila(
-    SozuTone tone,
+    SozuColorRoles tone,
     String label,
     String value, {
     bool mono = false,
@@ -718,7 +713,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       child: Row(
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: tone.textMuted)),
+          Text(label, style: TextStyle(fontSize: 12, color: tone.fgSubtle)),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -729,7 +724,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: tone.textPrimary,
+                color: tone.fg,
                 fontFeatures: mono
                     ? const [FontFeature.tabularFigures()]
                     : null,
@@ -744,7 +739,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
               child: Icon(
                 Icons.copy_outlined,
                 size: 14,
-                color: SozuColors.emerald600,
+                color: SozuBrand.green600,
               ),
             ),
           ],
@@ -756,7 +751,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
   /// Fila del resumen de la propiedad: etiqueta a la izquierda, importe a la
   /// derecha (con color opcional para "Total pagado acumulado").
   Widget _resumenRow(
-    SozuTone tone,
+    SozuColorRoles tone,
     String label,
     String value, {
     Color? color,
@@ -766,7 +761,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
         Expanded(
           child: Text(
             label,
-            style: TextStyle(fontSize: 12, color: tone.textSecondary),
+            style: TextStyle(fontSize: 12, color: tone.fgMuted),
           ),
         ),
         Text(
@@ -774,7 +769,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: color ?? tone.textPrimary,
+            color: color ?? tone.fg,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),

@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/format.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import '../providers/auth_provider.dart';
-import '../providers/data_providers.dart';
-import '../widgets/common.dart';
-import '../widgets/fx.dart';
-import '../widgets/notification_bell.dart';
-import '../widgets/portal_property_card.dart';
-import '../widgets/portal_widgets.dart';
-import '../widgets/property_card.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/fx.dart';
+import 'package:sozu_cliente_app/widgets/notification_bell.dart';
+import 'package:sozu_cliente_app/widgets/portal_property_card.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/widgets/property_card.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 const _actividadMax = 3;
 
@@ -41,7 +41,7 @@ class InicioScreen extends ConsumerWidget {
       );
     }
 
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final resumen = ref.watch(clienteResumenProvider);
     final props = ref.watch(clientePropiedadesProvider);
     final auth = ref.watch(authProvider);
@@ -51,8 +51,7 @@ class InicioScreen extends ConsumerWidget {
       ...?props.valueOrNull?.patrimonioActivo,
     ];
 
-    final ultimoAcceso =
-        formatDate(auth.session?.user.lastSignInAt);
+    final ultimoAcceso = formatDate(auth.session?.user.lastSignInAt);
 
     void abrirProp(int id) => context.push('/propiedad/$id');
 
@@ -71,82 +70,93 @@ class InicioScreen extends ConsumerWidget {
           },
           child: ContentFrame(
             child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            children: [
-              // Header
-              Row(
-                children: [
-                  SozuAvatar(iniciales: resumen.valueOrNull?.iniciales ?? '··'),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: resumen.isLoading
-                        ? const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Skeleton(width: 180, height: 20),
-                              SizedBox(height: 6),
-                              Skeleton(width: 240, height: 12),
-                            ],
-                          )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${_saludo()}, ${resumen.valueOrNull?.nombreLegal.split(RegExp(r'\s+')).first ?? 'cliente'}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: tone.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                '${resumen.valueOrNull?.tipoCliente ?? 'Inversionista'} · '
-                                '${resumen.valueOrNull?.resumen.propiedadesActivas ?? 0} propiedades activas · '
-                                'Últ. acceso $ultimoAcceso',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontSize: 12, color: tone.textSecondary),
-                              ),
-                            ],
-                          ),
-                  ),
-                  // La campana vive en el header/topbar. En modo portal el
-                  // shell ya pinta su topbar con la campana, así que aquí no
-                  // se duplica (además esta vista móvil no se renderiza en
-                  // portal).
-                  if (!isPortalMode(context)) const NotificationBell(),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              ...resumen.when(
-                loading: () => [
-                  const AppCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Skeleton(width: 140, height: 12),
-                        SizedBox(height: 10),
-                        Skeleton(width: 260, height: 34),
-                        SizedBox(height: 16),
-                        Skeleton(height: 12),
-                      ],
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              children: [
+                // Header
+                Row(
+                  children: [
+                    SozuAvatar(
+                      iniciales: resumen.valueOrNull?.iniciales ?? '··',
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: resumen.isLoading
+                          ? const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Skeleton(width: 180, height: 20),
+                                SizedBox(height: 6),
+                                Skeleton(width: 240, height: 12),
+                              ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${_saludo()}, ${resumen.valueOrNull?.nombreLegal.split(RegExp(r'\s+')).first ?? 'cliente'}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: tone.fg,
+                                  ),
+                                ),
+                                Text(
+                                  '${resumen.valueOrNull?.tipoCliente ?? 'Inversionista'} · '
+                                  '${resumen.valueOrNull?.resumen.propiedadesActivas ?? 0} propiedades activas · '
+                                  'Últ. acceso $ultimoAcceso',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: tone.fgMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                    // La campana vive en el header/topbar. En modo portal el
+                    // shell ya pinta su topbar con la campana, así que aquí no
+                    // se duplica (además esta vista móvil no se renderiza en
+                    // portal).
+                    if (!isPortalMode(context)) const NotificationBell(),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                ...resumen.when(
+                  loading: () => [
+                    const AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Skeleton(width: 140, height: 12),
+                          SizedBox(height: 10),
+                          Skeleton(width: 260, height: 34),
+                          SizedBox(height: 16),
+                          Skeleton(height: 12),
+                        ],
+                      ),
+                    ),
+                  ],
+                  error: (_, __) => [
+                    ErrorCard(
+                      title: 'No pudimos cargar tu información',
+                      onRetry: () => ref.invalidate(clienteResumenProvider),
+                    ),
+                  ],
+                  data: (data) => _content(
+                    context,
+                    ref,
+                    tone,
+                    data,
+                    misPropiedades,
+                    props.hasValue,
+                    abrirProp,
                   ),
-                ],
-                error: (_, __) => [
-                  ErrorCard(
-                    title: 'No pudimos cargar tu información',
-                    onRetry: () => ref.invalidate(clienteResumenProvider),
-                  ),
-                ],
-                data: (data) => _content(context, ref, tone, data,
-                    misPropiedades, props.hasValue, abrirProp),
-              ),
-            ],
+                ),
+              ],
             ),
           ),
         ),
@@ -157,7 +167,7 @@ class InicioScreen extends ConsumerWidget {
   List<Widget> _content(
     BuildContext context,
     WidgetRef ref,
-    SozuTone tone,
+    SozuColorRoles tone,
     ClienteResumen data,
     List<PropiedadCard> misPropiedades,
     bool propiedadesCargadas,
@@ -168,99 +178,117 @@ class InicioScreen extends ConsumerWidget {
       // Hero patrimonio
       FadeSlideIn(
         child: AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'PATRIMONIO TOTAL',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 2,
-                          color: tone.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: CountUpMoney(
-                          value: r.patrimonioTotal,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'PATRIMONIO TOTAL',
                           style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w700,
-                            color: tone.textPrimary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 2,
+                            color: tone.fgSubtle,
                           ),
                         ),
-                      ),
-                      if (r.invertidoTotal > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            '+${formatMXN(r.plusvaliaGenerada)} '
-                            '(${r.plusvaliaPorcentaje}%) últimos 12 meses',
+                        const SizedBox(height: 6),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: CountUpMoney(
+                            value: r.patrimonioTotal,
                             style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: tone.positive,
+                              fontSize: 30,
+                              fontWeight: FontWeight.w700,
+                              color: tone.fg,
                             ),
                           ),
                         ),
+                        if (r.invertidoTotal > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              '+${formatMXN(r.plusvaliaGenerada)} '
+                              '(${r.plusvaliaPorcentaje}%) últimos 12 meses',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: tone.positive,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _miniMetric(
+                        tone,
+                        'Invertido total',
+                        formatMXN(r.invertidoTotal),
+                        tone.fg,
+                      ),
+                      const SizedBox(height: 8),
+                      _miniMetric(
+                        tone,
+                        'Plusvalía generada',
+                        '+${formatMXN(r.plusvaliaGenerada)}',
+                        tone.positive,
+                      ),
+                      const SizedBox(height: 8),
+                      _miniMetric(
+                        tone,
+                        'Saldo pendiente',
+                        formatMXN(r.saldoPendiente),
+                        tone.warningFg,
+                      ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    _miniMetric(tone, 'Invertido total',
-                        formatMXN(r.invertidoTotal), tone.textPrimary),
-                    const SizedBox(height: 8),
-                    _miniMetric(tone, 'Plusvalía generada',
-                        '+${formatMXN(r.plusvaliaGenerada)}', tone.positive),
-                    const SizedBox(height: 8),
-                    _miniMetric(tone, 'Saldo pendiente',
-                        formatMXN(r.saldoPendiente), tone.pending),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Divider(color: tone.border, height: 1),
-            const SizedBox(height: 12),
-            _dotLine(tone, tone.positive,
-                'Patrimonio activo: ${formatMXN(r.activoValor)} (${r.activoUnidades} ${r.activoUnidades == 1 ? 'unidad' : 'unidades'})'),
-            const SizedBox(height: 4),
-            _dotLine(tone, tone.pending,
-                'En adquisición: ${formatMXN(r.adquisicionValor)} (${r.adquisicionUnidades} ${r.adquisicionUnidades == 1 ? 'unidad' : 'unidades'})'),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Pagado · ${r.porcentajePagado.toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: tone.textPrimary,
+                ],
+              ),
+              const SizedBox(height: 12),
+              Divider(color: tone.border, height: 1),
+              const SizedBox(height: 12),
+              _dotLine(
+                tone,
+                tone.positive,
+                'Patrimonio activo: ${formatMXN(r.activoValor)} (${r.activoUnidades} ${r.activoUnidades == 1 ? 'unidad' : 'unidades'})',
+              ),
+              const SizedBox(height: 4),
+              _dotLine(
+                tone,
+                tone.warningFg,
+                'En adquisición: ${formatMXN(r.adquisicionValor)} (${r.adquisicionUnidades} ${r.adquisicionUnidades == 1 ? 'unidad' : 'unidades'})',
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Pagado · ${r.porcentajePagado.toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: tone.fg,
+                    ),
                   ),
-                ),
-                Text(
-                  '${formatMXNCompact(r.pagadoTotal)} de ${formatMXNCompact(r.invertidoTotal)}',
-                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            SozuProgressBar(percent: r.porcentajePagado),
-          ],
-        ),
+                  Text(
+                    '${formatMXNCompact(r.pagadoTotal)} de ${formatMXNCompact(r.invertidoTotal)}',
+                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              SozuProgressBar(percent: r.porcentajePagado),
+            ],
+          ),
         ),
       ),
 
@@ -268,7 +296,9 @@ class InicioScreen extends ConsumerWidget {
       const FadeSlideIn(
         delayMs: 80,
         child: SectionTitle(
-            icon: Icons.grid_view_outlined, text: 'Accesos rápidos'),
+          icon: Icons.grid_view_outlined,
+          text: 'Accesos rápidos',
+        ),
       ),
       FadeSlideIn(
         delayMs: 100,
@@ -317,22 +347,27 @@ class InicioScreen extends ConsumerWidget {
         AppCard(
           child: Row(
             children: [
-              const Icon(Icons.check_circle,
-                  color: SozuColors.emerald500, size: 28),
+              const Icon(
+                Icons.check_circle,
+                color: SozuBrand.green500,
+                size: 28,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Estás al día',
-                        style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: tone.textPrimary)),
+                    Text(
+                      'Estás al día',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: tone.fg,
+                      ),
+                    ),
                     Text(
                       data.resumen.mensajeContexto ?? 'Sin pagos pendientes',
-                      style:
-                          TextStyle(fontSize: 12, color: tone.textSecondary),
+                      style: TextStyle(fontSize: 12, color: tone.fgMuted),
                     ),
                   ],
                 ),
@@ -348,9 +383,14 @@ class InicioScreen extends ConsumerWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                    color: tone.pendingSoft, shape: BoxShape.circle),
-                child: const Icon(Icons.warning_amber_outlined,
-                    color: SozuColors.amber600, size: 22),
+                  color: tone.warningSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning_amber_outlined,
+                  color: SozuAmber.strong,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
               Column(
@@ -359,13 +399,15 @@ class InicioScreen extends ConsumerWidget {
                   Text(
                     'Tienes ${data.actividad.length} pendiente${data.actividad.length == 1 ? '' : 's'}',
                     style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: tone.textPrimary),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: tone.fg,
+                    ),
                   ),
-                  Text('Revisa y liquida tus pagos',
-                      style:
-                          TextStyle(fontSize: 12, color: tone.textSecondary)),
+                  Text(
+                    'Revisa y liquida tus pagos',
+                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
+                  ),
                 ],
               ),
             ],
@@ -383,7 +425,9 @@ class InicioScreen extends ConsumerWidget {
               child: Text(
                 'Ver ${data.actividad.length - _actividadMax} más',
                 style: TextStyle(
-                    fontWeight: FontWeight.w600, color: tone.primaryDark),
+                  fontWeight: FontWeight.w600,
+                  color: tone.primaryHover,
+                ),
               ),
             ),
           ),
@@ -392,8 +436,9 @@ class InicioScreen extends ConsumerWidget {
       // Pendientes por propiedad
       if (data.pendientesPorPropiedad.isNotEmpty) ...[
         const SectionTitle(
-            icon: Icons.pending_actions_outlined,
-            text: 'Pendientes por propiedad'),
+          icon: Icons.pending_actions_outlined,
+          text: 'Pendientes por propiedad',
+        ),
         for (final p in data.pendientesPorPropiedad) ...[
           _PendienteRow(p: p, onTap: () => abrirProp(p.cuentaId)),
           const SizedBox(height: 10),
@@ -422,7 +467,9 @@ class InicioScreen extends ConsumerWidget {
               child: Text(
                 'Ver todas (${misPropiedades.length} propiedades)',
                 style: TextStyle(
-                    fontWeight: FontWeight.w600, color: tone.primaryDark),
+                  fontWeight: FontWeight.w600,
+                  color: tone.primaryHover,
+                ),
               ),
             ),
           ),
@@ -430,29 +477,42 @@ class InicioScreen extends ConsumerWidget {
     ];
   }
 
-  Widget _miniMetric(SozuTone tone, String label, String value, Color color) {
+  Widget _miniMetric(
+    SozuColorRoles tone,
+    String label,
+    String value,
+    Color color,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(label, style: TextStyle(fontSize: 10, color: tone.textMuted)),
-        Text(value,
-            style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+        Text(label, style: TextStyle(fontSize: 10, color: tone.fgSubtle)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _dotLine(SozuTone tone, Color dot, String text) {
+  Widget _dotLine(SozuColorRoles tone, Color dot, String text) {
     return Row(
       children: [
         Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 6),
         Expanded(
-          child: Text(text,
-              style: TextStyle(fontSize: 12, color: tone.textSecondary)),
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 12, color: tone.fgMuted),
+          ),
         ),
       ],
     );
@@ -467,13 +527,13 @@ class _ActividadCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final pagar = a.accion == 'pagar' && a.monto > 0;
     // Borde por urgencia: urgente (rojo), próximo (ámbar), futuro (verde).
     final borde = switch (a.urgencia) {
-      'urgent' => tone.negative,
-      'upcoming' => SozuColors.amber600,
-      _ => SozuColors.emerald500,
+      'urgent' => tone.danger,
+      'upcoming' => SozuAmber.strong,
+      _ => SozuBrand.green500,
     };
     return PressableScale(
       onTap: onTap,
@@ -485,13 +545,16 @@ class _ActividadCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(a.propiedad,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: tone.textPrimary)),
+                  Text(
+                    a.propiedad,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: tone.fg,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
@@ -506,14 +569,14 @@ class _ActividadCard extends StatelessWidget {
                         a.categoria == 'patrimonio'
                             ? 'Patrimonio'
                             : 'En adquisición',
-                        style: TextStyle(fontSize: 11, color: tone.textMuted),
+                        style: TextStyle(fontSize: 11, color: tone.fgSubtle),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
                     a.fecha != null ? formatDate(a.fecha) : 'Próximamente',
-                    style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
                   ),
                 ],
               ),
@@ -522,17 +585,22 @@ class _ActividadCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (a.monto > 0)
-                  Text(formatMXN(a.monto),
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: tone.textPrimary)),
+                  Text(
+                    formatMXN(a.monto),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: tone.fg,
+                    ),
+                  ),
                 const SizedBox(height: 6),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: pagar ? SozuColors.emerald500 : tone.surfaceAlt,
+                    color: pagar ? SozuBrand.green500 : tone.surfaceAlt,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
@@ -540,7 +608,7 @@ class _ActividadCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: pagar ? Colors.white : tone.textSecondary,
+                      color: pagar ? Colors.white : tone.fgMuted,
                     ),
                   ),
                 ),
@@ -561,10 +629,10 @@ class _PendienteRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final dot = switch (p.urgencia) {
-      'urgent' => tone.negative,
-      'upcoming' => tone.pending,
+      'urgent' => tone.danger,
+      'upcoming' => tone.warningFg,
       _ => tone.positive,
     };
     return PressableScale(
@@ -573,35 +641,42 @@ class _PendienteRow extends StatelessWidget {
         child: Row(
           children: [
             Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${p.proyecto} · U-${p.unidad}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: tone.textPrimary)),
+                  Text(
+                    '${p.proyecto} · U-${p.unidad}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: tone.fg,
+                    ),
+                  ),
                   Text(
                     '${p.tipo} · ${p.fecha != null ? formatDate(p.fecha) : 'Próximamente'}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
                   ),
                 ],
               ),
             ),
-            Text(formatMXN(p.monto),
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: tone.pending)),
+            Text(
+              formatMXN(p.monto),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: tone.warningFg,
+              ),
+            ),
           ],
         ),
       ),
@@ -615,7 +690,7 @@ class _PortafolioVacio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return AppCard(
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
       child: Column(
@@ -627,8 +702,11 @@ class _PortafolioVacio extends StatelessWidget {
               color: tone.surfaceAlt,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(Icons.apartment_outlined,
-                size: 32, color: tone.textMuted),
+            child: Icon(
+              Icons.apartment_outlined,
+              size: 32,
+              color: tone.fgSubtle,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -637,7 +715,7 @@ class _PortafolioVacio extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: tone.textPrimary,
+              color: tone.fg,
             ),
           ),
           const SizedBox(height: 4),
@@ -645,7 +723,7 @@ class _PortafolioVacio extends StatelessWidget {
             'Cuando adquieras una propiedad con SOZU '
             'aparecerá aquí con toda su información.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: tone.textSecondary),
+            style: TextStyle(fontSize: 13, color: tone.fgMuted),
           ),
         ],
       ),
@@ -670,7 +748,7 @@ class _QuickAccess extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
 
     final iconBox = Container(
       width: 38,
@@ -682,7 +760,7 @@ class _QuickAccess extends StatelessWidget {
       child: Icon(
         icon,
         size: 20,
-        color: destacado ? SozuColors.emerald600 : tone.textSecondary,
+        color: destacado ? SozuBrand.green600 : tone.fgMuted,
       ),
     );
 
@@ -696,7 +774,7 @@ class _QuickAccess extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
-            color: tone.textPrimary,
+            color: tone.fg,
           ),
         ),
         const SizedBox(height: 2),
@@ -704,7 +782,7 @@ class _QuickAccess extends StatelessWidget {
           subtitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 11, color: tone.textMuted),
+          style: TextStyle(fontSize: 11, color: tone.fgSubtle),
         ),
       ],
     );
@@ -724,7 +802,7 @@ class _QuickAccess extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: tone.primaryDark,
+                      color: tone.primaryHover,
                     ),
                   ),
                 ],
@@ -733,11 +811,7 @@ class _QuickAccess extends StatelessWidget {
           : AppCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  iconBox,
-                  const SizedBox(height: 10),
-                  textos,
-                ],
+                children: [iconBox, const SizedBox(height: 10), textos],
               ),
             ),
     );
@@ -772,7 +846,8 @@ class _PortalInicio extends ConsumerWidget {
     if (dt == null) return formatDate(input);
     final local = dt.toLocal();
     final now = DateTime.now();
-    final esHoy = local.year == now.year &&
+    final esHoy =
+        local.year == now.year &&
         local.month == now.month &&
         local.day == now.day;
     if (!esHoy) return formatDate(local);
@@ -895,13 +970,13 @@ class _PortalInicio extends ConsumerWidget {
   // ── 1. Saludo (WelcomeSection) ────────────────────────────────────────────
   Widget _welcome(ClienteResumen data, String ultimoAcceso) {
     Widget punto() => Container(
-          width: 4,
-          height: 4,
-          decoration: const BoxDecoration(
-            color: PortalColors.border,
-            shape: BoxShape.circle,
-          ),
-        );
+      width: 4,
+      height: 4,
+      decoration: const BoxDecoration(
+        color: PortalColors.border,
+        shape: BoxShape.circle,
+      ),
+    );
     final n = data.resumen.propiedadesActivas;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -961,11 +1036,7 @@ class _PortalInicio extends ConsumerWidget {
               if (c.maxWidth < 720) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    izquierda,
-                    const SizedBox(height: 24),
-                    derecha,
-                  ],
+                  children: [izquierda, const SizedBox(height: 24), derecha],
                 );
               }
               return Row(
@@ -994,9 +1065,7 @@ class _PortalInicio extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.only(top: 20),
             decoration: const BoxDecoration(
-              border: Border(
-                top: BorderSide(color: PortalColors.borderSoft),
-              ),
+              border: Border(top: BorderSide(color: PortalColors.borderSoft)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1164,27 +1233,26 @@ class _PortalInicio extends ConsumerWidget {
 
   Widget _heroMetricas(ResumenFinanciero r, double plusvalia) {
     Widget fila(String label, String valor, Color color) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                label,
-                style:
-                    portalText(size: 12, color: PortalColors.mutedForeground),
-              ),
-              Text(
-                valor,
-                style: portalText(
-                  size: 14,
-                  weight: FontWeight.w600,
-                  color: color,
-                  tabular: true,
-                ),
-              ),
-            ],
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: portalText(size: 12, color: PortalColors.mutedForeground),
           ),
-        );
+          Text(
+            valor,
+            style: portalText(
+              size: 14,
+              weight: FontWeight.w600,
+              color: color,
+              tabular: true,
+            ),
+          ),
+        ],
+      ),
+    );
     return Column(
       children: [
         fila(
@@ -1217,7 +1285,10 @@ class _PortalInicio extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Tu actividad', style: portalText(size: 15, weight: FontWeight.w600)),
+        Text(
+          'Tu actividad',
+          style: portalText(size: 15, weight: FontWeight.w600),
+        ),
         const SizedBox(height: 12),
         ..._actividad(context, data),
         if (misPropiedades.isNotEmpty) ...[
@@ -1411,7 +1482,11 @@ class _PortalInicio extends ConsumerWidget {
             clip: true,
             child: Column(
               children: [
-                for (var i = 0; i < data.pendientesPorPropiedad.length; i++) ...[
+                for (
+                  var i = 0;
+                  i < data.pendientesPorPropiedad.length;
+                  i++
+                ) ...[
                   if (i > 0)
                     const Divider(height: 1, color: PortalColors.border),
                   _PortalPendienteRow(
@@ -1676,8 +1751,7 @@ class _PortalQuickAction extends StatelessWidget {
       child: Icon(
         icon,
         size: 16,
-        color:
-            featured ? PortalColors.primary : PortalColors.mutedForeground,
+        color: featured ? PortalColors.primary : PortalColors.mutedForeground,
       ),
     );
     final textos = Column(
@@ -1743,11 +1817,7 @@ class _PortalQuickAction extends StatelessWidget {
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    iconBox,
-                    const SizedBox(height: 10),
-                    textos,
-                  ],
+                  children: [iconBox, const SizedBox(height: 10), textos],
                 ),
         ),
       ),

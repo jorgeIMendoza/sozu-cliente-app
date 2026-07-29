@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../core/format.dart';
-import '../core/open_media.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import 'common.dart';
-import 'portal_widgets.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Cronograma de pagos del detalle de propiedad (espejo de PaymentSchedule en
 /// src/components/admin/portal-cliente/investor/PropertyAcquisitionDetail.tsx
@@ -73,7 +73,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
 
     // Orden por etapa del plan de pagos, DESCENDENTE por concepto (como el
     // "deal"): Pago a escrituración/contraentrega arriba, luego parcialidades
@@ -95,54 +95,48 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
     final visibles = _verTodos ? filas : filas.take(_limiteFilas).toList();
 
     final contenido = LayoutBuilder(
-          builder: (context, constraints) {
-            final ancha = constraints.maxWidth >= _anchoTabla;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _encabezado(tone, filas.length, pagados),
-                if (_seccionAbierta) ...[
-                  const SizedBox(height: 12),
-                  if (filas.isEmpty)
-                    _vacio(tone)
-                  else ...[
-                    if (ancha) _encabezadoTabla(tone),
-                    for (final e in visibles) _fila(tone, e, ancha),
-                    if (filas.length > _limiteFilas)
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: () =>
-                              setState(() => _verTodos = !_verTodos),
-                          icon: Icon(
-                            _verTodos
-                                ? Icons.expand_less
-                                : Icons.expand_more,
-                            size: 18,
-                            color: tone.primaryDark,
-                          ),
-                          label: Text(
-                            _verTodos
-                                ? 'Mostrar menos'
-                                : 'Ver ${filas.length - _limiteFilas} más',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: tone.primaryDark,
-                            ),
-                          ),
+      builder: (context, constraints) {
+        final ancha = constraints.maxWidth >= _anchoTabla;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _encabezado(tone, filas.length, pagados),
+            if (_seccionAbierta) ...[
+              const SizedBox(height: 12),
+              if (filas.isEmpty)
+                _vacio(tone)
+              else ...[
+                if (ancha) _encabezadoTabla(tone),
+                for (final e in visibles) _fila(tone, e, ancha),
+                if (filas.length > _limiteFilas)
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => setState(() => _verTodos = !_verTodos),
+                      icon: Icon(
+                        _verTodos ? Icons.expand_less : Icons.expand_more,
+                        size: 18,
+                        color: tone.primaryHover,
+                      ),
+                      label: Text(
+                        _verTodos
+                            ? 'Mostrar menos'
+                            : 'Ver ${filas.length - _limiteFilas} más',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: tone.primaryHover,
                         ),
                       ),
-                  ],
-                ],
+                    ),
+                  ),
               ],
-            );
-          },
+            ],
+          ],
         );
+      },
+    );
 
     if (widget.portal) {
-      return PortalCard(
-        padding: const EdgeInsets.all(20),
-        child: contenido,
-      );
+      return PortalCard(padding: const EdgeInsets.all(20), child: contenido);
     }
     return Padding(
       padding: const EdgeInsets.only(top: 24),
@@ -152,7 +146,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
 
   /// Encabezado de la tarjeta: título + contador "N/M pagados" + chevron.
   /// Tocarlo colapsa/expande toda la sección.
-  Widget _encabezado(SozuTone tone, int total, int pagados) {
+  Widget _encabezado(SozuColorRoles tone, int total, int pagados) {
     return InkWell(
       onTap: () => setState(() => _seccionAbierta = !_seccionAbierta),
       borderRadius: BorderRadius.circular(8),
@@ -160,11 +154,13 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            Icon(Icons.calendar_month_outlined,
-                size: 16,
-                color: widget.portal
-                    ? PortalColors.mutedForeground
-                    : SozuColors.emerald600),
+            Icon(
+              Icons.calendar_month_outlined,
+              size: 16,
+              color: widget.portal
+                  ? PortalColors.mutedForeground
+                  : SozuBrand.green600,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: widget.portal
@@ -178,21 +174,21 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
-                        color: tone.textSecondary,
+                        color: tone.fgMuted,
                       ),
                     ),
             ),
             if (total > 0) ...[
               Text(
                 '$pagados/$total pagados',
-                style: TextStyle(fontSize: 12, color: tone.textMuted),
+                style: TextStyle(fontSize: 12, color: tone.fgSubtle),
               ),
               const SizedBox(width: 4),
             ],
             AnimatedRotation(
               turns: _seccionAbierta ? 0.5 : 0,
               duration: const Duration(milliseconds: 200),
-              child: Icon(Icons.expand_more, size: 20, color: tone.textMuted),
+              child: Icon(Icons.expand_more, size: 20, color: tone.fgSubtle),
             ),
           ],
         ),
@@ -200,18 +196,17 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
     );
   }
 
-  Widget _vacio(SozuTone tone) {
+  Widget _vacio(SozuColorRoles tone) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.calendar_today_outlined,
-                size: 32, color: tone.textMuted),
+            Icon(Icons.calendar_today_outlined, size: 32, color: tone.fgSubtle),
             const SizedBox(height: 8),
             Text(
               'Sin plan de pagos',
-              style: TextStyle(fontSize: 14, color: tone.textSecondary),
+              style: TextStyle(fontSize: 14, color: tone.fgMuted),
             ),
           ],
         ),
@@ -220,12 +215,12 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
   }
 
   /// Fila de encabezado de la tabla (solo layout ancho).
-  Widget _encabezadoTabla(SozuTone tone) {
+  Widget _encabezadoTabla(SozuColorRoles tone) {
     final estilo = TextStyle(
       fontSize: 10,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.8,
-      color: tone.textMuted,
+      color: tone.fgSubtle,
     );
     return Container(
       padding: const EdgeInsets.only(left: 8, right: 8, bottom: 6),
@@ -251,7 +246,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
   }
 
   /// Fila de un concepto del plan; expandible cuando tiene pagos aplicados.
-  Widget _fila(SozuTone tone, EsquemaPagoItem e, bool ancha) {
+  Widget _fila(SozuColorRoles tone, EsquemaPagoItem e, bool ancha) {
     final estado = _estado(e);
     final abierta = _filasAbiertas.contains(e.id);
     final expandible = e.aplicaciones.isNotEmpty;
@@ -268,11 +263,9 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: resaltada
           ? BoxDecoration(
-              color: tone.pendingSoft.withValues(alpha: 0.6),
+              color: tone.warningSoft.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: SozuColors.amber500.withValues(alpha: 0.25),
-              ),
+              border: Border.all(color: SozuAmber.base.withValues(alpha: 0.25)),
             )
           : null,
       child: Column(
@@ -291,14 +284,19 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
   }
 
   void _alternarFila(int id) => setState(() {
-        _filasAbiertas.contains(id)
-            ? _filasAbiertas.remove(id)
-            : _filasAbiertas.add(id);
-      });
+    _filasAbiertas.contains(id)
+        ? _filasAbiertas.remove(id)
+        : _filasAbiertas.add(id);
+  });
 
   /// Layout ancho: columnas CONCEPTO | MONTO | ESTATUS | chevron.
-  Widget _filaAncha(SozuTone tone, EsquemaPagoItem e, _EstadoFila estado,
-      bool expandible, bool abierta) {
+  Widget _filaAncha(
+    SozuColorRoles tone,
+    EsquemaPagoItem e,
+    _EstadoFila estado,
+    bool expandible,
+    bool abierta,
+  ) {
     return Row(
       children: [
         Expanded(child: _concepto(tone, e, estado, conIcono: false)),
@@ -317,17 +315,19 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
             child: _chipEstado(estado),
           ),
         ),
-        SizedBox(
-          width: 28,
-          child: expandible ? _chevron(tone, abierta) : null,
-        ),
+        SizedBox(width: 28, child: expandible ? _chevron(tone, abierta) : null),
       ],
     );
   }
 
   /// Layout angosto: el monto va debajo del concepto (sin overflow).
-  Widget _filaAngosta(SozuTone tone, EsquemaPagoItem e, _EstadoFila estado,
-      bool expandible, bool abierta) {
+  Widget _filaAngosta(
+    SozuColorRoles tone,
+    EsquemaPagoItem e,
+    _EstadoFila estado,
+    bool expandible,
+    bool abierta,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -359,8 +359,12 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
   }
 
   /// Nombre del concepto + badge "N pagos" + fecha.
-  Widget _concepto(SozuTone tone, EsquemaPagoItem e, _EstadoFila estado,
-      {required bool conIcono}) {
+  Widget _concepto(
+    SozuColorRoles tone,
+    EsquemaPagoItem e,
+    _EstadoFila estado, {
+    required bool conIcono,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -374,23 +378,24 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: tone.textPrimary,
+                color: tone.fg,
               ),
             ),
-            if (e.aplicaciones.length > 1) _badgePagos(tone, e.aplicaciones.length),
+            if (e.aplicaciones.length > 1)
+              _badgePagos(tone, e.aplicaciones.length),
           ],
         ),
         const SizedBox(height: 2),
         Text(
           _fechaCorta(e.fechaPago),
-          style: TextStyle(fontSize: 11, color: tone.textSecondary),
+          style: TextStyle(fontSize: 11, color: tone.fgMuted),
         ),
       ],
     );
   }
 
   /// Badge "N pagos" (concepto compuesto por varias dispersiones).
-  Widget _badgePagos(SozuTone tone, int n) {
+  Widget _badgePagos(SozuColorRoles tone, int n) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
@@ -400,14 +405,14 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.layers_outlined, size: 11, color: tone.primaryDark),
+          Icon(Icons.layers_outlined, size: 11, color: tone.primaryHover),
           const SizedBox(width: 3),
           Text(
             '$n pagos',
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: tone.primaryDark,
+              color: tone.primaryHover,
             ),
           ),
         ],
@@ -417,14 +422,19 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
 
   /// Monto según estatus: parcial muestra abonado, "de $total" y
   /// "Faltan $saldo"; pagado muestra lo aplicado (o lo planeado).
-  Widget _monto(SozuTone tone, EsquemaPagoItem e, _EstadoFila estado,
-      {required bool derecha}) {
-    final alineacion =
-        derecha ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+  Widget _monto(
+    SozuColorRoles tone,
+    EsquemaPagoItem e,
+    _EstadoFila estado, {
+    required bool derecha,
+  }) {
+    final alineacion = derecha
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
     final estiloMonto = TextStyle(
       fontSize: 14,
       fontWeight: FontWeight.w700,
-      color: tone.textPrimary,
+      color: tone.fg,
     );
     if (estado == _EstadoFila.parcial) {
       return Column(
@@ -433,14 +443,14 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
           Text(formatMXN(e.pagado), style: estiloMonto),
           Text(
             'de ${formatMXN(e.monto)}',
-            style: TextStyle(fontSize: 11, color: tone.textMuted),
+            style: TextStyle(fontSize: 11, color: tone.fgSubtle),
           ),
           Text(
             'Faltan ${formatMXN(e.saldo)}',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: tone.negative,
+              color: tone.danger,
             ),
           ),
         ],
@@ -454,32 +464,38 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
 
   Widget _chipEstado(_EstadoFila estado) {
     return switch (estado) {
-      _EstadoFila.pagado =>
-        const StatusBadge(label: 'Pagado', tone: BadgeTone.positive),
-      _EstadoFila.parcial =>
-        const StatusBadge(label: 'Parcial', tone: BadgeTone.pending),
-      _EstadoFila.pendiente =>
-        const StatusBadge(label: 'Pendiente', tone: BadgeTone.pending),
+      _EstadoFila.pagado => const StatusBadge(
+        label: 'Pagado',
+        tone: BadgeTone.positive,
+      ),
+      _EstadoFila.parcial => const StatusBadge(
+        label: 'Parcial',
+        tone: BadgeTone.pending,
+      ),
+      _EstadoFila.pendiente => const StatusBadge(
+        label: 'Pendiente',
+        tone: BadgeTone.pending,
+      ),
     };
   }
 
-  Widget _iconoEstado(SozuTone tone, _EstadoFila estado) {
+  Widget _iconoEstado(SozuColorRoles tone, _EstadoFila estado) {
     final (icono, bg, fg) = switch (estado) {
       _EstadoFila.pagado => (
-          Icons.check_circle_outline,
-          tone.primarySoft,
-          tone.primaryDark,
-        ),
+        Icons.check_circle_outline,
+        tone.primarySoft,
+        tone.primaryHover,
+      ),
       _EstadoFila.parcial => (
-          Icons.layers_outlined,
-          tone.pendingSoft,
-          SozuColors.amber600,
-        ),
+        Icons.layers_outlined,
+        tone.warningSoft,
+        SozuAmber.strong,
+      ),
       _EstadoFila.pendiente => (
-          Icons.calendar_today_outlined,
-          tone.pendingSoft,
-          SozuColors.amber600,
-        ),
+        Icons.calendar_today_outlined,
+        tone.warningSoft,
+        SozuAmber.strong,
+      ),
     };
     return Container(
       width: 28,
@@ -490,23 +506,22 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
     );
   }
 
-  Widget _chevron(SozuTone tone, bool abierta) {
+  Widget _chevron(SozuColorRoles tone, bool abierta) {
     return Container(
       width: 24,
       height: 24,
-      decoration:
-          BoxDecoration(color: tone.surfaceAlt, shape: BoxShape.circle),
+      decoration: BoxDecoration(color: tone.surfaceAlt, shape: BoxShape.circle),
       alignment: Alignment.center,
       child: Icon(
         abierta ? Icons.expand_less : Icons.expand_more,
         size: 16,
-        color: tone.textMuted,
+        color: tone.fgSubtle,
       ),
     );
   }
 
   /// Desglose "N PAGOS APLICADOS A `<CONCEPTO>`" de una fila expandida.
-  Widget _pagosAplicados(SozuTone tone, EsquemaPagoItem e) {
+  Widget _pagosAplicados(SozuColorRoles tone, EsquemaPagoItem e) {
     final apps = [...e.aplicaciones]
       ..sort((a, b) => (a.fecha ?? '').compareTo(b.fecha ?? ''));
     final n = apps.length;
@@ -522,7 +537,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
               fontSize: 10,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.8,
-              color: tone.textMuted,
+              color: tone.fgSubtle,
             ),
           ),
           const SizedBox(height: 6),
@@ -535,7 +550,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
   /// Sub-fila de un pago aplicado: método · monto, fecha · clave de rastreo,
   /// y botón para ver el CEP (o el comprobante si no hay CEP), igual que el
   /// portal (cepUrl ?? evidenceUrl → visor de documento).
-  Widget _pagoAplicado(SozuTone tone, AplicacionPago a) {
+  Widget _pagoAplicado(SozuColorRoles tone, AplicacionPago a) {
     final esCep = (a.urlCep ?? '').isNotEmpty;
     final url = esCep
         ? a.urlCep
@@ -548,7 +563,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
       decoration: BoxDecoration(
         border: Border(
           left: BorderSide(
-            color: SozuColors.emerald500.withValues(alpha: 0.3),
+            color: SozuBrand.green500.withValues(alpha: 0.3),
             width: 2,
           ),
         ),
@@ -566,7 +581,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: tone.textPrimary,
+                    color: tone.fg,
                   ),
                 ),
                 Text(
@@ -574,7 +589,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
                   '${clave.isNotEmpty ? ' · Clave $clave' : ''}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 11, color: tone.fgMuted),
                 ),
               ],
             ),
@@ -601,7 +616,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
                   child: Icon(
                     Icons.receipt_long_outlined,
                     size: 16,
-                    color: tone.primaryDark,
+                    color: tone.primaryHover,
                   ),
                 ),
               ),
@@ -616,8 +631,18 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
 // ── Fecha corta estilo portal: "20 may 2026" ──
 
 const _mesesCortos = [
-  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
 ];
 
 String _fechaCorta(String? iso) {

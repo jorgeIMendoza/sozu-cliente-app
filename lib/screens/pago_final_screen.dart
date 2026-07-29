@@ -5,15 +5,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/format.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/api_client.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
-import '../widgets/common.dart';
-import '../widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/api_client.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Plazos disponibles para el crédito hipotecario (años).
 const _plazosAnios = [10, 15, 20];
@@ -267,7 +267,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         data: sozuLightTheme(),
         child: Builder(
           builder: (context) {
-            final tone = SozuTone.of(context);
+            final tone = context.s.color;
             return Scaffold(
               backgroundColor: PortalColors.background,
               body: Column(
@@ -314,7 +314,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         ),
       );
     }
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Scaffold(
       appBar: AppBar(title: const Text('Pago final')),
       body: ListView(
@@ -325,13 +325,13 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
   }
 
   /// Contenido del flujo (idéntico en móvil y portal).
-  List<Widget> _cuerpo(SozuTone tone) {
+  List<Widget> _cuerpo(SozuColorRoles tone) {
     // Unidad 100% pagada: no hay nada que elegir (ref PagoFinalSheet fully paid).
     if (widget.saldo <= 0) return _unidadLiquidada(tone);
     return [
       Text(
         '${widget.proyecto} · U-${widget.unidad}',
-        style: TextStyle(fontSize: 13, color: tone.textMuted),
+        style: TextStyle(fontSize: 13, color: tone.fgSubtle),
       ),
       const SizedBox(height: 12),
       AppCard(
@@ -340,7 +340,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
           children: [
             Text(
               'Saldo a liquidar',
-              style: TextStyle(fontSize: 14, color: tone.textSecondary),
+              style: TextStyle(fontSize: 14, color: tone.fgMuted),
             ),
             Flexible(
               child: FittedBox(
@@ -350,7 +350,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: tone.textPrimary,
+                    color: tone.fg,
                   ),
                 ),
               ),
@@ -370,10 +370,10 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
 
   // ── Unidad liquidada ──
 
-  List<Widget> _unidadLiquidada(SozuTone tone) => [
+  List<Widget> _unidadLiquidada(SozuColorRoles tone) => [
     Text(
       '${widget.proyecto} · U-${widget.unidad}',
-      style: TextStyle(fontSize: 13, color: tone.textMuted),
+      style: TextStyle(fontSize: 13, color: tone.fgSubtle),
     ),
     const SizedBox(height: 24),
     Center(
@@ -384,7 +384,11 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
           color: tone.primarySoft,
           shape: BoxShape.circle,
         ),
-        child: Icon(Icons.verified_outlined, size: 36, color: tone.primaryDark),
+        child: Icon(
+          Icons.verified_outlined,
+          size: 36,
+          color: tone.primaryHover,
+        ),
       ),
     ),
     const SizedBox(height: 16),
@@ -395,7 +399,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w700,
-          color: tone.textPrimary,
+          color: tone.fg,
         ),
       ),
     ),
@@ -405,7 +409,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         '${widget.proyecto} U-${widget.unidad} está 100% pagada. '
         'Ya puedes agendar tu cita de escrituración y entrega.',
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 13, color: tone.textSecondary),
+        style: TextStyle(fontSize: 13, color: tone.fgMuted),
       ),
     ),
     const SizedBox(height: 24),
@@ -418,7 +422,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
       child: Text(
         'Próximamente podrás agendar tu cita desde la app.',
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 12, color: tone.textMuted),
+        style: TextStyle(fontSize: 12, color: tone.fgSubtle),
       ),
     ),
     const SizedBox(height: 16),
@@ -430,12 +434,12 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
 
   // ── Paso 1: método de pago ──
 
-  List<Widget> _seleccion(SozuTone tone) => [
+  List<Widget> _seleccion(SozuColorRoles tone) => [
     AppCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, size: 20, color: tone.primaryDark),
+          Icon(Icons.info_outline, size: 20, color: tone.primaryHover),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -446,14 +450,14 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: tone.textPrimary,
+                    color: tone.fg,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Para agendar tu cita de escrituración y entrega del '
                   'departamento, tu unidad debe estar liquidada en su totalidad.',
-                  style: TextStyle(fontSize: 13, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 13, color: tone.fgMuted),
                 ),
               ],
             ),
@@ -467,14 +471,14 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
       style: TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w700,
-        color: tone.textPrimary,
+        color: tone.fg,
       ),
     ),
     const SizedBox(height: 4),
     Text(
       'Tu elección nos permitirá preparar correctamente el proceso de '
       'escrituración.',
-      style: TextStyle(fontSize: 13, color: tone.textSecondary),
+      style: TextStyle(fontSize: 13, color: tone.fgMuted),
     ),
     const SizedBox(height: 12),
     _opcionMetodo(
@@ -511,7 +515,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
   ];
 
   Widget _opcionMetodo(
-    SozuTone tone, {
+    SozuColorRoles tone, {
     required String valor,
     required IconData icono,
     required String titulo,
@@ -521,7 +525,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
     return GestureDetector(
       onTap: () => setState(() => _metodo = valor),
       child: AppCard(
-        borderColor: activo ? tone.primaryDark : null,
+        borderColor: activo ? tone.primaryHover : null,
         child: Row(
           children: [
             Icon(
@@ -529,10 +533,10 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   ? Icons.radio_button_checked
                   : Icons.radio_button_unchecked,
               size: 20,
-              color: activo ? tone.primaryDark : tone.textMuted,
+              color: activo ? tone.primaryHover : tone.fgSubtle,
             ),
             const SizedBox(width: 12),
-            Icon(icono, size: 20, color: tone.textSecondary),
+            Icon(icono, size: 20, color: tone.fgMuted),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -543,12 +547,12 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: tone.textPrimary,
+                      color: tone.fg,
                     ),
                   ),
                   Text(
                     subtitulo,
-                    style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
                   ),
                 ],
               ),
@@ -562,14 +566,14 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
   // ── Paso 2: selector de banco (catálogo dinámico, solo bancos con
   // convenio — espejo de MortgageBankSelector del portal) ──
 
-  List<Widget> _bancoSelector(SozuTone tone) => [
+  List<Widget> _bancoSelector(SozuColorRoles tone) => [
     Text(
       'BANCOS ALIADOS CON SOZU',
       style: TextStyle(
         fontSize: 11,
         letterSpacing: 1,
         fontWeight: FontWeight.w600,
-        color: tone.primaryDark,
+        color: tone.primaryHover,
       ),
     ),
     const SizedBox(height: 4),
@@ -578,7 +582,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
       style: TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w700,
-        color: tone.textPrimary,
+        color: tone.fg,
       ),
     ),
     const SizedBox(height: 12),
@@ -608,7 +612,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                       ? 'No pudimos cargar los bancos con convenio. '
                             'Intenta de nuevo más tarde.'
                       : 'No hay bancos con convenio disponibles por ahora.',
-                  style: TextStyle(fontSize: 13, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 13, color: tone.fgMuted),
                 ),
               ),
               const SizedBox(height: 10),
@@ -642,7 +646,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
     ),
   ];
 
-  Widget _bancoCard(SozuTone tone, BancoConvenio b) {
+  Widget _bancoCard(SozuColorRoles tone, BancoConvenio b) {
     final activo = _idBanco == b.id;
     final color = _parseColor(b.color);
     return GestureDetector(
@@ -651,7 +655,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         _bancoSel = b;
       }),
       child: AppCard(
-        borderColor: activo ? tone.primaryDark : null,
+        borderColor: activo ? tone.primaryHover : null,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -660,7 +664,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   ? Icons.radio_button_checked
                   : Icons.radio_button_unchecked,
               size: 20,
-              color: activo ? tone.primaryDark : tone.textMuted,
+              color: activo ? tone.primaryHover : tone.fgSubtle,
             ),
             const SizedBox(width: 12),
             Container(
@@ -683,7 +687,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   : Icon(
                       Icons.account_balance_outlined,
                       size: 20,
-                      color: tone.textSecondary,
+                      color: tone.fgMuted,
                     ),
             ),
             const SizedBox(width: 12),
@@ -696,7 +700,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: tone.textPrimary,
+                      color: tone.fg,
                     ),
                   ),
                   if (b.producto != null || b.tasaDesde != null) ...[
@@ -707,7 +711,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                         if (b.tasaDesde != null)
                           'Tasa desde ${_pct(b.tasaDesde!)}%',
                       ].join(' · '),
-                      style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                      style: TextStyle(fontSize: 12, color: tone.fgMuted),
                     ),
                   ],
                   const SizedBox(height: 6),
@@ -730,7 +734,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
 
   // ── Paso 3: precalificación (monto + plazo + estimación) ──
 
-  List<Widget> _precalificacion(SozuTone tone) {
+  List<Widget> _precalificacion(SozuColorRoles tone) {
     final banco = _bancoSel;
     if (banco == null) return _bancoSelector(tone);
     final estimacion = banco.tasaDesde != null && _montoValido
@@ -743,7 +747,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
           fontSize: 12,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
-          color: tone.primaryDark,
+          color: tone.primaryHover,
         ),
       ),
       const SizedBox(height: 4),
@@ -752,7 +756,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         style: TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w700,
-          color: tone.textPrimary,
+          color: tone.fg,
         ),
       ),
       const SizedBox(height: 12),
@@ -762,7 +766,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
           children: [
             Text(
               'Monto a financiar (MXN)',
-              style: TextStyle(fontSize: 13, color: tone.textSecondary),
+              style: TextStyle(fontSize: 13, color: tone.fgMuted),
             ),
             const SizedBox(height: 6),
             TextField(
@@ -776,7 +780,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: tone.textPrimary,
+                color: tone.fg,
               ),
               decoration: const InputDecoration(
                 prefixText: r'$ ',
@@ -793,7 +797,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                         'Tu saldo pendiente es de ${formatMXN(widget.saldo)} MXN.',
               style: TextStyle(
                 fontSize: 12,
-                color: _monto > widget.saldo ? tone.negative : tone.textMuted,
+                color: _monto > widget.saldo ? tone.danger : tone.fgSubtle,
               ),
             ),
           ],
@@ -805,7 +809,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: tone.textSecondary,
+          color: tone.fgMuted,
         ),
       ),
       const SizedBox(height: 8),
@@ -825,7 +829,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   color: _plazoAnios == p ? tone.primarySoft : tone.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: _plazoAnios == p ? tone.primaryDark : tone.border,
+                    color: _plazoAnios == p ? tone.primaryHover : tone.border,
                   ),
                 ),
                 child: Text(
@@ -833,9 +837,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: _plazoAnios == p
-                        ? tone.primaryDark
-                        : tone.textSecondary,
+                    color: _plazoAnios == p ? tone.primaryHover : tone.fgMuted,
                   ),
                 ),
               ),
@@ -845,13 +847,13 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
       const SizedBox(height: 12),
       if (estimacion != null) ...[
         AppCard(
-          borderColor: tone.primaryDark,
+          borderColor: tone.primaryHover,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Tu mensualidad estimada sería desde',
-                style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                style: TextStyle(fontSize: 12, color: tone.fgMuted),
               ),
               const SizedBox(height: 4),
               FittedBox(
@@ -861,7 +863,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: tone.textPrimary,
+                    color: tone.fg,
                   ),
                 ),
               ),
@@ -869,14 +871,14 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
               Text(
                 'Durante $_plazoAnios años, con tasa fija anual desde '
                 '${_pct(banco.tasaDesde!)}%.',
-                style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                style: TextStyle(fontSize: 12, color: tone.fgMuted),
               ),
               const SizedBox(height: 8),
               Text(
                 'Estimación referencial con la tasa de ${banco.nombre}. La '
                 'tasa y CAT definitivos los determina el banco al revisar tu '
                 'perfil. No constituye una oferta vinculante.',
-                style: TextStyle(fontSize: 11, color: tone.textMuted),
+                style: TextStyle(fontSize: 11, color: tone.fgSubtle),
               ),
             ],
           ),
@@ -887,7 +889,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
           child: Text(
             '${banco.nombre} te compartirá la tasa y mensualidad al revisar '
             'tu solicitud.',
-            style: TextStyle(fontSize: 12, color: tone.textMuted),
+            style: TextStyle(fontSize: 12, color: tone.fgSubtle),
           ),
         ),
         const SizedBox(height: 12),
@@ -904,7 +906,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
           'Autorizo a SOZU compartir mis datos con ${banco.nombre} para '
           'iniciar mi crédito hipotecario, conforme al Aviso de Privacidad '
           '(LFPDPPP).',
-          style: TextStyle(fontSize: 12, color: tone.textSecondary),
+          style: TextStyle(fontSize: 12, color: tone.fgMuted),
         ),
       ),
       const SizedBox(height: 4),
@@ -925,9 +927,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
       ),
       const SizedBox(height: 8),
       OutlinedButton(
-        onPressed: _enviando
-            ? null
-            : () => setState(() => _paso = _Paso.banco),
+        onPressed: _enviando ? null : () => setState(() => _paso = _Paso.banco),
         child: const Text('Cambiar banco'),
       ),
     ];
@@ -935,7 +935,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
 
   // ── Paso 4: estatus del crédito ──
 
-  List<Widget> _estatusCredito(SozuTone tone) {
+  List<Widget> _estatusCredito(SozuColorRoles tone) {
     final s = _solicitud;
     final bancoNombre = s?.bancoNombre;
     final info = s != null ? _estatusInfo(s.estatus) : null;
@@ -950,7 +950,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                 Icon(
                   Icons.verified_outlined,
                   size: 20,
-                  color: tone.primaryDark,
+                  color: tone.primaryHover,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -961,7 +961,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: tone.textPrimary,
+                      color: tone.fg,
                     ),
                   ),
                 ),
@@ -975,7 +975,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
               const SizedBox(height: 8),
               Text(
                 info.descripcion,
-                style: TextStyle(fontSize: 13, color: tone.textSecondary),
+                style: TextStyle(fontSize: 13, color: tone.fgMuted),
               ),
               if (s!.fechaSolicitud != null || s.fechaExpiracion != null) ...[
                 const SizedBox(height: 10),
@@ -1004,7 +1004,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                 'Registramos que liquidarás tu unidad con crédito '
                 'hipotecario. Tu asesor dará seguimiento al proceso con el '
                 'banco.',
-                style: TextStyle(fontSize: 13, color: tone.textSecondary),
+                style: TextStyle(fontSize: 13, color: tone.fgMuted),
               ),
             ],
           ],
@@ -1025,7 +1025,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                 fontSize: 11,
                 letterSpacing: 1,
                 fontWeight: FontWeight.w600,
-                color: tone.textMuted,
+                color: tone.fgSubtle,
               ),
             ),
             const SizedBox(height: 8),
@@ -1048,13 +1048,13 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   Icon(
                     Icons.check_circle_outline,
                     size: 16,
-                    color: tone.primaryDark,
+                    color: tone.primaryHover,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       paso,
-                      style: TextStyle(fontSize: 13, color: tone.textSecondary),
+                      style: TextStyle(fontSize: 13, color: tone.fgMuted),
                     ),
                   ),
                 ],
@@ -1086,7 +1086,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
 
   /// Resumen de la precalificación enviada en esta sesión (espejo del bloque
   /// "Estimación enviada a {banco}" del portal).
-  Widget _resumenEnviadoCard(SozuTone tone, String? bancoNombre) {
+  Widget _resumenEnviadoCard(SozuColorRoles tone, String? bancoNombre) {
     final r = _resumenEnviado!;
     return AppCard(
       child: Column(
@@ -1100,14 +1100,14 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
               fontSize: 11,
               letterSpacing: 1,
               fontWeight: FontWeight.w600,
-              color: tone.textMuted,
+              color: tone.fgSubtle,
             ),
           ),
           const SizedBox(height: 10),
           if (r.mensualidad != null) ...[
             Text(
               'Mensualidad estimada',
-              style: TextStyle(fontSize: 11, color: tone.textMuted),
+              style: TextStyle(fontSize: 11, color: tone.fgSubtle),
             ),
             const SizedBox(height: 2),
             FittedBox(
@@ -1117,7 +1117,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: tone.textPrimary,
+                  color: tone.fg,
                 ),
               ),
             ),
@@ -1138,18 +1138,18 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
     );
   }
 
-  Widget _fechaDato(SozuTone tone, String label, String valor) {
+  Widget _fechaDato(SozuColorRoles tone, String label, String valor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: tone.textMuted)),
+        Text(label, style: TextStyle(fontSize: 11, color: tone.fgSubtle)),
         const SizedBox(height: 2),
         Text(
           valor,
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: tone.textPrimary,
+            color: tone.fg,
           ),
         ),
       ],

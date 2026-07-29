@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/format.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
-import '../widgets/common.dart';
-import '../widgets/fx.dart';
-import '../widgets/patrimonio_card.dart';
-import '../widgets/portal_property_card.dart';
-import '../widgets/portal_top_bar.dart';
-import '../widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/fx.dart';
+import 'package:sozu_cliente_app/widgets/patrimonio_card.dart';
+import 'package:sozu_cliente_app/widgets/portal_property_card.dart';
+import 'package:sozu_cliente_app/widgets/portal_top_bar.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Mi patrimonio: propiedades entregadas + KPIs (unidades, valor actual y
 /// plusvalía acumulada) + buscador en vivo (espejo de ClientePatrimonio.tsx).
@@ -30,16 +30,20 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
     final q = _busqueda.trim().toLowerCase();
     if (q.isEmpty) return items;
     return items
-        .where((p) => '${p.proyecto} ${p.nombre} ${p.ubicacion ?? ''}'
-            .toLowerCase()
-            .contains(q))
+        .where(
+          (p) => '${p.proyecto} ${p.nombre} ${p.ubicacion ?? ''}'
+              .toLowerCase()
+              .contains(q),
+        )
         .toList();
   }
 
   /// Cuenta de mantenimiento de la propiedad: cruce por id y, si no, por
   /// nombre (el backend arma `propiedad` con el nombre de la unidad).
   MantenimientoCard? _mantenimientoDe(
-      ClientePropiedades data, PropiedadCard p) {
+    ClientePropiedades data,
+    PropiedadCard p,
+  ) {
     for (final m in data.mantenimiento) {
       if (m.id == p.id) return m;
       if (p.nombre != '—' &&
@@ -61,7 +65,7 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final props = ref.watch(clientePropiedadesProvider);
 
     // Modo portal (web ≥1024): réplica de ClientePatrimonio del Portal del
@@ -168,7 +172,7 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
                     n > 0
                         ? 'Tus propiedades entregadas · $n ${n == 1 ? 'unidad' : 'unidades'}'
                         : 'Tus propiedades entregadas',
-                    style: TextStyle(fontSize: 14, color: tone.textSecondary),
+                    style: TextStyle(fontSize: 14, color: tone.fgMuted),
                   ),
                   const SizedBox(height: 16),
                   LayoutBuilder(
@@ -187,21 +191,21 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
                           _KpiCard(
                             label: 'Plusvalía acumulada',
                             value: _kpiPlusvalia(plusvalia, plusvaliaPct),
-                            color: plusvalia >= 0
-                                ? tone.positive
-                                : tone.negative,
+                            color: plusvalia >= 0 ? tone.positive : tone.danger,
                           ),
                       ];
                       const gap = 12.0;
                       final maxCols = c.maxWidth >= 700 ? 3 : 2;
-                      final cols =
-                          kpis.length < maxCols ? kpis.length : maxCols;
+                      final cols = kpis.length < maxCols
+                          ? kpis.length
+                          : maxCols;
                       final itemW = (c.maxWidth - gap * (cols - 1)) / cols;
                       return Wrap(
                         spacing: gap,
                         runSpacing: gap,
                         children: [
-                          for (final k in kpis) SizedBox(width: itemW, child: k),
+                          for (final k in kpis)
+                            SizedBox(width: itemW, child: k),
                         ],
                       );
                     },
@@ -216,14 +220,19 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
                     TextField(
                       onChanged: (v) => setState(() => _busqueda = v),
                       textInputAction: TextInputAction.search,
-                      style: TextStyle(fontSize: 14, color: tone.textPrimary),
+                      style: TextStyle(fontSize: 14, color: tone.fg),
                       decoration: InputDecoration(
                         hintText: 'Buscar propiedad…',
-                        prefixIcon:
-                            Icon(Icons.search, size: 20, color: tone.textMuted),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          size: 20,
+                          color: tone.fgSubtle,
+                        ),
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -272,7 +281,7 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
             title: 'Mi patrimonio',
             subtitle: n > 0
                 ? 'Tus propiedades entregadas · $n '
-                    '${n == 1 ? 'unidad' : 'unidades'}'
+                      '${n == 1 ? 'unidad' : 'unidades'}'
                 : 'Tus propiedades entregadas',
           ),
           const SizedBox(height: 20),
@@ -280,7 +289,8 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
             const PortalEmptyState(
               icon: Icons.account_balance_wallet_outlined,
               title: 'Tu patrimonio se construirá aquí',
-              message: 'Cuando alguna de tus propiedades sea entregada, '
+              message:
+                  'Cuando alguna de tus propiedades sea entregada, '
                   'pasará automáticamente a esta sección donde podrás '
                   'gestionar mantenimiento, ver plusvalía y administrar '
                   'tus activos.',
@@ -354,12 +364,12 @@ class _KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: tone.textMuted)),
+          Text(label, style: TextStyle(fontSize: 11, color: tone.fgSubtle)),
           const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -368,7 +378,7 @@ class _KpiCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: color ?? tone.textPrimary,
+                color: color ?? tone.fg,
               ),
             ),
           ),

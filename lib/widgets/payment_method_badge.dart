@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../core/format.dart';
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import 'common.dart';
-import 'portal_widgets.dart';
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Chip compacto que confirma la forma de pago final elegida (espejo de
 /// PaymentMethodBadge.tsx del portal admin): recursos propios (STP) o crédito
@@ -32,7 +32,7 @@ class PaymentMethodBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     switch (tipoFinanciamiento) {
       case 'RECURSOS_PROPIOS':
         return _card(
@@ -42,7 +42,7 @@ class PaymentMethodBadge extends StatelessWidget {
           cuerpo: Text(
             'Liquidarás el saldo restante con transferencia. '
             'Tu selección quedó registrada. Todo listo.',
-            style: TextStyle(fontSize: 12, color: tone.textSecondary),
+            style: TextStyle(fontSize: 12, color: tone.fgMuted),
           ),
         );
       case 'CREDITO_HIPOTECARIO':
@@ -52,7 +52,7 @@ class PaymentMethodBadge extends StatelessWidget {
     }
   }
 
-  Widget _credito(SozuTone tone) {
+  Widget _credito(SozuColorRoles tone) {
     final banco = solicitud?.bancoNombre;
     final titulo = (banco != null && banco != '—')
         ? 'Crédito hipotecario · $banco'
@@ -76,12 +76,12 @@ class PaymentMethodBadge extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.schedule, size: 12, color: tone.textMuted),
+              Icon(Icons.schedule, size: 12, color: tone.fgSubtle),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   linea,
-                  style: TextStyle(fontSize: 12, color: tone.textSecondary),
+                  style: TextStyle(fontSize: 12, color: tone.fgMuted),
                 ),
               ),
             ],
@@ -97,7 +97,7 @@ class PaymentMethodBadge extends StatelessWidget {
                 if (solicitud?.fechaExpiracion != null)
                   Text(
                     'Vence ${formatDate(solicitud!.fechaExpiracion)}',
-                    style: TextStyle(fontSize: 11, color: tone.textMuted),
+                    style: TextStyle(fontSize: 11, color: tone.fgSubtle),
                   ),
               ],
             ),
@@ -106,7 +106,7 @@ class PaymentMethodBadge extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'La selección es definitiva mientras el banco responde.',
-              style: TextStyle(fontSize: 11, color: tone.textMuted),
+              style: TextStyle(fontSize: 11, color: tone.fgSubtle),
             ),
           ],
         ],
@@ -121,13 +121,11 @@ class PaymentMethodBadge extends StatelessWidget {
           'posible.',
     'asignado' => 'Un ejecutivo del banco fue asignado a tu solicitud.',
     'contactado' => 'El banco ya hizo el primer contacto contigo.',
-    'en_evaluacion' ||
-    'en_revision' => 'El banco está evaluando tu solicitud.',
+    'en_evaluacion' || 'en_revision' => 'El banco está evaluando tu solicitud.',
     'pre_aprobado' =>
       '¡Pre-aprobado! El banco continuará con los siguientes pasos.',
     'oferta_vinculante' => 'El banco emitió tu oferta vinculante.',
-    'en_coordinacion' =>
-      'Coordinando notario y fecha de firma con el banco.',
+    'en_coordinacion' => 'Coordinando notario y fecha de firma con el banco.',
     'formalizado' => 'Crédito formalizado. Listo para escriturar.',
     'rechazado' => 'El banco declinó la solicitud. Puedes elegir otro banco.',
     'desistido' => 'Solicitud cancelada. Puedes elegir otro banco.',
@@ -139,55 +137,52 @@ class PaymentMethodBadge extends StatelessWidget {
   };
 
   Widget _card(
-    SozuTone tone, {
+    SozuColorRoles tone, {
     required IconData icon,
     required String titulo,
     Widget? cuerpo,
   }) {
     final fila = Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: tone.primarySoft,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 18, color: SozuColors.emerald600),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: tone.primarySoft,
+            shape: BoxShape.circle,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'FORMA DE PAGO FINAL ELEGIDA',
-                  style: TextStyle(
-                    fontSize: 10,
-                    letterSpacing: 0.8,
-                    fontWeight: FontWeight.w600,
-                    color: tone.primaryDark,
-                  ),
+          child: Icon(icon, size: 18, color: SozuBrand.green600),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'FORMA DE PAGO FINAL ELEGIDA',
+                style: TextStyle(
+                  fontSize: 10,
+                  letterSpacing: 0.8,
+                  fontWeight: FontWeight.w600,
+                  color: tone.primaryHover,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  titulo,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: tone.textPrimary,
-                  ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                titulo,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: tone.fg,
                 ),
-                if (cuerpo != null) ...[
-                  const SizedBox(height: 4),
-                  cuerpo,
-                ],
-              ],
-            ),
+              ),
+              if (cuerpo != null) ...[const SizedBox(height: 4), cuerpo],
+            ],
           ),
-        ],
-      );
+        ),
+      ],
+    );
 
     if (portal) {
       return PortalCard(
@@ -224,7 +219,8 @@ class PaymentMethodBadge extends StatelessWidget {
       'expirada': 'Expirada',
       'expirado': 'Expirado',
     };
-    final label = labels[e] ??
+    final label =
+        labels[e] ??
         (e.isEmpty
             ? '—'
             : e[0].toUpperCase() + e.substring(1).replaceAll('_', ' '));
@@ -232,10 +228,11 @@ class PaymentMethodBadge extends StatelessWidget {
       'pre_aprobado' ||
       'aprobado' ||
       'oferta_vinculante' ||
-      'formalizado' =>
-        BadgeTone.positive,
-      'rechazado' || 'desistido' || 'expirada' || 'expirado' =>
-        BadgeTone.negative,
+      'formalizado' => BadgeTone.positive,
+      'rechazado' ||
+      'desistido' ||
+      'expirada' ||
+      'expirado' => BadgeTone.negative,
       _ => BadgeTone.pending,
     };
     return (label, badgeTone);

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../core/portal_theme.dart';
-import '../core/theme.dart';
-import '../data/models.dart';
-import 'common.dart';
-import 'portal_widgets.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Tarjeta "ETAPA ACTUAL" del detalle de propiedad, espejo del portal del
 /// cliente (InvestmentStepper + caja contextual de StatusTimeline):
@@ -70,7 +70,7 @@ class EtapaActualStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
 
     // El portal muestra 4 pasos; post_entrega no aparece como paso propio:
     // si la propiedad ya fue entregada, los 4 se ven completados.
@@ -82,138 +82,132 @@ class EtapaActualStepper extends StatelessWidget {
     final etiquetaActiva = entregada
         ? 'ENTREGADA'
         : pasos
-                .where((s) => statusDe(s) == 'active')
-                .map(_labelDe)
-                .firstOrNull ??
-            (_labels[activa] ?? activa.toUpperCase());
+                  .where((s) => statusDe(s) == 'active')
+                  .map(_labelDe)
+                  .firstOrNull ??
+              (_labels[activa] ?? activa.toUpperCase());
 
     // Línea de saldo solo en etapas de cobro con saldo real (igual que el
     // contextMessage "Saldo pendiente: $X" del portal).
-    final muestraSaldo = !entregada &&
+    final muestraSaldo =
+        !entregada &&
         saldoPendiente > 0 &&
         (activa == 'preventa' || activa == 'pago_final');
 
     final contenido = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Título dentro de la tarjeta, con icono de edificio.
+        Row(
           children: [
-            // Título dentro de la tarjeta, con icono de edificio.
-            Row(
-              children: [
-                Icon(Icons.apartment_outlined,
-                    size: 16,
-                    color: portal
-                        ? PortalColors.mutedForeground
-                        : SozuColors.emerald600),
-                const SizedBox(width: 8),
-                portal
-                    ? const PortalSectionLabel('Etapa actual')
-                    : Text(
-                        'ETAPA ACTUAL',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.0,
-                          color: tone.textSecondary,
-                        ),
-                      ),
-              ],
+            Icon(
+              Icons.apartment_outlined,
+              size: 16,
+              color: portal ? PortalColors.mutedForeground : SozuBrand.green600,
             ),
-            const SizedBox(height: 16),
-
-            if (pasos.isNotEmpty) ...[
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final angosto = constraints.maxWidth < 380;
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var i = 0; i < pasos.length; i++)
-                        Expanded(
-                          child: _Paso(
-                            tone: tone,
-                            numero: i + 1,
-                            label: _labelDe(pasos[i]),
-                            status: statusDe(pasos[i]),
-                            // Conector izquierdo: verde hasta el paso actual.
-                            lineaIzq: i == 0
-                                ? null
-                                : statusDe(pasos[i]) != 'pending',
-                            // Conector derecho: verde si el siguiente paso ya
-                            // fue alcanzado (este paso está completado).
-                            lineaDer: i == pasos.length - 1
-                                ? null
-                                : statusDe(pasos[i]) == 'completed',
-                            fontSize: angosto ? 8.5 : 10,
-                            // Anillo en el nodo actual (ring-4 del portal),
-                            // solo en modo portal para no tocar la vista móvil.
-                            ring: portal && statusDe(pasos[i]) == 'active',
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // Caja verde claro: "AHORA ESTÁS AQUÍ · <ETAPA>" + saldo.
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: tone.primarySoft,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: SozuColors.emerald500.withValues(alpha: 0.25),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'AHORA ESTÁS AQUÍ · $etiquetaActiva',
+            const SizedBox(width: 8),
+            portal
+                ? const PortalSectionLabel('Etapa actual')
+                : Text(
+                    'ETAPA ACTUAL',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                      color: tone.primaryDark,
+                      letterSpacing: 1.0,
+                      color: tone.fgMuted,
                     ),
                   ),
-                  // Oración descriptiva de la etapa (solo portal): replica el
-                  // `description` estático del portal por etapa.
-                  if (portal && _descripciones[activa] != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      _descripciones[activa]!,
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.45,
-                        color: tone.textPrimary,
-                      ),
-                    ),
-                  ],
-                  if (muestraSaldo) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Saldo pendiente: ${_fmtSaldo(saldoPendiente)}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: tone.textPrimary,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
           ],
-        );
+        ),
+        const SizedBox(height: 16),
+
+        if (pasos.isNotEmpty) ...[
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final angosto = constraints.maxWidth < 380;
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < pasos.length; i++)
+                    Expanded(
+                      child: _Paso(
+                        tone: tone,
+                        numero: i + 1,
+                        label: _labelDe(pasos[i]),
+                        status: statusDe(pasos[i]),
+                        // Conector izquierdo: verde hasta el paso actual.
+                        lineaIzq: i == 0
+                            ? null
+                            : statusDe(pasos[i]) != 'pending',
+                        // Conector derecho: verde si el siguiente paso ya
+                        // fue alcanzado (este paso está completado).
+                        lineaDer: i == pasos.length - 1
+                            ? null
+                            : statusDe(pasos[i]) == 'completed',
+                        fontSize: angosto ? 8.5 : 10,
+                        // Anillo en el nodo actual (ring-4 del portal),
+                        // solo en modo portal para no tocar la vista móvil.
+                        ring: portal && statusDe(pasos[i]) == 'active',
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Caja verde claro: "AHORA ESTÁS AQUÍ · <ETAPA>" + saldo.
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: tone.primarySoft,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: SozuBrand.green500.withValues(alpha: 0.25),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'AHORA ESTÁS AQUÍ · $etiquetaActiva',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                  color: tone.primaryHover,
+                ),
+              ),
+              // Oración descriptiva de la etapa (solo portal): replica el
+              // `description` estático del portal por etapa.
+              if (portal && _descripciones[activa] != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _descripciones[activa]!,
+                  style: TextStyle(fontSize: 13, height: 1.45, color: tone.fg),
+                ),
+              ],
+              if (muestraSaldo) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Saldo pendiente: ${_fmtSaldo(saldoPendiente)}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: tone.fg,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
 
     if (portal) {
-      return PortalCard(
-        padding: const EdgeInsets.all(20),
-        child: contenido,
-      );
+      return PortalCard(padding: const EdgeInsets.all(20), child: contenido);
     }
     return Padding(
       padding: const EdgeInsets.only(top: 24),
@@ -225,7 +219,7 @@ class EtapaActualStepper extends StatelessWidget {
 /// Un paso del stepper: conectores laterales + círculo + etiqueta en máximo
 /// dos líneas (responsive: la etiqueta reduce tamaño en pantallas angostas).
 class _Paso extends StatelessWidget {
-  final SozuTone tone;
+  final SozuColorRoles tone;
   final int numero;
   final String label;
   final String status; // completed | active | pending
@@ -249,15 +243,15 @@ class _Paso extends StatelessWidget {
   });
 
   Widget _linea(bool? verde) => Expanded(
-        child: Container(
-          height: 2,
-          color: verde == null
-              ? Colors.transparent
-              : verde
-                  ? SozuColors.emerald500
-                  : tone.border,
-        ),
-      );
+    child: Container(
+      height: 2,
+      color: verde == null
+          ? Colors.transparent
+          : verde
+          ? SozuBrand.green500
+          : tone.border,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -276,7 +270,7 @@ class _Paso extends StatelessWidget {
                 shape: BoxShape.circle,
                 // Actual: círculo verde relleno con número (como el portal).
                 color: esCompletado || esActivo
-                    ? SozuColors.emerald500
+                    ? SozuBrand.green500
                     : tone.surfaceAlt,
                 border: esCompletado || esActivo
                     ? null
@@ -285,7 +279,7 @@ class _Paso extends StatelessWidget {
                 boxShadow: ring
                     ? [
                         BoxShadow(
-                          color: SozuColors.emerald500.withValues(alpha: 0.15),
+                          color: SozuBrand.green500.withValues(alpha: 0.15),
                           spreadRadius: 4,
                         ),
                       ]
@@ -299,7 +293,7 @@ class _Paso extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: esActivo ? Colors.white : tone.textMuted,
+                        color: esActivo ? Colors.white : tone.fgSubtle,
                       ),
                     ),
             ),
@@ -320,10 +314,10 @@ class _Paso extends StatelessWidget {
               letterSpacing: 0.3,
               height: 1.25,
               color: esActivo
-                  ? tone.primaryDark
+                  ? tone.primaryHover
                   : esCompletado
-                      ? tone.textSecondary
-                      : tone.textMuted,
+                  ? tone.fgMuted
+                  : tone.fgSubtle,
             ),
           ),
         ),

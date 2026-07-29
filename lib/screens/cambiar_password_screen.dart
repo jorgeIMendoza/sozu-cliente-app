@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/theme.dart';
-import '../providers/auth_provider.dart';
-import '../widgets/password_rules.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/widgets/password_rules.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Cambio voluntario de contraseña: exige la contraseña ACTUAL.
 class CambiarPasswordScreen extends ConsumerStatefulWidget {
@@ -41,8 +41,11 @@ class _CambiarPasswordScreenState extends ConsumerState<CambiarPasswordScreen> {
     try {
       await ref.read(authProvider).changePassword(_current.text, _pwd.text);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Tu contraseña se actualizó correctamente.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tu contraseña se actualizó correctamente.'),
+        ),
+      );
       context.pop();
     } on WrongCurrentPasswordError {
       setState(() {
@@ -59,7 +62,7 @@ class _CambiarPasswordScreenState extends ConsumerState<CambiarPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return Scaffold(
       backgroundColor: tone.surface,
       appBar: AppBar(
@@ -95,7 +98,9 @@ class _CambiarPasswordScreenState extends ConsumerState<CambiarPasswordScreen> {
                     decoration: const InputDecoration(hintText: '••••••••'),
                     onChanged: (v) => setState(() => _pwdValue = v),
                     validator: (v) {
-                      if (!passwordValida(v ?? '')) return 'Cumple todas las reglas';
+                      if (!passwordValida(v ?? '')) {
+                        return 'Cumple todas las reglas';
+                      }
                       if (v == _current.text) {
                         return 'La nueva contraseña debe ser distinta a la actual';
                       }
@@ -119,12 +124,13 @@ class _CambiarPasswordScreenState extends ConsumerState<CambiarPasswordScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: tone.negative.withValues(alpha: 0.1),
+                        color: tone.danger.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Text(_formError!,
-                          style:
-                              TextStyle(fontSize: 14, color: tone.negative)),
+                      child: Text(
+                        _formError!,
+                        style: TextStyle(fontSize: 14, color: tone.danger),
+                      ),
                     ),
                   ],
                   const SizedBox(height: 24),
@@ -135,7 +141,9 @@ class _CambiarPasswordScreenState extends ConsumerState<CambiarPasswordScreen> {
                             width: 22,
                             height: 22,
                             child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2.5),
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
                           )
                         : const Text('Actualizar contraseña'),
                   ),
@@ -148,6 +156,6 @@ class _CambiarPasswordScreenState extends ConsumerState<CambiarPasswordScreen> {
     );
   }
 
-  TextStyle _label(SozuTone tone) => TextStyle(
-      fontSize: 14, fontWeight: FontWeight.w600, color: tone.textSecondary);
+  TextStyle _label(SozuColorRoles tone) =>
+      TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: tone.fgMuted);
 }

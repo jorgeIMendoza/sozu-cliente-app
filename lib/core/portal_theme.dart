@@ -1,106 +1,154 @@
+/// SHIM DE COMPATIBILIDAD — `PortalColors` está deprecado.
+///
+/// Era la mitad "web" de la paleta bifurcada. Sus 749 referencias siguen
+/// funcionando, pero cada constante ahora apunta a la rampa unificada de
+/// `lib/ui/tokens/palette.dart`.
+///
+/// Se mantienen como `const` (no como campos de rol) porque hay 20 usos dentro
+/// de expresiones `const` que dejarían de compilar si esto fuera una lectura de
+/// instancia.
+///
+/// **Migración de cada constante a su rol:**
+///
+/// | `PortalColors.…`   | usos | → `context.s.color.…`   |
+/// |--------------------|------|-------------------------|
+/// | `mutedForeground`  | 230  | `fgMuted`               |
+/// | `primary`          | 149  | `primary`               |
+/// | `border`           |  76  | `border`                |
+/// | `surface`          |  33  | `surface`               |
+/// | `warning`          |  32  | `warning` / `warningFg` |
+/// | `foreground`       |  31  | `fg`                    |
+/// | `primarySoft10`    |  25  | `primarySoftStrong`     |
+/// | `muted`            |  23  | `muted`                 |
+/// | `borderSoft`       |  21  | `borderSoft`            |
+/// | `destructive`      |  18  | `danger`                |
+/// | `primaryBorder30`  |  16  | `primaryBorder`         |
+/// | `mutedHover`       |  14  | `surfaceAlt`            |
+/// | `warningSoft10`    |  12  | `warningSoft`           |
+/// | `primarySoft15`    |  12  | `primarySoftStrong`     |
+/// | `mutedSoft20/30`   |  16  | `surface`               |
+/// | `destructiveSoft10`|   9  | `dangerSoft`            |
+/// | `warningSoft15`    |   7  | `warningSoftStrong`     |
+/// | `primarySoft5/6`   |  10  | `primarySoft`           |
+/// | `textMuted`        |   4  | `fgSubtle`              |
+/// | `primaryHover`     |   6  | `primaryHover`          |
+/// | `background`       |   3  | `background`            |
+/// | `destructiveSoft15`|   1  | `dangerSoftStrong`      |
+///
+/// La escalera de tintes se colapsó: `soft5`+`soft6` → `primarySoft`,
+/// `soft10`+`soft15` → `primarySoftStrong`. Cuatro niveles con 3% de diferencia
+/// entre sí no son distinguibles y solo generaban decisiones arbitrarias
+/// (ADR §6.3). Igual `mutedSoft20/30` (#FCFDFD/#FBFCFC), indistinguibles de
+/// `surface`.
+///
+/// Código nuevo: `import 'package:sozu_cliente_app/ui/ui.dart';` y `context.s.color.…`.
+library;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
-/// Tokens del "modo portal" web — espejo exacto del Portal del Cliente de
-/// sozu-admin (bloque `.inmob-portal` de src/index.css). Fuente de verdad:
-/// docs/web_portal_spec/tokens.md.
+import 'package:sozu_cliente_app/ui/ui.dart';
+
+/// Tokens del "modo portal" web.
 ///
-/// NO usa (ni modifica) SozuTone/SozuColors: la paleta móvil (emerald/slate)
-/// es otra. Estos tokens aplican SOLO cuando [isPortalMode] es true.
-/// El portal es siempre claro: no hay variante dark de estos colores.
+/// Ya NO es una paleta aparte: cada constante reenvía a la rampa unificada. El
+/// portal sigue siendo light-only, así que todas apuntan a los valores claros.
+@Deprecated('Usar context.s.color.<rol>. Ver la tabla de arriba.')
 class PortalColors {
   PortalColors._();
 
-  // Base (hex resueltos de las CSS vars de .inmob-portal)
-  static const Color primary = Color(0xFF239F6D); // hsl(156 64% 38%)
-  static const Color primaryHover = Color(0xFF1C7D56); // hsl(156 64% 30%)
-  static const Color background = Color(0xFFF9FAFB); // fondo del contenido
-  static const Color surface = Color(0xFFFFFFFF); // cards, sidebar, topbar
-  static const Color foreground = Color(0xFF14161A); // texto principal
-  static const Color mutedForeground = Color(0xFF6B7280); // texto secundario
-  static const Color muted = Color(0xFFF3F4F6); // hovers, pista de progress
-  static const Color border = Color(0xFFE5E7EB); // bordes de cards/tabla
-  static const Color borderSoft = Color(
-    0xFFE9EEF4,
-  ); // topbar, secciones sidebar
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color destructive = Color(0xFFEF4444);
-  static const Color textMuted = Color(0xFF9BA1AB); // --inmob-text-muted
+  // Base
+  static const Color primary = SozuBrand.green;
+  static const Color primaryHover = SozuBrand.green600;
+  static const Color background = SozuNeutral.n50;
+  static const Color surface = SozuNeutral.n0;
+  static const Color foreground = SozuNeutral.n900;
+  static const Color mutedForeground = SozuNeutral.n500;
+  static const Color muted = SozuNeutral.n100;
+  static const Color border = SozuNeutral.n200;
+  static const Color borderSoft = SozuNeutral.n150;
+  static const Color warning = SozuAmber.base;
+  static const Color destructive = SozuRed.base;
+  static const Color textMuted = SozuNeutral.n400;
 
-  // Derivados por opacidad ya "aplanados" sobre #FFFFFF (tokens.md §1.1)
-  static const Color primarySoft6 = Color(0xFFF2F9F6); // item activo sidebar
-  static const Color primarySoft5 = Color(0xFFF4FAF8); // header instrucciones
-  static const Color primarySoft10 = Color(0xFFE9F5F0); // chip Pagado, badges
-  static const Color primarySoft15 = Color(0xFFDEF1E9); // chips de estado
-  static const Color primaryBorder30 = Color(0xFFBDE2D3); // borde hover pills
-  static const Color warningSoft10 = Color(0xFFFEF5E7); // chip Pendiente
-  static const Color warningSoft15 = Color(0xFFFEF1DA); // chip Pago Pendiente
-  static const Color destructiveSoft10 = Color(
-    0xFFFDECEC,
-  ); // hover Cerrar sesión
-  static const Color mutedHover = Color(0xFFF8F9FA); // bg-muted/60 (hover menú)
-  static const Color mutedSoft30 = Color(0xFFFBFCFC); // bg-muted/30
-  static const Color mutedSoft20 = Color(0xFFFCFDFD); // bg-muted/20
-  static const Color destructiveSoft15 = Color(
-    0xFFFDE3E3,
-  ); // bg-destructive/15 (fondo de icono notif. urgente)
+  // Tintes de marca. `soft5`/`soft6` colapsan en uno; `soft10`/`soft15` en otro.
+  static const Color primarySoft6 = SozuBrand.soft06;
+  static const Color primarySoft5 = SozuBrand.soft06;
+  static const Color primarySoft10 = SozuBrand.soft10;
+  static const Color primarySoft15 = SozuBrand.soft10;
+  static const Color primaryBorder30 = SozuBrand.border30;
+
+  // Semáforo
+  static const Color warningSoft10 = SozuAmber.soft;
+  static const Color warningSoft15 = SozuAmber.softStrong;
+  static const Color destructiveSoft10 = SozuRed.soft;
+  static const Color destructiveSoft15 = SozuRed.softStrong;
+
+  // Superficies sutiles. Las tres colapsan: eran #F8F9FA / #FBFCFC / #FCFDFD.
+  static const Color mutedHover = SozuNeutral.n75;
+  static const Color mutedSoft30 = SozuNeutral.n25;
+  static const Color mutedSoft20 = SozuNeutral.n25;
 }
 
 // ---------------------------------------------------------------------------
-// Medidas de layout (tokens.md §6)
+// Medidas de layout — reenvían a ui/theme/breakpoints.dart
 // ---------------------------------------------------------------------------
 
 /// Ancho de la sidebar fija del portal (`w-64`).
-const double kPortalSidebarWidth = 256;
+const double kPortalSidebarWidth = kSozuSidebarWidth;
 
 /// Alto de la topbar del portal (`h-16`).
-const double kPortalTopBarHeight = 64;
+const double kPortalTopBarHeight = kSozuTopBarHeight;
 
 /// Max-width del área de contenido (`xl:max-w-7xl`), centrado.
-const double kPortalContentMaxWidth = 1280;
+const double kPortalContentMaxWidth = kSozuContentMaxWidth;
 
 /// Padding horizontal del contenido en escritorio (`lg:px-8`).
 const double kPortalContentGutter = 32;
 
-/// Breakpoint del modo portal (Tailwind `lg`): con web ancho ≥1024 se pinta
-/// el shell del portal; por debajo se conserva el layout móvil actual.
-const double kPortalBreakpoint = 1024;
+/// Breakpoint del modo portal (Tailwind `lg`).
+const double kPortalBreakpoint = kSozuDesktopMin;
 
 /// Breakpoint md (768): estado de cuenta a 2 columnas `1fr + 300px`.
-const double kTwoColBreakpoint = 768;
+const double kTwoColBreakpoint = kSozuTabletMin;
 
 // ---------------------------------------------------------------------------
-// Radios de borde (tokens.md §3)
+// Radios — reenvían a SozuRadii.standard
 // ---------------------------------------------------------------------------
 
-const double kPortalRadiusSm = 6; // rounded-md: items de menú, buscador
-const double kPortalRadiusMd = 8; // rounded-lg: icon-buttons, campana
-const double kPortalRadiusLg = 16; // rounded-xl: botones grandes, dropdowns
-const double kPortalRadiusCard = 24; // rounded-2xl: todas las cards
+const double kPortalRadiusSm = 6; // rounded-md
+const double kPortalRadiusMd = 8; // rounded-lg
+const double kPortalRadiusLg = 16; // rounded-xl
+const double kPortalRadiusCard = 24; // rounded-2xl
 
 // ---------------------------------------------------------------------------
-// Tipografía (tokens.md §2)
+// Tipografía
 // ---------------------------------------------------------------------------
 
-/// System font stack del portal (no usa Google Fonts): no se fija fontFamily,
-/// solo el fallback — en Windows acaba en Segoe UI y en macOS en SF, igual
-/// que la web real.
-const List<String> kPortalFontFallback = [
-  '-apple-system',
-  'BlinkMacSystemFont',
-  'Segoe UI',
-  'Roboto',
-  'Helvetica Neue',
-  'Arial',
-  'sans-serif',
-];
+/// DEPRECADO y sin efecto: lista vacía.
+///
+/// Pedía fuentes del sistema (`-apple-system`, `Segoe UI`) como fallback, pero
+/// ninguno de sus 19 usos fija `fontFamily`, así que todos heredaban `Inter` del
+/// `ThemeData` y el fallback nunca se consultaba. Además en web CanvasKit
+/// rasteriza el texto él mismo y solo reconoce las familias declaradas en
+/// `pubspec.yaml`: pedir `Segoe UI` ahí es código muerto por diseño.
+///
+/// Se deja como lista vacía en vez de borrarse para no tocar 19 archivos en el
+/// mismo commit que los tokens. Efecto visual: ninguno.
+@Deprecated('Sin efecto. Borrar el parámetro fontFamilyFallback en la llamada.')
+const List<String> kPortalFontFallback = <String>[];
 
 // ---------------------------------------------------------------------------
 // Helper de modo
 // ---------------------------------------------------------------------------
 
-/// true cuando la app corre en WEB con ancho ≥ [kPortalBreakpoint]: la UI
-/// debe verse exactamente como el Portal del Cliente (sidebar 256 + topbar 64).
-/// En móvil/angosto (o apps nativas) siempre false: no cambia nada.
+/// true cuando la app corre en WEB con ancho ≥ [kPortalBreakpoint].
+///
+/// **Deprecado en favor de `context.bp.hasSidebar` / `context.responsive(…)`.**
+/// Se conserva con el comportamiento EXACTO de antes (incluido el `kIsWeb`, que
+/// es su defecto: una tablet Android ancha no recibe el layout ancho) para que
+/// las 25 pantallas que lo usan no cambien al introducir los tokens. La
+/// corrección va en la fase del shell adaptativo, no aquí.
+@Deprecated('Usar context.bp.hasSidebar o context.responsive(...).')
 bool isPortalMode(BuildContext context) =>
     kIsWeb && MediaQuery.sizeOf(context).width >= kPortalBreakpoint;

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../core/theme.dart';
-import '../data/api_client.dart';
-import '../data/models.dart';
-import '../widgets/animacion_llegada.dart';
-import '../widgets/common.dart';
-import '../widgets/fx.dart';
+import 'package:sozu_cliente_app/data/api_client.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/widgets/animacion_llegada.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/fx.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 const _tipos = ['informativa', 'accionable', 'urgente', 'exito'];
 const _categorias = [
@@ -74,7 +74,9 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
     try {
       final anim = await fetchAnimacionCampana();
       if (mounted) setState(() => _animacion = anim);
-    } catch (_) {/* queda el default */}
+    } catch (_) {
+      /* queda el default */
+    }
   }
 
   Future<void> _guardarAnimacion(String? valor) async {
@@ -107,7 +109,9 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
       final proyectos = await fetchAvisosProyectos();
       if (!mounted) return;
       setState(() => _proyectos = proyectos);
-    } catch (_) {/* selector queda vacío; el envío a todos sigue posible */}
+    } catch (_) {
+      /* selector queda vacío; el envío a todos sigue posible */
+    }
   }
 
   Future<void> _cargarAvisos() async {
@@ -149,8 +153,7 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
         fetchAvisosModelos(sel.toList()),
         // Tolerante: si el backend aún no expone "niveles" no debe tumbar
         // la carga de modelos/propiedades.
-        fetchAvisosNiveles(sel.toList())
-            .catchError((_) => <CatalogoItem>[]),
+        fetchAvisosNiveles(sel.toList()).catchError((_) => <CatalogoItem>[]),
         fetchAvisosPropiedades(sel.toList()),
       ]);
       if (!mounted) return;
@@ -159,7 +162,9 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
         _niveles = res[1];
         _propiedades = res[2];
       });
-    } catch (_) {/* filtros finos no disponibles */} finally {
+    } catch (_) {
+      /* filtros finos no disponibles */
+    } finally {
       if (mounted) {
         setState(() {
           _cargandoModelos = false;
@@ -185,16 +190,23 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
     });
     try {
       final res = await Future.wait([
-        fetchAvisosNiveles(_proyectosSel.toList(), idsModelos: sel.toList())
-            .catchError((_) => <CatalogoItem>[]),
-        fetchAvisosPropiedades(_proyectosSel.toList(), idsModelos: sel.toList()),
+        fetchAvisosNiveles(
+          _proyectosSel.toList(),
+          idsModelos: sel.toList(),
+        ).catchError((_) => <CatalogoItem>[]),
+        fetchAvisosPropiedades(
+          _proyectosSel.toList(),
+          idsModelos: sel.toList(),
+        ),
       ]);
       if (!mounted) return;
       setState(() {
         _niveles = res[0];
         _propiedades = res[1];
       });
-    } catch (_) {/* filtro fino no disponible */} finally {
+    } catch (_) {
+      /* filtro fino no disponible */
+    } finally {
       if (mounted) {
         setState(() {
           _cargandoNiveles = false;
@@ -221,7 +233,9 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
         idsNiveles: sel.toList(),
       );
       if (mounted) setState(() => _propiedades = props);
-    } catch (_) {/* filtro fino no disponible */} finally {
+    } catch (_) {
+      /* filtro fino no disponible */
+    } finally {
       if (mounted) setState(() => _cargandoPropiedades = false);
     }
   }
@@ -255,11 +269,14 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
 
   String get _resumenDestino {
     if (_proyectosSel.isEmpty) return 'Todos los clientes';
-    String nombres(List<CatalogoItem> items, Set<int> sel, [String pref = '']) =>
-        items
-            .where((e) => sel.contains(e.id))
-            .map((e) => '$pref${e.nombre}')
-            .join(', ');
+    String nombres(
+      List<CatalogoItem> items,
+      Set<int> sel, [
+      String pref = '',
+    ]) => items
+        .where((e) => sel.contains(e.id))
+        .map((e) => '$pref${e.nombre}')
+        .join(', ');
     return [
       nombres(_proyectos, _proyectosSel),
       if (_modelosSel.isNotEmpty) 'Modelos: ${nombres(_modelos, _modelosSel)}',
@@ -350,7 +367,7 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -365,16 +382,13 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
           ),
         ),
         body: TabBarView(
-          children: [
-            _tabNuevoAviso(tone),
-            _tabConfiguracion(tone),
-          ],
+          children: [_tabNuevoAviso(tone), _tabConfiguracion(tone)],
         ),
       ),
     );
   }
 
-  Widget _tabNuevoAviso(SozuTone tone) {
+  Widget _tabNuevoAviso(SozuColorRoles tone) {
     return WebFrame(
       maxWidth: 760,
       child: RefreshIndicator(
@@ -382,229 +396,226 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-              Form(
-                key: _formKey,
-                child: AppCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Nuevo aviso',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: tone.textPrimary,
-                        ),
+            Form(
+              key: _formKey,
+              child: AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Nuevo aviso',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: tone.fg,
                       ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _titulo,
-                        maxLength: 120,
-                        decoration: const InputDecoration(
-                          labelText: 'Título',
-                          hintText: 'Ej. Corte de agua programado',
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Escribe el título'
-                            : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _titulo,
+                      maxLength: 120,
+                      decoration: const InputDecoration(
+                        labelText: 'Título',
+                        hintText: 'Ej. Corte de agua programado',
                       ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _mensaje,
-                        minLines: 3,
-                        maxLines: 8,
-                        maxLength: 1000,
-                        decoration: const InputDecoration(
-                          labelText: 'Mensaje',
-                          alignLabelWithHint: true,
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Escribe el mensaje'
-                            : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Escribe el título'
+                          : null,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _mensaje,
+                      minLines: 3,
+                      maxLines: 8,
+                      maxLength: 1000,
+                      decoration: const InputDecoration(
+                        labelText: 'Mensaje',
+                        alignLabelWithHint: true,
                       ),
-                      const SizedBox(height: 12),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Escribe el mensaje'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
 
-                      _label(tone, 'CANALES'),
-                      Wrap(
-                        spacing: 8,
-                        children: [
-                          _canalChip('push', 'Push (app)', Icons.notifications_active_outlined),
-                          _canalChip('email', 'Correo', Icons.mail_outline),
-                          _canalChip('wa', 'WhatsApp', Icons.chat_outlined),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
+                    _label(tone, 'CANALES'),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        _canalChip(
+                          'push',
+                          'Push (app)',
+                          Icons.notifications_active_outlined,
+                        ),
+                        _canalChip('email', 'Correo', Icons.mail_outline),
+                        _canalChip('wa', 'WhatsApp', Icons.chat_outlined),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
 
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _dropdown(
-                              'Tipo',
-                              _tipo,
-                              _tipos,
-                              (v) => setState(() => _tipo = v ?? _tipo),
-                            ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _dropdown(
+                            'Tipo',
+                            _tipo,
+                            _tipos,
+                            (v) => setState(() => _tipo = v ?? _tipo),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _dropdown(
-                              'Categoría',
-                              _categoria,
-                              _categorias,
-                              (v) =>
-                                  setState(() => _categoria = v ?? _categoria),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      _label(tone, 'DESTINATARIOS'),
-                      _MultiSelectField(
-                        label: 'Proyectos',
-                        items: _proyectos,
-                        selected: _proyectosSel,
-                        placeholder: 'Todos los clientes',
-                        onChanged: _onProyectosChanged,
-                      ),
-                      const SizedBox(height: 8),
-                      _MultiSelectField(
-                        label: 'Modelos',
-                        items: _modelos,
-                        selected: _modelosSel,
-                        placeholder: _proyectosSel.isEmpty
-                            ? 'Primero elige proyecto'
-                            : _cargandoModelos
-                            ? 'Cargando…'
-                            : 'Todos los modelos',
-                        enabled: _proyectosSel.isNotEmpty && !_cargandoModelos,
-                        onChanged: _onModelosChanged,
-                      ),
-                      const SizedBox(height: 8),
-                      _MultiSelectField(
-                        label: 'Niveles',
-                        items: _niveles,
-                        selected: _nivelesSel,
-                        placeholder: _proyectosSel.isEmpty
-                            ? 'Primero elige proyecto'
-                            : _cargandoNiveles
-                            ? 'Cargando…'
-                            : _niveles.isEmpty
-                            ? 'Niveles no disponibles'
-                            : 'Todos los niveles',
-                        enabled: _proyectosSel.isNotEmpty && !_cargandoNiveles,
-                        onChanged: _onNivelesChanged,
-                      ),
-                      const SizedBox(height: 8),
-                      _MultiSelectField(
-                        label: 'Propiedades',
-                        items: _propiedades,
-                        prefijo: 'U-',
-                        selected: _propiedadesSel,
-                        placeholder: _proyectosSel.isEmpty
-                            ? 'Primero elige proyecto'
-                            : _cargandoPropiedades
-                            ? 'Cargando…'
-                            : 'Todas las propiedades',
-                        enabled:
-                            _proyectosSel.isNotEmpty && !_cargandoPropiedades,
-                        onChanged: (sel) => setState(
-                          () => _propiedadesSel
-                            ..clear()
-                            ..addAll(sel),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Destino: $_resumenDestino',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: tone.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      _label(tone, 'PROGRAMACIÓN'),
-                      Row(
-                        children: [
-                          Switch(
-                            value: _programar,
-                            onChanged: (v) => setState(() => _programar = v),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _dropdown(
+                            'Categoría',
+                            _categoria,
+                            _categorias,
+                            (v) => setState(() => _categoria = v ?? _categoria),
                           ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    _label(tone, 'DESTINATARIOS'),
+                    _MultiSelectField(
+                      label: 'Proyectos',
+                      items: _proyectos,
+                      selected: _proyectosSel,
+                      placeholder: 'Todos los clientes',
+                      onChanged: _onProyectosChanged,
+                    ),
+                    const SizedBox(height: 8),
+                    _MultiSelectField(
+                      label: 'Modelos',
+                      items: _modelos,
+                      selected: _modelosSel,
+                      placeholder: _proyectosSel.isEmpty
+                          ? 'Primero elige proyecto'
+                          : _cargandoModelos
+                          ? 'Cargando…'
+                          : 'Todos los modelos',
+                      enabled: _proyectosSel.isNotEmpty && !_cargandoModelos,
+                      onChanged: _onModelosChanged,
+                    ),
+                    const SizedBox(height: 8),
+                    _MultiSelectField(
+                      label: 'Niveles',
+                      items: _niveles,
+                      selected: _nivelesSel,
+                      placeholder: _proyectosSel.isEmpty
+                          ? 'Primero elige proyecto'
+                          : _cargandoNiveles
+                          ? 'Cargando…'
+                          : _niveles.isEmpty
+                          ? 'Niveles no disponibles'
+                          : 'Todos los niveles',
+                      enabled: _proyectosSel.isNotEmpty && !_cargandoNiveles,
+                      onChanged: _onNivelesChanged,
+                    ),
+                    const SizedBox(height: 8),
+                    _MultiSelectField(
+                      label: 'Propiedades',
+                      items: _propiedades,
+                      prefijo: 'U-',
+                      selected: _propiedadesSel,
+                      placeholder: _proyectosSel.isEmpty
+                          ? 'Primero elige proyecto'
+                          : _cargandoPropiedades
+                          ? 'Cargando…'
+                          : 'Todas las propiedades',
+                      enabled:
+                          _proyectosSel.isNotEmpty && !_cargandoPropiedades,
+                      onChanged: (sel) => setState(
+                        () => _propiedadesSel
+                          ..clear()
+                          ..addAll(sel),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Destino: $_resumenDestino',
+                      style: TextStyle(fontSize: 12, color: tone.fgMuted),
+                    ),
+                    const SizedBox(height: 16),
+
+                    _label(tone, 'PROGRAMACIÓN'),
+                    Row(
+                      children: [
+                        Switch(
+                          value: _programar,
+                          onChanged: (v) => setState(() => _programar = v),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            _programar
+                                ? (_fechaHora == null
+                                      ? 'Elige fecha y hora'
+                                      : DateFormat(
+                                          'dd/MM/yyyy HH:mm',
+                                        ).format(_fechaHora!))
+                                : 'Enviar de inmediato',
+                            style: TextStyle(fontSize: 14, color: tone.fg),
+                          ),
+                        ),
+                        if (_programar)
+                          TextButton.icon(
+                            onPressed: _elegirFechaHora,
+                            icon: const Icon(Icons.event_outlined, size: 18),
+                            label: const Text('Fecha y hora'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: _enviando ? null : _enviar,
+                      icon: _enviando
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
                               _programar
-                                  ? (_fechaHora == null
-                                        ? 'Elige fecha y hora'
-                                        : DateFormat(
-                                            'dd/MM/yyyy HH:mm',
-                                          ).format(_fechaHora!))
-                                  : 'Enviar de inmediato',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: tone.textPrimary,
-                              ),
+                                  ? Icons.schedule_send_outlined
+                                  : Icons.send_outlined,
+                              size: 18,
                             ),
-                          ),
-                          if (_programar)
-                            TextButton.icon(
-                              onPressed: _elegirFechaHora,
-                              icon: const Icon(Icons.event_outlined, size: 18),
-                              label: const Text('Fecha y hora'),
-                            ),
-                        ],
+                      label: Text(
+                        _programar ? 'Programar aviso' : 'Enviar ahora',
                       ),
-                      const SizedBox(height: 12),
-                      FilledButton.icon(
-                        onPressed: _enviando ? null : _enviar,
-                        icon: _enviando
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Icon(
-                                _programar
-                                    ? Icons.schedule_send_outlined
-                                    : Icons.send_outlined,
-                                size: 18,
-                              ),
-                        label: Text(
-                          _programar ? 'Programar aviso' : 'Enviar ahora',
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
+            ),
 
-              const SectionTitle(
-                icon: Icons.history_outlined,
-                text: 'Avisos recientes',
-              ),
-              if (_cargandoAvisos)
-                const Skeleton(height: 80, radius: 16)
-              else if (_avisos.isEmpty)
-                const EmptyCard(
-                  icon: Icons.campaign_outlined,
-                  text: 'Aún no hay avisos',
-                )
-              else
-                for (final a in _avisos) ...[
-                  _AvisoRow(a: a, onCancelar: () => _cancelar(a)),
-                  const SizedBox(height: 10),
-                ],
+            const SectionTitle(
+              icon: Icons.history_outlined,
+              text: 'Avisos recientes',
+            ),
+            if (_cargandoAvisos)
+              const Skeleton(height: 80, radius: 16)
+            else if (_avisos.isEmpty)
+              const EmptyCard(
+                icon: Icons.campaign_outlined,
+                text: 'Aún no hay avisos',
+              )
+            else
+              for (final a in _avisos) ...[
+                _AvisoRow(a: a, onCancelar: () => _cancelar(a)),
+                const SizedBox(height: 10),
+              ],
           ],
         ),
       ),
     );
   }
 
-  Widget _tabConfiguracion(SozuTone tone) {
+  Widget _tabConfiguracion(SozuColorRoles tone) {
     return WebFrame(
       maxWidth: 760,
       child: ListView(
@@ -622,16 +633,13 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: tone.textPrimary,
+                          color: tone.fg,
                         ),
                       ),
                       Text(
                         'Aplica a todos los clientes (configuración general, '
                         'no por notificación).',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: tone.textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 12, color: tone.fgMuted),
                       ),
                     ],
                   ),
@@ -670,7 +678,7 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
     );
   }
 
-  Widget _label(SozuTone tone, String text) => Padding(
+  Widget _label(SozuColorRoles tone, String text) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
     child: Text(
       text,
@@ -678,7 +686,7 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
         fontSize: 11,
         letterSpacing: 1,
         fontWeight: FontWeight.w600,
-        color: tone.textMuted,
+        color: tone.fgSubtle,
       ),
     ),
   );
@@ -762,7 +770,7 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -775,14 +783,14 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: tone.textSecondary,
+                    color: tone.fgMuted,
                   ),
                 ),
               ),
               IconButton(
                 tooltip: 'Reproducir de nuevo',
                 onPressed: _reproducir,
-                icon: Icon(Icons.replay, color: tone.primaryDark),
+                icon: Icon(Icons.replay, color: tone.primaryHover),
               ),
             ],
           ),
@@ -814,7 +822,7 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
                             variante: widget.variante,
                             animando: _vuelo.isAnimating,
                             v: _vuelo.value,
-                            color: tone.textSecondary,
+                            color: tone.fgMuted,
                           ),
                         ),
                         if (_vuelo.isAnimating)
@@ -883,7 +891,7 @@ class _MultiSelectField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     return InkWell(
       onTap: enabled && items.isNotEmpty ? () => _abrir(context) : null,
       borderRadius: BorderRadius.circular(12),
@@ -899,9 +907,7 @@ class _MultiSelectField extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 14,
-            color: selected.isEmpty || !enabled
-                ? tone.textMuted
-                : tone.textPrimary,
+            color: selected.isEmpty || !enabled ? tone.fgSubtle : tone.fg,
           ),
         ),
       ),
@@ -932,7 +938,7 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final filtrados = _busqueda.trim().isEmpty
         ? widget.items
         : widget.items
@@ -964,7 +970,7 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
               children: [
                 Text(
                   '${_sel.length} seleccionados',
-                  style: TextStyle(fontSize: 12, color: tone.textMuted),
+                  style: TextStyle(fontSize: 12, color: tone.fgSubtle),
                 ),
                 const Spacer(),
                 // Opera sobre los resultados visibles (respeta la búsqueda).
@@ -996,7 +1002,7 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
                   ? Center(
                       child: Text(
                         'Sin resultados',
-                        style: TextStyle(color: tone.textMuted),
+                        style: TextStyle(color: tone.fgSubtle),
                       ),
                     )
                   : ListView.builder(
@@ -1026,9 +1032,7 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: _sel.isEmpty
-              ? null
-              : () => setState(() => _sel.clear()),
+          onPressed: _sel.isEmpty ? null : () => setState(() => _sel.clear()),
           child: const Text('Limpiar'),
         ),
         TextButton(
@@ -1052,7 +1056,7 @@ class _AvisoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
+    final tone = context.s.color;
     final (badge, badgeTone) = switch (a.estado) {
       'enviado' => ('Enviado', BadgeTone.positive),
       'pendiente' => ('Programado', BadgeTone.pending),
@@ -1078,7 +1082,7 @@ class _AvisoRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: tone.textPrimary,
+                    color: tone.fg,
                   ),
                 ),
               ),
@@ -1090,7 +1094,7 @@ class _AvisoRow extends StatelessWidget {
             a.mensaje,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 13, color: tone.textSecondary),
+            style: TextStyle(fontSize: 13, color: tone.fgMuted),
           ),
           const SizedBox(height: 6),
           Text(
@@ -1103,7 +1107,7 @@ class _AvisoRow extends StatelessWidget {
               if (a.totalDestinatarios != null)
                 '${a.totalDestinatarios} destinatarios',
             ].join(' · '),
-            style: TextStyle(fontSize: 12, color: tone.textMuted),
+            style: TextStyle(fontSize: 12, color: tone.fgSubtle),
           ),
           if (a.estado == 'pendiente')
             Align(
@@ -1114,7 +1118,7 @@ class _AvisoRow extends StatelessWidget {
                   'Cancelar envío',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: tone.negative,
+                    color: tone.danger,
                   ),
                 ),
               ),
