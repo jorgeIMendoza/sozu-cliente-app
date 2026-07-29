@@ -1,13 +1,17 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/auth_provider.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
 
-/// Cierra la sesión automáticamente tras 5 minutos sin actividad del usuario
+/// Cierra la sesión automáticamente tras un rato sin actividad del usuario
 /// (toques, scroll, movimiento del puntero). Envuelve toda la app; solo actúa
 /// cuando hay sesión iniciada.
+///
+/// El plazo depende del dispositivo, no del capricho: ver [kPhoneInactivityTimeout] y
+/// [kDesktopInactivityTimeout].
 class InactivityWatcher extends ConsumerStatefulWidget {
   final Widget child;
 
@@ -19,14 +23,13 @@ class InactivityWatcher extends ConsumerStatefulWidget {
 
 class _InactivityWatcherState extends ConsumerState<InactivityWatcher>
     with WidgetsBindingObserver {
-  static const _timeout = Duration(minutes: 5);
   Timer? _timer;
 
   /// Última actividad real del usuario. El Timer solo cubre la app en primer
   /// plano: en móvil el OS congela el isolate en background y el timer no
   /// dispara (en web la pestaña sigue viva). Al volver (resumed) se compara
   /// contra este timestamp para cerrar sesión si ya venció.
-  DateTime? _ultimaActividad;
+  DateTime? _lastActivity;
 
   @override
   void initState() {
@@ -34,23 +37,41 @@ class _InactivityWatcherState extends ConsumerState<InactivityWatcher>
     WidgetsBinding.instance.addObserver(this);
   }
 
+  /// Plazo de inactividad vigente.
+  ///
+  /// Un teléfono se guarda en el bolsillo y se pierde: plazo corto. Un
+  /// escritorio está en un espacio controlado y cortar la sesión cada 5 minutos
+  /// hace que el usuario tenga que reautenticarse a media tarea, que es la vía
+  /// rápida a que alguien apunte la contraseña en un post-it.
+  ///
+  /// El criterio es el FORMATO, no la plataforma: web abierta en el navegador
+  /// del celular debe usar el plazo corto, y para eso se mide el lado menor de
+  /// la pantalla en vez de confiar en `kIsWeb`.
+  Duration get _currentTimeout {
+    final isPhone = kIsWeb
+        ? MediaQuery.sizeOf(context).shortestSide < 600
+        : (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS);
+    return isPhone ? kPhoneInactivityTimeout : kDesktopInactivityTimeout;
+  }
+
   /// Sesión "usable": con el candado biométrico puesto la sesión de Supabase
   /// sigue viva pero la app ya está bloqueada — no hay nada que vigilar.
-  bool get _activa {
+  bool get _hasUsableSession {
     final auth = ref.read(authProvider);
     return auth.session != null && !auth.locked;
   }
 
   void _reset() {
     _timer?.cancel();
-    if (!_activa) return;
-    _ultimaActividad = DateTime.now();
-    _timer = Timer(_timeout, _logout);
+    if (!_hasUsableSession) return;
+    _lastActivity = DateTime.now();
+    _timer = Timer(_currentTimeout, _logout);
   }
 
   Future<void> _logout() async {
     final auth = ref.read(authProvider);
-    if (!_activa) return;
+    if (!_hasUsableSession) return;
     _timer?.cancel();
     ref.read(inactivityLogoutProvider.notifier).state = true;
     // Con biometría habilitada solo bloquea (la sesión sigue viva para
@@ -61,16 +82,16 @@ class _InactivityWatcherState extends ConsumerState<InactivityWatcher>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
-    final ultima = _ultimaActividad;
-    if (ultima == null || !_activa) return;
-    final transcurrido = DateTime.now().difference(ultima);
-    if (transcurrido >= _timeout) {
+    final ultima = _lastActivity;
+    if (ultima == null || !_hasUsableSession) return;
+    final elapsed = DateTime.now().difference(ultima);
+    if (elapsed >= _currentTimeout) {
       _logout();
     } else {
       // Re-arma solo con el tiempo restante; el timer congelado en background
       // habría disparado tarde.
       _timer?.cancel();
-      _timer = Timer(_timeout - transcurrido, _logout);
+      _timer = Timer(_currentTimeout - elapsed, _logout);
     }
   }
 
@@ -105,3 +126,9 @@ class _InactivityWatcherState extends ConsumerState<InactivityWatcher>
     );
   }
 }
+
+/// Plazo de inactividad en teléfono (y web en pantalla de teléfono).
+const Duration kPhoneInactivityTimeout = Duration(minutes: 5);
+
+/// Plazo de inactividad en escritorio (y web en pantalla grande).
+const Duration kDesktopInactivityTimeout = Duration(minutes: 15);

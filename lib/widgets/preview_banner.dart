@@ -1,10 +1,23 @@
 import 'package:flutter/material.dart';
 
-import '../core/version.dart';
+import 'package:sozu_cliente_app/core/version.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
-/// Cintillo superior "PREVIEW" visible solo en builds que no son de
-/// producción (ver [isPreviewBuild] en core/version.dart). Los deploys
-/// productivos compilan con `--dart-define=APP_ENV=prod` y no lo muestran.
+/// Cintillo superior visible solo en builds que no son de producción (ver
+/// [isPreviewBuild] en core/version.dart). Los deploys productivos compilan con
+/// `--dart-define=APP_ENV=prod` y no lo muestran.
+///
+/// Usa el rol `info` (azul), no `warning` (ámbar): esto no es una advertencia de
+/// que algo esté mal, es un dato de contexto. Reservar el ámbar y el rojo para
+/// lo que de verdad requiere acción es lo que hace que el usuario les crea
+/// cuando aparecen.
+///
+/// Leyenda: `PREVIEW • v1.0.0-YYMMDD.HHMM`. Sin icono y de una sola línea —
+/// el timestamp del build es el dato que se pide al reportar un bug, así que va
+/// completo y no se recorta en móvil.
+///
+/// Primer consumidor de `context.s` en la app: sirve de ejemplo de cómo se ve
+/// un widget escrito contra los tokens (cero `Color(0x…)`, cero `fontSize:`).
 class PreviewBanner extends StatelessWidget {
   final Widget child;
 
@@ -14,36 +27,39 @@ class PreviewBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!isPreviewBuild) return child;
 
+    final t = context.s;
+    final c = t.color;
+
     return Column(
+      // stretch: sin esto la Column se encoge al ancho del texto y la franja
+      // queda como una pastilla centrada en vez de cruzar la pantalla. Antes
+      // funcionaba de rebote porque había un Row (mainAxisSize.max) adentro.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Material(
-          color: const Color(0xFFB45309),
+          color: c.infoSoft,
           child: SafeArea(
             bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.construction_rounded,
-                    size: 15,
-                    color: Colors.white,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: c.infoSoftStrong)),
+              ),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: t.space.md,
+                  vertical: t.space.xs,
+                ),
+                child: Text(
+                  'PREVIEW  •  $appVersionLabel',
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: t.text.caption.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.9,
+                    color: c.infoFg,
                   ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'PREVIEW · build de desarrollo · $appVersionLabel',
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

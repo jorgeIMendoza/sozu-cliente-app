@@ -6,7 +6,7 @@ plataformas: `android/`, `ios/` (build requiere Mac), `web/` (target principal
 de prueba: Chrome).
 
 ## Stack
-- Flutter stable (SDK en C:\dev\flutter) + Dart. Material 3.
+- Flutter stable (SDK en ~/flutter dentro de WSL/Arch) + Dart. Material 3.
 - Estado/datos: flutter_riverpod (FutureProvider por endpoint).
 - Navegación: go_router (guards de sesión + cambio de contraseña forzado,
   StatefulShellRoute con 5 tabs).
@@ -38,20 +38,168 @@ de prueba: Chrome).
 - No loguear PII (RFC, CURP, CLABE, montos).
 - Documentos/recibos/CEP: URLs firmadas temporales que entrega el backend.
 
+## Design system — lib/ui/ (FUENTE DE VERDAD de la apariencia)
+Este repo es la fuente de verdad del Portal del Cliente. `sozu-admin` YA NO se
+trabaja para el portal cliente; su `src/components/portal/` es legacy.
+
+- `lib/ui/` es el design system. Import único: `import '../ui/ui.dart';`
+- Acceso a tokens: **`context.s`**
+  - `context.s.color.<rol>` — 27 roles semánticos (`fg`, `fgMuted`, `fgSubtle`,
+    `surface`, `surfaceAlt`, `background`, `muted`, `border`, `borderSoft`,
+    `primary`, `primaryHover`, `primarySoft`, `positive`, `warning`,
+    `warningFg`, `danger`, …)
+  - `context.s.text.*` — escala tipográfica (respeta densidad; preferir sobre
+    `SozuType.*`, que no la respeta)
+  - `context.s.radius.*` / `.space.*` / `.shadow.*`
+  - `context.responsive(mobile:, tablet:, desktop:)` y `context.bp`
+- PROHIBIDO en pantallas: `Color(0x...)`, `circular(16)`, `fontSize: 14`,
+  `EdgeInsets.all(14)`. Si el valor no existe, se agrega a `lib/ui/tokens/`.
+- `lib/ui/` NO puede importar `supabase_flutter`, `flutter_riverpod` ni `data/`.
+  Un componente que necesita datos los recibe por parámetro. Esta es la
+  frontera UI ↔ lógica de negocio.
+- **NADA DE ALIAS NI MAPEOS.** Un token tiene UN nombre y ese nombre se usa en
+  toda la app. `SozuColors`, `SozuTone`, `core/theme.dart`, `core/brand.dart` y
+  `core/typography.dart` fueron ELIMINADOS (no deprecados: borrados). Si se
+  renombra un token, se renombra en todos los usos en el mismo commit — una capa
+  de compatibilidad "temporal" es cómo nació la paleta bifurcada.
+- **ÚNICO pendiente de homogeneizar:** `core/portal_theme.dart` (`PortalColors`,
+  `isPortalMode()`, `kPortalRadius*`, `kPortalFontFallback` que ya no hace nada).
+  749 referencias, ~137 dentro de expresiones `const`: pasar a `context.s.color`
+  rompe la const-ness y hay que quitar el `const` caso por caso. Requiere
+  compilador, no se puede hacer a ciegas. Tabla de migración campo→rol en el
+  docstring del archivo.
+- `SozuTheme` (ThemeExtension): su campo tipográfico se llama `text`, NO `type`.
+  `ThemeExtension.type` es la clave del mapa de extensiones de Material;
+  pisarla compila pero rompe `extension<SozuTheme>()` en silencio.
+- Plan y decisiones: `docs/adr/0001-arquitectura-modular.md`.
+  `docs/web_portal_spec/tokens.md` es documentación derivada, ya no contrato.
+
+## Estructura de una feature (patrón obligatorio para código nuevo)
+
+```
+lib/features/<feature>/
+├── layouts/       ← ESTRUCTURA que envuelve pantallas
+├── screens/       ← las pantallas: SOLO composición
+└── components/    ← piezas REUTILIZABLES
+```
+
+Criterio de cada carpeta:
+
+- **`layouts/`** — envuelve pantallas y decide tema, scroll y breakpoints. No es
+  un componente (no es una pieza de interfaz) ni una pantalla (no es un destino
+  de ruta). Por eso tiene carpeta propia.
+- **`components/`** — solo si es **reutilizable** (lo usan 2+ pantallas). NO
+  partir algo en componentes por partirlo: si una pantalla tiene un formulario
+  único, es **un** componente de formulario y ya. Fragmentarlo en sub-piezas de
+  un solo uso agrega archivos sin quitar acoplamiento.
+- **`screens/`** — no tienen lógica ni estado propio: ensamblan layout +
+  componentes. Si una pantalla tiene un `State` con lógica, esa lógica va a un
+  componente.
+
+Los componentes visuales son **tontos**: reciben datos por parámetro, no leen
+providers ni navegan. Quien lee providers es la pantalla o el componente con
+estado (p. ej. `login_form`).
+
+**`features/auth/` está CERRADA** (0 legacy, auditada). Es la plantilla: ante
+cualquier duda de "¿dónde va esto?", ver `lib/features/auth/README.md`.
+
+```
+layouts/auth_layout.dart        AuthLayout + AuthFormBody
+screens/login_screen.dart       33 líneas: AuthLayout(brand:, child:)
+screens/forgot_password_screen.dart
+screens/change_password_screen.dart
+components/auth_brand_image.dart · auth_header.dart · auth_text_field.dart
+components/auth_buttons.dart · auth_alert.dart · login_form.dart
+```
+
+Se migra de a una feature. `lib/screens/` y `lib/widgets/` son legacy: **siguen
+funcionando y no se tocan salvo para migrarlos**, pero nada nuevo va ahí.
+
+### Al cerrar una feature, auditar que no quede legacy
+```bash
+F=lib/features/auth
+for p in "PortalColors" "isPortalMode" "SozuType\." "Color(0x" "fontSize:" \
+         "circular([0-9]" "EdgeInsets.all([0-9]" "import '\.\./"; do
+  printf "%-26s %s\n" "$p" "$(grep -rn "$p" $F --include=*.dart | grep -vE ':[0-9]+: *///' | wc -l)"
+done
+```
+Todo debe dar 0.
+
+## Imports: SIEMPRE `package:`
+```dart
+import 'package:sozu_cliente_app/ui/ui.dart';   // ✅ el equivalente de @/ui en TS
+import '../../../../ui/ui.dart';                 // ❌
+```
+Dart no permite alias arbitrarios (no existe `@/ui`), pero los imports `package:`
+cumplen la misma función: la ruta no depende de dónde está el archivo, así que
+mover un archivo no rompe nada. Lo obliga el lint `always_use_package_imports`.
+
+Única excepción: los **imports/exports condicionales**
+(`if (dart.library.js_interop)`) resuelven por ruta relativa. Van con
+`// ignore: always_use_package_imports` y el motivo.
+
+## Lint y formato desde consola (== lo que hace el IDE)
+```bash
+./tool/check.sh              # formatea lo MODIFICADO + analyze + tests
+./tool/check.sh --fix        # + aplica los quick-fix automáticos
+./tool/check.sh --all        # formatea TODO (ojo: churn, ver abajo)
+./tool/check.sh --no-tests   # más rápido
+```
+Equivalencias con Cursor/VS Code:
+
+| Consola | IDE |
+|---|---|
+| `dart format` | Format Document (Shift+Alt+F) |
+| `flutter analyze` | panel de Problems |
+| `dart fix --apply` | los Quick Fix (💡) en lote |
+
+El IDE usa el Dart Analysis Server, que lee el **mismo** `analysis_options.yaml`;
+por eso `flutter analyze` y el panel de Problems dan idéntico resultado.
+
+⚠️ **El repo NO está formateado con el formatter actual** (Dart 3.7 cambió a
+"tall style"). Por eso `check.sh` formatea solo los archivos modificados: un
+`dart format .` reescribe medio archivo ajeno. Cuando se haga, que sea un commit
+que **solo** sea formato.
+
+## Tiempos de build (esperados, no un problema)
+- `flutter build web --release`: ~110-150 s. dart2js optimiza el programa
+  completo; no es incremental por diseño.
+- `./tool/dev.sh`: primera compilación ~30-60 s, luego `r` (hot reload) < 1 s.
+- Si dev se siente lento: revisar que no haya un **error de compilación**. Con un
+  error, cada intento rehace el build completo y no hay incremental.
+- Cambios en `pubspec.yaml` (assets, fuentes, dependencias) exigen **matar y
+  relanzar** `dev.sh`. Ni `r` ni `R` los toman.
+
 ## Estructura lib/
-- core/: theme (tokens SOZU), format, secure_session_storage, open_doc
+- ui/: design system (tokens + tema + primitivas). Ver sección anterior.
+- features/: código nuevo, por feature. Hoy: `auth/`.
+- core/: format, secure_session_storage, open_doc, version, portal_theme (legacy)
 - data/: models (DTOs de las 7 functions), api_client (invoke + ApiError)
 - providers/: auth (sesión+perfil+password flows), data (FutureProviders), theme
 - router.dart: guards + shell 5 tabs + secundarias
-- widgets/: common (AppCard/Badge/Avatar/ProgressBar/Skeleton), property_card,
-  portal_top_bar, level_map (CustomPaint regiones), password_rules
-- screens/: login, forgot, change_password_forced, inicio, adquisicion,
-  patrimonio, documentos, perfil, pagos, estado_cuenta, pagar (placeholder),
-  notificaciones, cambiar_password, propiedad_detalle
+- widgets/: common (AppCard/Badge/Avatar/ProgressBar/Skeleton), theme_mode_button,
+  admin/ (cliente_tile, filtros_cliente, admin_header_bar), portal_*, level_map
+- screens/: LEGACY, pendiente de migrar a features/ — inicio, adquisicion,
+  patrimonio, documentos, perfil, pagos, estado_cuenta, notificaciones,
+  cambiar_password, propiedad_detalle, seleccionar_cliente, forgot,
+  change_password_forced
+
+## Sesión
+- Cierre por inactividad: **5 min en teléfono, 15 min en escritorio**
+  (`widgets/inactivity_watcher.dart`). El criterio es el FORMATO de pantalla, no
+  `kIsWeb`: web en el navegador del celular usa el plazo corto.
+- Selector de tema claro/oscuro/sistema: `widgets/theme_mode_button.dart`.
 
 ## Correr
-- Web (principal): `flutter run -d chrome`
-- Android: requiere Android SDK (no instalado aún).
+- Web (principal): `./tool/dev.sh` → http://localhost:5000 (envuelve
+  `flutter run -d web-server`, inyecta BUILD_TIMESTAMP y valida assets/env).
+  Escucha en 0.0.0.0, así que también se abre desde el navegador de Windows y
+  desde el celular en la misma red. En la terminal: `r` hot reload, `R` hot
+  restart, `q` salir.
+- Requiere `export PATH="$HOME/flutter/bin:$PATH"` (ya lo hace dev.sh) y el
+  archivo `assets/env` (gitignored; copiar de .env.example).
+- Android: requiere Android SDK (no instalado aún). Desde WSL el cable USB no
+  sirve; usar depuración inalámbrica (`adb pair` / `adb connect`).
 - iOS: requiere Mac/Xcode; la carpeta ios/ queda lista.
 
 ## Reglas de código

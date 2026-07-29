@@ -4,19 +4,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'core/secure_session_storage.dart';
-import 'core/theme.dart';
-import 'providers/theme_provider.dart';
-import 'router.dart';
-import 'widgets/inactivity_watcher.dart';
-import 'widgets/preview_banner.dart';
-import 'widgets/push_registrar.dart';
+import 'package:sozu_cliente_app/core/secure_session_storage.dart';
+import 'package:sozu_cliente_app/core/url_strategy.dart';
+import 'package:sozu_cliente_app/providers/theme_provider.dart';
+import 'package:sozu_cliente_app/router.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
+import 'package:sozu_cliente_app/widgets/inactivity_watcher.dart';
+import 'package:sozu_cliente_app/widgets/preview_banner.dart';
+import 'package:sozu_cliente_app/widgets/push_registrar.dart';
 
 /// SOZU — Portal del Cliente (Flutter).
 /// Seguridad: SOLO anon key + JWT; sesión en secure storage; todo dato
 /// sensible vía Edge Functions (ver CLAUDE.md).
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // URLs limpias en web (/login, no /#/login). No-op en móvil.
+  usarUrlSinHash();
   await dotenv.load(fileName: 'assets/env');
   await initializeDateFormatting('es_MX');
 
@@ -58,9 +61,15 @@ class SozuApp extends ConsumerWidget {
       darkTheme: sozuDarkTheme(),
       themeMode: themeMode,
       routerConfig: router,
-      builder: (context, child) => InactivityWatcher(
-        child: PushRegistrar(
-          child: PreviewBanner(child: child ?? const SizedBox.shrink()),
+      // SozuAdaptiveTokens resuelve la densidad del design system según el ancho
+      // disponible y reinyecta los tokens. Debe ir lo más arriba posible: el
+      // ThemeData se construye sin saber cuánto mide la ventana, así que sin
+      // esto `context.s` siempre devolvería la densidad `comfortable`.
+      builder: (context, child) => SozuAdaptiveTokens(
+        child: InactivityWatcher(
+          child: PushRegistrar(
+            child: PreviewBanner(child: child ?? const SizedBox.shrink()),
+          ),
         ),
       ),
     );
