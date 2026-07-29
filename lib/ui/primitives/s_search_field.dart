@@ -7,8 +7,8 @@ import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 /// El botón de limpiar se muestra solo cuando hay texto, y **se resuelve solo**:
 /// escucha al `controller` con un `ValueListenableBuilder` en vez de exigirle a
 /// la pantalla un `setState` por cada tecla. Eso es lo que estaba pasando antes
-/// —`onChanged: (v) => setState(() => _query = v)` existía en parte para
-/// refrescar el icono— y es la clase de estado que no tiene por qué vivir en una
+/// -`onChanged: (v) => setState(() => _query = v)` existía en parte para
+/// refrescar el icono- y es la clase de estado que no tiene por qué vivir en una
 /// pantalla.
 class SSearchField extends StatelessWidget {
   final TextEditingController controller;

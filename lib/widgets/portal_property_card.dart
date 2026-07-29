@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 
@@ -16,7 +17,7 @@ import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 
 /// "Proyecto · U-nombre" sin duplicar el prefijo si ya viene en el dato.
 String _unidadLabel(PropiedadCard p) =>
-    p.nombre == '—' || p.nombre.startsWith('U-') ? p.nombre : 'U-${p.nombre}';
+    p.nombre == '-' || p.nombre.startsWith('U-') ? p.nombre : 'U-${p.nombre}';
 
 /// Sombra `shadow-sm` que aparece en hover.
 const List<BoxShadow> _hoverShadow = [
@@ -122,7 +123,7 @@ class _PlusvaliaText extends StatelessWidget {
   Widget build(BuildContext context) {
     if (pct == null && monto == null) {
       return Text(
-        '—',
+        '-',
         style: portalText(size: size, color: PortalColors.mutedForeground),
       );
     }
@@ -189,7 +190,7 @@ class _VerDetalle extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// PortalPropertyCard — PropertyCard.tsx (Inicio · Mis propiedades)
+// PortalPropertyCard - PropertyCard.tsx (Inicio · Mis propiedades)
 // ---------------------------------------------------------------------------
 
 class PortalPropertyCard extends StatelessWidget {
@@ -214,7 +215,8 @@ class PortalPropertyCard extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          // press: respuesta directa al dedo -> `fast`.
+          duration: context.s.motion.fast,
           transformAlignment: Alignment.center,
           transform: pressed
               ? Matrix4.diagonal3Values(0.985, 0.985, 1)
@@ -384,7 +386,7 @@ class PortalPropertyCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// PortalAcquisitionCard — AcquisitionCard de ClienteEnAdquisicion.tsx
+// PortalAcquisitionCard - AcquisitionCard de ClienteEnAdquisicion.tsx
 // ---------------------------------------------------------------------------
 
 /// Sombra `shadow-lg shadow-black/[0.06]` que aparece en hover en las cards de
@@ -430,7 +432,9 @@ class PortalAcquisitionCard extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          // hover: la card se levanta y cambia sombra -> `normal`, el token de
+          // entrada/salida de elementos.
+          duration: context.s.motion.normal,
           transformAlignment: Alignment.center,
           transform: hovered
               ? Matrix4.translationValues(0, -2, 0)
@@ -762,7 +766,7 @@ class PortalAcquisitionCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// PortalPatrimonyCard — PatrimonyCard de ClientePatrimonio.tsx
+// PortalPatrimonyCard - PatrimonyCard de ClientePatrimonio.tsx
 // ---------------------------------------------------------------------------
 
 class PortalPatrimonyCard extends StatelessWidget {
@@ -799,7 +803,7 @@ class PortalPatrimonyCard extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: context.s.motion.normal,
           transformAlignment: Alignment.center,
           // hover:-translate-y-0.5 del portal (la card se levanta 2px).
           transform: hovered

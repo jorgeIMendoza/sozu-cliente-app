@@ -9,7 +9,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 ///
 /// **Proyecto se busca escribiendo, no se despliega.** Antes era un
 /// `DropdownButtonFormField` que volcaba el catálogo entero: veinte entradas
-/// —varias con nombres que no son proyectos inmobiliarios, ver nota abajo— en un
+/// -varias con nombres que no son proyectos inmobiliarios, ver nota abajo- en un
 /// menú donde había que cazar la correcta. Ahora se escriben dos letras y se
 /// filtra. Ver [SAutocompleteField].
 ///
@@ -19,7 +19,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// ---
 ///
 /// **Nota sobre el catálogo:** los proyectos vienen de la edge function
-/// `admin-avisos-app` (action `catalogos`), que es el catálogo de **avisos** — no
+/// `admin-avisos-app` (action `catalogos`), que es el catálogo de **avisos** - no
 /// está acotado a proyectos inmobiliarios, así que trae entradas como "Productos"
 /// o "Mutuo Vive" que no aplican a "Ver como". Este componente NO las filtra por
 /// nombre a propósito: una lista negra hardcodeada se desincroniza en cuanto

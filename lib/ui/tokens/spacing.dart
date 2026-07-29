@@ -14,25 +14,25 @@ import 'package:sozu_cliente_app/ui/tokens/radii.dart' show lerpDouble;
 /// al lado.
 @immutable
 class SozuSpacing {
-  /// 4 — separación entre un icono y su etiqueta.
+  /// 4 - separación entre un icono y su etiqueta.
   final double xxs;
 
-  /// 8 — separación entre elementos de una misma línea.
+  /// 8 - separación entre elementos de una misma línea.
   final double xs;
 
-  /// 12 — padding interno de chips y campos compactos.
+  /// 12 - padding interno de chips y campos compactos.
   final double sm;
 
-  /// 16 — padding estándar de card, separación entre items de lista.
+  /// 16 - padding estándar de card, separación entre items de lista.
   final double md;
 
-  /// 24 — separación entre secciones, padding de card holgada.
+  /// 24 - separación entre secciones, padding de card holgada.
   final double lg;
 
-  /// 32 — gutter horizontal del contenido en escritorio.
+  /// 32 - gutter horizontal del contenido en escritorio.
   final double xl;
 
-  /// 48 — separación entre bloques mayores de una página.
+  /// 48 - separación entre bloques mayores de una página.
   final double xxl;
 
   const SozuSpacing({

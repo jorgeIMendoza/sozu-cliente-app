@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
-/// Mapa del nivel dibujado desde `regiones` (polígonos 0–100), resaltando la
+/// Mapa del nivel dibujado desde `regiones` (polígonos 0-100), resaltando la
 /// unidad del cliente con un pulso animado (glow). Port de LevelMap.tsx.
 class LevelMap extends StatefulWidget {
   final List<RegionNivel> regiones;
@@ -15,11 +15,20 @@ class LevelMap extends StatefulWidget {
   State<LevelMap> createState() => _LevelMapState();
 }
 
+/// Medio ciclo del glow que marca la unidad del cliente (va y vuelve, así que
+/// el latido completo son ~3.6 s).
+///
+/// Fuera de `context.s.motion` a propósito: es un loop ambiental, no una
+/// transición de estado. Los tokens se topan en 380 ms porque describen cambios
+/// puntuales; atar este `repeat` a uno de ellos convertiría cualquier ajuste de
+/// la escala de movimiento en un cambio de ritmo del mapa.
+const Duration _glowPulseHalfCycle = Duration(milliseconds: 1800);
+
 class _LevelMapState extends State<LevelMap>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1800),
+    duration: _glowPulseHalfCycle,
   )..repeat(reverse: true);
 
   @override

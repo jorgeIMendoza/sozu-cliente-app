@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
+// Import directo del archivo y no del barrel `ui/ui.dart`: el export vive en ese
+// barrel, pero este archivo solo necesita las primitivas.
+import 'package:sozu_cliente_app/ui/primitives/s_pressable.dart';
+import 'package:sozu_cliente_app/ui/primitives/s_skeleton.dart';
 
 /// Widgets base del "modo portal" web (réplica del Portal del Cliente de
 /// sozu-admin). Reutilizables entre pantallas: cards, pills de filtro, chips
@@ -32,26 +36,19 @@ TextStyle portalText({
 }
 
 /// Expone el estado hover para replicar los `hover:` de Tailwind.
-class PortalHoverBuilder extends StatefulWidget {
+///
+/// Ya no detecta nada por su cuenta: delega en [SHoverBuilder], que dentro de un
+/// [SPressable] reusa el hover de la superficie en lugar de montar un
+/// `MouseRegion` paralelo. Existe SOLO para no tocar de golpe los sitios de uso
+/// que todavía la nombran; su API pública se conserva idéntica.
+@Deprecated('Usar SPressable de lib/ui/primitives/.')
+class PortalHoverBuilder extends StatelessWidget {
   final Widget Function(BuildContext context, bool hovered) builder;
 
   const PortalHoverBuilder({super.key, required this.builder});
 
   @override
-  State<PortalHoverBuilder> createState() => _PortalHoverBuilderState();
-}
-
-class _PortalHoverBuilderState extends State<PortalHoverBuilder> {
-  bool _hover = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: widget.builder(context, _hover),
-    );
-  }
+  Widget build(BuildContext context) => SHoverBuilder(builder: builder);
 }
 
 /// Card del portal: blanca, radio 24 (`rounded-2xl`), borde 1px #E5E7EB,
@@ -974,14 +971,14 @@ const List<String> _kPortalMesesCortos = [
   'dic',
 ];
 
-/// Fecha corta es-MX como el portal: "15 jul 2026" ('—' si no parsea).
+/// Fecha corta es-MX como el portal: "15 jul 2026" ('-' si no parsea).
 String portalShortDate(String? fecha) {
   final d = DateTime.tryParse(fecha ?? '');
-  if (d == null) return '—';
+  if (d == null) return '-';
   return '${d.day} ${_kPortalMesesCortos[d.month - 1]} ${d.year}';
 }
 
-/// Colores (fondo, texto) del chip de estatus de propiedad — statusStyles del
+/// Colores (fondo, texto) del chip de estatus de propiedad - statusStyles del
 /// portal (statusTone): vencido/demanda en rojo (destructive), pendiente en
 /// ámbar (warning), resto en verde (primary).
 (Color, Color) portalEstatusStyle(String estatus) {
@@ -999,7 +996,7 @@ String portalShortDate(String? fecha) {
   return (PortalColors.primarySoft15, PortalColors.primary);
 }
 
-/// Color del punto de estatus de la card de propiedad — getPropertyStatus del
+/// Color del punto de estatus de la card de propiedad - getPropertyStatus del
 /// portal (4 estados por etapa activa): `pago_final` en ámbar; preventa,
 /// escrituración, entrega, post-entrega (éxito) y default en verde primario.
 /// La paleta del portal no tiene un token `success` distinto, así que éxito
@@ -1020,43 +1017,39 @@ Color portalPropiedadDotColor(String? etapaActiva) {
 }
 
 /// Expone hover y "pressed" para replicar `hover:` + `active:scale` del portal.
-/// Aditivo: no reemplaza a [PortalHoverBuilder] (que sigue usándose donde no
-/// hace falta el estado de presión).
-class PortalPressable extends StatefulWidget {
+///
+/// Ya no implementa la detección: delega en [SPressable.detector], que es la
+/// misma máquina de estados que usa la superficie interactiva del design system.
+/// Existe SOLO para no tocar de golpe los sitios de uso que todavía la nombran;
+/// su API pública se conserva idéntica.
+///
+/// Al migrar un sitio de uso NO se traduce uno a uno: el patrón viejo
+/// (`builder` + `GestureDetector` propio dentro) es justo el que deja la fila
+/// inalcanzable con teclado. Lo que corresponde es
+/// `SPressable(onTap: ..., hoverLift: true, child: ...)` y borrar de la card el
+/// `transform` de press y el `boxShadow` de hover, que ahora los pone la
+/// primitiva.
+@Deprecated('Usar SPressable de lib/ui/primitives/.')
+class PortalPressable extends StatelessWidget {
   final Widget Function(BuildContext context, bool hovered, bool pressed)
   builder;
 
   const PortalPressable({super.key, required this.builder});
 
   @override
-  State<PortalPressable> createState() => _PortalPressableState();
+  Widget build(BuildContext context) => SPressable.detector(builder: builder);
 }
 
-class _PortalPressableState extends State<PortalPressable> {
-  bool _hover = false;
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() {
-        _hover = false;
-        _pressed = false;
-      }),
-      child: Listener(
-        onPointerDown: (_) => setState(() => _pressed = true),
-        onPointerUp: (_) => setState(() => _pressed = false),
-        onPointerCancel: (_) => setState(() => _pressed = false),
-        child: widget.builder(context, _hover, _pressed),
-      ),
-    );
-  }
-}
-
-/// Bloque de carga del portal con pulso de opacidad (equivalente a
-/// `animate-pulse` de Tailwind): caja `bg-muted` que late entre 45% y 100%.
-class PortalSkeletonBox extends StatefulWidget {
+/// Bloque de carga del portal.
+///
+/// Ya no implementa el pulso de opacidad: delega en [SSkeleton], el placeholder
+/// global del design system, así que el portal y el móvil vuelven a cargar con la
+/// misma animación. Existe SOLO para no tocar de golpe los sitios de uso que
+/// todavía la nombran; su API pública se conserva idéntica (`width`, `height`,
+/// `radius`, `circle`). Al migrar un archivo, cambiar `PortalSkeletonBox(...)`
+/// por `SSkeleton(...)`.
+@Deprecated('Usar SSkeleton de lib/ui/primitives/.')
+class PortalSkeletonBox extends StatelessWidget {
   final double? width;
   final double? height;
   final double radius;
@@ -1071,42 +1064,15 @@ class PortalSkeletonBox extends StatefulWidget {
   });
 
   @override
-  State<PortalSkeletonBox> createState() => _PortalSkeletonBoxState();
-}
-
-class _PortalSkeletonBoxState extends State<PortalSkeletonBox>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1000),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: Tween<double>(
-        begin: 0.45,
-        end: 1,
-      ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
-      child: Container(
-        width: widget.width,
-        height: widget.height,
-        decoration: BoxDecoration(
-          color: PortalColors.muted,
-          shape: widget.circle ? BoxShape.circle : BoxShape.rectangle,
-          borderRadius: widget.circle
-              ? null
-              : BorderRadius.circular(widget.radius),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => SSkeleton(
+    width: width,
+    // La API vieja acepta `height: null` (medir por el padre), que en la nueva no
+    // existe: un placeholder sin alto propio colapsa a cero dentro de una Column.
+    // Cae al alto por defecto del design system.
+    height: height ?? SSkeleton.defaultHeight,
+    shape: circle ? SSkeletonShape.circle : SSkeletonShape.box,
+    radius: radius,
+  );
 }
 
 /// Skeleton de una card de listado del portal (imagen 120×100 + títulos +
@@ -1254,7 +1220,7 @@ class PortalSearchField extends StatelessWidget {
 /// Barra de progreso del portal (`h-2 bg-muted` + relleno verde): pista
 /// #F3F4F6 y relleno primary, redonda; [height] 8px por defecto.
 class PortalProgressBar extends StatelessWidget {
-  /// 0–100.
+  /// 0-100.
   final double percent;
   final double height;
 

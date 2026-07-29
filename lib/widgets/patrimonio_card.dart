@@ -37,7 +37,7 @@ class PatrimonioCard extends StatelessWidget {
         item.plusvaliaPct != null || item.plusvaliaMonto != null;
 
     // "Proyecto · U-nombre" (sin duplicar el prefijo si ya viene en el dato).
-    final unidad = item.nombre == '—' || item.nombre.startsWith('U-')
+    final unidad = item.nombre == '-' || item.nombre.startsWith('U-')
         ? item.nombre
         : 'U-${item.nombre}';
 

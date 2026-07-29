@@ -46,7 +46,7 @@ class ActividadItem {
 
   ActividadItem.fromJson(Map<String, dynamic> j)
     : cuentaId = asInt(j['cuenta_id']),
-      propiedad = asString(j['propiedad'], '—'),
+      propiedad = asString(j['propiedad'], '-'),
       tipo = asString(j['tipo']),
       categoria = asString(j['categoria'], 'adquisicion'),
       monto = asDouble(j['monto']),
@@ -66,8 +66,8 @@ class PendientePropiedad {
 
   PendientePropiedad.fromJson(Map<String, dynamic> j)
     : cuentaId = asInt(j['cuenta_id']),
-      proyecto = asString(j['proyecto'], '—'),
-      unidad = asString(j['unidad'], '—'),
+      proyecto = asString(j['proyecto'], '-'),
+      unidad = asString(j['unidad'], '-'),
       tipo = asString(j['tipo']),
       fecha = j['fecha'] as String?,
       monto = asDouble(j['monto']),
@@ -176,7 +176,7 @@ class ProximoPago {
   ProximoPago.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
       concepto = asString(j['concepto'], 'Pago'),
-      propiedad = asString(j['propiedad'], '—'),
+      propiedad = asString(j['propiedad'], '-'),
       fechaPago = j['fecha_pago'] as String?,
       monto = asDouble(j['monto']),
       pagado = asDouble(j['pagado']),
@@ -192,7 +192,7 @@ class MantenimientoPago {
   final String estatus; // pagado | pendiente | vencido
 
   MantenimientoPago.fromJson(Map<String, dynamic> j)
-    : propiedad = asString(j['propiedad'], '—'),
+    : propiedad = asString(j['propiedad'], '-'),
       mes = asString(j['mes'], ''),
       monto = asDouble(j['monto']),
       estatus = asString(j['estatus'], 'pendiente');
@@ -208,8 +208,8 @@ class HistorialPago {
   final String? urlRecibo;
   final String? urlCep;
 
-  // — Campos ricos del recibo (PaymentReceiptModal del portal). Additivos: si
-  //   el backend aún no los expone llegan null y la UI del recibo degrada. —
+  // - Campos ricos del recibo (PaymentReceiptModal del portal). Additivos: si
+  //   el backend aún no los expone llegan null y la UI del recibo degrada. -
   final String? rfc; // RFC del cliente
   final String? clabe; // CLABE STP enmascarada (solo últimos 4)
   final String? claveRastreo; // "Clave de rastreo" del recibo
@@ -222,10 +222,10 @@ class HistorialPago {
   HistorialPago.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
       concepto = asString(j['concepto'], 'Pago'),
-      propiedad = asString(j['propiedad'], '—'),
+      propiedad = asString(j['propiedad'], '-'),
       fechaPago = j['fecha_pago'] as String?,
       monto = asDouble(j['monto']),
-      metodo = asString(j['metodo'], '—'),
+      metodo = asString(j['metodo'], '-'),
       urlRecibo = j['url_recibo'] as String?,
       urlCep = j['url_cep'] as String?,
       rfc = j['rfc'] as String?,
@@ -273,7 +273,7 @@ class PropiedadCard {
   final String estatus;
   final String? urlImagen;
 
-  // — Extensión Fase C (opcional en backend; degradan a null/0/false) —
+  // - Extensión Fase C (opcional en backend; degradan a null/0/false) -
   /// Valor de mercado estimado (m2 × precio_m2_actual del proyecto).
   final double? valorActual;
   final double? plusvaliaPct;
@@ -292,12 +292,12 @@ class PropiedadCard {
 
   PropiedadCard.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
-      nombre = asString(j['nombre'], '—'),
-      proyecto = asString(j['proyecto'], '—'),
-      modelo = asString(j['modelo'], '—'),
+      nombre = asString(j['nombre'], '-'),
+      proyecto = asString(j['proyecto'], '-'),
+      modelo = asString(j['modelo'], '-'),
       monto = asDouble(j['monto']),
       avancePago = asDouble(j['avance_pago']),
-      estatus = asString(j['estatus'], '—'),
+      estatus = asString(j['estatus'], '-'),
       urlImagen = j['url_imagen'] as String?,
       valorActual = asDoubleOrNull(j['valor_actual']),
       plusvaliaPct = asDoubleOrNull(j['plusvalia_pct']),
@@ -317,13 +317,13 @@ class PropiedadCard {
   /// saldo pendiente. Si el backend aún no manda `etapa_activa`, cae al
   /// estatus crudo.
   String get estatusDerivado => switch (etapaActiva) {
-        'preventa' => 'En Preventa',
-        'pago_final' => 'Pago Pendiente',
-        'escrituracion' => 'En Escrituración',
-        'entrega' => 'Por Entregar',
-        'post_entrega' => 'Entregada',
-        _ => estatus,
-      };
+    'preventa' => 'En Preventa',
+    'pago_final' => 'Pago Pendiente',
+    'escrituracion' => 'En Escrituración',
+    'entrega' => 'Por Entregar',
+    'post_entrega' => 'Entregada',
+    _ => estatus,
+  };
 }
 
 class ProductoCard {
@@ -337,10 +337,10 @@ class ProductoCard {
   ProductoCard.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
       nombre = asString(j['nombre'], 'Producto adicional'),
-      propiedad = asString(j['propiedad'], '—'),
+      propiedad = asString(j['propiedad'], '-'),
       monto = asDouble(j['monto']),
       avancePago = asDouble(j['avance_pago']),
-      estatus = asString(j['estatus'], '—');
+      estatus = asString(j['estatus'], '-');
 }
 
 class MantenimientoCard {
@@ -351,7 +351,7 @@ class MantenimientoCard {
 
   MantenimientoCard.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
-      propiedad = asString(j['propiedad'], '—'),
+      propiedad = asString(j['propiedad'], '-'),
       saldoPendiente = asDouble(j['saldo_pendiente']),
       proximoPago = j['proximo_pago'] as String?;
 }
@@ -456,8 +456,8 @@ class ProductosPropiedad {
   final List<ProductoCliente> productos;
 
   ProductosPropiedad.fromJson(Map<String, dynamic> j)
-    : propiedad = asString(j['propiedad'], '—'),
-      proyecto = asString(j['proyecto'], '—'),
+    : propiedad = asString(j['propiedad'], '-'),
+      proyecto = asString(j['proyecto'], '-'),
       cuentaPropiedadId = asIntOrNull(j['id_cuenta_propiedad']),
       productos = ((j['productos'] as List?) ?? [])
           .map((e) => ProductoCliente.fromJson(Map<String, dynamic>.from(e)))
@@ -571,7 +571,7 @@ class FichaTecnica {
   FichaTecnica.fromJson(Map<String, dynamic> j)
     : numeroPiso = asIntOrNull(j['numero_piso']),
       totalPisos = asIntOrNull(j['total_pisos']),
-      modelo = asString(j['modelo'], '—'),
+      modelo = asString(j['modelo'], '-'),
       numeroDepa = j['numero_depa'] as String?,
       m2Total = asDoubleOrNull(j['m2_total']),
       planoNivelUrl = j['plano_nivel_url'] as String?,
@@ -589,7 +589,7 @@ class DocumentoItem {
   final String? fecha;
   final String? urlFirmada;
 
-  // — Extensión paridad portal (opcionales en backend; degradan a defaults) —
+  // - Extensión paridad portal (opcionales en backend; degradan a defaults) -
   /// Estatus de verificación: recibido | validado | rechazado.
   final String estatus;
 
@@ -617,8 +617,7 @@ class DocumentoItem {
       categoria = asString(j['categoria'], 'otro'),
       idCuenta = asIntOrNull(j['id_cuenta']),
       propiedad = j['propiedad'] as String?,
-      motivoRechazo =
-          (j['motivo_rechazo'] ?? j['motivo']) as String?;
+      motivoRechazo = (j['motivo_rechazo'] ?? j['motivo']) as String?;
 }
 
 /// Factura CFDI de una propiedad (PDF + XML firmados), como el portal.
@@ -659,7 +658,7 @@ class BancoConvenio {
 
   BancoConvenio.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
-      nombre = asString(j['nombre'], '—'),
+      nombre = asString(j['nombre'], '-'),
       producto = j['producto'] as String?,
       tasaDesde = asDoubleOrNull(j['tasa_desde']),
       color = j['color'] as String?;
@@ -676,7 +675,7 @@ class SolicitudCredito {
 
   SolicitudCredito.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
-      bancoNombre = asString(j['banco_nombre'], '—'),
+      bancoNombre = asString(j['banco_nombre'], '-'),
       estatus = asString(j['estatus'], 'en_revision'),
       fechaSolicitud = j['fecha_solicitud'] as String?,
       fechaExpiracion = j['fecha_expiracion'] as String?,
@@ -703,7 +702,7 @@ class Copropietario {
   final double porcentaje;
 
   Copropietario.fromJson(Map<String, dynamic> j)
-    : nombre = asString(j['nombre'], '—'),
+    : nombre = asString(j['nombre'], '-'),
       email = j['email'] as String?,
       porcentaje = asDouble(j['porcentaje']);
 }
@@ -727,7 +726,7 @@ class AgenteComercial {
   final String? tiempoRespuesta;
 
   AgenteComercial.fromJson(Map<String, dynamic> j)
-    : nombre = asString(j['nombre'], '—'),
+    : nombre = asString(j['nombre'], '-'),
       titulo = asString(j['titulo'], 'Asesor SOZU'),
       telefono = j['telefono'] as String?,
       whatsapp = j['whatsapp'] as String?,
@@ -742,7 +741,7 @@ class HitoObra {
   final bool completado;
 
   HitoObra.fromJson(Map<String, dynamic> j)
-    : fase = asString(j['fase'], '—'),
+    : fase = asString(j['fase'], '-'),
       pct = asInt(j['pct']),
       completado = j['completado'] == true;
 }
@@ -853,17 +852,17 @@ class PropiedadDetalle {
 
   PropiedadDetalle.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
-      nombre = asString(j['nombre'], '—'),
-      proyecto = asString(j['proyecto'], '—'),
-      modelo = asString(j['modelo'], '—'),
-      tipo = asString(j['tipo'], '—'),
-      estatus = asString(j['estatus'], '—'),
+      nombre = asString(j['nombre'], '-'),
+      proyecto = asString(j['proyecto'], '-'),
+      modelo = asString(j['modelo'], '-'),
+      tipo = asString(j['tipo'], '-'),
+      estatus = asString(j['estatus'], '-'),
       categoria = asString(j['categoria'], 'adquisicion'),
       monto = asDouble(j['monto']),
       avancePago = asDouble(j['avance_pago']),
       pagado = asDouble(j['pagado']),
       saldoPendiente = asDouble(j['saldo_pendiente']),
-      unidad = asString(j['unidad'], '—'),
+      unidad = asString(j['unidad'], '-'),
       recamaras = asInt(j['recamaras']),
       banos = asInt(j['banos']),
       entrega = asString(j['entrega'], 'Por confirmar'),
@@ -927,15 +926,13 @@ class PropiedadDetalle {
 
   /// Precio total efectivo: `monto` del backend o, si viene en 0, la suma
   /// del cronograma de pagos.
-  double get montoEfectivo => monto > 0
-      ? monto
-      : esquemaPago.fold<double>(0, (s, e) => s + e.monto);
+  double get montoEfectivo =>
+      monto > 0 ? monto : esquemaPago.fold<double>(0, (s, e) => s + e.monto);
 
   /// Pagado efectivo: `pagado` del backend (Σ pagos activos) o, si viene en
   /// 0 pero hay abonos en el plan, la suma de lo aplicado por acuerdo.
-  double get pagadoEfectivo => pagado > 0
-      ? pagado
-      : esquemaPago.fold<double>(0, (s, e) => s + e.pagado);
+  double get pagadoEfectivo =>
+      pagado > 0 ? pagado : esquemaPago.fold<double>(0, (s, e) => s + e.pagado);
 
   /// Saldo pendiente efectivo (max 0, nunca negativo).
   double get saldoPendienteEfectivo => montoEfectivo > 0
@@ -960,10 +957,10 @@ class PropiedadDetalle {
   /// 4 Mensualidad y 5 Parcialidad del portal, que corren durante obra). Se
   /// detecta por el nombre del concepto ya que el app no expone id_concepto.
   bool get _hayParcialidadesPendientes => esquemaPago.any((e) {
-        if (e.pagoCompletado) return false;
-        final c = e.concepto.toLowerCase();
-        return c.startsWith('parcialidad') || c.startsWith('mensualidad');
-      });
+    if (e.pagoCompletado) return false;
+    final c = e.concepto.toLowerCase();
+    return c.startsWith('parcialidad') || c.startsWith('mensualidad');
+  });
 
   /// Etapa activa efectiva. Replica el "cap por realidad de pago" del portal
   /// (buildStages en use-portfolio.ts): escrituración/entrega/post-entrega
@@ -997,8 +994,8 @@ class PropiedadDetalle {
           status: i < activeIdx
               ? 'completed'
               : i == activeIdx
-                  ? 'active'
-                  : 'pending',
+              ? 'active'
+              : 'pending',
         ),
     ];
   }
@@ -1013,7 +1010,7 @@ class CatalogoItem {
 
   CatalogoItem.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
-      nombre = asString(j['nombre'], '—');
+      nombre = asString(j['nombre'], '-');
 }
 
 /// Aviso enviado (o programado) desde el acceso admin a clientes del app.
@@ -1038,7 +1035,7 @@ class AvisoApp {
 
   AvisoApp.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
-      titulo = asString(j['titulo'], '—'),
+      titulo = asString(j['titulo'], '-'),
       mensaje = asString(j['mensaje'], ''),
       tipo = asString(j['tipo'], 'informativa'),
       categoria = asString(j['categoria'], 'pagos'),
@@ -1093,7 +1090,7 @@ class ClientePerfil {
   final String? colonia;
   final List<CuentaBancariaPerfil> cuentasBancarias;
   final List<int> docsTipos;
-  final int perfilCompletado; // 0–100
+  final int perfilCompletado; // 0-100
   final String estatusPerfil; // verified | review | incomplete
 
   /// Etiqueta "Persona física/moral/extranjera" (espejo de tipo-persona.ts).
@@ -1162,7 +1159,7 @@ class CuentaBancariaPerfil {
   final int idBanco;
   final String banco;
 
-  /// Número de cuenta (clave real, 8–34; espejo del portal).
+  /// Número de cuenta (clave real, 8-34; espejo del portal).
   final String? numeroCuenta;
   final String? clabe;
 
@@ -1245,8 +1242,11 @@ class DatosCURP {
       sexo = j['sexo'] as String?;
 
   /// Etiqueta legible del sexo ("Hombre"/"Mujer"/"").
-  String get sexoLabel =>
-      sexo == 'H' ? 'Hombre' : sexo == 'M' ? 'Mujer' : '';
+  String get sexoLabel => sexo == 'H'
+      ? 'Hombre'
+      : sexo == 'M'
+      ? 'Mujer'
+      : '';
 }
 
 /// Datos detectados en el Acta de nacimiento (cliente-expediente subir → tipo
@@ -1265,8 +1265,11 @@ class DatosActa {
       sexo = j['sexo'] as String?,
       lugarNacimiento = j['lugar_nacimiento'] as String?;
 
-  String get sexoLabel =>
-      sexo == 'H' ? 'Hombre' : sexo == 'M' ? 'Mujer' : '';
+  String get sexoLabel => sexo == 'H'
+      ? 'Hombre'
+      : sexo == 'M'
+      ? 'Mujer'
+      : '';
 }
 
 /// Catálogos para editar el perfil (cliente-perfil action=catalogos).
@@ -1278,10 +1281,8 @@ class PerfilCatalogos {
   PerfilCatalogos.fromJson(Map<String, dynamic> j)
     : regimen = ((j['regimen'] as List?) ?? [])
           .map(
-            (e) => (
-              id: asString((e as Map)['id']),
-              nombre: asString(e['nombre']),
-            ),
+            (e) =>
+                (id: asString((e as Map)['id']), nombre: asString(e['nombre'])),
           )
           .toList(),
       usoCfdi = ((j['uso_cfdi'] as List?) ?? [])
@@ -1294,8 +1295,7 @@ class PerfilCatalogos {
           .toList(),
       bancos = ((j['bancos'] as List?) ?? [])
           .map(
-            (e) =>
-                (id: asInt((e as Map)['id']), nombre: asString(e['nombre'])),
+            (e) => (id: asInt((e as Map)['id']), nombre: asString(e['nombre'])),
           )
           .toList();
 }
@@ -1385,7 +1385,7 @@ class DatosPago {
       monto = asDouble(j['monto']),
       saldoPendiente = asDouble(j['saldo_pendiente']),
       fechaPago = j['fecha_pago'] as String?,
-      propiedad = asString(j['propiedad'], '—'),
+      propiedad = asString(j['propiedad'], '-'),
       clabe = j['clabe'] as String?,
       beneficiario = j['beneficiario'] as String?;
 }

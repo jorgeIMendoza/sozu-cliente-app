@@ -820,7 +820,7 @@ class _QuickAccess extends StatelessWidget {
 
 // ---------------------------------------------------------------------------
 // Vista "modo portal" (web ≥1024): réplica de ClienteInicio.tsx del Portal
-// del Cliente — saludo, hero PATRIMONIO TOTAL, Tu actividad, Mis propiedades
+// del Cliente - saludo, hero PATRIMONIO TOTAL, Tu actividad, Mis propiedades
 // (grid) y columna lateral con Accesos rápidos + Pendientes por propiedad.
 // Reusa los mismos providers que la vista móvil (cero fetching nuevo).
 // ---------------------------------------------------------------------------
@@ -1580,7 +1580,8 @@ class _PortalActividadCard extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          // press (hundido de 1.5%): respuesta directa al dedo -> `fast`.
+          duration: context.s.motion.fast,
           transformAlignment: Alignment.center,
           transform: pressed
               ? Matrix4.diagonal3Values(0.985, 0.985, 1)
@@ -1777,7 +1778,8 @@ class _PortalQuickAction extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          // press (hundido de 1.5%): respuesta directa al dedo -> `fast`.
+          duration: context.s.motion.fast,
           transformAlignment: Alignment.center,
           transform: pressed
               ? Matrix4.diagonal3Values(0.985, 0.985, 1)

@@ -687,7 +687,7 @@ class _LoadingDetalle extends StatelessWidget {
 // del portal): card de filtros + tabla "Movimientos" a la izquierda y card
 // resumen (280px) a la derecha. Reutilizado por [ProductoDetalleScreen] (ruta
 // directa) y por ProductosScreen (detalle in-page con tabs por producto). No
-// pinta el título del producto — eso lo pone quien lo embebe (tabs o cabecera).
+// pinta el título del producto - eso lo pone quien lo embebe (tabs o cabecera).
 // ═══════════════════════════════════════════════════════════════════════════
 class ProductoPortalHistorial extends StatefulWidget {
   final ProductoCliente producto;

@@ -17,7 +17,7 @@ import 'package:sozu_cliente_app/widgets/portal_top_bar.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
-/// Documentos del cliente — espejo de la sección "Documentos" del Portal del
+/// Documentos del cliente - espejo de la sección "Documentos" del Portal del
 /// cliente (ClienteDocumentos.tsx): barra de stats por estatus, filtros por
 /// propiedad/tipo, agrupación por propiedad o estado (secciones colapsables),
 /// items con icono por tipo + chip de estatus, hoja de detalle con acciones
@@ -1258,7 +1258,7 @@ class _DetalleFacturaState extends State<_DetalleFactura> {
   }
 
   /// Lista de archivos disponibles: grid de 2 columnas (PDF | XML) en ancho,
-  /// apilados en angosto — espejo de `grid grid-cols-2` de FacturaModalContent.
+  /// apilados en angosto - espejo de `grid grid-cols-2` de FacturaModalContent.
   Widget _archivos(BuildContext context, SozuColorRoles tone) {
     final ancho = MediaQuery.sizeOf(context).width >= 768;
     // En móvil se previsualiza in-app (comportamiento previo); en modo portal

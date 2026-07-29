@@ -1065,7 +1065,7 @@ class _AvisoRow extends StatelessWidget {
     };
     String fmtFecha(String? iso) {
       final d = iso != null ? DateTime.tryParse(iso)?.toLocal() : null;
-      return d != null ? DateFormat('dd/MM/yyyy HH:mm').format(d) : '—';
+      return d != null ? DateFormat('dd/MM/yyyy HH:mm').format(d) : '-';
     }
 
     return AppCard(

@@ -1351,7 +1351,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   /// Fecha corta es-MX como el portal: "15 jul 2026".
   String _fechaCorta(String? fecha) {
     final d = DateTime.tryParse(fecha ?? '');
-    if (d == null) return '—';
+    if (d == null) return '-';
     return '${d.day} ${_mesesCortos[d.month - 1]} ${d.year}';
   }
 
@@ -2447,7 +2447,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     );
   }
 
-  // ── Card "Instrucciones de Pago" (spec §G) — sin Beneficiario ─────────────
+  // ── Card "Instrucciones de Pago" (spec §G) - sin Beneficiario ─────────────
   Widget _portalInstrucciones(InstruccionesPago i) {
     return PortalCard(
       clip: true,

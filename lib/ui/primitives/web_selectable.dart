@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
-/// Habilita seleccionar y copiar texto con el mouse — SOLO en web.
+/// Habilita seleccionar y copiar texto con el mouse - SOLO en web.
 ///
 /// Flutter web usa CanvasKit: el texto se rasteriza en un `<canvas>`, así que el
 /// navegador no lo ve como texto y "seleccionar con el mouse" no existe por
@@ -12,8 +12,8 @@ import 'package:flutter/material.dart';
 ///
 /// ## Dónde SÍ y dónde NO se puede montar
 ///
-/// `SelectionArea` necesita un `Overlay` ancestro —lo usa para el menú flotante
-/// de copiar— y el `Overlay` lo crea el `Navigator`. Por eso **NO** puede ir en
+/// `SelectionArea` necesita un `Overlay` ancestro -lo usa para el menú flotante
+/// de copiar- y el `Overlay` lo crea el `Navigator`. Por eso **NO** puede ir en
 /// el `builder` de `MaterialApp`: ahí el árbol está por ENCIMA del `Navigator` y
 /// revienta con:
 ///
@@ -28,7 +28,7 @@ import 'package:flutter/material.dart';
 /// secundarias).
 ///
 /// Limitado a web a propósito: en móvil la selección global cambia el long-press
-/// de toda la app y no aporta nada — ahí el gesto nativo ya funciona sobre los
+/// de toda la app y no aporta nada - ahí el gesto nativo ya funciona sobre los
 /// campos de texto.
 class WebSelectable extends StatelessWidget {
   final Widget child;

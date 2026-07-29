@@ -13,7 +13,7 @@ import 'package:sozu_cliente_app/widgets/inactivity_watcher.dart';
 import 'package:sozu_cliente_app/widgets/preview_banner.dart';
 import 'package:sozu_cliente_app/widgets/push_registrar.dart';
 
-/// SOZU — Portal del Cliente (Flutter).
+/// SOZU - Portal del Cliente (Flutter).
 /// Seguridad: SOLO anon key + JWT; sesión en secure storage; todo dato
 /// sensible vía Edge Functions (ver CLAUDE.md).
 Future<void> main() async {
@@ -55,7 +55,7 @@ class SozuApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'SOZU — Portal del Cliente',
+      title: 'SOZU - Portal del Cliente',
       debugShowCheckedModeBanner: false,
       theme: sozuLightTheme(),
       darkTheme: sozuDarkTheme(),

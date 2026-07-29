@@ -188,7 +188,7 @@ Map<String, dynamic> _cuentaBody({
     'evidencia_content_type': evidenciaContentType,
 };
 
-/// Alta de cuenta bancaria de dispersión. `numeroCuenta` (8–34) es la clave;
+/// Alta de cuenta bancaria de dispersión. `numeroCuenta` (8-34) es la clave;
 /// CLABE/SWIFT son opcionales. `evidencia*` = carátula del estado de cuenta.
 Future<void> addCuentaBancaria({
   required int idBanco,
@@ -616,7 +616,7 @@ Future<ClienteExpediente> fetchClienteExpediente({int? impersonate}) async =>
 /// domicilio/actas), lo guarda en Storage y registra el documento. Devuelve el
 /// estatus resultante ('aprobado' | 'revision') y los datos detectados para
 /// confirmar en el perfil: `datosFiscales` (CSF tipo 6), `datosCurp` (CURP tipo
-/// 5) o `datosActa` (Acta tipo 1) — solo uno viene poblado. Lanza
+/// 5) o `datosActa` (Acta tipo 1) - solo uno viene poblado. Lanza
 /// [DocumentoInvalidoError] si el archivo no pasa la validación.
 Future<
   ({

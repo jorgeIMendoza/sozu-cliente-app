@@ -695,7 +695,7 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
     text: widget.cuenta?.titular ?? '',
   );
 
-  // Evidencia (carátula del estado de cuenta) — requerida en el alta, igual
+  // Evidencia (carátula del estado de cuenta) - requerida en el alta, igual
   // que el portal (handleAddCuenta).
   String? _evidenciaNombre;
   Uint8List? _evidenciaBytes;
@@ -1113,7 +1113,7 @@ class _EvidenciaPicker extends StatelessWidget {
 // ─── Cambiar contraseña (diálogo centrado en modo portal) ────────────────────
 
 /// Abre el cambio de contraseña como diálogo centrado del portal (web ≥1024)
-/// o bottom sheet en móvil — espejo del modal "Cambiar contraseña" de
+/// o bottom sheet en móvil - espejo del modal "Cambiar contraseña" de
 /// ClientePerfil.tsx, en vez de una ruta full-page.
 Future<void> showCambiarPasswordDialog(BuildContext context) =>
     _showPerfilModal<void>(context, const _CambiarPasswordSheet());

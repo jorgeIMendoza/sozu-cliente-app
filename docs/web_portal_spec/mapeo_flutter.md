@@ -1,4 +1,4 @@
-# Mapeo a Flutter — "modo portal" web
+# Mapeo a Flutter - "modo portal" web
 
 > Cómo traducir los specs (`tokens.md`, `shell.md`, `estado_cuenta.md`) al app Flutter
 > (`apps/sozu-cliente-app`) sin romper la experiencia móvil existente.
@@ -6,7 +6,7 @@
 ## 1. Fuente
 
 **El portal NO usa Inter ni Google Fonts.** Usa el system font stack
-(`system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial` — index.css:644,
+(`system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial` - index.css:644,
 tailwind.config.ts:20; no hay `<link>` de fuentes en index.html).
 
 Opciones, en orden de fidelidad:
@@ -25,7 +25,7 @@ sidebar +0.18em (≈ `1.8` en 10px).
 
 `SozuTone` actual (lib/core/theme.dart) usa la paleta **móvil** (emerald500 #10B981,
 slate50 #F8FAFC...). El portal web usa **otro verde y otros grises**
-(#239F6D, #F9FAFB, #E5E7EB, #6B7280). **No modificar SozuTone/SozuColors** — el móvil debe
+(#239F6D, #F9FAFB, #E5E7EB, #6B7280). **No modificar SozuTone/SozuColors** - el móvil debe
 quedar intacto. Crear un archivo nuevo `lib/core/portal_theme.dart` con:
 
 ```dart
@@ -42,7 +42,7 @@ class PortalColors {
   static const borderSoft     = Color(0xFFE9EEF4);
   static const warning        = Color(0xFFF59E0B);
   static const destructive    = Color(0xFFEF4444);
-  // Derivados (base con alpha — usar withValues para hover/soft):
+  // Derivados (base con alpha - usar withValues para hover/soft):
   static const primarySoft6   = Color(0xFFF2F9F6); // item activo sidebar (primary 6%)
   static const primarySoft10  = Color(0xFFE9F5F0); // chip Pagado / badge N pagos
   static const primarySoft15  = Color(0xFFDEF1E9); // chips de estado
@@ -75,7 +75,7 @@ Espejo de Tailwind:
 
 Decidir con `MediaQuery.sizeOf(context).width >= kPortalBreakpoint` en un widget raíz
 (`PortalShell` decide sidebar vs experiencia móvil). Cumple el requisito de memoria:
-probar Chrome ancho/angosto + iPhone Safari — el modo <1024 conserva la UI móvil ya probada.
+probar Chrome ancho/angosto + iPhone Safari - el modo <1024 conserva la UI móvil ya probada.
 
 ## 4. Componentes Flutter a crear (lib/widgets/portal/)
 

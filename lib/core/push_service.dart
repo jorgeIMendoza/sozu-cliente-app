@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/firebase_options.dart';
 
-/// Push (FCM) — solo móvil. Web queda fuera: ahí vive la campana in-app.
+/// Push (FCM) - solo móvil. Web queda fuera: ahí vive la campana in-app.
 ///
 /// Tolerante a falta de configuración: si `firebase_options.dart` sigue siendo
 /// el placeholder (o Firebase falla por cualquier motivo), el servicio queda

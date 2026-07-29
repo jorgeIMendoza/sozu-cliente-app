@@ -187,7 +187,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
             ],
             AnimatedRotation(
               turns: _seccionAbierta ? 0.5 : 0,
-              duration: const Duration(milliseconds: 200),
+              duration: context.s.motion.normal,
               child: Icon(Icons.expand_more, size: 20, color: tone.fgSubtle),
             ),
           ],
@@ -646,8 +646,8 @@ const _mesesCortos = [
 ];
 
 String _fechaCorta(String? iso) {
-  if (iso == null || iso.isEmpty) return '—';
+  if (iso == null || iso.isEmpty) return '-';
   final d = DateTime.tryParse(iso);
-  if (d == null) return '—';
+  if (d == null) return '-';
   return '${d.day} ${_mesesCortos[d.month - 1]} ${d.year}';
 }

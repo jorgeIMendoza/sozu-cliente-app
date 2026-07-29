@@ -18,7 +18,7 @@ analyzer:
 
 linter:
   # Para desactivar una regla en un solo punto, usar `// ignore: nombre_regla`
-  # en la línea, o `// ignore_for_file: nombre_regla` en el archivo — no quitarla
+  # en la línea, o `// ignore_for_file: nombre_regla` en el archivo - no quitarla
   # de aquí.
   rules:
     # Imports SIEMPRE `package:sozu_cliente_app/...`, nunca `../../`.

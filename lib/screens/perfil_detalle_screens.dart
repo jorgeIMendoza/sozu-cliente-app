@@ -22,7 +22,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// Detalle de información personal: identificación y contacto.
 class PerfilPersonalScreen extends ConsumerWidget {
   /// En modo portal, si se provee, la vista se pinta inline (con "← Volver al
-  /// Perfil") en lugar de un diálogo centrado — paridad con setView del portal.
+  /// Perfil") en lugar de un diálogo centrado - paridad con setView del portal.
   final VoidCallback? onBack;
 
   const PerfilPersonalScreen({super.key, this.onBack});

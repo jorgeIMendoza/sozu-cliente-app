@@ -4,8 +4,8 @@ import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 /// Campo de selección **por escritura**, no por lista desplegable.
 ///
 /// Por qué existe: un `DropdownButtonFormField` vuelca TODAS las opciones en un
-/// menú. Con un catálogo de veinte proyectos —algunos con nombres que no dicen
-/// nada al usuario— eso es una pared de texto donde hay que cazar el correcto.
+/// menú. Con un catálogo de veinte proyectos -algunos con nombres que no dicen
+/// nada al usuario- eso es una pared de texto donde hay que cazar el correcto.
 /// Aquí se escribe, se filtra, y la lista solo aparece cuando hay algo que
 /// mostrar.
 ///
@@ -124,7 +124,7 @@ class _SAutocompleteFieldState<T extends Object>
 
   /// Al salir del campo sin haber elegido nada, se restaura el texto del valor
   /// vigente. Si no, quedaría un texto a medias que no corresponde a ninguna
-  /// selección real — y el usuario creería que filtró por eso.
+  /// selección real - y el usuario creería que filtró por eso.
   void _onFocusChange() {
     if (_focusNode.hasFocus || _controller == null) return;
     final text = _labelOrEmpty(_selected);

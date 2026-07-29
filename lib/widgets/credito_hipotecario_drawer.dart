@@ -22,7 +22,7 @@ const double _kDrawerWidth = 468;
 const _plazosAnios = [10, 15, 20];
 
 /// Abre el flujo "Pago final" como DRAWER lateral derecho del portal (réplica
-/// de `PagoFinalSheet.tsx` en escritorio) — en lugar de la pantalla completa
+/// de `PagoFinalSheet.tsx` en escritorio) - en lugar de la pantalla completa
 /// `PagoFinalScreen`. Reutiliza toda la lógica/estado de bancos y selección
 /// (bancos con convenio, saldo, tipo_financiamiento, crear_solicitud y la
 /// regla de no cambiar de banco con solicitud vigente).
@@ -50,7 +50,10 @@ Future<void> showCreditoHipotecarioDrawer(
     barrierDismissible: true,
     barrierLabel: 'Cerrar',
     barrierColor: Colors.black.withValues(alpha: 0.32),
-    transitionDuration: const Duration(milliseconds: 260),
+    // El drawer entra deslizándose desde la derecha: 260 ms cae en `normal`
+    // dentro de la escala. El peso de panel lo aporta la curva `emphasized` del
+    // transitionBuilder, no más milisegundos.
+    transitionDuration: context.s.motion.normal,
     pageBuilder: (ctx, anim, secondary) {
       final height = MediaQuery.sizeOf(ctx).height;
       return Align(
@@ -79,7 +82,13 @@ Future<void> showCreditoHipotecarioDrawer(
       );
     },
     transitionBuilder: (ctx, anim, secondary, child) {
-      final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
+      // `emphasized` y no `standard`: este panel recorre distancia (entra desde
+      // fuera de la pantalla) y el frenado largo de esa curva es lo que lo hace
+      // sentir con peso.
+      final curved = CurvedAnimation(
+        parent: anim,
+        curve: ctx.s.motion.emphasized,
+      );
       return SlideTransition(
         position: Tween<Offset>(
           begin: const Offset(1, 0),
@@ -233,7 +242,7 @@ class _CreditoHipotecarioDrawerState
   }
 
   /// Selecciona un banco con convenio (tarjeta clickeable): persiste
-  /// tipo+banco y avanza a precalificación — misma acción que el portal.
+  /// tipo+banco y avanza a precalificación - misma acción que el portal.
   Future<void> _seleccionarBanco(BancoConvenio banco) async {
     setState(() {
       _bancoSel = banco;
@@ -710,7 +719,8 @@ class _CreditoHipotecarioDrawerState
         onTap: _guardando ? null : () => _seleccionarBanco(b),
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          // hover: solo cambian borde/sombra/fondo -> `fast`.
+          duration: context.s.motion.fast,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: PortalColors.surface,
@@ -1407,7 +1417,8 @@ class _CreditoHipotecarioDrawerState
             launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          // hover: solo cambian borde/sombra/fondo -> `fast`.
+          duration: context.s.motion.fast,
           height: 44,
           alignment: Alignment.center,
           decoration: BoxDecoration(

@@ -63,7 +63,9 @@ class _PropiedadDetalleScreenState
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
+          // Cruce skeleton -> datos del cuerpo completo: superficie de pantalla
+          // entera, el único caso que se puede permitir `slow`.
+          duration: context.s.motion.slow,
           child: KeyedSubtree(
             key: ValueKey(
               detalle.isLoading
@@ -85,7 +87,7 @@ class _PropiedadDetalleScreenState
       bottomNavigationBar: _stickyCta(context, detalle.valueOrNull),
       // Fade suave entre skeleton → datos (sin salto al cargar).
       body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
+        duration: context.s.motion.slow,
         child: KeyedSubtree(
           key: ValueKey(
             detalle.isLoading
@@ -299,14 +301,14 @@ class _PropiedadDetalleScreenState
                       _dato(
                         tone,
                         'ÁREA',
-                        d.m2Interiores != null ? '${d.m2Interiores} m²' : '—',
+                        d.m2Interiores != null ? '${d.m2Interiores} m²' : '-',
                       ),
                       _dato(tone, 'RECÁMARAS', '${d.recamaras}'),
                       _dato(tone, 'BAÑOS', '${d.banos}'),
                       _dato(
                         tone,
                         'PISO',
-                        d.numeroPiso != null ? '${d.numeroPiso}' : '—',
+                        d.numeroPiso != null ? '${d.numeroPiso}' : '-',
                       ),
                       _dato(tone, 'ENTREGA', d.entrega),
                     ],
@@ -438,8 +440,10 @@ class _PropiedadDetalleScreenState
     } else if (_cronoKey.currentContext != null) {
       Scrollable.ensureVisible(
         _cronoKey.currentContext!,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
+        // Recorre distancia (scroll hasta la sección), de ahí `emphasized`:
+        // frena largo y se lee como que la página se acomoda, no como un salto.
+        duration: context.s.motion.slow,
+        curve: context.s.motion.emphasized,
       );
     }
   }
@@ -592,7 +596,7 @@ class _PropiedadDetalleScreenState
         ],
 
         // 1 · Imagen de la propiedad (galería del portal; el backend del app
-        // expone una sola foto — clic abre el visor a pantalla completa).
+        // expone una sola foto - clic abre el visor a pantalla completa).
         _portalImagen(d),
 
         // 2 · Productos adicionales
@@ -725,7 +729,8 @@ class _PropiedadDetalleScreenState
           onTap: () => setState(() => _portalTab = id),
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
+            // tab: cambia fondo y sombra en el sitio -> `fast`.
+            duration: context.s.motion.fast,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: active ? PortalColors.surface : Colors.transparent,
@@ -1533,7 +1538,7 @@ class _PropiedadDetalleScreenState
             ),
           ),
           ..._portalDesgloseEscrituracion(d),
-          if (d.entrega.trim().isNotEmpty && d.entrega != '—') ...[
+          if (d.entrega.trim().isNotEmpty && d.entrega != '-') ...[
             const SizedBox(height: 12),
             Row(
               children: [
@@ -1803,10 +1808,10 @@ class _PropiedadDetalleScreenState
       ('Proyecto', d.proyecto),
       ('Unidad', 'U-${d.unidad}'),
       ('Tipo', d.tipo),
-      ('Área', d.m2Interiores != null ? '${d.m2Interiores} m²' : '—'),
+      ('Área', d.m2Interiores != null ? '${d.m2Interiores} m²' : '-'),
       ('Recámaras', '${d.recamaras}'),
       ('Baños', '${d.banos}'),
-      ('Piso', d.numeroPiso != null ? '${d.numeroPiso}' : '—'),
+      ('Piso', d.numeroPiso != null ? '${d.numeroPiso}' : '-'),
       ('Entrega', d.entrega),
     ];
     return PortalCard(
@@ -2397,8 +2402,10 @@ class _GaleriaCarruselState extends State<_GaleriaCarrusel> {
     final target = i.clamp(0, widget.fotos.length - 1);
     _pc.animateToPage(
       target,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeInOut,
+      // Cambio de foto del carrusel: entrada/salida de un elemento -> `normal`,
+      // con la curva estándar (easeInOut arrancaba lento y se sentía retardo).
+      duration: context.s.motion.normal,
+      curve: context.s.motion.standard,
     );
   }
 
@@ -2492,7 +2499,8 @@ class _GaleriaCarruselState extends State<_GaleriaCarrusel> {
                 children: [
                   for (var i = 0; i < fotos.length; i++)
                     AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
+                      // El puntito activo se estira: superficie mínima -> `fast`.
+                      duration: context.s.motion.fast,
                       margin: const EdgeInsets.symmetric(horizontal: 3),
                       width: i == safeIdx ? 18 : 6,
                       height: 6,
@@ -2597,7 +2605,7 @@ class _DemandaBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Propiedad en proceso legal — modo solo lectura',
+              'Propiedad en proceso legal - modo solo lectura',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -2884,7 +2892,7 @@ class _FichaTecnica extends StatelessWidget {
       children: [
         Text(
           'Ubicación, nivel y distribución de tu unidad'
-          '${ficha.modelo != '—' ? ' · Modelo ${ficha.modelo}' : ''}',
+          '${ficha.modelo != '-' ? ' · Modelo ${ficha.modelo}' : ''}',
           style: TextStyle(fontSize: 12, color: tone.fgMuted),
         ),
         if (ficha.numeroDepa != null || ficha.numeroPiso != null) ...[
@@ -2903,7 +2911,7 @@ class _FichaTecnica extends StatelessWidget {
             ),
           ),
         ],
-        // ¿Dónde está tu unidad? — diagrama del edificio (niveles) +
+        // ¿Dónde está tu unidad? - diagrama del edificio (niveles) +
         // rejilla del nivel, réplica del BuildingDiagram del portal.
         if (ficha.numeroPiso != null) ...[
           const SizedBox(height: 16),
@@ -3194,7 +3202,8 @@ class _PortalCtaButton extends StatelessWidget {
         onTap: onPressed,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          // hover del botón: solo color de fondo -> `fast`.
+          duration: context.s.motion.fast,
           height: 40,
           alignment: Alignment.center,
           decoration: BoxDecoration(

@@ -31,24 +31,31 @@ import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/notificaciones_fx.dart';
 import 'package:sozu_cliente_app/widgets/portal_shell.dart';
 
-/// Página secundaria con transición sutil (fade + deslizamiento) y contenido
-/// responsive (WebFrame) para web/desktop.
+/// Página secundaria con la transición del design system
+/// ([sozuPageTransition]: fade + escala en escritorio, fade + deslizamiento en
+/// móvil) y contenido responsive (WebFrame) para web/desktop.
+///
+/// Recibe el [context] del `pageBuilder` porque duración y curva salen de
+/// `context.s.motion` y la forma de la transición del breakpoint: sin contexto no
+/// hay tokens y volveríamos a los milisegundos cocidos.
 ///
 /// [portalFullWidth]: pantallas con layout de portal propio (p.ej. estado de
-/// cuenta) no se limitan a los 900px del WebFrame en modo portal — el shell
+/// cuenta) no se limitan a los 900px del WebFrame en modo portal - el shell
 /// ya acota el contenido a 1280px; fuera del portal se comportan igual que
 /// siempre.
 ///
 /// [sinMarco]: pantallas que ocupan el viewport completo y traen su propio
 /// layout responsive (las de acceso). El WebFrame les hacía daño: las metía en
 /// una caja de 900 px pintada con `scaffoldBackgroundColor`, que en tema
-/// oscuro es `slate900` — de ahí el marco navy alrededor del login.
+/// oscuro es `slate900` - de ahí el marco navy alrededor del login.
 CustomTransitionPage<void> _slidePage(
+  BuildContext context,
   GoRouterState state,
   Widget child, {
   bool portalFullWidth = false,
   bool sinMarco = false,
 }) {
+  final duracion = sozuPageTransitionDuration(context);
   return CustomTransitionPage(
     key: state.pageKey,
     child: sinMarco
@@ -56,23 +63,11 @@ CustomTransitionPage<void> _slidePage(
         : portalFullWidth
         ? _PortalAwareFrame(child: child)
         : WebFrame(child: child),
-    transitionDuration: const Duration(milliseconds: 280),
-    transitionsBuilder: (context, animation, secondary, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOutCubic,
-      );
-      return FadeTransition(
-        opacity: curved,
-        child: SlideTransition(
-          position: Tween(
-            begin: const Offset(0.06, 0),
-            end: Offset.zero,
-          ).animate(curved),
-          child: child,
-        ),
-      );
-    },
+    transitionDuration: duracion,
+    // También la de regreso: su valor por defecto son 300 ms cocidos, así que
+    // sin esto el "atrás" seguiría animando con "reducir animaciones" activo.
+    reverseTransitionDuration: duracion,
+    transitionsBuilder: sozuPageTransition,
   );
 }
 
@@ -144,28 +139,36 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         pageBuilder: (context, state) =>
-            _slidePage(state, const LoginScreen(), sinMarco: true),
+            _slidePage(context, state, const LoginScreen(), sinMarco: true),
       ),
       GoRoute(
         path: '/forgot-password',
-        pageBuilder: (context, state) =>
-            _slidePage(state, const ForgotPasswordScreen(), sinMarco: true),
+        pageBuilder: (context, state) => _slidePage(
+          context,
+          state,
+          const ForgotPasswordScreen(),
+          sinMarco: true,
+        ),
       ),
       GoRoute(
         path: '/change-password',
-        pageBuilder: (context, state) =>
-            _slidePage(state, const ChangePasswordScreen(), sinMarco: true),
+        pageBuilder: (context, state) => _slidePage(
+          context,
+          state,
+          const ChangePasswordScreen(),
+          sinMarco: true,
+        ),
       ),
       // Admin sin cliente seleccionado (fuera del shell del portal).
       GoRoute(
         path: '/seleccionar-cliente',
         pageBuilder: (context, state) =>
-            _slidePage(state, const SeleccionarClienteScreen()),
+            _slidePage(context, state, const SeleccionarClienteScreen()),
       ),
       GoRoute(
         path: '/admin-avisos',
         pageBuilder: (context, state) =>
-            _slidePage(state, const AdminAvisosScreen()),
+            _slidePage(context, state, const AdminAvisosScreen()),
       ),
       // Modo portal (web ≥1024px): PortalShellWrapper envuelve TODAS las
       // pantallas del cliente con el shell del portal (sidebar 256 + topbar
@@ -201,13 +204,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/pagos',
             pageBuilder: (context, state) =>
-                _slidePage(state, const PagosScreen()),
+                _slidePage(context, state, const PagosScreen()),
           ),
           GoRoute(
             path: '/estado-cuenta',
             // Con layout de portal propio (grid 1fr+300 y tabla con min-width
             // 680): sin el tope de 900px del WebFrame en modo portal.
             pageBuilder: (context, state) => _slidePage(
+              context,
               state,
               const EstadoCuentaScreen(),
               portalFullWidth: true,
@@ -216,6 +220,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/pagar',
             pageBuilder: (context, state) => _slidePage(
+              context,
               state,
               PagarScreen(referencia: state.uri.queryParameters['id']),
             ),
@@ -223,26 +228,27 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/notificaciones',
             pageBuilder: (context, state) =>
-                _slidePage(state, const NotificacionesScreen()),
+                _slidePage(context, state, const NotificacionesScreen()),
           ),
           GoRoute(
             path: '/expediente',
             pageBuilder: (context, state) =>
-                _slidePage(state, const ExpedienteScreen()),
+                _slidePage(context, state, const ExpedienteScreen()),
           ),
           GoRoute(
             path: '/cambiar-password',
             pageBuilder: (context, state) =>
-                _slidePage(state, const CambiarPasswordScreen()),
+                _slidePage(context, state, const CambiarPasswordScreen()),
           ),
           GoRoute(
             path: '/productos',
             pageBuilder: (context, state) =>
-                _slidePage(state, const ProductosScreen()),
+                _slidePage(context, state, const ProductosScreen()),
           ),
           GoRoute(
             path: '/productos/:id',
             pageBuilder: (context, state) => _slidePage(
+              context,
               state,
               ProductoDetalleScreen(
                 cuentaId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
@@ -252,6 +258,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/propiedad/:id',
             pageBuilder: (context, state) => _slidePage(
+              context,
               state,
               PropiedadDetalleScreen(
                 cuentaId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,

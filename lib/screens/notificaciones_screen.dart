@@ -21,7 +21,7 @@ class NotificacionesScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
-  /// Filtro "Sin leer" — tabs Todas / Sin leer, compartido por la vista portal
+  /// Filtro "Sin leer" - tabs Todas / Sin leer, compartido por la vista portal
   /// (web ≥1024) y la vista móvil/angosta.
   bool _soloNoLeidas = false;
 
@@ -184,7 +184,8 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
+        // tab de filtro: cambia fondo y sombra, no se mueve -> `fast`.
+        duration: context.s.motion.fast,
         padding: const EdgeInsets.symmetric(vertical: 8),
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -212,7 +213,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
     );
   }
 
-  /// Estado vacío móvil — mismos textos/icono que `_portalVacio` (campana
+  /// Estado vacío móvil - mismos textos/icono que `_portalVacio` (campana
   /// `notifications_outlined`; textos según el filtro activo).
   Widget _movilVacio() {
     final tone = context.s.color;
@@ -361,7 +362,8 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          // tab de filtro: cambia fondo y borde, no se mueve -> `fast`.
+          duration: context.s.motion.fast,
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           alignment: Alignment.center,
@@ -871,7 +873,7 @@ void abrirNotificacion(BuildContext context, WidgetRef ref, Notificacion n) {
   if (ruta != null) context.go(ruta);
 }
 
-/// (fondo del icono, color del icono, icono) por tipo — typeInfo del portal.
+/// (fondo del icono, color del icono, icono) por tipo - typeInfo del portal.
 /// Compartida por la fila del portal y la vista previa de la campana.
 (Color, Color, IconData) _tipoInfoPortal(Notificacion n) => switch (n.tipo) {
   'urgente' => (

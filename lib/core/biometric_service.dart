@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Login biométrico (huella / Face ID) — SOLO móvil; en web todo devuelve
+/// Login biométrico (huella / Face ID) - SOLO móvil; en web todo devuelve
 /// false y no se toca secure storage.
 ///
 /// Guarda el refresh token de Supabase en secure storage (Keystore/Keychain)
@@ -12,7 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// SecureSessionStorage (esa se borra en signOut; esta sobrevive para poder
 /// re-entrar con biometría).
 ///
-/// IMPORTANTE — rotación: Supabase invalida el refresh token anterior en cada
+/// IMPORTANTE - rotación: Supabase invalida el refresh token anterior en cada
 /// refresh, por lo que hay que re-guardar el token nuevo tras cada
 /// signedIn/tokenRefreshed (el AuthController llama a [persistirSesion] desde
 /// su listener de onAuthStateChange) y tras cada setSession exitoso.

@@ -159,7 +159,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
   }
 
   // Instrucciones de pago STP (modo portal): réplica de ClientePropiedadPago
-  // del portal admin — banner de confirmación automática, monto/vencimiento,
+  // del portal admin - banner de confirmación automática, monto/vencimiento,
   // CLABE, banco receptor STP, beneficiario, concepto, CTA "Copiar CLABE",
   // nota "Conexión segura" y footer "Procesado por STP".
   Widget _portalInstrucciones(SozuColorRoles tone, DatosPago d) {
@@ -573,7 +573,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
               Expanded(
                 child: Text(
                   'Realiza la transferencia desde tu banca en línea. '
-                  'El pago se reflejará en 24–48 horas hábiles.',
+                  'El pago se reflejará en 24-48 horas hábiles.',
                   style: TextStyle(fontSize: 13, color: tone.fgMuted),
                 ),
               ),

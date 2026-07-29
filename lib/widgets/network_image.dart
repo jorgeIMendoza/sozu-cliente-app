@@ -37,7 +37,9 @@ class SozuNetworkImage extends StatelessWidget {
       cacheKey: cacheKeyFor(url!),
       cacheManager: SozuCacheManager.instance,
       fit: fit,
-      fadeInDuration: const Duration(milliseconds: 200),
+      // El cruce skeleton -> foto es la entrada de un elemento: `normal`, el
+      // mismo token que usan las cards al aparecer.
+      fadeInDuration: context.s.motion.normal,
       placeholder: (_, __) => const Skeleton(height: double.infinity),
       errorWidget: (_, __, ___) => _fallback(tone),
     );

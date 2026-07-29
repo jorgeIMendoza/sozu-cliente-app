@@ -6,7 +6,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// Fila de cliente del selector de super admin: nombre, correo y estado.
 ///
 /// Componente **tonto**: recibe el dato, si está isSelected y qué hacer al
-/// tocar. No lee providers ni navega — eso lo decide la pantalla. Así se puede
+/// tocar. No lee providers ni navega - eso lo decide la pantalla. Así se puede
 /// montar en un test o en otra vista sin arrastrar Riverpod.
 class ClientTile extends StatelessWidget {
   final AdminCliente cliente;

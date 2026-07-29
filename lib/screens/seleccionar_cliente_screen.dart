@@ -9,6 +9,7 @@ import 'package:sozu_cliente_app/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
+// Import directo mientras el export de la primitiva no está en ui/ui.dart.
 import 'package:sozu_cliente_app/widgets/admin/admin_header_bar.dart';
 import 'package:sozu_cliente_app/widgets/admin/client_tile.dart';
 import 'package:sozu_cliente_app/widgets/admin/client_filters.dart';
@@ -28,12 +29,12 @@ import 'package:sozu_cliente_app/widgets/theme_mode_button.dart';
 /// Esta pantalla **solo compone y orquesta**: lee providers, mantiene el estado
 /// de los filtros y decide qué mostrar. Todo lo visual vive en componentes:
 ///
-/// * [AdminHeaderBar] / [AdminHeaderAction] — encabezado y acciones
-/// * [ClientFilters] — Proyecto + Unidad
-/// * [SSearchField] — buscador
-/// * [ClientTile] — fila de cliente
-/// * [SSectionLabel] — encabezado de grupo
-/// * [SEmptyState] — vacíos e instrucciones
+/// * [AdminHeaderBar] / [AdminHeaderAction] - encabezado y acciones
+/// * [ClientFilters] - Proyecto + Unidad
+/// * [SSearchField] - buscador
+/// * [ClientTile] - fila de cliente
+/// * [SSectionLabel] - encabezado de grupo
+/// * [SEmptyState] - vacíos e instrucciones
 ///
 /// Antes eran ~480 líneas con seis `Widget _algo(SozuColorRoles tone)` privados
 /// pasándose el tema a mano, `TextStyle(fontSize: …)` sueltos y el layout
@@ -390,13 +391,20 @@ class _ClientList extends StatelessWidget {
       padding: EdgeInsets.zero,
       itemCount: clientes.length,
       separatorBuilder: (_, __) => SizedBox(height: t.space.xs),
-      itemBuilder: (context, i) => Consumer(
-        builder: (context, ref, _) => ClientTile(
-          cliente: clientes[i],
-          isSelected:
-              ref.watch(impersonationProvider).idPersona ==
-              clientes[i].idPersona,
-          onTap: () => onTap(clientes[i]),
+      // Entrada escalonada: cada fila entra un poco después de la anterior, así
+      // la lista se lee como algo que llega y no como un parpadeo del skeleton
+      // al contenido. El retardo lo satura `delayForIndex`, que es lo que evita
+      // que una búsqueda con 50 resultados tarde 2 s en terminar de aparecer.
+      itemBuilder: (context, i) => SFadeInUp(
+        delay: SStaggered.delayForIndex(i),
+        child: Consumer(
+          builder: (context, ref, _) => ClientTile(
+            cliente: clientes[i],
+            isSelected:
+                ref.watch(impersonationProvider).idPersona ==
+                clientes[i].idPersona,
+            onTap: () => onTap(clientes[i]),
+          ),
         ),
       ),
     );

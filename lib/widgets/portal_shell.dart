@@ -13,7 +13,7 @@ import 'package:sozu_cliente_app/widgets/portal_shell_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Shell web "modo portal": réplica del layout del Portal del Cliente de
-/// sozu-admin (docs/web_portal_spec/shell.md) — sidebar blanca fija de 256px
+/// sozu-admin (docs/web_portal_spec/shell.md) - sidebar blanca fija de 256px
 /// + topbar de 64px + contenido con fondo #F9FAFB y max-width 1280 centrado.
 ///
 /// Solo se pinta con [isPortalMode] (web ≥1024px); en móvil/angosto
@@ -514,7 +514,8 @@ class _PortalNavItemState extends State<_PortalNavItem> {
       hoverColor: Colors.transparent,
       highlightColor: Colors.transparent,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        // hover/activo: cambio de fondo, cero desplazamiento -> `fast`.
+        duration: context.s.motion.fast,
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(kPortalRadiusSm),
@@ -612,7 +613,8 @@ class _SidebarProfileButtonState extends State<_SidebarProfileButton> {
       hoverColor: Colors.transparent,
       highlightColor: Colors.transparent,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        // hover/activo: cambio de fondo, cero desplazamiento -> `fast`.
+        duration: context.s.motion.fast,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: _hover ? PortalColors.mutedHover : Colors.transparent,
@@ -703,7 +705,8 @@ class _FooterActionButtonState extends State<_FooterActionButton> {
       hoverColor: Colors.transparent,
       highlightColor: Colors.transparent,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        // hover/activo: cambio de fondo, cero desplazamiento -> `fast`.
+        duration: context.s.motion.fast,
         padding: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
           color: bg,
@@ -731,7 +734,7 @@ class _FooterActionButtonState extends State<_FooterActionButton> {
 }
 
 // ---------------------------------------------------------------------------
-// Topbar (shell.md §TopBar) — buscador global a la izquierda + campana +
+// Topbar (shell.md §TopBar) - buscador global a la izquierda + campana +
 // popover del avatar (el portal desktop no muestra título de sección).
 // ---------------------------------------------------------------------------
 

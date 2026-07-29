@@ -104,7 +104,17 @@ class SozuAvatar extends StatelessWidget {
   }
 }
 
-/// Barra de progreso verde animada. percent: 0–100.
+/// Duración del llenado de la barra de progreso.
+///
+/// Queda fuera de la escala de movimiento a propósito. Los tokens cubren
+/// transiciones de estado y se topan en 380 ms; esto es un barrido que recorre
+/// todo el ancho de la barra y cuyo punto es que se vea avanzar - a 380 ms el
+/// avance se pierde y la barra aparece llena. Es el mismo criterio que
+/// `CountUpMoney` en widgets/fx.dart: la duración es el efecto, no el costo de
+/// cambiar de estado.
+const Duration _progressFillDuration = Duration(milliseconds: 700);
+
+/// Barra de progreso verde animada. percent: 0-100.
 class SozuProgressBar extends StatelessWidget {
   final double percent;
 
@@ -118,7 +128,7 @@ class SozuProgressBar extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: 0, end: clamped.toDouble()),
-        duration: const Duration(milliseconds: 700),
+        duration: _progressFillDuration,
         curve: Curves.easeOutCubic,
         builder: (context, value, _) => LinearProgressIndicator(
           value: value,
@@ -132,7 +142,14 @@ class SozuProgressBar extends StatelessWidget {
 }
 
 /// Bloque de carga con efecto shimmer (barrido de luz).
-class Skeleton extends StatefulWidget {
+///
+/// Ya no implementa nada: delega en [SSkeleton], el placeholder global del
+/// design system. Existe SOLO para no tocar de golpe los sitios de uso que
+/// todavía la nombran; su API pública se conserva idéntica (`width`, `height`,
+/// `radius`) para que la delegación sea invisible en cada pantalla. Al migrar un
+/// archivo, cambiar `Skeleton(...)` por `SSkeleton(...)`.
+@Deprecated('Usar SSkeleton de lib/ui/primitives/.')
+class Skeleton extends StatelessWidget {
   final double? width;
   final double height;
   final double radius;
@@ -140,55 +157,8 @@ class Skeleton extends StatefulWidget {
   const Skeleton({super.key, this.width, this.height = 16, this.radius = 8});
 
   @override
-  State<Skeleton> createState() => _SkeletonState();
-}
-
-class _SkeletonState extends State<Skeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1300),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final base = dark ? SozuNeutral.n700 : SozuNeutral.n200;
-    final highlight = dark ? SozuNeutral.n600 : SozuNeutral.n100;
-
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) => Container(
-        width: widget.width,
-        height: widget.height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(widget.radius),
-          gradient: LinearGradient(
-            colors: [base, highlight, base],
-            stops: const [0.25, 0.5, 0.75],
-            transform: _SlideGradient(_c.value),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Desliza el gradiente de izquierda a derecha (t: 0–1).
-class _SlideGradient extends GradientTransform {
-  final double t;
-
-  const _SlideGradient(this.t);
-
-  @override
-  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) =>
-      Matrix4.translationValues(bounds.width * (t * 3 - 1.5), 0, 0);
+  Widget build(BuildContext context) =>
+      SSkeleton(width: width, height: height, radius: radius);
 }
 
 /// Título de sección con icono.

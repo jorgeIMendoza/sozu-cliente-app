@@ -752,7 +752,7 @@ class _PushPrefSwitchState extends State<_PushPrefSwitch> {
   bool _activo = true;
   bool _cargando = true;
   // false si pref_get falló (p. ej. backend sin la acción): switch visible
-  // con el default pero deshabilitado — degradación limpia.
+  // con el default pero deshabilitado - degradación limpia.
   bool _disponible = true;
 
   @override
@@ -837,7 +837,7 @@ class _PushPrefSwitchState extends State<_PushPrefSwitch> {
 /// en círculo si existe, con fallback a las iniciales (widget [fallback]).
 /// Cuando [showBadge] es true dibuja el badge de cámara (esquina inferior
 /// derecha) y hace tappable todo el avatar ([onTap] abre la gestión de foto).
-/// El badge se oculta al impersonar (showBadge=false) — espejo del botón de
+/// El badge se oculta al impersonar (showBadge=false) - espejo del botón de
 /// avatar de ClientePerfil.tsx.
 class _PerfilAvatar extends StatelessWidget {
   final String? fotoUrl;

@@ -12,7 +12,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// lo que de verdad requiere acción es lo que hace que el usuario les crea
 /// cuando aparecen.
 ///
-/// Leyenda: `PREVIEW • v1.0.0-YYMMDD.HHMM`. Sin icono y de una sola línea —
+/// Leyenda: `PREVIEW • v1.0.0-YYMMDD.HHMM`. Sin icono y de una sola línea -
 /// el timestamp del build es el dato que se pide al reportar un bug, así que va
 /// completo y no se recorta en móvil.
 ///

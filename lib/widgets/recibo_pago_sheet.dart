@@ -15,7 +15,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// Datos que el recibo in-app necesita, desacoplados del modelo de origen para
 /// poder alimentarlo desde HistorialPago, PagoRealizado o AplicacionPago
 /// (cada tabla del portal trae uno u otro). Los campos que un modelo no expone
-/// (concepto/propiedad) los aporta la pantalla; el resto degrada a '—'.
+/// (concepto/propiedad) los aporta la pantalla; el resto degrada a '-'.
 class ReciboPagoData {
   final int id;
   final String? fechaPago;
@@ -28,9 +28,9 @@ class ReciboPagoData {
   final String? claveRastreo;
   final String? producto; // nombre del producto (productName del portal)
 
-  // — Campos ricos del recibo (espejo del PaymentReceiptModal del portal).
+  // - Campos ricos del recibo (espejo del PaymentReceiptModal del portal).
   //   Los provee cliente-pagos en `historial`; degradan a null en las tablas
-  //   cuyo modelo no los expone (aplicaciones / pagos de estado de cuenta). —
+  //   cuyo modelo no los expone (aplicaciones / pagos de estado de cuenta). -
   final String? rfc;
   final String? clabe; // CLABE enmascarada (solo últimos 4)
   final String? referenciaStp; // referencia STP (SOZU-<cuenta>)
@@ -240,7 +240,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
   /// Fecha de confirmación: si el dato trae hora la mostramos como
   /// "DD/MM/YYYY HH:mm"; si no, solo "DD/MM/YYYY".
   String _fechaConfirmacion(String? input) {
-    if (input == null || input.isEmpty) return '—';
+    if (input == null || input.isEmpty) return '-';
     final d = DateTime.tryParse(input);
     if (d == null) return formatDate(input);
     final tieneHora =

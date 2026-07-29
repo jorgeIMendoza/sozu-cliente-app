@@ -30,11 +30,21 @@ class PulsingPin extends StatefulWidget {
   State<PulsingPin> createState() => _PulsingPinState();
 }
 
+/// Periodo de un latido del halo.
+///
+/// No sale de `context.s.motion` y no debe: los tokens describen transiciones
+/// de estado (algo pasa de A a B una vez), y esto es un loop ambiental que corre
+/// mientras el mapa está en pantalla. Si colgara de un token, ajustar el peso de
+/// las hojas modales cambiaría el ritmo de este pulso - dos cosas que no tienen
+/// relación quedarían acopladas. Los 2 s son el ritmo de respiración en reposo,
+/// que es exactamente la lectura que se busca.
+const Duration _pulseCycle = Duration(milliseconds: 2000);
+
 class _PulsingPinState extends State<PulsingPin>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2000),
+    duration: _pulseCycle,
   );
 
   @override

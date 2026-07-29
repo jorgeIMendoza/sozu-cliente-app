@@ -3,7 +3,7 @@
 /// **No usar estas constantes en pantallas.** Son la materia prima con la que
 /// `color_roles.dart` compone los roles semánticos (`surface`, `fgMuted`,
 /// `danger`, …). Una pantalla que pide `SozuNeutral.n500` está diciendo "quiero
-/// este gris", cuando debería decir "quiero texto secundario" —y así es como se
+/// este gris", cuando debería decir "quiero texto secundario" -y así es como se
 /// bifurcó la paleta antes.
 ///
 /// Uso correcto: `context.s.color.fgMuted`.
@@ -35,10 +35,10 @@ class SozuBrand {
   // Rampa (misma H/S, distinta L).
   static const Color green50 = Color(0xFFEEFBF7); // L 96%
   static const Color green100 = Color(0xFFD9F7EC); // L 91%
-  static const Color green400 = Color(0xFF2ED195); // L 50% — realce en dark
-  static const Color green500 = green; // L 38% — primario
-  static const Color green600 = Color(0xFF1D825D); // L 31% — hover / links
-  static const Color green700 = Color(0xFF166448); // L 24% — pressed
+  static const Color green400 = Color(0xFF2ED195); // L 50% - realce en dark
+  static const Color green500 = green; // L 38% - primario
+  static const Color green600 = Color(0xFF1D825D); // L 31% - hover / links
+  static const Color green700 = Color(0xFF166448); // L 24% - pressed
 
   /// Verde claro para el degradado del botón primario (hsl 158 60% 46%).
   static const Color greenLight = Color(0xFF2FBC88);
@@ -94,7 +94,7 @@ class SozuNeutral {
 /// PROPUESTA, no medida: el Portal del Cliente es light-only, así que estos
 /// valores no existían en el código. Lo que el ADR fija es que el rol exista en
 /// dark; el hex exacto se afina con diseño (ADR §10.3). No se derivan invirtiendo
-/// [SozuNeutral]: una inversión mecánica da grises que "flotan" —los oscuros
+/// [SozuNeutral]: una inversión mecánica da grises que "flotan" -los oscuros
 /// necesitan menos contraste entre niveles adyacentes que los claros.
 class SozuNeutralDark {
   SozuNeutralDark._();
@@ -161,12 +161,12 @@ class SozuBlue {
   SozuBlue._();
 
   static const Color base = Color(0xFF2563EB); // blue-600
-  static const Color strong = Color(0xFF1E40AF); // blue-800 — texto sobre soft
-  static const Color soft = Color(0xFFDBEAFE); // blue-100 — fondo de cintillo
-  static const Color softStrong = Color(0xFFBFDBFE); // blue-200 — borde
+  static const Color strong = Color(0xFF1E40AF); // blue-800 - texto sobre soft
+  static const Color soft = Color(0xFFDBEAFE); // blue-100 - fondo de cintillo
+  static const Color softStrong = Color(0xFFBFDBFE); // blue-200 - borde
   static const Color softDark = Color(0xFF16243D);
   static const Color softDarkStrong = Color(0xFF1E3358);
-  static const Color onDark = Color(0xFF93C5FD); // blue-300 — realce en oscuro
+  static const Color onDark = Color(0xFF93C5FD); // blue-300 - realce en oscuro
 }
 
 // ---------------------------------------------------------------------------

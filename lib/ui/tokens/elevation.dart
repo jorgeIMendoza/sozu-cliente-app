@@ -6,7 +6,7 @@ import 'package:sozu_cliente_app/ui/tokens/palette.dart';
 ///
 /// Los valores NO son inventados: salen de auditar los 24 `BoxShadow` que ya
 /// existían dispersos en la app. Los patrones recurrentes eran
-/// `(0,1)/blur 2`, `(0,4)/blur 12` y `(0,8)/blur 24`, con alpha 0.08 dominante —
+/// `(0,1)/blur 2`, `(0,4)/blur 12` y `(0,8)/blur 24`, con alpha 0.08 dominante -
 /// exactamente `shadow-sm/md/lg` de Tailwind, que es de donde venía el portal.
 ///
 /// En tema oscuro las sombras negras no se ven (negro sobre negro). La variante

@@ -10,16 +10,16 @@ import 'package:flutter/material.dart';
 /// necesita el `BorderRadius` ya construido.
 @immutable
 class SozuRadii {
-  /// 6 — items de menú, buscador, chips chicos.
+  /// 6 - items de menú, buscador, chips chicos.
   final double sm;
 
-  /// 8 — icon-buttons, campana de notificaciones.
+  /// 8 - icon-buttons, campana de notificaciones.
   final double md;
 
-  /// 16 — botones grandes, inputs, dropdowns.
+  /// 16 - botones grandes, inputs, dropdowns.
   final double lg;
 
-  /// 24 — todas las cards y hojas modales.
+  /// 24 - todas las cards y hojas modales.
   final double card;
 
   /// Círculo completo: avatares, pills.

@@ -54,7 +54,7 @@ class PaymentMethodBadge extends StatelessWidget {
 
   Widget _credito(SozuColorRoles tone) {
     final banco = solicitud?.bancoNombre;
-    final titulo = (banco != null && banco != '—')
+    final titulo = (banco != null && banco != '-')
         ? 'Crédito hipotecario · $banco'
         : 'Crédito hipotecario';
     // Línea de seguimiento por estatus (ESTATUS_LINEA del portal); sin
@@ -114,7 +114,7 @@ class PaymentMethodBadge extends StatelessWidget {
     );
   }
 
-  /// Línea de seguimiento por estatus — espejo de ESTATUS_LINEA del portal.
+  /// Línea de seguimiento por estatus - espejo de ESTATUS_LINEA del portal.
   String _estatusLinea(String estatus) => switch (estatus.toLowerCase()) {
     'nuevo' =>
       'Solicitud enviada. El broker se pondrá en contacto contigo lo antes '
@@ -198,7 +198,7 @@ class PaymentMethodBadge extends StatelessWidget {
     );
   }
 
-  /// (etiqueta, tono) por estatus de la solicitud — mapa de ESTATUS_LINEA del
+  /// (etiqueta, tono) por estatus de la solicitud - mapa de ESTATUS_LINEA del
   /// portal: aprobados en verde, rechazo/expiración en rojo, resto ámbar.
   (String, BadgeTone) _estatusBadge(String estatus) {
     final e = estatus.toLowerCase();
@@ -222,7 +222,7 @@ class PaymentMethodBadge extends StatelessWidget {
     final label =
         labels[e] ??
         (e.isEmpty
-            ? '—'
+            ? '-'
             : e[0].toUpperCase() + e.substring(1).replaceAll('_', ' '));
     final badgeTone = switch (e) {
       'pre_aprobado' ||

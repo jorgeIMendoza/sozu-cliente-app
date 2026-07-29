@@ -84,7 +84,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   String _estatus = 'todos'; // todos | pagado | pendiente
   String _tipo = 'todos'; // todos | pagos | mantenimiento
 
-  // — Solo modo portal (web ≥1024): la vista móvil usa estados por fila —
+  // - Solo modo portal (web ≥1024): la vista móvil usa estados por fila -
   int? _generandoPortal; // id del pago cuyo recibo se genera en la tabla
   final Set<int> _proximosExpandidos = {}; // próximos con desglose abierto
 
@@ -180,7 +180,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
               for (final p in data.proximosPagos) p.propiedad,
               for (final h in data.historial) h.propiedad,
               for (final m in data.historialMantenimiento) m.propiedad,
-            }..remove('—');
+            }..remove('-');
 
             // Una sola propiedad → directo al detalle.
             final seleccion =
@@ -407,7 +407,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
     }
 
     // Método de pago final elegido (badge informativo, espejo del portal):
-    // lee el detalle ya cacheado con valueOrNull — sin loading propio; si aún
+    // lee el detalle ya cacheado con valueOrNull - sin loading propio; si aún
     // no hay datos (o el backend no lo expone) simplemente no se muestra.
     final cards = ref.watch(clientePropiedadesProvider).valueOrNull;
     final cuentaId = [
@@ -487,7 +487,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
       ..sort((a, b) => b.ordenKey.compareTo(a.ordenKey));
     final total = pagados.fold<double>(0, (s, it) => s + it.monto);
     final ultimo = pagados.isEmpty
-        ? '—'
+        ? '-'
         : (pagados.first.pago != null
               ? formatDate(pagados.first.pago!.fechaPago)
               : _mesLabel(pagados.first.mesKey));
@@ -1632,7 +1632,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
             ],
           )
         : Text(
-            '—',
+            '-',
             style: portalText(
               size: 11,
               color: PortalColors.mutedForeground.withValues(alpha: .4),
@@ -1675,7 +1675,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: portalText(size: 13, weight: FontWeight.w500),
                     ),
-                    if ((sub ?? '').isNotEmpty && sub != '—')
+                    if ((sub ?? '').isNotEmpty && sub != '-')
                       Text(
                         sub!,
                         maxLines: 1,
@@ -1756,7 +1756,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
       ..sort((a, b) => b.ordenKey.compareTo(a.ordenKey));
     final total = pagados.fold<double>(0, (s, it) => s + it.monto);
     final ultimo = pagados.isEmpty
-        ? '—'
+        ? '-'
         : (pagados.first.pago != null
               ? portalShortDate(pagados.first.pago!.fechaPago)
               : _mesLabel(pagados.first.mesKey));

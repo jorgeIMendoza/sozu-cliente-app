@@ -15,13 +15,13 @@ import 'package:flutter/material.dart';
 /// El legacy se conserva intacto durante la transición para no cambiar el
 /// comportamiento de las 25 pantallas que lo usan hoy.
 enum SozuBreakpoint {
-  /// < 768 — teléfono. Una columna, bottom-nav.
+  /// < 768 - teléfono. Una columna, bottom-nav.
   mobile,
 
-  /// 768–1023 — tablet / ventana media. Dos columnas, aún sin sidebar.
+  /// 768-1023 - tablet / ventana media. Dos columnas, aún sin sidebar.
   tablet,
 
-  /// ≥ 1024 — escritorio. Sidebar 256 + topbar 64.
+  /// ≥ 1024 - escritorio. Sidebar 256 + topbar 64.
   desktop;
 
   bool get isMobile => this == SozuBreakpoint.mobile;
@@ -66,7 +66,7 @@ extension SozuBreakpointX on BuildContext {
   /// Breakpoint actual según el ancho disponible.
   ///
   /// Usa `MediaQuery.sizeOf`, así que solo reconstruye cuando cambia el tamaño
-  /// —no en cada cambio de padding, teclado o brillo.
+  /// -no en cada cambio de padding, teclado o brillo.
   SozuBreakpoint get bp =>
       SozuBreakpoint.fromWidth(MediaQuery.sizeOf(this).width);
 

@@ -1,4 +1,4 @@
-/// SHIM DE COMPATIBILIDAD — `PortalColors` está deprecado.
+/// SHIM DE COMPATIBILIDAD - `PortalColors` está deprecado.
 ///
 /// Era la mitad "web" de la paleta bifurcada. Sus 749 referencias siguen
 /// funcionando, pero cada constante ahora apunta a la rampa unificada de
@@ -91,7 +91,7 @@ class PortalColors {
 }
 
 // ---------------------------------------------------------------------------
-// Medidas de layout — reenvían a ui/theme/breakpoints.dart
+// Medidas de layout - reenvían a ui/theme/breakpoints.dart
 // ---------------------------------------------------------------------------
 
 /// Ancho de la sidebar fija del portal (`w-64`).
@@ -113,7 +113,7 @@ const double kPortalBreakpoint = kSozuDesktopMin;
 const double kTwoColBreakpoint = kSozuTabletMin;
 
 // ---------------------------------------------------------------------------
-// Radios — reenvían a SozuRadii.standard
+// Radios - reenvían a SozuRadii.standard
 // ---------------------------------------------------------------------------
 
 const double kPortalRadiusSm = 6; // rounded-md

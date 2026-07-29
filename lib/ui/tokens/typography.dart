@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Sistema tipográfico de SOZU — **fuente de verdad única** de tamaños, pesos e
+/// Sistema tipográfico de SOZU - **fuente de verdad única** de tamaños, pesos e
 /// interlineados de toda la plataforma (web, Android e iOS).
 ///
 /// Dos familias con papeles distintos:
@@ -14,12 +14,12 @@ import 'package:flutter/material.dart';
 /// **Regla de uso:** no escribir `TextStyle(fontSize: …)` suelto en las
 /// pantallas. Usar un token de [SozuType], o `Theme.of(context).textTheme.*`
 /// (los roles de Material están mapeados en [sozuTextTheme]). Si hace falta un
-/// tamaño que no existe, se agrega aquí — no en la pantalla.
+/// tamaño que no existe, se agrega aquí - no en la pantalla.
 ///
 /// **Sobre `fontFamilyFallback`:** no usarlo para pedir fuentes del sistema
 /// (`-apple-system`, `Segoe UI`). En web, CanvasKit rasteriza el texto él mismo y
 /// solo reconoce las familias declaradas en `pubspec.yaml`, así que un fallback a
-/// fuentes del sistema es código muerto — y en móvil produce render distinto al
+/// fuentes del sistema es código muerto - y en móvil produce render distinto al
 /// de web, que es exactamente lo que este archivo evita.
 ///
 /// Escala (proporción ~1.25, redondeada a valores cómodos):
@@ -34,7 +34,7 @@ import 'package:flutter/material.dart';
 /// | `bodyText`  | bodyMedium     | Inter   | 14 | 400  | Texto por defecto          |
 /// | `bodySmall` | bodySmall      | Inter   | 13 | 400  | Texto secundario           |
 /// | `label`     | labelLarge     | Inter   | 14 | 600  | Etiqueta de campo          |
-/// | `button`    | —              | Poppins | 15 | 600  | Texto de botón             |
+/// | `button`    | -              | Poppins | 15 | 600  | Texto de botón             |
 /// | `caption`   | labelSmall     | Inter   | 12 | 400  | Pies, ayudas, metadatos    |
 /// | `overline`  | labelMedium    | Inter   | 11 | 600  | Chips, separadores         |
 class SozuType {
@@ -139,8 +139,8 @@ class SozuType {
 
 /// Familia por defecto de todo lo que no pida un estilo explícito.
 ///
-/// Inter es lo más cercano al `system-ui` del navegador —comparte métrica y aire
-/// con Segoe UI / SF Pro / Roboto— pero al ir empaquetada se ve idéntica en las
+/// Inter es lo más cercano al `system-ui` del navegador -comparte métrica y aire
+/// con Segoe UI / SF Pro / Roboto- pero al ir empaquetada se ve idéntica en las
 /// tres plataformas.
 const String kSozuFontFamily = SozuType.body;
 

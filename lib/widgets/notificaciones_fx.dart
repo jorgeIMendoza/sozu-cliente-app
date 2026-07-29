@@ -48,8 +48,8 @@ class NotifFx {
 /// Controlador global de la animación de "llegada" de notificaciones. Siempre
 /// montado bajo el ShellRoute del cliente (todas las pantallas, en móvil,
 /// portal y escritorio), observa [clienteNotificacionesProvider] una sola vez
-/// a nivel app —sin depender del TickerMode de una campana en una pestaña
-/// offstage— y, al subir el contador de no leídas, lanza el proyectil en el
+/// a nivel app -sin depender del TickerMode de una campana en una pestaña
+/// offstage- y, al subir el contador de no leídas, lanza el proyectil en el
 /// rootOverlay hacia el destino de notificaciones visible en la pantalla.
 ///
 /// Reparto de responsabilidades para no duplicar la animación:

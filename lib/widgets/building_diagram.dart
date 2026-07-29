@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
-/// Diagrama "¿Dónde está tu unidad?" — réplica del BuildingDiagram del Portal
+/// Diagrama "¿Dónde está tu unidad?" - réplica del BuildingDiagram del Portal
 /// del Cliente (FichaTecnicaSection.tsx de sozu-admin).
 ///
 /// Dos columnas:
@@ -88,7 +88,7 @@ class BuildingDiagram extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Columna izquierda — niveles del edificio.
+              // Columna izquierda - niveles del edificio.
               Expanded(
                 child: _Columna(
                   label: 'NIVEL EN EL EDIFICIO',
@@ -102,7 +102,7 @@ class BuildingDiagram extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
-              // Columna derecha — unidades del nivel.
+              // Columna derecha - unidades del nivel.
               Expanded(
                 child: _Columna(
                   label: 'UBICACIÓN EN EL NIVEL',

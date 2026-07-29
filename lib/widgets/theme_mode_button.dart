@@ -12,7 +12,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 ///
 /// **Sistema** es una opción de primera clase, no un extra: es el valor por
 /// defecto y hay gente que tiene el móvil en oscuro automático por horario. Se
-/// muestra qué modo está activo Y, cuando es `system`, qué resolvió — sin eso
+/// muestra qué modo está activo Y, cuando es `system`, qué resolvió - sin eso
 /// "Sistema" no dice nada al mirar la pantalla.
 class ThemeModeButton extends ConsumerWidget {
   /// `true` lo pinta como fila con etiqueta (para listas de ajustes).

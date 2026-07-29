@@ -46,8 +46,8 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
   ) {
     for (final m in data.mantenimiento) {
       if (m.id == p.id) return m;
-      if (p.nombre != '—' &&
-          m.propiedad != '—' &&
+      if (p.nombre != '-' &&
+          m.propiedad != '-' &&
           (m.propiedad == p.nombre ||
               m.propiedad.contains(p.nombre) ||
               p.nombre.contains(m.propiedad))) {

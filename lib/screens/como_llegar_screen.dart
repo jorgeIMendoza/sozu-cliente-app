@@ -124,7 +124,7 @@ class _ComoLlegarScreenState extends State<ComoLlegarScreen> {
   }
 
   /// Rastreo en vivo: el stream emite por EVENTOS del GPS (cada
-  /// [_metrosPorEvento] m de movimiento), no por timer — el sistema
+  /// [_metrosPorEvento] m de movimiento), no por timer - el sistema
   /// operativo avisa solo, con mejor precisión y menor batería.
   void _escucharMovimiento() {
     _posSub?.cancel();

@@ -7,8 +7,8 @@ import 'package:sozu_cliente_app/ui/tokens/palette.dart';
 ///
 /// `assets/sozu-logo-black.png` es una silueta monocroma: todos sus píxeles
 /// opacos son negro puro (#000000) y el resto es transparente. Eso permite
-/// recolorearlo en tiempo de ejecución con `BlendMode.srcIn` —que reemplaza el
-/// color conservando el canal alfa— así que NO hacen falta dos archivos
+/// recolorearlo en tiempo de ejecución con `BlendMode.srcIn` -que reemplaza el
+/// color conservando el canal alfa- así que NO hacen falta dos archivos
 /// (negro y blanco) ni mantenerlos sincronizados.
 ///
 /// El color por defecto es [SozuColorRoles.fg], o sea: negro en tema claro y

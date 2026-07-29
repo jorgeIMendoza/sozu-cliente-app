@@ -14,7 +14,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// Campana de notificaciones con contador de no leídas.
 ///
 /// Al subir el conteo corre la animación configurada por el admin (sobre /
-/// gol / cohete — ver [AnimacionCampana]); el badge muestra el número nuevo
+/// gol / cohete - ver [AnimacionCampana]); el badge muestra el número nuevo
 /// hasta que la animación "aterriza", con un pop. Bajadas del conteo (marcar
 /// leídas) se reflejan sin animación.
 class NotificationBell extends ConsumerStatefulWidget {
@@ -53,7 +53,11 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
         _pop = true;
         _volando = false;
       });
-      Future.delayed(const Duration(milliseconds: 220), () {
+      // El "pop" se sostiene exactamente lo que tarda el AnimatedScale de la
+      // campana en crecer, así que sale del mismo token: sube, llega, y desde
+      // ahí regresa. Con dos valores sueltos (220 aquí, 200 allá) el regreso
+      // arrancaba antes de terminar de crecer y el brinco se veía cortado.
+      Future.delayed(context.s.motion.normal, () {
         if (mounted) setState(() => _pop = false);
       });
     });
@@ -198,7 +202,10 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
       onPressed: _abrirPreview,
       icon: AnimatedScale(
         scale: _pop ? 1.3 : 1.0,
-        duration: const Duration(milliseconds: 200),
+        duration: context.s.motion.normal,
+        // easeOutBack se conserva: el sobrepaso de la curva ES el brinco de la
+        // campana al llegar una notificación. `motion.standard` no rebasa el
+        // valor final y dejaría el pop en un simple crecer.
         curve: Curves.easeOutBack,
         child: Badge.count(
           count: noLeidas,

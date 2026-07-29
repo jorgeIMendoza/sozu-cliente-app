@@ -10,7 +10,7 @@ import 'package:sozu_cliente_app/ui/tokens/palette.dart';
 /// existían `SozuTone` (móvil, rampa slate) y `PortalColors` (web, rampa gray)
 /// modelando exactamente los mismos roles con hex distintos.
 ///
-/// Uso: `context.s.color.fgMuted` — ver `ui/theme/sozu_theme.dart`.
+/// Uso: `context.s.color.fgMuted` - ver `ui/theme/sozu_theme.dart`.
 ///
 /// Reglas al agregar un rol:
 /// 1. Debe tener valor en claro Y oscuro. Si solo aplica a uno, no es un rol.

@@ -19,7 +19,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 const _plazosAnios = [10, 15, 20];
 
 /// Flujo "Pago final" (espejo del portal-cliente de sozu-admin): el cliente
-/// elige cómo liquidará su unidad — recursos propios (STP) o crédito
+/// elige cómo liquidará su unidad - recursos propios (STP) o crédito
 /// hipotecario (banco con convenio u otro). La elección se persiste vía
 /// cliente-pago-final; recursos propios continúa a instrucciones de pago.
 /// Con banco preferente sigue la precalificación (monto/plazo + estimación) y
@@ -71,12 +71,12 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
   SolicitudCredito? _solicitud;
 
   /// Resumen de la precalificación enviada en ESTA sesión (monto/plazo y
-  /// estimación), para mostrarlo en el estatus — espejo del bloque
+  /// estimación), para mostrarlo en el estatus - espejo del bloque
   /// "Estimación enviada a {banco}" del portal.
   ({double monto, int plazoAnios, double? mensualidad, double? tasa})?
   _resumenEnviado;
 
-  // — Precalificación —
+  // - Precalificación -
   late final TextEditingController _montoCtrl;
   int _plazoAnios = 20;
   bool _enviando = false;
@@ -125,7 +125,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
 
   bool get _montoValido => _monto > 0 && _monto <= widget.saldo;
 
-  /// Pago mensual (amortización francesa) — port de
+  /// Pago mensual (amortización francesa) - port de
   /// mortgage-data.ts `calculateMonthlyPayment`.
   double _mensualidad(double principal, double tasaAnual, int anios) {
     if (principal <= 0 || anios <= 0) return 0;
@@ -260,7 +260,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
   Widget build(BuildContext context) {
     // Modo portal (web ≥1024): esta pantalla vive FUERA del shell (se abre
     // con Navigator.push), así que pinta su propio fondo claro del portal con
-    // una barra mínima y el contenido centrado a máx. 640px — como el sheet
+    // una barra mínima y el contenido centrado a máx. 640px - como el sheet
     // "Pago final" del portal en escritorio. Contenido idéntico al móvil.
     if (isPortalMode(context)) {
       return Theme(
@@ -564,7 +564,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
   }
 
   // ── Paso 2: selector de banco (catálogo dinámico, solo bancos con
-  // convenio — espejo de MortgageBankSelector del portal) ──
+  // convenio - espejo de MortgageBankSelector del portal) ──
 
   List<Widget> _bancoSelector(SozuColorRoles tone) => [
     Text(

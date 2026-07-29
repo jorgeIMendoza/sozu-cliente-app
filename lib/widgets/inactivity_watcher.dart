@@ -56,7 +56,7 @@ class _InactivityWatcherState extends ConsumerState<InactivityWatcher>
   }
 
   /// Sesión "usable": con el candado biométrico puesto la sesión de Supabase
-  /// sigue viva pero la app ya está bloqueada — no hay nada que vigilar.
+  /// sigue viva pero la app ya está bloqueada - no hay nada que vigilar.
   bool get _hasUsableSession {
     final auth = ref.read(authProvider);
     return auth.session != null && !auth.locked;

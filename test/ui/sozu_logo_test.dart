@@ -32,7 +32,7 @@ void main() {
   });
 
   // Ojo: cada caso monta su propio árbol. Cambiar `themeMode` sobre un árbol ya
-  // montado NO sirve para aserciones inmediatas — MaterialApp interpola el tema
+  // montado NO sirve para aserciones inmediatas - MaterialApp interpola el tema
   // con AnimatedTheme, así que en t=0 `Theme.of` sigue devolviendo el anterior
   // (nuestro SozuTheme.lerp hace exactamente eso). Haría falta pumpAndSettle.
 

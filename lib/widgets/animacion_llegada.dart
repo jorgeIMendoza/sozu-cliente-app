@@ -26,6 +26,13 @@ const kFase1Animacion = 0.16;
 const kInicioGolAnimacion = 0.86;
 
 /// Duración estándar de la animación completa.
+///
+/// No es un token de `context.s.motion` ni puede serlo: la escala de movimiento
+/// llega a 380 ms porque mide transiciones de estado, y esto es una coreografía
+/// de varias fases ([kFase1Animacion], [kInicioGolAnimacion]) cuyo valor son los
+/// 2.3 s de recorrido. Recortarla al token más largo dejaría las fases sin
+/// tiempo de leerse. Vive aquí, junto a las fracciones que la reparten, porque
+/// cambiarla obliga a revisarlas.
 const kDuracionAnimacion = Duration(milliseconds: 2300);
 
 /// Frame de la animación para un instante `v` (0-1) del controller: dibuja el
@@ -458,7 +465,7 @@ class PorteriaPainter extends CustomPainter {
       old.impacto != impacto || old.color != color;
 }
 
-/// Campana (o portería en gol) para usarse como destino de la animación —
+/// Campana (o portería en gol) para usarse como destino de la animación -
 /// compartida entre la campana real y el demo.
 class CampanaDestino extends StatelessWidget {
   final AnimacionCampana variante;

@@ -1,5 +1,5 @@
 name: sozu_cliente_app
-description: "SOZU — Portal del Cliente (Flutter multiplataforma)"
+description: "SOZU - Portal del Cliente (Flutter multiplataforma)"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -65,7 +65,7 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   assets:
-    # NOTA: no usar un archivo con punto inicial (.env) como asset — Flutter lo
+    # NOTA: no usar un archivo con punto inicial (.env) como asset - Flutter lo
     # excluye del AssetManifest en el build web release y dotenv falla (pantalla
     # blanca). Se usa assets/env (sin punto). El archivo está gitignored.
     - assets/env
@@ -79,7 +79,7 @@ flutter:
   # Inter: tipografía de interfaz de la app entera (ver lib/core/theme.dart).
   # Se eligió por ser lo más cercano al `system-ui` del navegador (Segoe UI en
   # Windows, SF Pro en macOS/iOS, Roboto en Android) manteniendo el MISMO
-  # render en las tres plataformas — en web no se puede usar `system-ui` real
+  # render en las tres plataformas - en web no se puede usar `system-ui` real
   # porque CanvasKit rasteriza el texto él mismo y solo ve fuentes empaquetadas.
   #
   # Los .ttf están subseteados a latin + latin-ext + puntuación/símbolos

@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// `pubspec.yaml`.
 ///
 /// Por qué existe: usar un asset sin declararlo compila, pasa `flutter analyze`
-/// y hasta funciona en algunos arranques de debug — y explota en runtime con
+/// y hasta funciona en algunos arranques de debug - y explota en runtime con
 /// `Unable to load asset: "…". The asset does not exist or has empty data.`
 /// En `build web --release` es peor, porque el asset simplemente no viaja.
 ///

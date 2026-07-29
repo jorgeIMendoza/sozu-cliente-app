@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Efectos visuales sutiles del portal (animaciones de marca SOZU).
 
@@ -9,13 +10,17 @@ import 'package:sozu_cliente_app/core/format.dart';
 class FadeSlideIn extends StatefulWidget {
   final Widget child;
   final int delayMs;
-  final Duration duration;
+
+  /// Duración de la entrada. En null (lo normal) usa `motion.slow`, que es el
+  /// token de lo que mueve superficie completa. Se deja override porque el
+  /// parámetro ya era público, no porque haya que usarlo.
+  final Duration? duration;
 
   const FadeSlideIn({
     super.key,
     required this.child,
     this.delayMs = 0,
-    this.duration = const Duration(milliseconds: 450),
+    this.duration,
   });
 
   @override
@@ -24,22 +29,33 @@ class FadeSlideIn extends StatefulWidget {
 
 class _FadeSlideInState extends State<FadeSlideIn>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: widget.duration,
-  );
-  late final Animation<double> _fade = CurvedAnimation(
+  // Sin `duration` aquí: la resuelve didChangeDependencies desde los tokens,
+  // que necesitan un `context` que en el inicializador del campo todavía no
+  // se puede leer.
+  late final AnimationController _c = AnimationController(vsync: this);
+  late final CurvedAnimation _fade = CurvedAnimation(
     parent: _c,
-    curve: Curves.easeOutCubic,
+    curve: Curves.linear,
   );
   late final Animation<Offset> _slide = Tween(
     begin: const Offset(0, 0.08),
     end: Offset.zero,
   ).animate(_fade);
 
+  /// La entrada se dispara una sola vez, no en cada cambio de dependencias.
+  bool _arrancada = false;
+
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Leer los tokens aquí (y no en initState) es lo que hace que la entrada
+    // respete "reducir movimiento" del sistema gratis: en ese modo el token
+    // vale Duration.zero y el contenido aparece ya colocado.
+    final motion = context.s.motion;
+    _c.duration = widget.duration ?? motion.slow;
+    _fade.curve = motion.enter;
+    if (_arrancada) return;
+    _arrancada = true;
     if (widget.delayMs == 0) {
       _c.forward();
     } else {
@@ -64,6 +80,16 @@ class _FadeSlideInState extends State<FadeSlideIn>
   }
 }
 
+/// Duración del conteo de la cifra hero.
+///
+/// NO es un token de movimiento y no debe volverse uno: los tokens llegan hasta
+/// 380 ms porque describen transiciones de estado, y aquí la duración no es el
+/// costo de moverse de A a B sino el efecto mismo - lo que se ve es la cifra
+/// recorriendo dígitos, y por debajo de ~700 ms el recorrido no se lee, solo
+/// parpadea. Atarla a `motion.slow` haría que subir el peso de las hojas
+/// modales acelerara este conteo, que no tiene nada que ver.
+const Duration _countUpDuration = Duration(milliseconds: 900);
+
 /// Cifra de dinero que "cuenta" desde 0 hasta el valor (hero del dashboard).
 class CountUpMoney extends StatelessWidget {
   final double value;
@@ -74,7 +100,7 @@ class CountUpMoney extends StatelessWidget {
     super.key,
     required this.value,
     this.style,
-    this.duration = const Duration(milliseconds: 900),
+    this.duration = _countUpDuration,
   });
 
   @override
@@ -82,6 +108,8 @@ class CountUpMoney extends StatelessWidget {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: value),
       duration: duration,
+      // easeOutCubic propio, no `motion.enter`: la curva la define el conteo
+      // (frenar sobre los últimos dígitos), no la escala de movimiento.
       curve: Curves.easeOutCubic,
       builder: (context, v, _) => Text(formatMXN(v), style: style),
     );
@@ -111,8 +139,8 @@ class _PressableScaleState extends State<PressableScale> {
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedScale(
         scale: _pressed ? 0.97 : 1,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
+        duration: context.s.motion.fast,
+        curve: context.s.motion.standard,
         child: widget.child,
       ),
     );
@@ -165,7 +193,7 @@ class ContentFrame extends StatelessWidget {
   }
 }
 
-/// Grid fluido: 1 columna en móvil, 2–3 columnas en pantallas anchas.
+/// Grid fluido: 1 columna en móvil, 2-3 columnas en pantallas anchas.
 class ResponsiveCardGrid extends StatelessWidget {
   final List<Widget> children;
   final double minCardWidth;
