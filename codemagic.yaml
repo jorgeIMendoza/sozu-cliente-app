@@ -1,4 +1,4 @@
-# CI/CD Codemagic — SOZU Portal del Cliente (Flutter)
+# CI/CD Codemagic - SOZU Portal del Cliente (Flutter)
 # ---------------------------------------------------------------------------
 # Variables Supabase: inline en `vars` (abajo). Son valores PÚBLICOS por
 # diseño (URL + anon key van embebidos en cualquier app cliente; la seguridad
@@ -115,7 +115,7 @@ workflows:
         track: internal
 
   ios-release:
-    name: iOS (.ipa — solo artefacto)
+    name: iOS (.ipa - solo artefacto)
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:
@@ -208,7 +208,7 @@ workflows:
 
   # Promueve el release del track internal a production en Google Play.
   # Requiere RELEASE_NOTES (trazabilidad; Play Console toma las notas del
-  # release — editarlas ahí si se requiere ajustar) y el service account
+  # release - editarlas ahí si se requiere ajustar) y el service account
   # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS configurado en Codemagic.
   android-production:
     name: Android → Play Store (producción)

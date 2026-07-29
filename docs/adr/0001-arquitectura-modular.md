@@ -1,21 +1,21 @@
-# ADR 0001 — Arquitectura modular, design system único y tokens semánticos
+# ADR 0001 - Arquitectura modular, design system único y tokens semánticos
 
 - **Estado:** aceptado · Fase 2 (tokens) implementada
 - **Fecha:** 2026-07-28
 - **Autor:** Eduardo Araujo
 - **Alcance:** `sozu-cliente-app` (Flutter: web + Android + iOS). Este repo es la
   fuente de verdad del Portal del Cliente; `sozu-admin` ya no se trabaja para
-  esta superficie — ver §8.
+  esta superficie - ver §8.
 
 ## Estado de implementación
 
 | Fase | Estado |
 |---|---|
-| 0 — red de seguridad | 🟡 parcial: `test/ui/tokens_test.dart` (20 tests). Faltan lints estrictos y `flutter test` en CI |
-| 1 — cerrar la capa de datos | ⬜ pendiente |
-| **2 — unificar tokens** | 🟢 **hecho** (sin `tokens.json`: los tokens son Dart const, ver §5) |
-| 3 — un solo design system | ⬜ pendiente (primitivas) |
-| 4 — features | ⬜ pendiente |
+| 0 - red de seguridad | 🟡 parcial: `test/ui/tokens_test.dart` (20 tests). Faltan lints estrictos y `flutter test` en CI |
+| 1 - cerrar la capa de datos | ⬜ pendiente |
+| **2 - unificar tokens** | 🟢 **hecho** (sin `tokens.json`: los tokens son Dart const, ver §5) |
+| 3 - un solo design system | ⬜ pendiente (primitivas) |
+| 4 - features | ⬜ pendiente |
 
 Lo entregado en la Fase 2: `lib/ui/` con 27 roles semánticos, escalas de radio /
 espaciado / tipografía / elevación, breakpoints con `context.responsive`,
@@ -42,7 +42,7 @@ en producción, pero la base tiene cuatro fracturas que encarecen cada cambio:
 | Progreso | `SozuProgressBar` | `PortalProgressBar`, `PortalThinProgressBar` |
 | Vacío | `EmptyCard` | `PortalEmptyState` |
 | Título | `SectionTitle` | `PortalSectionLabel`, `PortalPageHeader` |
-| Error | `ErrorCard` | — (no existe) |
+| Error | `ErrorCard` | - (no existe) |
 | Botón | (tema global) | `PortalPrimaryButton`, `PortalOutlineButton`, `PortalBlockButton`, `PortalDashedButton` |
 
 `portal_theme.dart:11` lo declara explícitamente: *"NO usa (ni modifica)
@@ -64,7 +64,7 @@ branch equivocado si solo se mira `kIsWeb`.
 | Archivo | Fuga |
 |---|---|
 | `providers/auth_provider.dart` | 3 × `functions.invoke` propios |
-| `core/portal_tracking.dart` | 3 × `functions.invoke` — acceso a red dentro de `core/` |
+| `core/portal_tracking.dart` | 3 × `functions.invoke` - acceso a red dentro de `core/` |
 | `widgets/perfil_sheets.dart` | importa `supabase_flutter` + `Supabase.instance` **desde un widget** |
 | `widgets/push_registrar.dart` | idem |
 | `core/biometric_service.dart` | 2 × `Supabase.instance` |
@@ -106,7 +106,7 @@ El dominio real vive en el backend (Edge Functions + 2 RPC `SECURITY DEFINER`).
 Esta app **presenta datos**; no custodia invariantes de negocio. Un `UseCase` por
 endpoint que solo delega al repositorio son 4 archivos por pantalla sin valor
 defensivo. Clean cobra su impuesto todos los días y solo paga si el dominio puede
-cambiar independientemente del backend — no es el caso.
+cambiar independientemente del backend - no es el caso.
 
 ### 2.2 Por qué no "solo features" plano
 
@@ -125,8 +125,8 @@ por feature. `features/pagos/` ya grita. No requiere decisión aparte.
 
 > **Nota de implementación:** el design system se creó como `lib/ui/`, NO como
 > `packages/sozu_ui/`. Un paquete aparte exige `melos` y rompe todos los imports
-> el primer día, a cambio de un beneficio —frontera verificada por el
-> compilador— que solo se cobra cuando existe una segunda app. `lib/ui/` logra el
+> el primer día, a cambio de un beneficio -frontera verificada por el
+> compilador- que solo se cobra cuando existe una segunda app. `lib/ui/` logra el
 > aislamiento hoy y la extracción a paquete es un `git mv` + reescritura de
 > imports cuando haga falta. Mientras tanto la frontera se sostiene por lint
 > (§3.1). El layout de abajo es el destino, no el paso actual.
@@ -168,10 +168,10 @@ sozu-cliente-app/
 
 Dentro de cada feature, tres carpetas y solo las que se ganen:
 
-- `data/` — DTOs propios de la feature + llamadas (delegan a `sozu_api`).
-- `application/` — providers Riverpod, estado, derivaciones. **Aquí va lo que hoy
+- `data/` - DTOs propios de la feature + llamadas (delegan a `sozu_api`).
+- `application/` - providers Riverpod, estado, derivaciones. **Aquí va lo que hoy
   está en `setState` y los cálculos que hoy viven en `build()`.**
-- `ui/` — pantallas y widgets de la feature. Sin `await` de red, sin `Supabase`.
+- `ui/` - pantallas y widgets de la feature. Sin `await` de red, sin `Supabase`.
 
 ### 3.1 Regla de dependencias (única, y verificada por el compilador)
 
@@ -255,7 +255,7 @@ AdaptiveShell(          // bottom-nav ≤ md · sidebar 256 + topbar 64 ≥ lg
 ```
 
 `isPortalMode` sobrevive únicamente dentro de `AdaptiveShell`, y se redefine por
-**ancho disponible**, no por `kIsWeb` — así la tablet Android hereda el layout
+**ancho disponible**, no por `kIsWeb` - así la tablet Android hereda el layout
 ancho gratis.
 
 ### 4.4 Tipografía: una sola decisión
@@ -266,7 +266,7 @@ Poppins en títulos/botones, Inter en texto. Se conserva tal cual y se mueve a
 
 Se **elimina** `kPortalFontFallback` (20 usos). Contradice a `SozuType` y en web
 no hace nada: CanvasKit rasteriza el texto y solo reconoce las fuentes
-declaradas en `pubspec.yaml` — lo dice el propio comentario de `theme.dart:141-149`.
+declaradas en `pubspec.yaml` - lo dice el propio comentario de `theme.dart:141-149`.
 Los 20 usos piden `-apple-system/Segoe UI` que nunca se resuelven.
 
 ---
@@ -280,7 +280,7 @@ El `tokens.json` + generador tenía un único propósito: emitir también CSS va
 para `sozu-admin`. Al dejar de trabajar el portal cliente en React (§8), ese
 consumidor desaparece y el generador se queda siendo pura ceremonia: un paso de
 build, un artefacto commiteado y un archivo que puede quedar desincronizado, a
-cambio de nada. Dart const ya da lo que se quería —un solo lugar que editar— con
+cambio de nada. Dart const ya da lo que se quería -un solo lugar que editar- con
 verificación del compilador encima.
 
 Si algún día vuelve a haber un consumidor no-Dart, `lib/ui/tokens/palette.dart`
@@ -312,7 +312,7 @@ valores de `PortalColors`**. Razones:
 1. `SozuTone` ya es indirección por rol (`tone.textSecondary`), con ~987 accesos.
    Cambiar el hex detrás del rol es una línea.
 2. Los accesos a la rampa cruda `SozuColors.slateX` son **27** en total, y solo
-   **13** fuera de `core/theme.dart` — repartidos en 5 archivos (`common.dart`×5,
+   **13** fuera de `core/theme.dart` - repartidos en 5 archivos (`common.dart`×5,
    `level_map.dart`×3, `expediente_card.dart`×3, `property_card.dart`×1,
    `patrimonio_card.dart`×1). El costo real de tirar `slate` es casi nulo.
 3. `PortalColors` (749 refs) es la paleta que hoy define el look de producción en
@@ -335,34 +335,34 @@ real (decisión de diseño) · ➕ rol nuevo que solo existía en un lado.
 | `surface` | `Colors.white` | `surface` #FFFFFF | **#FFFFFF** | `slate800`→`#1A1D21` | 🟢 |
 | `surfaceAlt` | `slate50` #F8FAFC | `mutedHover` #F8F9FA | **#F8F9FA** | `#22262B` | 🟡 |
 | `background` | `slate50` #F8FAFC | `background` #F9FAFB | **#F9FAFB** | `#101215` | 🟡 |
-| `muted` | — | `muted` #F3F4F6 | **#F3F4F6** | `#2A2F35` | ➕ hovers, pista de progress |
+| `muted` | - | `muted` #F3F4F6 | **#F3F4F6** | `#2A2F35` | ➕ hovers, pista de progress |
 | `border` | `slate200` #E2E8F0 | `border` #E5E7EB | **#E5E7EB** | `#2E343B` | 🟡 |
-| `borderSoft` | — | `borderSoft` #E9EEF4 | **#E9EEF4** | `#272C32` | ➕ topbar, secciones sidebar |
+| `borderSoft` | - | `borderSoft` #E9EEF4 | **#E9EEF4** | `#272C32` | ➕ topbar, secciones sidebar |
 | `fg` | `slate900` #0F172A | `foreground` #14161A | **#14161A** | `#F3F4F6` | 🔴 azulado vs neutro → neutro |
 | `fgMuted` | `slate600` #475569 | `mutedForeground` #6B7280 | **#6B7280** | `#9BA1AB` | 🔴 **230 usos**, el rol más usado |
 | `fgSubtle` | `slate400` #94A3B8 | `textMuted` #9BA1AB | **#9BA1AB** | `#6B7280` | 🟡 |
 | `primary` | `emerald500` #239F71 | `primary` #239F71 | **#239F71** | #239F71 | 🟢 ya unificado en `brand.dart` |
 | `primaryHover` | `primaryDark` #1D825D | `primaryHover` #1D825D | **#1D825D** | `green400` #2ED195 | 🟢 |
-| `primaryPressed` | `emerald700` #166448 | — | **#166448** | #1D825D | ➕ |
+| `primaryPressed` | `emerald700` #166448 | - | **#166448** | #1D825D | ➕ |
 | `primarySoft` | `emerald50` #EEFBF7 | `primarySoft6` #F2F9F7 | **escalera ↓** | `#0B3B30` | 🔴 ver §6.3 |
-| `primaryBorder` | — | `primaryBorder30` #BDE2D4 | **#BDE2D4** | `#2A5A48` | ➕ 16 usos |
+| `primaryBorder` | - | `primaryBorder30` #BDE2D4 | **#BDE2D4** | `#2A5A48` | ➕ 16 usos |
 | `positive` | `emerald600` #1D825D | *(usa `primary`)* | **#1D825D** | `#2ED195` | 🔴 ver §6.4 |
 | `warning` | `amber500` #F59E0B | `warning` #F59E0B | **#F59E0B** | #F59E0B | 🟢 idéntico |
 | `warningSoft` | `amber50` #FFFBEB | `warningSoft10` #FEF5E7 | **#FEF5E7** | `#3B2F0B` | 🟡 |
-| `warningSoftStrong` | — | `warningSoft15` #FEF1DA | **#FEF1DA** | `#4A3A0D` | ➕ |
+| `warningSoftStrong` | - | `warningSoft15` #FEF1DA | **#FEF1DA** | `#4A3A0D` | ➕ |
 | `danger` | `rose600` #E11D48 | `destructive` #EF4444 | **#EF4444** | `#F87171` | 🔴 rose vs red → **red** |
-| `dangerSoft` | — | `destructiveSoft10` #FDECEC | **#FDECEC** | `#3A1F1F` | ➕ |
-| `dangerSoftStrong` | — | `destructiveSoft15` #FDE3E3 | **#FDE3E3** | `#4A2626` | ➕ |
+| `dangerSoft` | - | `destructiveSoft10` #FDECEC | **#FDECEC** | `#3A1F1F` | ➕ |
+| `dangerSoftStrong` | - | `destructiveSoft15` #FDE3E3 | **#FDE3E3** | `#4A2626` | ➕ |
 
 > **Los hex de la columna `dark` son propuesta, no decisión.** Los valores light
 > salen de código existente (uno de los dos sistemas); los dark hay que
 > inventarlos, porque `PortalColors` es light-only. Lo que este ADR fija es que
-> **el rol existe** en dark; el hex exacto se afina con diseño (o se difiere —
+> **el rol existe** en dark; el hex exacto se afina con diseño (o se difiere -
 > ver §10.3).
 
 **Se eliminan** tras la migración: `SozuColors` (rampa slate/emerald/amber/rose
 cruda), `SozuTone`, `PortalColors`, `PortalColors.mutedSoft20/30`
-(#FCFDFD/#FBFCFC — indistinguibles de `surface` a ojo; 16 usos colapsan a
+(#FCFDFD/#FBFCFC - indistinguibles de `surface` a ojo; 16 usos colapsan a
 `surface` o `surfaceAlt`).
 
 ### 6.3 Escalera de tintes de primary
@@ -397,7 +397,7 @@ lg 16  → botones grandes, inputs, dropdowns
 card 24 → todas las cards
 ```
 
-Espaciado: **hoy no existe escala** — los paddings son literales sueltos en las
+Espaciado: **hoy no existe escala** - los paddings son literales sueltos en las
 pantallas. Se define `SozuSpacing` = `4 · 8 · 12 · 16 · 24 · 32 · 48`
 (`xxs·xs·sm·md·lg·xl·xxl`) y se migra oportunistamente: cada archivo que se toque
 por otra razón cambia sus literales. No se hace un barrido dedicado.
@@ -408,7 +408,7 @@ por otra razón cambia sus literales. No se hace un barrido dedicado.
 
 Incremental. Cada fase es mergeable por separado y deja la app funcionando.
 
-### Fase 0 — red de seguridad (antes de mover nada)
+### Fase 0 - red de seguridad (antes de mover nada)
 
 1. Crear `test/`. Golden tests de las primitivas de `sozu_ui` (light + dark ×
    compact + comfortable). Tests unitarios de `format.dart` y de los parsers de
@@ -434,7 +434,7 @@ Incremental. Cada fase es mergeable por separado y deja la app funcionando.
 
 > Sin la Fase 0, las fases 2 y 3 son refactors de color a ciegas sobre 44k LOC.
 
-### Fase 1 — cerrar la puerta de datos
+### Fase 1 - cerrar la puerta de datos
 
 5. Mover todo `functions.invoke` a `api_client`: `auth_provider.dart`(3),
    `portal_tracking.dart`(3).
@@ -442,9 +442,9 @@ Incremental. Cada fase es mergeable por separado y deja la app funcionando.
    `push_registrar.dart`. `biometric_service.dart` y `portal_tracking.dart` salen
    de `core/` (no son infraestructura neutral: hablan con el backend).
 7. Partir `models.dart` (1583 / 56 clases) por feature. Eliminar los 95 `dynamic`
-   — con `strict-casts` de Fase 0 ya duelen.
+   - con `strict-casts` de Fase 0 ya duelen.
 
-### Fase 2 — unificar tokens
+### Fase 2 - unificar tokens
 
 8. `tokens/tokens.json` + `tool/gen_tokens.dart` → `sozu_tokens`.
 9. Implementar `SozuTheme` con los roles de §6.2. `SozuTone` y `PortalColors`
@@ -452,7 +452,7 @@ Incremental. Cada fase es mergeable por separado y deja la app funcionando.
    los borra.
 10. Barrer los 139 `Color(0x...)` de los 23 archivos que no son de tokens.
 
-### Fase 3 — un solo design system
+### Fase 3 - un solo design system
 
 11. Fusionar los pares de §1.1, en orden de riesgo creciente:
     `Skeleton` → `Badge/Chip` → `Card` → `EmptyState` → `Progress` → `Button`.
@@ -460,7 +460,7 @@ Incremental. Cada fase es mergeable por separado y deja la app funcionando.
     pantallas; queda solo dentro del shell, redefinido por ancho disponible.
 13. Borrar `kPortalFontFallback` (§4.4).
 
-### Fase 4 — features
+### Fase 4 - features
 
 14. Mover feature por feature, de menor a mayor riesgo:
     `notificaciones` → `perfil` → `documentos` → `productos` → `pagos` →
@@ -485,7 +485,7 @@ de merge recurrentes en los mismos 8 archivos.
 Se documenta porque es el costo oculto más grande, pero **no** se aborda en este ADR.
 
 `sozu-admin` (Vite + React 18 + Tailwind + shadcn/ui) contiene **80 componentes**
-en `src/components/portal/` — `AccountStatementView`, `FinancialSummary`,
+en `src/components/portal/` - `AccountStatementView`, `FinancialSummary`,
 `PaymentHistoryView`, `DocumentListItem`, `NextInstallmentCard`, `BottomNav`… Es
 el **mismo portal del cliente**, en otro stack. Esta app Flutter lo reimplementa
 copiando el CSS a mano vía `docs/web_portal_spec/tokens.md`.
@@ -560,14 +560,14 @@ Por eso el campo se llama `text`. Hay un test que fija esto
 `Can't assign spread elements of type 'ThemeExtension<dynamic>' to collection
 elements of type 'ThemeExtension<ThemeExtension<dynamic>>'`. Corolario: **analyze
 limpio no es prueba de que compile.** El gate de CI necesita `flutter test`, no
-solo `analyze` — que es justo lo que pide la Fase 0.
+solo `analyze` - que es justo lo que pide la Fase 0.
 
 **3. Los shims deben apuntar a las constantes de la paleta, no a campos de rol.**
 `static const x = SozuColorRoles.light.primary` no es válido en Dart (leer un
 campo de instancia no es expresión constante). Y `PortalColors` tiene 20 usos
 dentro de expresiones `const`, así que volverlo `static final` habría roto la
 compilación. Por eso los shims reenvían a `SozuBrand.*` / `SozuNeutral.*`
-—constantes top-level— y no a `SozuColorRoles.light.*`.
+-constantes top-level- y no a `SozuColorRoles.light.*`.
 
 ## 9-ter. Sobre el error de hot reload
 

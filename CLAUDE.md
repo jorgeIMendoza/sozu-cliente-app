@@ -1,4 +1,4 @@
-# Proyecto: SOZU — Portal del Cliente (app Flutter multiplataforma)
+# Proyecto: SOZU - Portal del Cliente (app Flutter multiplataforma)
 
 Port 1:1 del app RN (`../sozu-cliente-rn-app`). Misma funcionalidad, mismo
 backend (Edge Functions en admin_sozu). Código compartido en `lib/`;
@@ -27,7 +27,7 @@ de prueba: Chrome).
   (gitignored; patrón de admin-sozu/sozu-admin: secciones fechadas + comandos
   exactos). Jorge lo ejecuta a mano y reporta.
 
-## Reglas de SEGURIDAD (innegociables — mismas que el app RN)
+## Reglas de SEGURIDAD (innegociables - mismas que el app RN)
 - SOLO Supabase ANON KEY (pública) + JWT del usuario logueado.
 - NUNCA service_role ni credenciales de BD en el código.
 - CERO queries a tablas: todo dato sensible vía Edge Functions
@@ -38,17 +38,17 @@ de prueba: Chrome).
 - No loguear PII (RFC, CURP, CLABE, montos).
 - Documentos/recibos/CEP: URLs firmadas temporales que entrega el backend.
 
-## Design system — lib/ui/ (FUENTE DE VERDAD de la apariencia)
+## Design system - lib/ui/ (FUENTE DE VERDAD de la apariencia)
 Este repo es la fuente de verdad del Portal del Cliente. `sozu-admin` YA NO se
 trabaja para el portal cliente; su `src/components/portal/` es legacy.
 
 - `lib/ui/` es el design system. Import único: `import '../ui/ui.dart';`
 - Acceso a tokens: **`context.s`**
-  - `context.s.color.<rol>` — 27 roles semánticos (`fg`, `fgMuted`, `fgSubtle`,
+  - `context.s.color.<rol>` - 27 roles semánticos (`fg`, `fgMuted`, `fgSubtle`,
     `surface`, `surfaceAlt`, `background`, `muted`, `border`, `borderSoft`,
     `primary`, `primaryHover`, `primarySoft`, `positive`, `warning`,
     `warningFg`, `danger`, …)
-  - `context.s.text.*` — escala tipográfica (respeta densidad; preferir sobre
+  - `context.s.text.*` - escala tipográfica (respeta densidad; preferir sobre
     `SozuType.*`, que no la respeta)
   - `context.s.radius.*` / `.space.*` / `.shadow.*`
   - `context.responsive(mobile:, tablet:, desktop:)` y `context.bp`
@@ -60,7 +60,7 @@ trabaja para el portal cliente; su `src/components/portal/` es legacy.
 - **NADA DE ALIAS NI MAPEOS.** Un token tiene UN nombre y ese nombre se usa en
   toda la app. `SozuColors`, `SozuTone`, `core/theme.dart`, `core/brand.dart` y
   `core/typography.dart` fueron ELIMINADOS (no deprecados: borrados). Si se
-  renombra un token, se renombra en todos los usos en el mismo commit — una capa
+  renombra un token, se renombra en todos los usos en el mismo commit - una capa
   de compatibilidad "temporal" es cómo nació la paleta bifurcada.
 - **ÚNICO pendiente de homogeneizar:** `core/portal_theme.dart` (`PortalColors`,
   `isPortalMode()`, `kPortalRadius*`, `kPortalFontFallback` que ya no hace nada).
@@ -85,14 +85,14 @@ lib/features/<feature>/
 
 Criterio de cada carpeta:
 
-- **`layouts/`** — envuelve pantallas y decide tema, scroll y breakpoints. No es
+- **`layouts/`** - envuelve pantallas y decide tema, scroll y breakpoints. No es
   un componente (no es una pieza de interfaz) ni una pantalla (no es un destino
   de ruta). Por eso tiene carpeta propia.
-- **`components/`** — solo si es **reutilizable** (lo usan 2+ pantallas). NO
+- **`components/`** - solo si es **reutilizable** (lo usan 2+ pantallas). NO
   partir algo en componentes por partirlo: si una pantalla tiene un formulario
   único, es **un** componente de formulario y ya. Fragmentarlo en sub-piezas de
   un solo uso agrega archivos sin quitar acoplamiento.
-- **`screens/`** — no tienen lógica ni estado propio: ensamblan layout +
+- **`screens/`** - no tienen lógica ni estado propio: ensamblan layout +
   componentes. Si una pantalla tiene un `State` con lógica, esa lógica va a un
   componente.
 
@@ -179,7 +179,7 @@ que **solo** sea formato.
 - router.dart: guards + shell 5 tabs + secundarias
 - widgets/: common (AppCard/Badge/Avatar/ProgressBar/Skeleton), theme_mode_button,
   admin/ (cliente_tile, filtros_cliente, admin_header_bar), portal_*, level_map
-- screens/: LEGACY, pendiente de migrar a features/ — inicio, adquisicion,
+- screens/: LEGACY, pendiente de migrar a features/ - inicio, adquisicion,
   patrimonio, documentos, perfil, pagos, estado_cuenta, notificaciones,
   cambiar_password, propiedad_detalle, seleccionar_cliente, forgot,
   change_password_forced
@@ -203,6 +203,15 @@ que **solo** sea formato.
 - iOS: requiere Mac/Xcode; la carpeta ios/ queda lista.
 
 ## Reglas de código
+- **NUNCA guiones medios largos.** Solo el guion normal `-`. Prohibidos `—` (em
+  dash) y `–` (en dash) en código, comentarios, docs, strings de UI y mensajes de
+  commit. Como separador en texto visible se usa `·` (punto medio) o `-`.
+  Verificar antes de commitear:
+  ```bash
+  grep -rP '[\x{2014}\x{2013}]' --include="*.dart" --include="*.md" \
+       --include="*.yaml" --include="*.html" lib docs *.md *.yaml
+  ```
+  Debe salir vacío.
 - La versión WEB debe ser RESPONSIVE (móvil/tablet/desktop): contenido con
   max-width centrado en pantallas anchas (WebFrame), FittedBox/Wrap para
   cifras. Probar en Chrome ancho + ventana angosta + iPhone Safari.
