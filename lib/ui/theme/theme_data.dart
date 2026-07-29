@@ -16,9 +16,37 @@ import 'package:flutter/material.dart';
 import 'package:sozu_cliente_app/ui/tokens/typography.dart';
 import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 
-ThemeData sozuLightTheme() => _build(SozuTheme.light, Brightness.light);
+/// Tema claro. **Memoizado**: siempre devuelve la MISMA instancia.
+///
+/// No es micro-optimización. `MaterialApp` envuelve su tema en un
+/// `AnimatedTheme`, que interpola 200 ms cada vez que el `ThemeData` nuevo no es
+/// `==` al anterior. Y `main.dart` llama a esta función dentro de `build`, así
+/// que sin memoizar cada rebuild de la app producía:
+///
+/// 1. un `SozuTheme` nuevo (los getters `light`/`dark` llaman a `resolve`),
+/// 2. que hace el `ThemeData` distinto - `SozuTheme` no implementa `==`, así que
+///    el mapa de extensiones se compara por identidad,
+/// 3. y por lo tanto una re-interpolación de 200 ms de TODO el tema: colores,
+///    tipografía, radios y sombras, frame por frame.
+///
+/// Además evita reconstruir los ~18 temas de componente (AppBar, Card, Input,
+/// Dialog…) en cada build.
+///
+/// Memoizar es correcto porque la función es pura y sin argumentos: su resultado
+/// no puede depender de nada que cambie. La densidad y el movimiento reducido NO
+/// se resuelven aquí sino en `SozuAdaptiveTokens`, que reinyecta la extensión más
+/// abajo en el árbol.
+///
+/// La alternativa era implementar `==`/`hashCode` en `SozuTheme` y en sus cinco
+/// clases de tokens. Es más código y más superficie que mantener sincronizada
+/// para el mismo resultado.
+ThemeData sozuLightTheme() => _lightTheme;
 
-ThemeData sozuDarkTheme() => _build(SozuTheme.dark, Brightness.dark);
+/// Tema oscuro. Memoizado por las mismas razones que [sozuLightTheme].
+ThemeData sozuDarkTheme() => _darkTheme;
+
+final ThemeData _lightTheme = _build(SozuTheme.light, Brightness.light);
+final ThemeData _darkTheme = _build(SozuTheme.dark, Brightness.dark);
 
 ThemeData _build(SozuTheme t, Brightness brightness) {
   final c = t.color;

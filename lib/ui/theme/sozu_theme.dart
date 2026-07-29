@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/ui/tokens/color_roles.dart';
 import 'package:sozu_cliente_app/ui/tokens/elevation.dart';
+import 'package:sozu_cliente_app/ui/tokens/motion.dart';
 import 'package:sozu_cliente_app/ui/tokens/radii.dart';
 import 'package:sozu_cliente_app/ui/tokens/spacing.dart';
 import 'package:sozu_cliente_app/ui/tokens/typography.dart';
@@ -56,6 +57,14 @@ class SozuTheme extends ThemeExtension<SozuTheme> {
   /// Escala de sombras.
   final SozuElevation shadow;
 
+  /// Duraciones, curvas y factor de press.
+  ///
+  /// Se resuelve, no se elige en la pantalla: cuando el sistema pide reducir
+  /// movimiento este campo trae [SozuMotion.reduced] y toda animación que lea
+  /// `context.s.motion` se apaga sola, sin que cada widget tenga que
+  /// preguntarlo.
+  final SozuMotion motion;
+
   /// Densidad con la que se resolvió este tema. Expuesta para los pocos casos
   /// que necesitan saberlo (p. ej. decidir si un botón va a ancho completo).
   final SozuDensity density;
@@ -66,13 +75,19 @@ class SozuTheme extends ThemeExtension<SozuTheme> {
     required this.space,
     required this.text,
     required this.shadow,
+    required this.motion,
     required this.density,
   });
 
   /// Resuelve el set completo de tokens para un brillo y una densidad.
+  ///
+  /// [reduceMotion] va al final y con valor por defecto a propósito: es una
+  /// preferencia del entorno, no una dimensión del diseño, y así las llamadas
+  /// que solo piden brillo + densidad siguen compilando.
   factory SozuTheme.resolve({
     required Brightness brightness,
     required SozuDensity density,
+    bool reduceMotion = false,
   }) {
     final compact = density.isCompact;
     return SozuTheme(
@@ -81,6 +96,7 @@ class SozuTheme extends ThemeExtension<SozuTheme> {
       space: compact ? SozuSpacing.compact : SozuSpacing.standard,
       text: compact ? SozuTypeScale.compact : SozuTypeScale.standard,
       shadow: SozuElevation.forBrightness(brightness),
+      motion: reduceMotion ? SozuMotion.reduced : SozuMotion.full,
       density: density,
     );
   }
@@ -116,6 +132,7 @@ class SozuTheme extends ThemeExtension<SozuTheme> {
     SozuSpacing? space,
     SozuTypeScale? text,
     SozuElevation? shadow,
+    SozuMotion? motion,
     SozuDensity? density,
   }) => SozuTheme(
     color: color ?? this.color,
@@ -123,6 +140,7 @@ class SozuTheme extends ThemeExtension<SozuTheme> {
     space: space ?? this.space,
     text: text ?? this.text,
     shadow: shadow ?? this.shadow,
+    motion: motion ?? this.motion,
     density: density ?? this.density,
   );
 
@@ -135,6 +153,7 @@ class SozuTheme extends ThemeExtension<SozuTheme> {
       space: SozuSpacing.lerp(space, other.space, t),
       text: SozuTypeScale.lerp(text, other.text, t),
       shadow: SozuElevation.lerp(shadow, other.shadow, t),
+      motion: SozuMotion.lerp(motion, other.motion, t),
       // La densidad es discreta: no tiene sentido interpolarla. Salta a mitad
       // de la transición.
       density: t < 0.5 ? density : other.density,
@@ -171,15 +190,36 @@ class SozuAdaptiveTokens extends StatelessWidget {
   Widget build(BuildContext context) {
     final base = Theme.of(context);
     final density = forceDensity ?? SozuDensity.fromBreakpoint(context.bp);
+
+    // Señal de "reducir movimiento" del sistema operativo: Reduce Motion en
+    // iOS/macOS, "Quitar animaciones" en Android, `prefers-reduced-motion` en
+    // web. No es una preferencia estética: a quien tiene un trastorno
+    // vestibular (vértigo, migraña vestibular, mareo por movimiento) una
+    // interfaz que se desliza y escala le produce náusea real. La persona ya
+    // pidió que el sistema no se mueva; ignorarlo aquí es sobrescribir esa
+    // petición.
+    //
+    // Se lee aquí y no en cada widget porque así se apaga una sola vez, en el
+    // token, y ningún componente puede olvidarse de preguntar.
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
     final tokens = SozuTheme.resolve(
       brightness: base.brightness,
       density: density,
+      reduceMotion: reduceMotion,
     );
 
-    // Si ya está resuelto con esta densidad, no re-inyectar: evita reconstruir
-    // el subárbol en cada rebuild del MaterialApp.
+    // Si ya está resuelto con esta densidad Y este movimiento, no re-inyectar:
+    // evita reconstruir el subárbol en cada rebuild del MaterialApp. El
+    // movimiento entra en la comparación porque `disableAnimations` puede
+    // cambiar en caliente (el usuario activa el ajuste con la app abierta) y sin
+    // esto el tema se quedaría pegado en el valor con el que arrancó.
     final current = base.extension<SozuTheme>();
-    if (current != null && current.density == density) return child;
+    if (current != null &&
+        current.density == density &&
+        current.motion == tokens.motion) {
+      return child;
+    }
 
     // Se preservan las demás extensiones (hoy no hay ninguna, pero copyWith
     // reemplaza el mapa completo: sin esto, agregar una en el futuro la borraría

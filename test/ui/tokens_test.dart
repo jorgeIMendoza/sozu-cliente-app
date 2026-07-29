@@ -246,4 +246,47 @@ void main() {
       );
     });
   });
+
+  group('los constructores de tema estan memoizados', () {
+    // Sin esto, `main.dart` -que llama a sozuLightTheme() dentro de build- hacia
+    // que `AnimatedTheme` de MaterialApp re-interpolara 200 ms el tema COMPLETO
+    // en cada rebuild de la app: el ThemeData nuevo nunca era `==` al anterior
+    // porque SozuTheme no implementa `==` y el mapa de extensiones se compara
+    // por identidad.
+    test('sozuLightTheme devuelve siempre la misma instancia', () {
+      expect(sozuLightTheme(), same(sozuLightTheme()));
+    });
+
+    test('sozuDarkTheme devuelve siempre la misma instancia', () {
+      expect(sozuDarkTheme(), same(sozuDarkTheme()));
+    });
+
+    test('claro y oscuro son instancias distintas', () {
+      expect(sozuLightTheme(), isNot(same(sozuDarkTheme())));
+    });
+
+    testWidgets('un rebuild de la app NO cambia el ThemeData', (tester) async {
+      var builds = 0;
+      late StateSetter setOuter;
+      final themes = <ThemeData>[];
+
+      await tester.pumpWidget(
+        StatefulBuilder(
+          builder: (context, setState) {
+            setOuter = setState;
+            builds++;
+            final theme = sozuLightTheme();
+            themes.add(theme);
+            return MaterialApp(theme: theme, home: const SizedBox());
+          },
+        ),
+      );
+      setOuter(() {});
+      await tester.pump();
+
+      expect(builds, 2);
+      // Identicos por identidad: AnimatedTheme no tiene nada que animar.
+      expect(themes.first, same(themes.last));
+    });
+  });
 }
