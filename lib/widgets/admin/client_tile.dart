@@ -1,0 +1,142 @@
+import 'package:flutter/material.dart';
+
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
+
+/// Fila de cliente del selector de super admin: nombre, correo y estado.
+///
+/// Componente **tonto**: recibe el dato, si está isSelected y qué hacer al
+/// tocar. No lee providers ni navega — eso lo decide la pantalla. Así se puede
+/// montar en un test o en otra vista sin arrastrar Riverpod.
+class ClientTile extends StatelessWidget {
+  final AdminCliente cliente;
+
+  /// El cliente que el admin está viendo ahora mismo (impersonado).
+  final bool isSelected;
+
+  final VoidCallback onTap;
+
+  const ClientTile({
+    super.key,
+    required this.cliente,
+    required this.onTap,
+    this.isSelected = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    final c = t.color;
+
+    return Material(
+      color: isSelected ? c.primarySoft : c.surface,
+      borderRadius: t.radius.mdBorder,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: t.radius.mdBorder,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: t.radius.mdBorder,
+            border: Border.all(color: isSelected ? c.primaryBorder : c.border),
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: t.space.sm,
+            vertical: t.space.sm,
+          ),
+          child: Row(
+            children: [
+              _Avatar(nombre: cliente.nombre),
+              SizedBox(width: t.space.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      cliente.nombre,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.text.label.copyWith(color: c.fg),
+                    ),
+                    if (cliente.email != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        cliente.email!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.text.caption.copyWith(color: c.fgMuted),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              SizedBox(width: t.space.xs),
+              if (isSelected)
+                _ViewingBadge(label: 'Viendo')
+              else
+                Icon(Icons.chevron_right, size: 20, color: c.fgSubtle),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Iniciales sobre círculo teñido. Da anclaje visual a la lista sin pedir una
+/// foto que el backend no manda en este endpoint.
+class _Avatar extends StatelessWidget {
+  final String nombre;
+
+  const _Avatar({required this.nombre});
+
+  String get _initials {
+    final parts = nombre.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return (parts.first[0] + parts[1][0]).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return Container(
+      width: 36,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: t.color.primarySoftStrong,
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        _initials,
+        style: t.text.caption.copyWith(
+          fontWeight: FontWeight.w700,
+          color: t.color.primaryHover,
+        ),
+      ),
+    );
+  }
+}
+
+class _ViewingBadge extends StatelessWidget {
+  final String label;
+
+  const _ViewingBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: t.space.xs, vertical: 3),
+      decoration: BoxDecoration(
+        color: t.color.primarySoftStrong,
+        borderRadius: t.radius.fullBorder,
+      ),
+      child: Text(
+        label,
+        style: t.text.overline.copyWith(color: t.color.primaryHover),
+      ),
+    );
+  }
+}

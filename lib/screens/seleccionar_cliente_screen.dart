@@ -4,21 +4,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/theme.dart';
-import '../data/models.dart';
-import '../providers/auth_provider.dart';
-import '../providers/data_providers.dart';
-import '../providers/impersonation_provider.dart';
-import '../widgets/common.dart';
-import '../widgets/fx.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
+import 'package:sozu_cliente_app/widgets/admin/admin_header_bar.dart';
+import 'package:sozu_cliente_app/widgets/admin/client_tile.dart';
+import 'package:sozu_cliente_app/widgets/admin/client_filters.dart';
+import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/widgets/theme_mode_button.dart';
 
 /// Selector de cliente para super administradores (solo web).
 /// El admin elige un cliente y navega el portal viendo sus datos.
 ///
-/// Paridad con el "Ver como" del portal admin: al filtrar por Proyecto +
-/// Unidad (número de propiedad) se muestra arriba el grupo
-/// "Copropietarios (N)" (o "Dueño de la propiedad" si es uno) con los
-/// clientes dueños de esa unidad, y debajo "Todos los clientes".
+/// Paridad con el "Ver como" del portal admin: al filtrar por Proyecto + Unidad
+/// (número de propiedad) se muestra arriba el grupo "Copropietarios (N)" (o
+/// "Dueño de la propiedad" si es uno) con los clientes dueños de esa unidad, y
+/// debajo "Todos los clientes".
+///
+/// ## Estructura
+///
+/// Esta pantalla **solo compone y orquesta**: lee providers, mantiene el estado
+/// de los filtros y decide qué mostrar. Todo lo visual vive en componentes:
+///
+/// * [AdminHeaderBar] / [AdminHeaderAction] — encabezado y acciones
+/// * [ClientFilters] — Proyecto + Unidad
+/// * [SSearchField] — buscador
+/// * [ClientTile] — fila de cliente
+/// * [SSectionLabel] — encabezado de grupo
+/// * [SEmptyState] — vacíos e instrucciones
+///
+/// Antes eran ~480 líneas con seis `Widget _algo(SozuColorRoles tone)` privados
+/// pasándose el tema a mano, `TextStyle(fontSize: …)` sueltos y el layout
+/// mezclado con la lógica de filtrado.
 class SeleccionarClienteScreen extends ConsumerStatefulWidget {
   const SeleccionarClienteScreen({super.key});
 
@@ -29,14 +48,19 @@ class SeleccionarClienteScreen extends ConsumerStatefulWidget {
 
 class _SeleccionarClienteScreenState
     extends ConsumerState<SeleccionarClienteScreen> {
+  static const _minQueryLength = 2;
+
+  /// Ancho máximo del content. 880 en vez de 720: con el encabezado y las
+  /// acciones dentro del mismo contenedor, 720 apretaba la fila de acciones.
+  static const _maxWidth = 880.0;
+
   final _search = TextEditingController();
   final _unidad = TextEditingController();
   Timer? _debounce;
-  String _query = '';
 
-  /// Filtro "Ver como" por propiedad (paridad con el portal admin).
+  String _query = '';
   int? _proyectoId;
-  String _unidadQuery = '';
+  String _unitQuery = '';
 
   @override
   void dispose() {
@@ -46,22 +70,25 @@ class _SeleccionarClienteScreenState
     super.dispose();
   }
 
-  static const _minQueryLength = 2;
-
   bool get _queryTooShort => _query.trim().length < _minQueryLength;
 
-  bool get _filtroPropiedadActivo =>
-      _proyectoId != null && _unidadQuery.isNotEmpty;
+  bool get _isPropertyFilterActive =>
+      _proyectoId != null && _unitQuery.isNotEmpty;
 
   void _onUnidadChanged(String v) {
-    setState(() {}); // refresca el icono de limpiar de inmediato
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
-      if (mounted) setState(() => _unidadQuery = v.trim());
+      if (mounted) setState(() => _unitQuery = v.trim());
     });
   }
 
-  List<AdminCliente> _filtrar(List<AdminCliente> clientes) {
+  void _clearUnit() {
+    _debounce?.cancel();
+    _unidad.clear();
+    setState(() => _unitQuery = '');
+  }
+
+  List<AdminCliente> _filterBy(List<AdminCliente> clientes) {
     final q = _query.trim().toLowerCase();
     if (q.length < _minQueryLength) return const [];
     return clientes
@@ -73,406 +100,357 @@ class _SeleccionarClienteScreenState
         .toList();
   }
 
-  /// Tarjeta de cliente (nombre + correo, marcado si es el impersonado).
-  Widget _clienteTile(AdminCliente c, SozuTone tone) {
+  void _viewAs(AdminCliente c) {
+    ref.read(impersonationProvider).select(c.idPersona, c.nombre, c.email);
+    context.go('/inicio');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    final c = t.color;
+    final auth = ref.watch(authProvider);
     final imp = ref.watch(impersonationProvider);
-    final seleccionado = imp.idPersona == c.idPersona;
-    return AppCard(
-      borderColor: seleccionado ? tone.primaryDark : null,
-      padding: EdgeInsets.zero,
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: Text(
-          c.nombre,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: tone.textPrimary,
+    final gutter = context.responsive(mobile: t.space.md, desktop: t.space.lg);
+
+    return Scaffold(
+      // `background`, no `surface`: el fondo de página es un nivel por DEBAJO de
+      // las tarjetas. Usar surface aquí aplanaba todo en un solo tono.
+      backgroundColor: c.background,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _maxWidth),
+            child: Padding(
+              padding: EdgeInsets.all(gutter),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AdminHeaderBar(
+                    title: 'Selecciona un cliente',
+                    subtitle:
+                        'Acceso administrador · '
+                        '${auth.profile?.nombre ?? auth.profile?.email ?? ''}',
+                    actions: [
+                      const ThemeModeButton(),
+                      SizedBox(width: t.space.xxs),
+                      AdminHeaderAction(
+                        label: 'Enviar avisos',
+                        icon: Icons.campaign_outlined,
+                        onPressed: () => context.push('/admin-avisos'),
+                      ),
+                      if (imp.active)
+                        AdminHeaderAction(
+                          label: 'Volver al portal',
+                          onPressed: () => context.go('/inicio'),
+                        ),
+                      AdminHeaderAction(
+                        label: 'Cerrar sesión',
+                        isPrimary: false,
+                        onPressed: () => ref.read(authProvider).signOut(),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: t.space.md),
+                  _FiltersPanel(
+                    projects:
+                        ref.watch(adminProyectosProvider).asData?.value ??
+                        const <CatalogoItem>[],
+                    projectId: _proyectoId,
+                    onProjectChanged: (v) => setState(() => _proyectoId = v),
+                    unitController: _unidad,
+                    onUnitChanged: _onUnidadChanged,
+                    onUnitCleared: _clearUnit,
+                    searchController: _search,
+                    onQueryChanged: (v) => setState(() => _query = v),
+                  ),
+                  SizedBox(height: t.space.md),
+                  Expanded(child: _results()),
+                ],
+              ),
+            ),
           ),
         ),
-        subtitle: c.email == null
-            ? null
-            : Text(c.email!, style: TextStyle(color: tone.textSecondary)),
-        trailing: seleccionado
-            ? const StatusBadge(label: 'Viendo', tone: BadgeTone.positive)
-            : Icon(Icons.chevron_right, color: tone.textMuted),
-        onTap: () {
-          ref.read(impersonationProvider).select(c.idPersona, c.nombre, c.email);
-          context.go('/inicio');
-        },
       ),
     );
   }
 
-  /// Encabezado de grupo dentro de la lista ("Copropietarios (N)" /
-  /// "Todos los clientes").
-  Widget _headerGrupo(String texto, SozuTone tone, {IconData? icon}) =>
-      Padding(
-        padding: const EdgeInsets.only(top: 4, bottom: 8),
-        child: Row(
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 14, color: tone.textMuted),
-              const SizedBox(width: 6),
-            ],
-            Expanded(
-              child: Text(
-                texto.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.6,
-                  color: tone.textMuted,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+  // -------------------------------------------------------------------------
+  // Resultados
+  // -------------------------------------------------------------------------
 
-  /// Sección "Copropietarios (N)" / "Dueño de la propiedad" cuando el filtro
-  /// Proyecto + Unidad está activo.
-  List<Widget> _seccionPropietarios(SozuTone tone) {
-    final propietarios = ref.watch(
-      adminPropietariosProvider((
-        idProyecto: _proyectoId!,
-        numero: _unidadQuery,
-      )),
+  Widget _results() {
+    final clientes = ref.watch(adminClientesProvider);
+    final t = context.s;
+
+    return clientes.when(
+      loading: () => ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          for (var i = 0; i < 4; i++) ...[
+            const _ClientTileSkeleton(),
+            SizedBox(height: t.space.xs),
+          ],
+        ],
+      ),
+      error: (_, __) => ErrorCard(
+        title: 'No pudimos cargar la lista de clientes',
+        onRetry: () => ref.invalidate(adminClientesProvider),
+      ),
+      data: (data) {
+        final items = _filterBy(data.clientes);
+
+        // Sin filtro de propiedad: solo búsqueda por texto.
+        if (!_isPropertyFilterActive) {
+          if (_queryTooShort) {
+            return const SEmptyState(
+              icon: Icons.person_search_outlined,
+              title: 'Busca un cliente',
+              message:
+                  'Escribe al menos $_minQueryLength letras del nombre o '
+                  'correo, o filtra por proyecto y unidad.',
+            );
+          }
+          if (items.isEmpty) {
+            return SEmptyState(
+              icon: Icons.search_off_outlined,
+              title: 'Sin resultados',
+              message: 'No encontramos clientes para "$_query".',
+            );
+          }
+          return _ClientList(clientes: items, onTap: _viewAs);
+        }
+
+        // Con filtro Proyecto + Unidad: copropietarios arriba y "Todos los
+        // clientes" debajo (paridad con el portal admin).
+        return ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            ..._ownersSection(),
+            const SSectionLabel(
+              text: 'Todos los clientes',
+              icon: Icons.people_alt_outlined,
+            ),
+            if (_queryTooShort)
+              _InlineNote(
+                'Escribe al menos $_minQueryLength letras del nombre o correo '
+                'para buscar en todos los clientes.',
+              )
+            else if (items.isEmpty)
+              _InlineNote('Sin resultados para "$_query".')
+            else
+              for (final cliente in items) ...[
+                ClientTile(
+                  cliente: cliente,
+                  isSelected:
+                      ref.watch(impersonationProvider).idPersona ==
+                      cliente.idPersona,
+                  onTap: () => _viewAs(cliente),
+                ),
+                SizedBox(height: t.space.xs),
+              ],
+          ],
+        );
+      },
     );
+  }
+
+  /// Sección "Copropietarios (N)" / "Dueño de la propiedad", solo cuando el
+  /// filtro Proyecto + Unidad está activo.
+  List<Widget> _ownersSection() {
+    final t = context.s;
+    final propietarios = ref.watch(
+      adminPropietariosProvider((idProyecto: _proyectoId!, numero: _unitQuery)),
+    );
+
     return propietarios.when(
       loading: () => [
-        _headerGrupo('Copropietarios', tone, icon: Icons.group_outlined),
-        const AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Skeleton(height: 18),
-              SizedBox(height: 8),
-              Skeleton(width: 200, height: 14),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
+        const SSectionLabel(text: 'Copropietarios', icon: Icons.group_outlined),
+        const _ClientTileSkeleton(),
+        SizedBox(height: t.space.md),
       ],
       error: (_, __) => [
         ErrorCard(
           title: 'No pudimos cargar los clientes de la unidad',
           onRetry: () => ref.invalidate(adminPropietariosProvider),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: t.space.md),
       ],
-      data: (lista) {
-        if (lista.isEmpty) {
+      data: (items) {
+        if (items.isEmpty) {
           return [
-            const EmptyCard(
-              icon: Icons.home_outlined,
-              text: 'No encontramos clientes vinculados a esa unidad.',
+            const SSectionLabel(
+              text: 'Copropietarios',
+              icon: Icons.group_outlined,
             ),
-            const SizedBox(height: 16),
+            const _InlineNote(
+              'No encontramos clientes vinculados a esa unidad.',
+            ),
+            SizedBox(height: t.space.md),
           ];
         }
         return [
-          _headerGrupo(
-            lista.length > 1
-                ? 'Copropietarios (${lista.length})'
+          SSectionLabel(
+            text: items.length > 1
+                ? 'Copropietarios (${items.length})'
                 : 'Dueño de la propiedad',
-            tone,
             icon: Icons.group_outlined,
           ),
-          for (final c in lista) ...[
-            _clienteTile(c, tone),
-            const SizedBox(height: 8),
+          for (final cliente in items) ...[
+            ClientTile(
+              cliente: cliente,
+              isSelected:
+                  ref.watch(impersonationProvider).idPersona ==
+                  cliente.idPersona,
+              onTap: () => _viewAs(cliente),
+            ),
+            SizedBox(height: t.space.xs),
           ],
-          const SizedBox(height: 8),
+          SizedBox(height: t.space.xs),
         ];
       },
     );
   }
+}
 
-  /// Fila de filtros "Ver como": Proyecto + Unidad (número de propiedad).
-  Widget _filtrosPropiedad(SozuTone tone) {
-    final proyectos =
-        ref.watch(adminProyectosProvider).asData?.value ?? const <CatalogoItem>[];
-    return Row(
-      children: [
-        Expanded(
-          child: DropdownButtonFormField<int?>(
-            initialValue: _proyectoId,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Proyecto',
-              prefixIcon: Icon(Icons.apartment_outlined, size: 20),
-              isDense: true,
-            ),
-            hint: const Text('Proyecto'),
-            items: [
-              const DropdownMenuItem<int?>(
-                value: null,
-                child: Text('Todos los proyectos'),
-              ),
-              for (final p in proyectos)
-                DropdownMenuItem<int?>(
-                  value: p.id,
-                  child: Text(p.nombre, overflow: TextOverflow.ellipsis),
-                ),
-            ],
-            onChanged: proyectos.isEmpty
-                ? null
-                : (v) => setState(() => _proyectoId = v),
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 130,
-          child: TextField(
-            controller: _unidad,
-            onChanged: _onUnidadChanged,
-            decoration: InputDecoration(
-              labelText: 'Unidad',
-              hintText: 'Ej. 411',
-              prefixIcon: const Icon(Icons.home_outlined, size: 20),
-              isDense: true,
-              suffixIcon: _unidad.text.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
-                      onPressed: () {
-                        _debounce?.cancel();
-                        _unidad.clear();
-                        setState(() => _unidadQuery = '');
-                      },
-                    ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+// ---------------------------------------------------------------------------
+// Partes locales
+// ---------------------------------------------------------------------------
+
+/// Tarjeta que agrupa filtros + buscador.
+///
+/// Es una superficie propia sobre el fondo de página: agrupar los tres controles
+/// en una card los lee como un solo bloque de "acotar la búsqueda", en vez de
+/// tres campos sueltos flotando.
+class _FiltersPanel extends StatelessWidget {
+  final List<CatalogoItem> projects;
+  final int? projectId;
+  final ValueChanged<int?> onProjectChanged;
+  final TextEditingController unitController;
+  final ValueChanged<String> onUnitChanged;
+  final VoidCallback onUnitCleared;
+  final TextEditingController searchController;
+  final ValueChanged<String> onQueryChanged;
+
+  const _FiltersPanel({
+    required this.projects,
+    required this.projectId,
+    required this.onProjectChanged,
+    required this.unitController,
+    required this.onUnitChanged,
+    required this.onUnitCleared,
+    required this.searchController,
+    required this.onQueryChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final tone = SozuTone.of(context);
-    final auth = ref.watch(authProvider);
-    final imp = ref.watch(impersonationProvider);
-    final clientes = ref.watch(adminClientesProvider);
-
-    return Scaffold(
-      backgroundColor: tone.surface,
-      appBar: AppBar(
-        title: const Text('Selecciona un cliente'),
-        automaticallyImplyLeading: false,
-        actions: [
-          TextButton.icon(
-            onPressed: () => context.push('/admin-avisos'),
-            icon: Icon(
-              Icons.campaign_outlined,
-              size: 18,
-              color: tone.primaryDark,
-            ),
-            label: Text(
-              'Enviar avisos',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: tone.primaryDark,
-              ),
-            ),
+    final t = context.s;
+    return Container(
+      padding: EdgeInsets.all(t.space.sm),
+      decoration: BoxDecoration(
+        color: t.color.surface,
+        borderRadius: t.radius.lgBorder,
+        border: Border.all(color: t.color.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ClientFilters(
+            projects: projects,
+            projectId: projectId,
+            onProjectChanged: onProjectChanged,
+            unitController: unitController,
+            onUnitChanged: onUnitChanged,
+            onUnitCleared: onUnitCleared,
           ),
-          if (imp.active)
-            TextButton(
-              onPressed: () => context.go('/inicio'),
-              child: Text(
-                'Volver al portal',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: tone.primaryDark,
-                ),
-              ),
-            ),
-          TextButton(
-            onPressed: () async {
-              await ref.read(authProvider).signOut();
-            },
-            child: Text(
-              'Cerrar sesión',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: tone.textSecondary,
-              ),
+          SizedBox(height: t.space.xs),
+          SSearchField(
+            controller: searchController,
+            hintText: 'Buscar por nombre o correo…',
+            autofocus: true,
+            onChanged: onQueryChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClientList extends StatelessWidget {
+  final List<AdminCliente> clientes;
+  final void Function(AdminCliente) onTap;
+
+  const _ClientList({required this.clientes, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      itemCount: clientes.length,
+      separatorBuilder: (_, __) => SizedBox(height: t.space.xs),
+      itemBuilder: (context, i) => Consumer(
+        builder: (context, ref, _) => ClientTile(
+          cliente: clientes[i],
+          isSelected:
+              ref.watch(impersonationProvider).idPersona ==
+              clientes[i].idPersona,
+          onTap: () => onTap(clientes[i]),
+        ),
+      ),
+    );
+  }
+}
+
+/// Nota de una línea dentro de la lista (no amerita un estado vacío completo).
+class _InlineNote extends StatelessWidget {
+  final String texto;
+
+  const _InlineNote(this.texto);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: t.space.xs),
+      child: Text(
+        texto,
+        style: t.text.bodySmall.copyWith(color: t.color.fgMuted),
+      ),
+    );
+  }
+}
+
+class _ClientTileSkeleton extends StatelessWidget {
+  const _ClientTileSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return Container(
+      padding: EdgeInsets.all(t.space.sm),
+      decoration: BoxDecoration(
+        color: t.color.surface,
+        borderRadius: t.radius.mdBorder,
+        border: Border.all(color: t.color.border),
+      ),
+      child: Row(
+        children: [
+          const Skeleton(width: 36, height: 36),
+          SizedBox(width: t.space.sm),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Skeleton(height: 14),
+                SizedBox(height: 6),
+                Skeleton(width: 180, height: 12),
+              ],
             ),
           ),
         ],
       ),
-      body: WebFrame(
-        maxWidth: 720,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Acceso administrador · ${auth.profile?.nombre ?? auth.profile?.email ?? ''}',
-                    style: TextStyle(fontSize: 13, color: tone.textMuted),
-                  ),
-                  const SizedBox(height: 12),
-                  _filtrosPropiedad(tone),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _search,
-                    autofocus: true,
-                    onChanged: (v) => setState(() => _query = v),
-                    decoration: InputDecoration(
-                      hintText: 'Buscar por nombre o correo…',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _query.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _search.clear();
-                                setState(() => _query = '');
-                              },
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: clientes.when(
-                loading: () => ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: const [
-                    AppCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Skeleton(height: 18),
-                          SizedBox(height: 8),
-                          Skeleton(width: 200, height: 14),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                error: (_, __) => ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    ErrorCard(
-                      title: 'No pudimos cargar la lista de clientes',
-                      onRetry: () => ref.invalidate(adminClientesProvider),
-                    ),
-                  ],
-                ),
-                data: (data) {
-                  // Sin filtro de propiedad: comportamiento original.
-                  if (!_filtroPropiedadActivo) {
-                    if (_queryTooShort) return _hintBuscar(tone);
-                    final lista = _filtrar(data.clientes);
-                    if (lista.isEmpty) return _sinResultados(tone);
-                    return ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: lista.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, i) =>
-                          _clienteTile(lista[i], tone),
-                    );
-                  }
-
-                  // Con filtro Proyecto + Unidad: copropietarios arriba y
-                  // "Todos los clientes" debajo (paridad con el portal).
-                  final lista = _filtrar(data.clientes);
-                  return ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      ..._seccionPropietarios(tone),
-                      _headerGrupo(
-                        'Todos los clientes',
-                        tone,
-                        icon: Icons.people_alt_outlined,
-                      ),
-                      if (_queryTooShort)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            'Escribe al menos $_minQueryLength letras del '
-                            'nombre o correo para buscar en todos los '
-                            'clientes.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: tone.textSecondary,
-                            ),
-                          ),
-                        )
-                      else if (lista.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            'Sin resultados para "$_query".',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: tone.textSecondary,
-                            ),
-                          ),
-                        )
-                      else
-                        for (final c in lista) ...[
-                          _clienteTile(c, tone),
-                          const SizedBox(height: 8),
-                        ],
-                    ],
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
-
-  Widget _hintBuscar(SozuTone tone) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: tone.primarySoft,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.person_search_outlined,
-                size: 30,
-                color: tone.primaryDark,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Busca un cliente',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: tone.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Escribe al menos $_minQueryLength letras del nombre o correo, '
-              'o filtra por proyecto y unidad.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: tone.textSecondary),
-            ),
-          ],
-        ),
-      );
-
-  Widget _sinResultados(SozuTone tone) => Center(
-        child: Text(
-          'Sin resultados para "$_query".',
-          style: TextStyle(fontSize: 14, color: tone.textSecondary),
-        ),
-      );
 }
