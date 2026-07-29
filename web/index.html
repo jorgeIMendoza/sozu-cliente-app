@@ -37,6 +37,21 @@
 
   <!-- pdf.js: requerido por pdfx para renderizar PDFs en web (visor in-app) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+  <!--
+    Anti-caché: la app se compila SIN service worker (--pwa-strategy=none) para
+    que los usuarios reciban SIEMPRE la última versión tras cada deploy (junto
+    con los headers Cache-Control de firebase.json). Este script desregistra
+    cualquier service worker viejo que haya quedado de builds anteriores (que
+    servía el bundle cacheado y bloqueaba las actualizaciones).
+  -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then(function (regs) { for (var i = 0; i < regs.length; i++) { regs[i].unregister(); } })
+        .catch(function () {});
+    }
+  </script>
 </head>
 <body>
   <!--
