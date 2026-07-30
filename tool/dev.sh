@@ -107,9 +107,14 @@ if [ "$DEVICE" = "web-server" ] || [ "$DEVICE" = "chrome" ]; then
   # celular en la misma red (util para probar responsive en fisico).
   echo "==> http://localhost:$PORT"
   # Para probar en las dos plataformas a la vez, cada una necesita su terminal.
-  MOVIL="$(ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}" \
-    "${ANDROID_HOME:-$HOME/android-sdk}/platform-tools/adb" devices 2>/dev/null \
-    | tail -n +2 | grep "device$" | head -1 | awk '{print $1}')"
+  # El `|| true` es obligatorio: con `set -e`, un grep sin coincidencias (ningun
+  # movil conectado) mataba el script ANTES de arrancar flutter run.
+  ADB_BIN="${ANDROID_HOME:-$HOME/android-sdk}/platform-tools/adb"
+  MOVIL=""
+  if [ -x "$ADB_BIN" ]; then
+    MOVIL="$("$ADB_BIN" devices 2>/dev/null | tail -n +2 \
+      | grep "device$" | head -1 | awk '{print $1}' || true)"
+  fi
   if [ -n "$MOVIL" ]; then
     echo "==> movil detectado. En OTRA terminal, para probar los dos a la vez:"
     echo "      ./tool/dev.sh $MOVIL"
