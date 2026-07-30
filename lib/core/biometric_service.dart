@@ -46,6 +46,7 @@ class BiometricService {
   static const _keyHabilitada = 'sozu_biometria_habilitada';
   static const _keyRefreshToken = 'sozu_biometria_refresh_token';
   static const _keyBloqueada = 'sozu_biometria_bloqueada';
+  static const _keyUserId = 'sozu_biometria_user_id';
 
   final LocalAuthentication _localAuth = LocalAuthentication();
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
@@ -74,9 +75,15 @@ class BiometricService {
   }
 
   /// Flag persistido: el usuario activó el login biométrico.
+  ///
+  /// Exige además el id del usuario enrolado. Un enrolamiento sin id viene de
+  /// antes de restringir la biometría a clientes y no hay forma de saber de qué
+  /// cuenta es: se ignora, así que el botón y el prompt no aparecen para una
+  /// cuenta administradora que se enroló entonces.
   Future<bool> habilitada() async {
     if (!_esMovil) return false;
-    return await _storage.read(key: _keyHabilitada) == 'true';
+    if (await _storage.read(key: _keyHabilitada) != 'true') return false;
+    return await _storage.read(key: _keyUserId) != null;
   }
 
   /// Habilitada Y con refresh token guardado: se puede ofrecer el botón
@@ -108,12 +115,26 @@ class BiometricService {
   /// el refresh token de la sesión ACTUAL + el flag.
   Future<bool> habilitar() async {
     if (!_esMovil) return false;
-    final token = Supabase.instance.client.auth.currentSession?.refreshToken;
-    if (token == null || token.isEmpty) return false;
+    final session = Supabase.instance.client.auth.currentSession;
+    final token = session?.refreshToken;
+    final userId = session?.user.id;
+    if (token == null || token.isEmpty || userId == null) return false;
     if (!await autenticar()) return false;
     await _storage.write(key: _keyRefreshToken, value: token);
+    await _storage.write(key: _keyUserId, value: userId);
     await _storage.write(key: _keyHabilitada, value: 'true');
     return true;
+  }
+
+  /// Apaga la biometría si el enrolamiento es de [userId]; si es de otra cuenta
+  /// no la toca. Se usa cuando una cuenta pierde el derecho a biometría (entrar
+  /// con acceso administrador) sin arrastrar el enrolamiento de otra cuenta que
+  /// use el mismo teléfono.
+  Future<void> deshabilitarSiEsDe(String userId) async {
+    if (!_esMovil) return;
+    if (await _storage.read(key: _keyUserId) == userId) {
+      await deshabilitar();
+    }
   }
 
   /// Desactiva y borra el token guardado (única vía de borrado junto con el
@@ -121,6 +142,7 @@ class BiometricService {
   Future<void> deshabilitar() async {
     if (!_esMovil) return;
     await _storage.delete(key: _keyRefreshToken);
+    await _storage.delete(key: _keyUserId);
     await _storage.delete(key: _keyHabilitada);
     await _storage.delete(key: _keyBloqueada);
   }
@@ -148,10 +170,20 @@ class BiometricService {
   /// onAuthStateChange con sesión (signedIn / tokenRefreshed): el token
   /// anterior queda invalidado por Supabase y sin esto el login biométrico
   /// moriría al primer refresh.
+  ///
+  /// Ignora las sesiones de otra cuenta: el enrolamiento está atado al usuario
+  /// que lo activó.
   Future<void> persistirSesion(Session? session) async {
     final token = session?.refreshToken;
     if (token == null || token.isEmpty) return;
     if (!await habilitada()) return;
+    // El enrolamiento pertenece a UNA cuenta. Sin esta comprobación, entrar con
+    // otra cuenta en el mismo teléfono sobreescribía el token guardado y la
+    // huella acababa restaurando ESA sesión: un administrador que entrara en el
+    // teléfono de un cliente enrolado quedaba accesible con la huella del
+    // cliente.
+    final enrolado = await _storage.read(key: _keyUserId);
+    if (enrolado != null && enrolado != session!.user.id) return;
     await _storage.write(key: _keyRefreshToken, value: token);
   }
 

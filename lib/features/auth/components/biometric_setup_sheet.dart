@@ -8,8 +8,8 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// acepta. No hace nada si la plataforma no lo soporta, ya está activo, hubo un
 /// "Ahora no" en esta ejecución, o la cuenta no es de cliente.
 ///
-/// Este sheet es el ÚNICO camino para activar la biometría hoy: la card de
-/// Perfil (`widgets/biometric_tile.dart`) no está montada en ninguna pantalla.
+/// El otro camino para activarla es la card de Perfil
+/// (`widgets/biometric_tile.dart`), que se oculta con las mismas reglas.
 ///
 /// Recibe [auth] por parámetro en vez de leer el provider: quien conoce la
 /// sesión es la pantalla.
@@ -83,8 +83,7 @@ Future<void> offerBiometricSetup(
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'No se pudo activar el acceso con huella. Se te volverá a ofrecer al '
-          'entrar de nuevo.',
+          'No se pudo activar la biometría. Puedes hacerlo desde Perfil.',
         ),
       ),
     );

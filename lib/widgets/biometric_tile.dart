@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sozu_cliente_app/core/biometric_service.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -67,7 +68,13 @@ class _BiometricSettingTileState extends ConsumerState<BiometricSettingTile> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_soportado) return const SizedBox.shrink();
+    // Solo clientes: la biometría guarda el refresh token de la sesión ACTUAL, y
+    // la de un administrador puede impersonar a cualquier cliente. La
+    // impersonación queda cubierta sola porque NO cambia la sesión de Supabase:
+    // el perfil sigue siendo el del administrador, así que `isCliente` es false.
+    if (!_soportado || !ref.watch(authProvider).isCliente) {
+      return const SizedBox.shrink();
+    }
     final tone = context.s.color;
     // Margen propio: al colapsar en web no debe quedar hueco en Perfil.
     return Padding(padding: const EdgeInsets.only(top: 12), child: _card(tone));

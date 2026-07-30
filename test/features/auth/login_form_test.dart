@@ -205,7 +205,11 @@ void main() {
   /// Hace que secure storage responda como si la biometría estuviera activada y
   /// con refresh token guardado, que es lo único que `disponibleParaLogin()`
   /// consulta. Las claves son las de `BiometricService` (privadas allá).
-  void mockBiometricsEnabled({required bool enabled, bool withToken = true}) {
+  void mockBiometricsEnabled({
+    required bool enabled,
+    bool withToken = true,
+    bool withUserId = true,
+  }) {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
@@ -214,6 +218,7 @@ void main() {
             final args = call.arguments as Map<Object?, Object?>;
             return switch (args['key'] as String?) {
               'sozu_biometria_habilitada' => 'true',
+              'sozu_biometria_user_id' => withUserId ? 'user-de-prueba' : null,
               'sozu_biometria_refresh_token' =>
                 withToken ? 'refresh-token-de-prueba' : null,
               _ => null,
@@ -310,6 +315,24 @@ void main() {
 
     expect(find.text(biometricLabel), findsOneWidget);
     // Sin token no se pide la huella al montar: no podria entrar de todas formas.
+    expect(prompts.value, 0);
+  });
+
+  testWidgets('enrolamiento viejo sin user_id: se ignora por completo', (
+    tester,
+  ) async {
+    // Antes de restringir la biometria a clientes, `habilitar()` no guardaba el
+    // id del usuario enrolado, asi que no hay forma de saber si ese
+    // enrolamiento es de un cliente o de un administrador. Se ignora: ni boton
+    // ni prompt. El siguiente login por contrasena lo rearma si toca.
+    mockBiometricsEnabled(enabled: true, withUserId: false);
+    final prompts = mockBiometricPromptAlwaysRejected();
+    await pumpLoginForm(tester);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+
+    expect(find.text(biometricLabel), findsNothing);
     expect(prompts.value, 0);
   });
 

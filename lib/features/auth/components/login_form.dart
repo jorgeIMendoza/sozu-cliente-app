@@ -178,6 +178,15 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         });
         return;
       }
+      // Acceso administrador: esta cuenta no usa biometría, así que si quedó un
+      // enrolamiento suyo (de antes de la restricción) se apaga aquí. No toca el
+      // de otra cuenta que use el mismo teléfono.
+      if (isAdminAccess) {
+        final userId = auth.session?.user.id;
+        if (userId != null) {
+          await BiometricService.instance.deshabilitarSiEsDe(userId);
+        }
+      }
       // Con contraseña temporal pendiente NO se ofrece la biometría: enrolar
       // ahí ataría la huella a una credencial que el usuario esta por cambiar.
       // La oferta la hace ChangePasswordScreen al terminar el cambio.
