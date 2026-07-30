@@ -45,10 +45,13 @@ class AuthController extends ChangeNotifier {
   Session? session;
   UserProfile? profile;
 
-  /// true mientras el login valida el rol tras autenticar; el router no debe
-  /// sacar al usuario de /login (evita que el signOut por rol inválido borre
-  /// el mensaje de error al desmontar la pantalla).
-  bool loginEnCurso = false;
+  /// true mientras una pantalla de autenticación sigue trabajando después de
+  /// que el estado de sesión ya cambió; el router no debe sacar al usuario de
+  /// ella. Cubre dos casos: el login validando el rol (un signOut por rol
+  /// inválido borraría el mensaje de error al desmontar) y el cambio de
+  /// contraseña ofreciendo la biometría (el perfil ya no exige el cambio, así
+  /// que el redirect se llevaría el sheet a medias).
+  bool authFlowInProgress = false;
 
   /// Candado biométrico: la sesión de Supabase sigue viva (nunca se revocó)
   /// pero la app se comporta como deslogueada hasta desbloquear con

@@ -7,6 +7,7 @@ import 'package:sozu_cliente_app/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/widgets/password_rules.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_brand_image.dart';
+import 'package:sozu_cliente_app/features/auth/components/biometric_setup_sheet.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
 import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
@@ -53,14 +54,26 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       _submitting = true;
       _formError = null;
     });
+    final auth = ref.read(authProvider);
+    // El candado tiene que ponerse ANTES de updatePassword: en cuanto el perfil
+    // deja de exigir el cambio, el redirect abandona esta ruta y se llevaría el
+    // sheet de biometría a medias.
+    auth.authFlowInProgress = true;
     try {
-      await ref.read(authProvider).updatePassword(_pwd.text);
+      await auth.updatePassword(_pwd.text);
       // Pide guardar la contrasena nueva. Sin esto el gestor se queda con la
       // temporal, que ya no sirve para entrar.
       TextInput.finishAutofillContext();
+      // Recién ahora se ofrece la huella: la credencial ya es la definitiva.
+      // Aplica igual a cliente y a administrador.
+      if (mounted) await offerBiometricSetup(context, auth);
+      auth.authFlowInProgress = false;
       // Se conserva la sesión a propósito: no hay signOut tras el cambio.
+      // A /inicio para los dos: el router manda al administrador a
+      // /seleccionar-cliente por su permiso de rol.
       if (mounted) context.go('/inicio');
     } catch (_) {
+      auth.authFlowInProgress = false;
       setState(() {
         _formError = 'No pudimos actualizar la contraseña. Intenta de nuevo.';
         _submitting = false;

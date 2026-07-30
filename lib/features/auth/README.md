@@ -18,6 +18,7 @@ components/
   auth_brand_image.dart     la imagen del panel izquierdo
   auth_header.dart          AuthLogo · AuthTitle · AuthSubtitle
   auth_alert.dart           AuthAlert · AuthAlertKind
+  biometric_setup_sheet.dart  offerBiometricSetup() - login y cambio de password
   login_form.dart           el formulario completo del login
 ```
 

@@ -91,10 +91,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       final inAuthArea = loc == '/login' || loc == '/forgot-password';
 
-      // Login validando rol: no salir de /login (ni a /splash) hasta que
-      // la pantalla decida; si no, el signOut por rol inválido desmonta el
-      // login y el mensaje de error se pierde.
-      if (auth.loginEnCurso && loc == '/login') return null;
+      // Pantalla de autenticación aún trabajando: no sacarla (ni a /splash)
+      // hasta que ella decida. En /login evita que el signOut por rol inválido
+      // desmonte la pantalla y pierda el mensaje de error; en /change-password,
+      // que el perfil ya sin `debe_cambiar_password` se lleve el sheet de
+      // biometría antes de que el usuario conteste.
+      if (auth.authFlowInProgress &&
+          (loc == '/login' || loc == '/change-password')) {
+        return null;
+      }
       if (auth.isLoading) return loc == '/splash' ? null : '/splash';
       if (loc == '/splash') {
         // Sesión resuelta: salir del splash.

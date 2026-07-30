@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/core/biometric_service.dart';
+import 'package:sozu_cliente_app/features/auth/components/biometric_setup_sheet.dart';
 import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
@@ -135,7 +136,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       _formError = null;
     });
     final auth = ref.read(authProvider);
-    auth.loginEnCurso = true;
+    auth.authFlowInProgress = true;
     try {
       await auth.signIn(_emailController.text, _passwordController.text);
       // Cierra el contexto de autofill PIDIENDO guardar: sin esto el gestor de
@@ -143,7 +144,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       // `finally` para no guardar contrasenas que fallaron.
       TextInput.finishAutofillContext();
     } catch (e) {
-      auth.loginEnCurso = false;
+      auth.authFlowInProgress = false;
       if (!mounted) return;
       setState(() {
         _formError = AuthController.mensajeErrorAcceso(e);
@@ -161,7 +162,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         // Rol no permitido en este acceso (incluye admin sin modo admin):
         // mensaje genérico para no revelar cuentas existentes.
         await auth.signOut();
-        auth.loginEnCurso = false;
+        auth.authFlowInProgress = false;
         if (!mounted) return;
         setState(() {
           _formError = 'Correo o contraseña incorrectos.';
@@ -169,17 +170,25 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         });
         return;
       }
-      // Un solo punto de salida: la oferta de biometría va para cliente y para
-      // administrador, y también antes del cambio forzado de contraseña. Cuando
-      // cada destino navegaba por su cuenta, cada rama nueva volvía a olvidarse
-      // de ofrecerla.
-      final route = profile!.debeCambiarPassword
-          ? '/change-password'
-          : (isAdminAccess ? '/seleccionar-cliente' : '/inicio');
-      await _offerBiometricsThenGo(auth, route);
+      // Con contraseña temporal pendiente NO se ofrece la biometría: enrolar
+      // ahí ataría la huella a una credencial que el usuario esta por cambiar.
+      // La oferta la hace ChangePasswordScreen al terminar el cambio.
+      if (profile!.debeCambiarPassword) {
+        auth.authFlowInProgress = false;
+        if (!mounted) return;
+        context.go('/change-password');
+        return;
+      }
+      // Un solo punto de salida para el resto: la oferta va igual para cliente y
+      // para administrador. Cuando cada destino navegaba por su cuenta, cada
+      // rama nueva volvía a olvidarse de ofrecerla.
+      await _offerBiometricsThenGo(
+        auth,
+        isAdminAccess ? '/seleccionar-cliente' : '/inicio',
+      );
     } catch (_) {
       await auth.signOut();
-      auth.loginEnCurso = false;
+      auth.authFlowInProgress = false;
       if (!mounted) return;
       setState(() {
         _formError = 'No pudimos verificar tu cuenta. Intenta de nuevo.';
@@ -188,87 +197,15 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     }
   }
 
-  /// Bottom sheet post-login: activar el acceso con huella/rostro.
-  /// "Ahora no" (o cerrar el sheet) no vuelve a insistir en esta ejecución.
-  Future<void> _offerBiometricSetup() async {
-    final t = context.s;
-    final shouldEnable = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: t.color.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(t.radius.card),
-        ),
-      ),
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          t.space.lg,
-          t.space.lg + 4,
-          t.space.lg,
-          t.space.lg + MediaQuery.of(sheetContext).padding.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Icon(Icons.fingerprint, size: 48, color: t.color.primary),
-            SizedBox(height: t.space.md),
-            Text(
-              'Entra más rápido',
-              textAlign: TextAlign.center,
-              style: t.text.h3.copyWith(color: t.color.fg),
-            ),
-            SizedBox(height: t.space.xs),
-            Text(
-              '¿Quieres usar tu huella o rostro para entrar más rápido '
-              'la próxima vez?',
-              textAlign: TextAlign.center,
-              style: t.text.bodySmall.copyWith(color: t.color.fgMuted),
-            ),
-            SizedBox(height: t.space.lg),
-            FilledButton(
-              onPressed: () => Navigator.pop(sheetContext, true),
-              child: const Text('Activar'),
-            ),
-            SizedBox(height: t.space.xs),
-            TextButton(
-              onPressed: () => Navigator.pop(sheetContext, false),
-              child: Text(
-                'Ahora no',
-                style: t.text.label.copyWith(color: t.color.fgMuted),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (shouldEnable == true) {
-      final ok = await BiometricService.instance.habilitar();
-      if (!ok && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'No se pudo activar la biometría. Puedes hacerlo desde Perfil.',
-            ),
-          ),
-        );
-      }
-    } else {
-      BiometricService.instance.ofertaRechazada = true;
-    }
-  }
-
   /// Ofrece activar la biometría y navega a [route]. Lo comparten el acceso de
   /// cliente y el de administrador: sin esto el admin nunca recibía la oferta,
   /// porque su rama navegaba antes de llegar aquí.
   ///
-  /// La oferta va ANTES de navegar y con `loginEnCurso` aún en true: si no, el
-  /// router saca al usuario de /login mientras el sheet está abierto.
+  /// La oferta va ANTES de navegar y con `authFlowInProgress` aún en true: si no,
+  /// el router saca al usuario de /login mientras el sheet está abierto.
   Future<void> _offerBiometricsThenGo(AuthController auth, String route) async {
-    if (await auth.debeOfrecerBiometria()) {
-      if (mounted) await _offerBiometricSetup();
-    }
-    auth.loginEnCurso = false;
+    await offerBiometricSetup(context, auth);
+    auth.authFlowInProgress = false;
     if (!mounted) return;
     context.go(route);
   }
@@ -283,14 +220,14 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       _formError = null;
     });
     final auth = ref.read(authProvider);
-    auth.loginEnCurso = true;
+    auth.authFlowInProgress = true;
     // Con candado la sesión nunca se cerró: solo se desbloquea. El login con
     // token guardado es el fallback cuando la sesión local ya no existe.
     final ok = auth.locked
         ? await auth.unlockConBiometria()
         : await BiometricService.instance.loginBiometrico();
     if (!ok) {
-      auth.loginEnCurso = false;
+      auth.authFlowInProgress = false;
       // El token pudo haberse invalidado: re-evaluar si el botón sigue.
       final isAvailable = await _canUseBiometricLogin();
       if (!mounted) return;
@@ -314,7 +251,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       // destino sale del permiso del rol, no de un toggle de la UI.
       if (!isCliente && !isAdmin) {
         await auth.signOut();
-        auth.loginEnCurso = false;
+        auth.authFlowInProgress = false;
         if (!mounted) return;
         setState(() {
           _isBiometricRunning = false;
@@ -322,7 +259,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         });
         return;
       }
-      auth.loginEnCurso = false;
+      auth.authFlowInProgress = false;
       if (!mounted) return;
       context.go(
         profile!.debeCambiarPassword
@@ -331,7 +268,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       );
     } catch (_) {
       await auth.signOut();
-      auth.loginEnCurso = false;
+      auth.authFlowInProgress = false;
       if (!mounted) return;
       setState(() {
         _isBiometricRunning = false;
