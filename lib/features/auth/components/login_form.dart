@@ -155,18 +155,9 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     try {
       final profile = await auth.refreshProfile();
       // Acceso administrador: por permiso del rol, no por el nombre del rol.
-      final isAdmin = profile?.administrarAppClientes ?? false;
-      if (_isAdminMode && isAdmin) {
-        if (profile!.debeCambiarPassword) {
-          auth.loginEnCurso = false;
-          if (!mounted) return;
-          context.go('/change-password');
-          return;
-        }
-        await _offerBiometricsThenGo(auth, '/seleccionar-cliente');
-        return;
-      }
-      if (profile?.rolNombre != 'Cliente') {
+      final isAdminAccess =
+          _isAdminMode && (profile?.administrarAppClientes ?? false);
+      if (profile?.rolNombre != 'Cliente' && !isAdminAccess) {
         // Rol no permitido en este acceso (incluye admin sin modo admin):
         // mensaje genérico para no revelar cuentas existentes.
         await auth.signOut();
@@ -178,13 +169,14 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         });
         return;
       }
-      if (profile!.debeCambiarPassword) {
-        auth.loginEnCurso = false;
-        if (!mounted) return;
-        context.go('/change-password');
-        return;
-      }
-      await _offerBiometricsThenGo(auth, '/inicio');
+      // Un solo punto de salida: la oferta de biometría va para cliente y para
+      // administrador, y también antes del cambio forzado de contraseña. Cuando
+      // cada destino navegaba por su cuenta, cada rama nueva volvía a olvidarse
+      // de ofrecerla.
+      final route = profile!.debeCambiarPassword
+          ? '/change-password'
+          : (isAdminAccess ? '/seleccionar-cliente' : '/inicio');
+      await _offerBiometricsThenGo(auth, route);
     } catch (_) {
       await auth.signOut();
       auth.loginEnCurso = false;
