@@ -96,7 +96,32 @@ solo el compilador los localiza con fiabilidad. **No se puede hacer con sed.**
 Ya NO es una paleta paralela: cada constante apunta a la rampa unificada y hay
 tests que lo garantizan. Lo que queda es un segundo nombre para lo mismo.
 
-### 5. Siguiente feature: `admin`
+### 5. Plugins que aplican KGP  (deuda con fecha abierta)
+
+`flutter run` en Android avisa: `device_info_plus`, `package_info_plus`, `pdfx` y
+`share_plus` aplican el Kotlin Gradle Plugin por su cuenta. Hoy es solo un
+WARNING y compila; versiones futuras de Flutter fallaran.
+
+| Plugin | Actual | Ultima | Usado en |
+|---|---|---|---|
+| `pdfx` | 2.9.2 | **2.9.2 - ya al dia** | `screens/doc_viewer_screen.dart` |
+| `share_plus` | 10.1.4 | 13.3.0 | `widgets/recibo_pago_sheet.dart:234` |
+| `device_info_plus` | 12.4.0 | 13.2.0 | `core/portal_tracking.dart:81` |
+| `package_info_plus` | 9.0.1 | 10.2.1 | transitivo, via `geolocator_linux` |
+
+**`pdfx` no tiene arreglo upstream**: esta en su ultima version, asi que subir los
+otros tres NO quita el warning. El camino real es reportarlo al plugin o cambiar
+de lector de PDF.
+
+Cuando toque: subir los tres `_plus` es un commit aparte con prueba en fisico.
+`share_plus` 10 -> 13 son tres majors y cambia la API del unico sitio de uso
+(`Share.share(texto, subject:)`). Los constraints en `pubspec.yaml` fijan el
+major, asi que hay que ensancharlos a mano; `pub upgrade` solo no los mueve.
+
+No esta verificado si esas versiones nuevas ya migraron a Built-in Kotlin - hay
+que leer sus changelogs antes de invertir el rato.
+
+### 6. Siguiente feature: `admin`
 
 Después de `auth`. Tiene la mitad de los componentes hechos
 (`widgets/admin/{admin_header_bar,client_filters,client_tile}.dart`) y
