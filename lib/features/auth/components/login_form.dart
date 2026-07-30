@@ -101,18 +101,12 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   /// Único punto que enciende y apaga el modo administrador: lo comparten el
   /// atajo de teclado y el long-press del sello de versión.
   ///
-  /// Encenderlo vuelve a pedir la huella: el flujo del administrador es cancelar
-  /// el prompt automático, poner la pastilla de admin y entrar con la huella ya
-  /// como administrador, sin escribir credenciales.
+  /// No dispara la huella: el administrador entra siempre con correo y
+  /// contraseña (ver [_signInWithBiometrics]).
   void _toggleAdminMode() {
     if (!mounted) return;
-    final isEnabling = !_isAdminMode;
-    setState(() => _isAdminMode = isEnabling);
+    setState(() => _isAdminMode = !_isAdminMode);
     if (_isHapticPlatform) HapticFeedback.mediumImpact();
-    if (isEnabling && _isBiometricAvailable && !_isBiometricRunning) {
-      // Silencioso: cancelar este prompt es una salida normal, no un error.
-      unawaited(_signInWithBiometrics(silentOnFailure: true));
-    }
   }
 
   /// Solo Android/iOS: en web y escritorio no hay vibración que dar.
@@ -224,10 +218,15 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     context.go(route);
   }
 
-  /// Login con huella/rostro. Con [silentOnFailure] un fallo o una cancelación
-  /// no muestran error: se usa cuando el prompt lo disparó el app y no un toque
-  /// del usuario (al montar y al encender el modo administrador), donde cancelar
-  /// es una salida normal. Queda el formulario y el botón como reintento.
+  /// Login con huella/rostro, SOLO para clientes. El administrador entra siempre
+  /// con correo y contraseña: su sesión puede impersonar a cualquier cliente, y
+  /// dejarla detrás de la huella enrolada en un teléfono la vuelve tan fuerte
+  /// como ese teléfono.
+  ///
+  /// Con [silentOnFailure] una cancelación no muestra error (el prompt lo disparó
+  /// el app al montar, no un toque del usuario). Los otros fallos SÍ se muestran
+  /// aunque sea silencioso: si el acceso rápido expiró, callarlo deja un botón
+  /// que parece roto.
   Future<void> _signInWithBiometrics({bool silentOnFailure = false}) async {
     if (_isBiometricRunning || _isSubmitting) return;
     ref.read(inactivityLogoutProvider.notifier).state = false;
@@ -239,51 +238,58 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     auth.authFlowInProgress = true;
     // Con candado la sesión nunca se cerró: solo se desbloquea. El login con
     // token guardado es el fallback cuando la sesión local ya no existe.
-    final ok = auth.locked
-        ? await auth.unlockConBiometria()
+    final result = auth.locked
+        ? (await auth.unlockConBiometria()
+              ? BiometricLoginResult.success
+              : BiometricLoginResult.cancelled)
         : await BiometricService.instance.loginBiometrico();
-    if (!ok) {
+    if (result != BiometricLoginResult.success) {
       auth.authFlowInProgress = false;
-      // El botón se queda mientras la biometría siga activada: solo desaparece
-      // si el usuario la apagó desde Perfil. Un token invalidado no lo esconde,
-      // porque el siguiente login por contraseña lo vuelve a alimentar.
+      // El botón se queda mientras la biometría siga activada: un token
+      // invalidado no lo esconde, porque el siguiente login por contraseña lo
+      // vuelve a alimentar. Lo que cambia es el mensaje.
       final isEnabled = await _isBiometricEnabled();
       if (!mounted) return;
       setState(() {
         _isBiometricRunning = false;
         _isBiometricAvailable = isEnabled;
-        if (!silentOnFailure) {
-          _formError =
-              'No pudimos validar tu identidad. Ingresa tu contraseña.';
-        }
+        _formError = switch (result) {
+          BiometricLoginResult.cancelled =>
+            silentOnFailure
+                ? null
+                : 'No pudimos validar tu identidad. Ingresa tu contraseña.',
+          BiometricLoginResult.networkError =>
+            'Sin conexión. Intenta de nuevo en un momento.',
+          BiometricLoginResult.sessionExpired =>
+            'Tu acceso rápido expiró. Entra con tu correo y contraseña una vez '
+                'y la huella queda lista de nuevo.',
+          BiometricLoginResult.success => null,
+        };
       });
       return;
     }
     try {
       final profile = await auth.refreshProfile();
-      final isAdmin = profile?.administrarAppClientes ?? false;
-      final isCliente = profile?.rolNombre == 'Cliente';
-      // El administrador entra con huella igual que el cliente: aquí no se
-      // exige el modo administrador (long-press del sello de versión) porque la
-      // huella ya es el segundo factor sobre un dispositivo de confianza. El
-      // destino sale del permiso del rol, no de un toggle de la UI.
-      if (!isCliente && !isAdmin) {
+      if (profile?.rolNombre != 'Cliente') {
+        // Enrolamiento viejo de una cuenta no-cliente: se apaga aquí. Dejarlo
+        // activo daría acceso a la consola de administración con solo la huella
+        // del teléfono.
+        await BiometricService.instance.deshabilitar();
         await auth.signOut();
         auth.authFlowInProgress = false;
         if (!mounted) return;
         setState(() {
           _isBiometricRunning = false;
-          _formError = 'Correo o contraseña incorrectos.';
+          _isBiometricAvailable = false;
+          _formError =
+              'El acceso con huella es solo para clientes. Entra con tu correo '
+              'y contraseña.';
         });
         return;
       }
       auth.authFlowInProgress = false;
       if (!mounted) return;
-      context.go(
-        profile!.debeCambiarPassword
-            ? '/change-password'
-            : (isAdmin ? '/seleccionar-cliente' : '/inicio'),
-      );
+      context.go(profile!.debeCambiarPassword ? '/change-password' : '/inicio');
     } catch (_) {
       await auth.signOut();
       auth.authFlowInProgress = false;

@@ -203,6 +203,10 @@ class AuthController extends ChangeNotifier {
   Future<bool> debeOfrecerBiometria() async {
     final bio = BiometricService.instance;
     if (bio.ofertaRechazada) return false;
+    // SOLO clientes. La biometría es un candado local sobre un refresh token
+    // guardado, y la sesión de un administrador puede impersonar a cualquier
+    // cliente: no se deja detrás de la huella enrolada en un teléfono.
+    if (!isCliente) return false;
     if (!await bio.soportado()) return false;
     return !await bio.habilitada();
   }

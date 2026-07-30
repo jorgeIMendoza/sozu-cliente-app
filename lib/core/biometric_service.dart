@@ -4,8 +4,31 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Resultado de [BiometricService.loginBiometrico]. Distinguir los casos importa
+/// porque solo uno se arregla reintentando: `sessionExpired` exige un login por
+/// contraseña, y sin decirlo el botón parece roto.
+enum BiometricLoginResult {
+  /// Sesión restaurada.
+  success,
+
+  /// El usuario canceló o la huella no coincidió. Reintentable.
+  cancelled,
+
+  /// No hay token guardado, o el servidor lo rechazó. Hace falta entrar una vez
+  /// con contraseña para volver a armar la biometría.
+  sessionExpired,
+
+  /// Sin red. El token guardado sigue sirviendo.
+  networkError,
+}
+
 /// Login biométrico (huella / Face ID) - SOLO móvil; en web todo devuelve
 /// false y no se toca secure storage.
+///
+/// La huella NUNCA sale del teléfono: `local_auth` solo le pregunta al sistema
+/// "¿es el usuario enrolado?" y recibe sí o no. Lo que este servicio guarda es
+/// el refresh token de Supabase, así que la biometría es un candado local sobre
+/// una sesión ya autenticada, no una identificación contra el servidor.
 ///
 /// Guarda el refresh token de Supabase en secure storage (Keystore/Keychain)
 /// bajo una key propia, separada de la sesión que persiste
@@ -134,28 +157,32 @@ class BiometricService {
 
   /// Flujo completo: autenticar → restaurar sesión con el refresh token
   /// guardado. Si Supabase rechaza el token (inválido/revocado) se borra el
-  /// token guardado (se mantiene el flag: el próximo login por contraseña lo
-  /// re-alimenta vía [persistirSesion]) y devuelve false para caer al login
-  /// normal. Errores de red NO borran el token.
-  Future<bool> loginBiometrico() async {
-    if (!await habilitada()) return false;
+  /// token guardado y se mantiene el flag: el próximo login por contraseña lo
+  /// re-alimenta vía [persistirSesion]. Errores de red NO borran el token.
+  Future<BiometricLoginResult> loginBiometrico() async {
+    if (!await habilitada()) return BiometricLoginResult.sessionExpired;
     final token = await _storage.read(key: _keyRefreshToken);
-    if (token == null || token.isEmpty) return false;
-    if (!await autenticar()) return false;
+    // Sin token no se pide la huella: seria un prompt que no puede entrar.
+    if (token == null || token.isEmpty) {
+      return BiometricLoginResult.sessionExpired;
+    }
+    if (!await autenticar()) return BiometricLoginResult.cancelled;
     try {
       final res = await Supabase.instance.client.auth.setSession(token);
       final nuevo = res.session?.refreshToken;
       if (nuevo != null && nuevo.isNotEmpty) {
         await _storage.write(key: _keyRefreshToken, value: nuevo);
       }
-      return res.session != null;
+      return res.session != null
+          ? BiometricLoginResult.success
+          : BiometricLoginResult.sessionExpired;
     } on AuthRetryableFetchException {
-      return false; // sin red: reintentar luego, el token sigue siendo válido
+      return BiometricLoginResult.networkError;
     } on AuthException {
       await _storage.delete(key: _keyRefreshToken);
-      return false;
+      return BiometricLoginResult.sessionExpired;
     } catch (_) {
-      return false;
+      return BiometricLoginResult.sessionExpired;
     }
   }
 }

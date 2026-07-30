@@ -313,16 +313,17 @@ void main() {
     expect(prompts.value, 0);
   });
 
-  testWidgets('encender el modo admin vuelve a pedir la huella', (
-    tester,
-  ) async {
+  testWidgets('encender el modo admin NO pide la huella', (tester) async {
+    // La huella es solo para clientes: la sesion de un administrador puede
+    // impersonar a cualquier cliente, asi que no queda detras de la huella
+    // enrolada en un telefono. El admin entra con correo y contrasena.
     mockBiometricsEnabled(enabled: true);
     final prompts = mockBiometricPromptAlwaysRejected();
     await pumpLoginForm(tester);
     for (var i = 0; i < 5; i++) {
       await tester.pump();
     }
-    // El prompt automático del montaje.
+    // El prompt automatico del montaje, el unico que debe existir.
     expect(prompts.value, 1);
 
     await holdVersionStamp(tester);
@@ -330,31 +331,12 @@ void main() {
       await tester.pump();
     }
 
-    // El flujo del admin: cancelar el prompt automático, poner la pastilla y
-    // entrar con la huella ya como administrador.
     expect(find.text(badgeLabel), findsOneWidget);
-    expect(prompts.value, 2);
-  });
-
-  testWidgets('apagar el modo admin NO pide la huella', (tester) async {
-    mockBiometricsEnabled(enabled: true);
-    final prompts = mockBiometricPromptAlwaysRejected();
-    await pumpLoginForm(tester);
-    for (var i = 0; i < 5; i++) {
-      await tester.pump();
-    }
-
-    await holdVersionStamp(tester); // enciende: pide
-    for (var i = 0; i < 5; i++) {
-      await tester.pump();
-    }
-    await holdVersionStamp(tester); // apaga: no debe pedir
-    for (var i = 0; i < 5; i++) {
-      await tester.pump();
-    }
-
-    expect(find.text(badgeLabel), findsNothing);
-    expect(prompts.value, 2);
+    expect(
+      prompts.value,
+      1,
+      reason: 'poner la pastilla de admin no debe pedir la huella',
+    );
   });
 }
 
