@@ -47,11 +47,29 @@ log "Aceptando licencias"
 yes 2>/dev/null | "$SDKM" --licenses >/dev/null 2>&1
 ok "licencias"
 
-log "Instalando platform-tools, platforms;android-$COMPILE_SDK, build-tools;$BUILD_TOOLS"
-"$SDKM" --install \
-  "platform-tools" \
-  "platforms;android-$COMPILE_SDK" \
-  "build-tools;$BUILD_TOOLS" 2>&1 | grep -vE "^\[|^$" | tail -5
+# Uno por uno y con reintentos, NO los tres en un comando: sdkmanager aborta
+# todo el lote si una descarga se corta, y en una red inestable eso deja fuera
+# hasta los paquetes chicos que ya habrian terminado. Orden por tamano: primero
+# adb (5 MB, es el que desbloquea conectar el telefono).
+install_pkg() {
+  local pkg="$1" tries="${2:-6}"
+  for i in $(seq 1 "$tries"); do
+    if "$SDKM" --install "$pkg" 2>&1 | grep -qiE "^Warning:.*(error|reset|timed out)"; then
+      printf '  %s: intento %s se corto, reintentando\n' "$pkg" "$i"
+      sleep 4
+      continue
+    fi
+    ok "$pkg"
+    return 0
+  done
+  printf '\033[1;33m! %s no se pudo instalar tras %s intentos\033[0m\n' "$pkg" "$tries"
+  return 1
+}
+
+log "Instalando paquetes del SDK (uno por uno, con reintentos)"
+install_pkg "platform-tools"
+install_pkg "platforms;android-$COMPILE_SDK"
+install_pkg "build-tools;$BUILD_TOOLS"
 yes 2>/dev/null | "$SDKM" --licenses >/dev/null 2>&1
 
 [ -x "$SDK/platform-tools/adb" ] || die "adb no quedo instalado"
