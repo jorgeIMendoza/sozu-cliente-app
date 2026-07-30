@@ -57,6 +57,20 @@ if [ "$DEVICE" != "web-server" ] && [ "$DEVICE" != "chrome" ]; then
 
   # 1. Servidor local: si ya hay un dispositivo conectado, ese gana.
   unset ADB_SERVER_SOCKET
+  # `no permissions` es un caso aparte: el dispositivo SI esta ahi, falta acceso
+  # al nodo USB. Sin distinguirlo, el mensaje mandaba al camino inalambrico, que
+  # no tiene nada que ver.
+  if adb devices 2>/dev/null | grep -q "no permissions"; then
+    echo "!!  El dispositivo esta conectado pero sin permisos sobre el nodo USB." >&2
+    echo "    Permanente:" >&2
+    echo "      sudo pacman -S --noconfirm android-udev" >&2
+    echo "      sudo usermod -aG adbusers \$USER" >&2
+    echo "      (y reiniciar WSL:  wsl --shutdown  desde Windows)" >&2
+    echo "    Ahora mismo, sin reiniciar:" >&2
+    echo "      sudo chmod 666 \$(ls /dev/bus/usb/*/* | tail -1)" >&2
+    echo "      adb kill-server && adb devices" >&2
+    exit 1
+  fi
   if adb devices 2>/dev/null | tail -n +2 | grep -q "device$"; then
     echo "==> adb local (hot reload disponible)"
     echo "==> para la web en paralelo, en OTRA terminal:  ./tool/dev.sh"
