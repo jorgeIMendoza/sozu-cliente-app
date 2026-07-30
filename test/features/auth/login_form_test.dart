@@ -205,7 +205,7 @@ void main() {
   /// Hace que secure storage responda como si la biometría estuviera activada y
   /// con refresh token guardado, que es lo único que `disponibleParaLogin()`
   /// consulta. Las claves son las de `BiometricService` (privadas allá).
-  void mockBiometricsEnabled({required bool enabled}) {
+  void mockBiometricsEnabled({required bool enabled, bool withToken = true}) {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
@@ -214,7 +214,8 @@ void main() {
             final args = call.arguments as Map<Object?, Object?>;
             return switch (args['key'] as String?) {
               'sozu_biometria_habilitada' => 'true',
-              'sozu_biometria_refresh_token' => 'refresh-token-de-prueba',
+              'sozu_biometria_refresh_token' =>
+                withToken ? 'refresh-token-de-prueba' : null,
               _ => null,
             };
           },
@@ -228,48 +229,49 @@ void main() {
     );
   }
 
-  /// `_prepareBiometrics` dispara el prompt solo al montar, así que el canal de
-  /// local_auth tiene que contestar o el fallo revienta el test desde un
-  /// fire-and-forget. Se responde con el sobre de ERROR de pigeon (una lista de
-  /// 3 elementos: código, mensaje, detalles), que el cliente traduce a
-  /// `PlatformException` y `BiometricService.autenticar()` convierte en false:
-  /// el prompt automático falla, el botón queda como reintento.
+  /// Hace que la huella se pida pero SIEMPRE se rechace, y cuenta cuantas veces
+  /// se pidio.
   ///
-  /// Los nombres de canal son los de `local_auth_android` 1.0.56
-  /// (`messageChannelSuffix` vacío) y el codec extiende `StandardMessageCodec`,
-  /// así que codificar una lista de strings con el estándar es válido.
-  void mockLocalAuthUnavailable() {
-    const codec = StandardMessageCodec();
-    const prefix = 'dev.flutter.pigeon.local_auth_android.LocalAuthApi';
-    const methods = [
-      'isDeviceSupported',
-      'deviceCanSupportBiometrics',
-      'getEnrolledBiometrics',
-      'authenticate',
-      'stopAuthentication',
-    ];
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    for (final method in methods) {
-      messenger.setMockMessageHandler(
-        '$prefix.$method',
-        (message) async => codec.encodeMessage(<Object?>[
-          'no-biometrics',
-          'sin hardware biometrico en el test',
-          null,
-        ]),
-      );
-      addTearDown(
-        () => messenger.setMockMessageHandler('$prefix.$method', null),
-      );
-    }
+  /// El canal es el de `DefaultLocalAuthPlatform`
+  /// (`plugins.flutter.io/local_auth`), NO los canales pigeon de
+  /// `local_auth_android`: en un test no corre el registrant de la plataforma,
+  /// asi que `LocalAuthPlatform.instance` se queda en la implementacion por
+  /// defecto. Mockear los de pigeon no falla, simplemente no hace nada, y el
+  /// prompt del montaje revienta con `MissingPluginException` desde un
+  /// fire-and-forget.
+  ///
+  /// Responder `false` en vez de un error reproduce el caso real de cancelar el
+  /// prompt: `autenticar()` devuelve false y el boton queda como reintento.
+  _PromptCounter mockBiometricPromptAlwaysRejected() {
+    final counter = _PromptCounter();
+    const channel = MethodChannel('plugins.flutter.io/local_auth');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          switch (call.method) {
+            case 'authenticate':
+              counter.value++;
+              return false;
+            case 'isDeviceSupported':
+            case 'deviceSupportsBiometrics':
+              return true;
+            case 'getAvailableBiometrics':
+              return <String>['fingerprint'];
+            default:
+              return false;
+          }
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+    return counter;
   }
 
   testWidgets('sin biometría guardada NO se ofrece el botón de huella', (
     tester,
   ) async {
     mockBiometricsEnabled(enabled: false);
-    mockLocalAuthUnavailable();
+    mockBiometricPromptAlwaysRejected();
     await pumpLoginForm(tester);
 
     expect(find.text(biometricLabel), findsNothing);
@@ -280,7 +282,7 @@ void main() {
     tester,
   ) async {
     mockBiometricsEnabled(enabled: true);
-    mockLocalAuthUnavailable();
+    mockBiometricPromptAlwaysRejected();
     await pumpLoginForm(tester);
     // El botón aparece tras los awaits de `disponibleParaLogin()`, no en el
     // primer frame. `pumpAndSettle` NO sirve: el prompt automático deja el botón
@@ -291,6 +293,74 @@ void main() {
 
     expect(find.text(biometricLabel), findsOneWidget);
   });
+
+  testWidgets('activada pero sin token guardado: el botón se ofrece igual', (
+    tester,
+  ) async {
+    // El caso real: el refresh token guardado se invalido. Antes la visibilidad
+    // del boton dependia de `disponibleParaLogin()` (activada Y con token), asi
+    // que el boton desaparecia y se leia como que la biometria se rompio. Ahora
+    // basta que el usuario la haya activado.
+    mockBiometricsEnabled(enabled: true, withToken: false);
+    final prompts = mockBiometricPromptAlwaysRejected();
+    await pumpLoginForm(tester);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+
+    expect(find.text(biometricLabel), findsOneWidget);
+    // Sin token no se pide la huella al montar: no podria entrar de todas formas.
+    expect(prompts.value, 0);
+  });
+
+  testWidgets('encender el modo admin vuelve a pedir la huella', (
+    tester,
+  ) async {
+    mockBiometricsEnabled(enabled: true);
+    final prompts = mockBiometricPromptAlwaysRejected();
+    await pumpLoginForm(tester);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+    // El prompt automático del montaje.
+    expect(prompts.value, 1);
+
+    await holdVersionStamp(tester);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+
+    // El flujo del admin: cancelar el prompt automático, poner la pastilla y
+    // entrar con la huella ya como administrador.
+    expect(find.text(badgeLabel), findsOneWidget);
+    expect(prompts.value, 2);
+  });
+
+  testWidgets('apagar el modo admin NO pide la huella', (tester) async {
+    mockBiometricsEnabled(enabled: true);
+    final prompts = mockBiometricPromptAlwaysRejected();
+    await pumpLoginForm(tester);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+
+    await holdVersionStamp(tester); // enciende: pide
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+    await holdVersionStamp(tester); // apaga: no debe pedir
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+
+    expect(find.text(badgeLabel), findsNothing);
+    expect(prompts.value, 2);
+  });
+}
+
+/// Caja mutable para contar prompts desde el handler del canal.
+class _PromptCounter {
+  int value = 0;
 }
 
 /// Almacén de PKCE en memoria: 12 líneas contra mockear el canal de

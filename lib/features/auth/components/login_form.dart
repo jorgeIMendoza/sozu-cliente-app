@@ -69,24 +69,29 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   // Biometría
   // -------------------------------------------------------------------------
 
-  /// true si se puede ofrecer la entrada biométrica: con el candado puesto basta
-  /// que esté habilitada (la sesión sigue viva, no se necesita token); sin sesión
-  /// se requiere además el refresh token guardado.
-  Future<bool> _canUseBiometricLogin() async {
+  /// El botón se ofrece con que el usuario haya activado la biometría, aunque el
+  /// token guardado ya no sirva: en ese caso el intento falla y pide contraseña,
+  /// pero el botón sigue ahí. Que desaparezca se lee como que se rompió.
+  Future<bool> _isBiometricEnabled() => BiometricService.instance.habilitada();
+
+  /// true si el prompt automático puede llegar a entrar de verdad: con el candado
+  /// puesto basta que esté habilitada (la sesión sigue viva, no se necesita
+  /// token); sin sesión hace falta además el refresh token guardado.
+  Future<bool> _canAutoStartBiometricLogin() {
     if (ref.read(authProvider).locked) {
       return BiometricService.instance.habilitada();
     }
     return BiometricService.instance.disponibleParaLogin();
   }
 
-  /// Si la biometría está habilitada, muestra el botón y dispara el prompt
-  /// automáticamente (el botón queda como reintento).
+  /// Muestra el botón si la biometría está activada y, si además puede entrar,
+  /// pide la huella de una (el botón queda como reintento).
   Future<void> _prepareBiometrics() async {
-    final isAvailable = await _canUseBiometricLogin();
-    if (!isAvailable || !mounted) return;
+    if (!await _isBiometricEnabled() || !mounted) return;
     setState(() => _isBiometricAvailable = true);
+    if (!await _canAutoStartBiometricLogin() || !mounted) return;
     // Fire-and-forget a proposito: el formulario sigue usable mientras corre.
-    unawaited(_signInWithBiometrics(isAutomatic: true));
+    unawaited(_signInWithBiometrics(silentOnFailure: true));
   }
 
   // -------------------------------------------------------------------------
@@ -95,10 +100,19 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
   /// Único punto que enciende y apaga el modo administrador: lo comparten el
   /// atajo de teclado y el long-press del sello de versión.
+  ///
+  /// Encenderlo vuelve a pedir la huella: el flujo del administrador es cancelar
+  /// el prompt automático, poner la pastilla de admin y entrar con la huella ya
+  /// como administrador, sin escribir credenciales.
   void _toggleAdminMode() {
     if (!mounted) return;
-    setState(() => _isAdminMode = !_isAdminMode);
+    final isEnabling = !_isAdminMode;
+    setState(() => _isAdminMode = isEnabling);
     if (_isHapticPlatform) HapticFeedback.mediumImpact();
+    if (isEnabling && _isBiometricAvailable && !_isBiometricRunning) {
+      // Silencioso: cancelar este prompt es una salida normal, no un error.
+      unawaited(_signInWithBiometrics(silentOnFailure: true));
+    }
   }
 
   /// Solo Android/iOS: en web y escritorio no hay vibración que dar.
@@ -210,9 +224,11 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     context.go(route);
   }
 
-  /// Login con huella/rostro. [isAutomatic] = disparado al montar: si falla o se
-  /// cancela no muestra error (queda el formulario y el botón como reintento).
-  Future<void> _signInWithBiometrics({bool isAutomatic = false}) async {
+  /// Login con huella/rostro. Con [silentOnFailure] un fallo o una cancelación
+  /// no muestran error: se usa cuando el prompt lo disparó el app y no un toque
+  /// del usuario (al montar y al encender el modo administrador), donde cancelar
+  /// es una salida normal. Queda el formulario y el botón como reintento.
+  Future<void> _signInWithBiometrics({bool silentOnFailure = false}) async {
     if (_isBiometricRunning || _isSubmitting) return;
     ref.read(inactivityLogoutProvider.notifier).state = false;
     setState(() {
@@ -228,13 +244,15 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         : await BiometricService.instance.loginBiometrico();
     if (!ok) {
       auth.authFlowInProgress = false;
-      // El token pudo haberse invalidado: re-evaluar si el botón sigue.
-      final isAvailable = await _canUseBiometricLogin();
+      // El botón se queda mientras la biometría siga activada: solo desaparece
+      // si el usuario la apagó desde Perfil. Un token invalidado no lo esconde,
+      // porque el siguiente login por contraseña lo vuelve a alimentar.
+      final isEnabled = await _isBiometricEnabled();
       if (!mounted) return;
       setState(() {
         _isBiometricRunning = false;
-        _isBiometricAvailable = isAvailable;
-        if (!isAutomatic) {
+        _isBiometricAvailable = isEnabled;
+        if (!silentOnFailure) {
           _formError =
               'No pudimos validar tu identidad. Ingresa tu contraseña.';
         }
