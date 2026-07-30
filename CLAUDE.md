@@ -191,6 +191,9 @@ que **solo** sea formato.
 - Selector de tema claro/oscuro/sistema: `widgets/theme_mode_button.dart`.
 
 ## Correr
+**Guía completa del flujo diario: `tool/README.md`** (web, móvil inalámbrico, las
+dos a la vez, y las cosas que se olvidan).
+
 - Web (principal): `./tool/dev.sh` → http://localhost:5000 (envuelve
   `flutter run -d web-server`, inyecta BUILD_TIMESTAMP y valida assets/env).
   Escucha en 0.0.0.0, así que también se abre desde el navegador de Windows y
