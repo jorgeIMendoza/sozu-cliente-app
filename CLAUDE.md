@@ -198,8 +198,18 @@ que **solo** sea formato.
   restart, `q` salir.
 - Requiere `export PATH="$HOME/flutter/bin:$PATH"` (ya lo hace dev.sh) y el
   archivo `assets/env` (gitignored; copiar de .env.example).
-- Android: requiere Android SDK (no instalado aún). Desde WSL el cable USB no
-  sirve; usar depuración inalámbrica (`adb pair` / `adb connect`).
+- **Android en físico (funciona, probado en Oppo CPH2577 / Android 15):**
+  1. En Windows, con `platform-tools` descomprimido, dejar corriendo:
+     `.\adb.exe -a -P 5037 nodaemon server` (el flag `-a` es obligatorio: sin él
+     escucha solo en 127.0.0.1 y WSL no lo alcanza).
+  2. En WSL: `./tool/dev.sh <device-id>` - resuelve el puente solo (IP del host
+     vía `ip route`, valida el puerto 5037 antes de arrancar).
+  - Detalle y diagnóstico: `tool/android-usb.md`.
+  - APK: `./tool/apk.sh [--debug|--fat|--install]` - lo copia a Descargas de
+    Windows. En Oppo hace falta modo USB "Transferir archivos" (no "Solo carga")
+    y "Desactivar monitoreo de permisos" en Opciones de desarrollador.
+  - Toolchain: Temurin 21 en `~/jdk21`, SDK en `~/android-sdk` (compileSdk 36).
+    Reinstalar con `./tool/install-temurin.sh` + `./tool/android-setup.sh`.
 - iOS: requiere Mac/Xcode; la carpeta ios/ queda lista.
 
 ## Reglas de código

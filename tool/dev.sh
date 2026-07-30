@@ -25,6 +25,31 @@ fi
 
 DEVICE="${1:-web-server}"
 PORT="${PORT:-5000}"
+
+# --- Puente de adb para dispositivos fisicos ---------------------------------
+# WSL2 no pasa el USB: el servidor de adb corre en Windows y aqui solo va el
+# cliente, apuntado por TCP. La IP del host se resuelve cada vez porque cambia
+# en cada reinicio de WSL. Ver tool/android-usb.md.
+if [ "$DEVICE" != "web-server" ] && [ "$DEVICE" != "chrome" ]; then
+  export ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
+  export ANDROID_SDK_ROOT="$ANDROID_HOME"
+  export PATH="$ANDROID_HOME/platform-tools:$PATH"
+  [ -x "$HOME/jdk21/bin/java" ] && [ -z "${JAVA_HOME:-}" ] && export JAVA_HOME="$HOME/jdk21"
+
+  if [ -z "${ADB_SERVER_SOCKET:-}" ]; then
+    WIN_HOST="$(ip route show default 2>/dev/null | awk '{print $3}')"
+    if [ -n "$WIN_HOST" ] && timeout 3 bash -c "cat < /dev/null > /dev/tcp/$WIN_HOST/5037" 2>/dev/null; then
+      export ADB_SERVER_SOCKET="tcp:$WIN_HOST:5037"
+      echo "==> puente de adb: $ADB_SERVER_SOCKET"
+    else
+      echo "!!  El servidor de adb de Windows no responde en $WIN_HOST:5037" >&2
+      echo "    En PowerShell, desde donde tengas platform-tools:" >&2
+      echo "      .\\adb.exe -a -P 5037 nodaemon server" >&2
+      echo "    Deja esa ventana abierta. Detalle en tool/android-usb.md" >&2
+      exit 1
+    fi
+  fi
+fi
 BUILD_TIMESTAMP="$(TZ=America/Mexico_City date +%y%m%d.%H%M)"
 
 flutter pub get
