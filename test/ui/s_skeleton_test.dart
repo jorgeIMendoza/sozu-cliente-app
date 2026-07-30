@@ -395,4 +395,65 @@ void main() {
       expect(decorationAt(tester).gradient, isNull);
     });
   });
+
+  group('regresiones', () {
+    testWidgets('SSkeleton.text respeta el width recibido', (tester) async {
+      // El ancho lo aplica el SizedBox que envuelve la columna, no cada
+      // renglon: se mide lo que el widget EXPONE, no su interior.
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: sozuLightTheme(),
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                child: SSkeleton.text(lines: 2, width: 200),
+              ),
+            ),
+          ),
+        ),
+      );
+      // Se mide la COLUMNA (lo que se pinta), no la caja del widget: con
+      // constraints tight del padre el widget ocupa los 400 que le dan, y lo
+      // que el `width` controla es el ancho de los renglones.
+      final column = find.descendant(
+        of: find.byType(SSkeleton),
+        matching: find.byType(Column),
+      );
+      expect(tester.getSize(column).width, 200);
+    });
+
+    testWidgets('SSkeleton.text sin width se estira al padre', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: sozuLightTheme(),
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(width: 400, child: SSkeleton.text(lines: 2)),
+            ),
+          ),
+        ),
+      );
+      final column = find.descendant(
+        of: find.byType(SSkeleton),
+        matching: find.byType(Column),
+      );
+      expect(tester.getSize(column).width, 400);
+    });
+
+    testWidgets('desmontar no revienta (controllers liberados)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: sozuLightTheme(),
+          home: const Scaffold(body: SSkeleton()),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(theme: sozuLightTheme(), home: const Scaffold()),
+      );
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

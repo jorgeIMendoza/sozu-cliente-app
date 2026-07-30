@@ -17,35 +17,19 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Formulario de acceso: correo + contraseña, biometría, modo administrador y la
-/// navegación posterior al login.
-///
-/// Concentra TODO el estado y la lógica del acceso. La pantalla
-/// (`screens/login_screen.dart`) solo lo coloca dentro del andamio, así que este
-/// widget se puede montar aislado en un test o reubicar sin arrastrar el layout.
+/// navegación posterior al login. Concentra el estado y la lógica del acceso.
 ///
 /// Tras autenticar valida el rol Cliente (perfil vía RPC); si no es cliente,
 /// cierra sesión.
 ///
-/// ## Modo administrador: DOS formas de activarlo
+/// El modo administrador (impersonación de clientes) se alterna por dos vías,
+/// ambas vía [_toggleAdminMode]: long-press de 1.5 s sobre el sello de versión
+/// ([_VersionStamp], todas las plataformas) y Ctrl+Shift+A / Ctrl+Alt+A (solo
+/// web, ver [_onKeyEvent]).
 ///
-/// El acceso de administrador (impersonación de clientes vía selector) se
-/// alterna de dos maneras, y las dos llaman a [_toggleAdminMode]:
-///
-/// 1. **Long-press de 1.5 s sobre el sello de versión** del pie
-///    ([_VersionStamp]). Funciona en TODAS las plataformas.
-/// 2. **Ctrl+Shift+A / Ctrl+Alt+A**, solo web. Ver [_onKeyEvent].
-///
-/// Hay dos porque el atajo de teclado es inalcanzable desde un teléfono: en
-/// Android/iOS el handler ni se instala, así que hasta que existió el gesto no
-/// había NINGUNA forma de entrar como administrador desde el móvil. El atajo se
-/// queda porque en escritorio es más rápido que sostener el puntero 1.5 s.
-///
-/// El gesto **no es una frontera de seguridad** y no pretende ser secreto: el
-/// interruptor solo pinta la pastilla y cambia el destino post-login. La
-/// autorización real la da el backend (`administrar_app_clientes` en el perfil);
-/// activarlo en una cuenta sin ese permiso no hace absolutamente nada y el login
-/// cae al camino normal de cliente. Lo que se busca del umbral de 1.5 s es que
-/// no se dispare por accidente, no que nadie lo encuentre.
+/// El gesto NO es una frontera de seguridad: solo pinta la pastilla y cambia el
+/// destino post-login. La autorización real la da el backend
+/// (`administrar_app_clientes` en el perfil).
 class LoginForm extends ConsumerStatefulWidget {
   const LoginForm({super.key});
 
@@ -67,8 +51,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   @override
   void initState() {
     super.initState();
-    // Handler global del teclado: no depende de que algún widget tenga el foco
-    // (ver [_onKeyEvent]).
+    // Handler global del teclado: no depende de que algún widget tenga el foco.
     if (kIsWeb) HardwareKeyboard.instance.addHandler(_onKeyEvent);
     _prepareBiometrics();
   }
@@ -101,8 +84,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     final isAvailable = await _canUseBiometricLogin();
     if (!isAvailable || !mounted) return;
     setState(() => _isBiometricAvailable = true);
-    // Fire-and-forget a proposito: el prompt biometrico corre en paralelo y el
-    // formulario ya esta usable mientras el usuario decide.
+    // Fire-and-forget a proposito: el formulario sigue usable mientras corre.
     unawaited(_signInWithBiometrics(isAutomatic: true));
   }
 
@@ -111,37 +93,24 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   // -------------------------------------------------------------------------
 
   /// Único punto que enciende y apaga el modo administrador: lo comparten el
-  /// atajo de teclado y el long-press del sello de versión, así los dos gestos
-  /// no pueden divergir (uno que vibre y el otro no, uno que alterne y el otro
-  /// que solo encienda).
+  /// atajo de teclado y el long-press del sello de versión.
   void _toggleAdminMode() {
     if (!mounted) return;
     setState(() => _isAdminMode = !_isAdminMode);
-    // La pastilla es la señal principal, pero en el teléfono el pulgar tapa
-    // parte de la pantalla y el long-press no tiene estado intermedio: sin la
-    // vibración, un gesto que SÍ surtió efecto se siente igual que un toque
-    // perdido. En web y escritorio no hay motor que vibrar.
     if (_isHapticPlatform) HapticFeedback.mediumImpact();
   }
 
-  /// Solo Android/iOS: en web `HapticFeedback` no hace nada y en escritorio no
-  /// hay vibración que dar.
+  /// Solo Android/iOS: en web y escritorio no hay vibración que dar.
   bool get _isHapticPlatform =>
       !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS);
 
-  /// Alterna el modo administrador con **Ctrl+Shift+A** o **Ctrl+Alt+A**.
+  /// Alterna el modo administrador con Ctrl+Shift+A o Ctrl+Alt+A (solo web).
   ///
-  /// Va montado en `HardwareKeyboard` (handler global) y no en un `Focus`: un
-  /// `Focus` solo recibe teclas cuando él o un descendiente tienen el foco, así
-  /// que al cargar el login -con nada enfocado todavía- el atajo se perdía.
-  ///
-  /// Chrome/Edge se quedan Ctrl+Shift+A para su buscador de pestañas y la página
-  /// no puede cancelarlo; por eso Ctrl+Alt+A queda como equivalente.
-  ///
-  /// Sigue siendo solo web: en móvil no hay teclado físico y el camino de ahí es
-  /// el long-press de [_VersionStamp].
+  /// Debe ir en `HardwareKeyboard` (global), NO en un `Focus`: con nada
+  /// enfocado el atajo se pierde. Ctrl+Alt+A existe porque Chrome/Edge se
+  /// reservan Ctrl+Shift+A y la página no puede cancelarlo.
   bool _onKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
     final keyboard = HardwareKeyboard.instance;
@@ -169,16 +138,13 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     auth.loginEnCurso = true;
     try {
       await auth.signIn(_emailController.text, _passwordController.text);
-      // Cierra el contexto de autofill PIDIENDO guardar. Es la mitad que faltaba:
-      // `AutofillGroup` + `autofillHints` hacen que el gestor de contrasenas
-      // RECONOZCA el formulario, pero el "quieres guardar esta contrasena?" solo
-      // aparece cuando la app avisa que la credencial se uso con exito.
-      //
-      // Va aqui y no en el `finally`: solo se guarda lo que de verdad funciono.
-      // Guardar tras un fallo entrenaria al gestor con una contrasena mala.
+      // Cierra el contexto de autofill PIDIENDO guardar: sin esto el gestor de
+      // contrasenas nunca ofrece guardar la credencial. Va aqui y no en un
+      // `finally` para no guardar contrasenas que fallaron.
       TextInput.finishAutofillContext();
     } catch (e) {
       auth.loginEnCurso = false;
+      if (!mounted) return;
       setState(() {
         _formError = AuthController.mensajeErrorAcceso(e);
         _isSubmitting = false;
@@ -188,8 +154,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
     try {
       final profile = await auth.refreshProfile();
-      // Acceso administrador: por permiso del rol (administrar_app_clientes),
-      // ya no por el nombre "super administrador".
+      // Acceso administrador: por permiso del rol, no por el nombre del rol.
       final isAdmin = profile?.administrarAppClientes ?? false;
       if (_isAdminMode && isAdmin) {
         auth.loginEnCurso = false;
@@ -219,9 +184,8 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         context.go('/change-password');
         return;
       }
-      // Oferta de biometría ANTES de navegar y con loginEnCurso aún true: el
-      // router no debe sacar al usuario de /login mientras el sheet está abierto
-      // (cualquier notify re-evaluaría el redirect).
+      // Oferta ANTES de navegar y con loginEnCurso aún true: si no, el router
+      // saca al usuario de /login mientras el sheet está abierto.
       if (await auth.debeOfrecerBiometria()) {
         if (mounted) await _offerBiometricSetup();
       }
@@ -320,9 +284,8 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     });
     final auth = ref.read(authProvider);
     auth.loginEnCurso = true;
-    // Con candado la sesión nunca se cerró: solo se desbloquea. El camino con
-    // setSession (token guardado) queda como fallback cuando la sesión local ya
-    // no existe (p.ej. Supabase no pudo restaurarla al arrancar).
+    // Con candado la sesión nunca se cerró: solo se desbloquea. El login con
+    // token guardado es el fallback cuando la sesión local ya no existe.
     final ok = auth.locked
         ? await auth.unlockConBiometria()
         : await BiometricService.instance.loginBiometrico();
@@ -388,12 +351,8 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     final loggedOutByInactivity = ref.watch(inactivityLogoutProvider);
     final isSplit = context.bp.isDesktop;
 
-    // AutofillGroup es lo que le dice a la plataforma "estos campos son UNA
-    // credencial". Sin el, `autofillHints` en los campos no alcanza: el navegador
-    // no reconoce el par correo+contrasena como formulario de acceso, asi que ni
-    // autocompleta ni ofrece guardar. En Flutter web, este widget es el que hace
-    // que el motor emita los inputs nativos ocultos que el gestor de contrasenas
-    // necesita ver.
+    // No quitar: sin AutofillGroup, `autofillHints` en los campos no alcanza y
+    // el gestor de contrasenas ni autocompleta ni ofrece guardar.
     return AutofillGroup(
       child: Form(
         key: _formKey,
@@ -405,8 +364,6 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             SizedBox(height: t.space.xs),
             const AuthSubtitle('Entra a tu portal para seguir tu inversión.'),
 
-            // La pastilla solo aparece cuando el modo administrador está
-            // encendido, que es cuando de verdad comunica algo.
             if (_isAdminMode) ...[
               SizedBox(height: t.space.sm),
               const _AdminModeBadge(),
@@ -445,8 +402,6 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             ),
             SizedBox(height: t.space.sm),
 
-            // El ojo de mostrar/ocultar lo trae el propio campo: la pantalla no
-            // guarda ningún `bool` de visibilidad.
             STextField.password(
               controller: _passwordController,
               label: 'Contraseña',
@@ -469,9 +424,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             ],
 
             SizedBox(height: t.space.md),
-            // lg: es la acción principal del formulario y empareja el alto de los
-            // campos (52 px). Con el tamaño por defecto (44) quedaría más bajo que
-            // el campo que tiene encima.
+            // lg: acción principal, al mismo alto que los campos (52 px).
             SButton(
               label: 'Iniciar sesión',
               size: SButtonSize.lg,
@@ -482,8 +435,6 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
             if (_isBiometricAvailable) ...[
               SizedBox(height: t.space.xs),
-              // El spinner de carga lo pone `loading`: el icono se queda como
-              // `IconData` y el botón decide cuándo lo reemplaza.
               SButton.secondary(
                 label: 'Entrar con huella o rostro',
                 size: SButtonSize.lg,
@@ -526,36 +477,16 @@ class _ForgotPasswordLink extends StatelessWidget {
 }
 
 /// Cuánto hay que sostener el sello de versión para alternar el modo
-/// administrador.
-///
-/// NO es una duración de animación, así que no sale de `context.s.motion`: es un
-/// umbral de gesto. 1.5 s es el triple del `kLongPressTimeout` de Flutter
-/// (500 ms) justamente para que nadie lo dispare al apoyar el dedo: se sostiene
-/// porque se quiere.
+/// administrador. Umbral de gesto, no de animación: no sale de
+/// `context.s.motion`.
 const Duration _kAdminHoldDuration = Duration(milliseconds: 1500);
 
 /// Sello de versión del pie. A la vista, texto inerte; sostenido
 /// [_kAdminHoldDuration], el interruptor del modo administrador.
 ///
-/// Es el patrón conocido del "toca el número de build" de Android, y se eligió
-/// sobre N toques en el logo porque unos toques repetidos sí se disparan sin
-/// querer. La alternativa de un botón visible se descarta por lo contrario: el
-/// modo administrador no le sirve de nada a un cliente.
-///
-/// **La apariencia no cambia y eso es el requisito.** De ahí salen las dos
-/// decisiones del widget:
-///
-/// * `RawGestureDetector` y no `GestureDetector`, porque el `onLongPress` de
-///   este último trae fijo el umbral de `kLongPressTimeout` (500 ms) y no se
-///   puede subir; el recognizer sí acepta `duration`.
-/// * y no `SPressable`, que es la superficie presionable del design system:
-///   pinta fondo de hover, ripple, cursor de mano y anillo de foco. Un sello de
-///   versión que se ve pulsable se toca por accidente, que es exactamente lo que
-///   este umbral evita.
-///
-/// La semántica sí se expone (el nodo queda con acción de mantener pulsado, sin
-/// bandera de botón): en móvil es el único camino al modo administrador, y
-/// ocultárselo a un lector de pantalla lo dejaría sin ninguno.
+/// No cambiar por `GestureDetector` (su `onLongPress` fija 500 ms y no se puede
+/// subir) ni por `SPressable` (pinta hover, ripple y cursor de mano, y el sello
+/// no debe verse pulsable).
 class _VersionStamp extends StatelessWidget {
   const _VersionStamp({required this.onHold});
 
@@ -586,10 +517,8 @@ class _VersionStamp extends StatelessWidget {
   }
 }
 
-/// Pastilla de "Acceso administrador". Solo se pinta cuando el modo admin está
-/// encendido (long-press del sello de versión o Ctrl+Shift+A / Ctrl+Alt+A): es
-/// el único indicio visual de que surtió efecto, así que tiene que ser
-/// inequívoco.
+/// Pastilla de "Acceso administrador": único indicio visual de que el modo
+/// admin quedó encendido.
 class _AdminModeBadge extends StatelessWidget {
   const _AdminModeBadge();
 
@@ -628,9 +557,6 @@ class _AdminModeBadge extends StatelessWidget {
 }
 
 /// Línea de registro de propietarios: texto plano + enlace, sin caja.
-///
-/// Una acción secundaria no necesita tarjeta, icono ni bajada; con eso pesaba
-/// visualmente más que el botón de entrar.
 class _RegistrationLine extends StatelessWidget {
   const _RegistrationLine({required this.onTap});
 
@@ -646,6 +572,9 @@ class _RegistrationLine extends StatelessWidget {
       label:
           'Registrar mi propiedad. Abre el portal de dueños en una ventana '
           'nueva.',
+      // excludeSemantics: sin esto el lector anuncia el label de arriba Y el
+      // texto crudo del Text.rich, o sea dos veces lo mismo.
+      excludeSemantics: true,
       child: Text.rich(
         TextSpan(
           children: [

@@ -5,10 +5,7 @@ import 'package:sozu_cliente_app/ui/tokens/palette.dart';
 /// Roles semánticos de color: la ÚNICA superficie de color que debe tocar una
 /// pantalla.
 ///
-/// Un rol describe *para qué sirve* el color, no *qué color es*. Eso es lo que
-/// permite tener claro/oscuro, y lo que evita que la paleta se bifurque: antes
-/// existían `SozuTone` (móvil, rampa slate) y `PortalColors` (web, rampa gray)
-/// modelando exactamente los mismos roles con hex distintos.
+/// Un rol describe para qué sirve el color, no qué color es.
 ///
 /// Uso: `context.s.color.fgMuted` - ver `ui/theme/sozu_theme.dart`.
 ///
@@ -50,7 +47,7 @@ class SozuColorRoles {
   /// Texto principal, títulos, cifras.
   final Color fg;
 
-  /// Texto secundario, etiquetas, descripciones. El rol más usado de la app.
+  /// Texto secundario, etiquetas, descripciones.
   final Color fgMuted;
 
   /// Texto terciario: metadatos, placeholders, estados deshabilitados.
@@ -81,16 +78,13 @@ class SozuColorRoles {
 
   // --- Semáforo ------------------------------------------------------------
 
-  /// Éxito, completado, pagado. Distinto de [primary] a propósito: "pagado" y
-  /// "acción de marca" son semánticas separadas (ADR §6.4).
+  /// Éxito, completado, pagado. Distinto de [primary] a propósito.
   final Color positive;
 
   /// Pendiente, por vencer, requiere atención. Para RELLENOS (barras, puntos).
   final Color warning;
 
-  /// [warning] para TEXTO e iconos. [warning] sobre fondo claro da 2.1:1 de
-  /// contraste, por debajo de AA; este da 4.6:1. Es un rol aparte y no un
-  /// capricho: es el que hace legible "Pago pendiente".
+  /// [warning] para TEXTO e iconos: el relleno no alcanza contraste AA.
   final Color warningFg;
 
   /// Fondo de chip [warning].
@@ -197,8 +191,7 @@ class SozuColorRoles {
     skeletonHighlight: SozuNeutral.n0,
   );
 
-  /// Tema oscuro. Los neutros son propuesta pendiente de diseño (ADR §10.3);
-  /// los de marca y semáforo sí están medidos (rampa existente + realces).
+  /// Tema oscuro. Los neutros son propuesta pendiente de diseño (ADR §10.3).
   static const SozuColorRoles dark = SozuColorRoles(
     background: SozuNeutralDark.n50,
     surface: SozuNeutralDark.n0,
@@ -212,17 +205,18 @@ class SozuColorRoles {
     fgSubtle: SozuNeutralDark.n400,
     onPrimary: SozuNeutral.n0,
     primary: SozuBrand.green,
-    // En oscuro el hover ACLARA en vez de oscurecer: sobre #1A1D21 un verde más
-    // oscuro se pierde contra el fondo.
+    // En oscuro el hover ACLARA en vez de oscurecer.
     primaryHover: SozuBrand.green400,
     primaryPressed: SozuBrand.green600,
     primarySoft: SozuBrand.softDark,
     primarySoftStrong: SozuBrand.softDarkStrong,
     primaryBorder: SozuBrand.borderDark,
     positive: SozuBrand.green400,
+    // En oscuro `warning` y `warningFg` comparten valor a proposito: el ambar
+    // claro contrasta de sobra sobre superficie oscura, asi que la distincion
+    // relleno/texto que en claro es obligatoria (AA) aqui no aporta.
     warning: SozuAmber.onDark,
-    // En oscuro el problema se invierte: el ámbar oscuro desaparece contra el
-    // fondo, así que el texto usa el realce claro.
+    // En oscuro el texto usa el realce claro, no el ámbar oscurecido.
     warningFg: SozuAmber.onDark,
     warningSoft: SozuAmber.softDark,
     warningSoftStrong: SozuAmber.softDarkStrong,
@@ -240,8 +234,7 @@ class SozuColorRoles {
   static SozuColorRoles forBrightness(Brightness b) =>
       b == Brightness.dark ? dark : light;
 
-  /// Interpolación rol por rol, para que el cambio claro↔oscuro anime en vez de
-  /// saltar. Lo consume `SozuTheme.lerp`.
+  /// Interpolación rol por rol para animar el cambio claro/oscuro.
   static SozuColorRoles lerp(SozuColorRoles a, SozuColorRoles b, double t) {
     Color c(Color x, Color y) => Color.lerp(x, y, t)!;
     return SozuColorRoles(

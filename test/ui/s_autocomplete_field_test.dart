@@ -146,4 +146,12 @@ void main() {
     );
     expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
   });
+
+  testWidgets('desmontar no revienta: el controller se libera', (tester) async {
+    // El widget crea su propio TextEditingController en build (`??=`) y antes
+    // solo liberaba el FocusNode, asi que fugaba en cada montaje.
+    await pumpField(tester);
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    expect(tester.takeException(), isNull);
+  });
 }

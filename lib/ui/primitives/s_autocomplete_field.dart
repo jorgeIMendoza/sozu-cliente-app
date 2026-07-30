@@ -3,23 +3,15 @@ import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 
 /// Campo de selección **por escritura**, no por lista desplegable.
 ///
-/// Por qué existe: un `DropdownButtonFormField` vuelca TODAS las opciones en un
-/// menú. Con un catálogo de veinte proyectos -algunos con nombres que no dicen
-/// nada al usuario- eso es una pared de texto donde hay que cazar el correcto.
-/// Aquí se escribe, se filtra, y la lista solo aparece cuando hay algo que
-/// mostrar.
-///
 /// Comportamiento:
-/// * Campo vacío → no se muestra nada. El `hintText` del propio campo hace de
-///   instrucción; abrir un menú solo para decir "escribe algo" es ruido.
+/// * Campo vacío → no se muestra nada; el `hintText` hace de instrucción.
 /// * Al escribir → solo las coincidencias (máximo [maxVisible], con scroll).
-/// * Sin coincidencias → fila de fallback con el texto buscado. Esto es lo que
-///   distingue "no existe" de "se rompió": un menú que simplemente no aparece
-///   deja al usuario sin saber cuál de las dos pasó.
+/// * Sin coincidencias → fila de fallback con el texto buscado, que distingue
+///   "no existe" de "se rompió".
 /// * Con valor elegido → botón de limpiar.
 ///
-/// Genérico sobre [T] para que sirva a cualquier catálogo; el texto visible sale
-/// de [labelOf] y la comparación de [searchTextOf] (por defecto, el label).
+/// Genérico sobre [T]: el texto visible sale de [labelOf] y la comparación de
+/// [searchTextOf] (por defecto, el label).
 class SAutocompleteField<T extends Object> extends StatefulWidget {
   const SAutocompleteField({
     super.key,
@@ -69,8 +61,7 @@ class SAutocompleteField<T extends Object> extends StatefulWidget {
 /// Fila del menú: o es una opción real, o el fallback de "sin resultados".
 ///
 /// `RawAutocomplete` NO llama a `optionsViewBuilder` cuando la lista viene
-/// vacía, así que el fallback tiene que viajar COMO una opción. De ahí este
-/// envoltorio en vez de usar `T` directo.
+/// vacía, así que el fallback tiene que viajar COMO una opción.
 @immutable
 class _Row<T extends Object> {
   const _Row.option(this.value) : isPlaceholder = false;
@@ -85,12 +76,8 @@ class _SAutocompleteFieldState<T extends Object>
   final _focusNode = FocusNode();
   TextEditingController? _controller;
 
-  /// Última selección conocida.
-  ///
-  /// No se usa `widget.value` como fuente de verdad porque el padre puede no
-  /// realimentarlo (uso no controlado). Sin esto, al perder el foco el campo se
-  /// restauraba desde un `value` que seguía en null y se vaciaba solo justo
-  /// después de que el usuario eligiera algo.
+  /// Última selección conocida. No se usa `widget.value` como fuente de verdad
+  /// porque el padre puede no realimentarlo (uso no controlado).
   T? _selected;
 
   @override
@@ -103,8 +90,7 @@ class _SAutocompleteFieldState<T extends Object>
   @override
   void didUpdateWidget(SAutocompleteField<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // El valor puede cambiar desde fuera (reset de filtros): el texto del campo
-    // tiene que seguirlo.
+    // El valor puede cambiar desde fuera (reset de filtros).
     if (widget.value != oldWidget.value) {
       _selected = widget.value;
       if (_controller != null) {
@@ -119,12 +105,14 @@ class _SAutocompleteFieldState<T extends Object>
     _focusNode
       ..removeListener(_onFocusChange)
       ..dispose();
+    // El controller lo crea este widget (`_controller ??=` en build), asi que
+    // tambien lo libera. Sin esto fuga en cada montaje.
+    _controller?.dispose();
     super.dispose();
   }
 
-  /// Al salir del campo sin haber elegido nada, se restaura el texto del valor
-  /// vigente. Si no, quedaría un texto a medias que no corresponde a ninguna
-  /// selección real - y el usuario creería que filtró por eso.
+  /// Al salir del campo sin elegir nada, restaura el texto del valor vigente
+  /// para no dejar un texto a medias que no corresponde a ninguna selección.
   void _onFocusChange() {
     if (_focusNode.hasFocus || _controller == null) return;
     final text = _labelOrEmpty(_selected);
@@ -141,11 +129,10 @@ class _SAutocompleteFieldState<T extends Object>
   Iterable<_Row<T>> _buildRows(TextEditingValue input) {
     final query = input.text.trim().toLowerCase();
 
-    // Vacío: no se vuelca el catálogo. La ayuda la pinta el propio menú.
+    // Vacío: no se vuelca el catálogo.
     if (query.isEmpty) return const [];
 
-    // Si el texto es exactamente el valor ya elegido, no hay nada que sugerir:
-    // el usuario no está buscando, solo tiene el campo enfocado.
+    // El texto es el valor ya elegido: el usuario no está buscando.
     final current = _selected;
     if (current != null && query == widget.labelOf(current).toLowerCase()) {
       return const [];
@@ -243,11 +230,8 @@ class _Suffix extends StatelessWidget {
   }
 }
 
-/// Menú de sugerencias.
-///
-/// Alto acotado a `maxVisible` filas: sin eso el menú crece hasta tapar la
-/// pantalla cuando el catálogo es grande, que es justo el problema del
-/// desplegable que este widget reemplaza.
+/// Menú de sugerencias. Alto acotado a `maxVisible` filas para que no tape la
+/// pantalla con catálogos grandes.
 class _Menu<T extends Object> extends StatelessWidget {
   const _Menu({
     required this.rows,
@@ -332,10 +316,7 @@ class _OptionRow<T extends Object> extends StatelessWidget {
   }
 }
 
-/// Fallback de "no hay coincidencias".
-///
-/// Dice QUÉ se buscó: sin el texto, el usuario no distingue entre haberse
-/// equivocado al escribir y que el catálogo no tenga ese elemento.
+/// Fallback de "no hay coincidencias". Incluye QUÉ se buscó.
 class _NoResults extends StatelessWidget {
   const _NoResults({required this.text});
 
