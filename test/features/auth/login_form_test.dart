@@ -195,6 +195,102 @@ void main() {
     expect(find.text(badgeLabel), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  // -------------------------------------------------------------------------
+  // Botón de biometría
+  // -------------------------------------------------------------------------
+
+  const biometricLabel = 'Entrar con huella o rostro';
+
+  /// Hace que secure storage responda como si la biometría estuviera activada y
+  /// con refresh token guardado, que es lo único que `disponibleParaLogin()`
+  /// consulta. Las claves son las de `BiometricService` (privadas allá).
+  void mockBiometricsEnabled({required bool enabled}) {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+          (call) async {
+            if (call.method != 'read' || !enabled) return null;
+            final args = call.arguments as Map<Object?, Object?>;
+            return switch (args['key'] as String?) {
+              'sozu_biometria_habilitada' => 'true',
+              'sozu_biometria_refresh_token' => 'refresh-token-de-prueba',
+              _ => null,
+            };
+          },
+        );
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+            (call) async => null,
+          ),
+    );
+  }
+
+  /// `_prepareBiometrics` dispara el prompt solo al montar, así que el canal de
+  /// local_auth tiene que contestar o el fallo revienta el test desde un
+  /// fire-and-forget. Se responde con el sobre de ERROR de pigeon (una lista de
+  /// 3 elementos: código, mensaje, detalles), que el cliente traduce a
+  /// `PlatformException` y `BiometricService.autenticar()` convierte en false:
+  /// el prompt automático falla, el botón queda como reintento.
+  ///
+  /// Los nombres de canal son los de `local_auth_android` 1.0.56
+  /// (`messageChannelSuffix` vacío) y el codec extiende `StandardMessageCodec`,
+  /// así que codificar una lista de strings con el estándar es válido.
+  void mockLocalAuthUnavailable() {
+    const codec = StandardMessageCodec();
+    const prefix = 'dev.flutter.pigeon.local_auth_android.LocalAuthApi';
+    const methods = [
+      'isDeviceSupported',
+      'deviceCanSupportBiometrics',
+      'getEnrolledBiometrics',
+      'authenticate',
+      'stopAuthentication',
+    ];
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    for (final method in methods) {
+      messenger.setMockMessageHandler(
+        '$prefix.$method',
+        (message) async => codec.encodeMessage(<Object?>[
+          'no-biometrics',
+          'sin hardware biometrico en el test',
+          null,
+        ]),
+      );
+      addTearDown(
+        () => messenger.setMockMessageHandler('$prefix.$method', null),
+      );
+    }
+  }
+
+  testWidgets('sin biometría guardada NO se ofrece el botón de huella', (
+    tester,
+  ) async {
+    mockBiometricsEnabled(enabled: false);
+    mockLocalAuthUnavailable();
+    await pumpLoginForm(tester);
+
+    expect(find.text(biometricLabel), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('con biometría guardada se ofrece el botón de huella', (
+    tester,
+  ) async {
+    mockBiometricsEnabled(enabled: true);
+    mockLocalAuthUnavailable();
+    await pumpLoginForm(tester);
+    // El botón aparece tras los awaits de `disponibleParaLogin()`, no en el
+    // primer frame. `pumpAndSettle` NO sirve: el prompt automático deja el botón
+    // en estado `loading` y ese spinner no termina nunca.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+
+    expect(find.text(biometricLabel), findsOneWidget);
+  });
 }
 
 /// Almacén de PKCE en memoria: 12 líneas contra mockear el canal de

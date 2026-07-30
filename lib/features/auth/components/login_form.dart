@@ -157,13 +157,13 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       // Acceso administrador: por permiso del rol, no por el nombre del rol.
       final isAdmin = profile?.administrarAppClientes ?? false;
       if (_isAdminMode && isAdmin) {
-        auth.loginEnCurso = false;
-        if (!mounted) return;
-        context.go(
-          profile!.debeCambiarPassword
-              ? '/change-password'
-              : '/seleccionar-cliente',
-        );
+        if (profile!.debeCambiarPassword) {
+          auth.loginEnCurso = false;
+          if (!mounted) return;
+          context.go('/change-password');
+          return;
+        }
+        await _offerBiometricsThenGo(auth, '/seleccionar-cliente');
         return;
       }
       if (profile?.rolNombre != 'Cliente') {
@@ -184,14 +184,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         context.go('/change-password');
         return;
       }
-      // Oferta ANTES de navegar y con loginEnCurso aún true: si no, el router
-      // saca al usuario de /login mientras el sheet está abierto.
-      if (await auth.debeOfrecerBiometria()) {
-        if (mounted) await _offerBiometricSetup();
-      }
-      auth.loginEnCurso = false;
-      if (!mounted) return;
-      context.go('/inicio');
+      await _offerBiometricsThenGo(auth, '/inicio');
     } catch (_) {
       await auth.signOut();
       auth.loginEnCurso = false;
@@ -273,6 +266,21 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     }
   }
 
+  /// Ofrece activar la biometría y navega a [route]. Lo comparten el acceso de
+  /// cliente y el de administrador: sin esto el admin nunca recibía la oferta,
+  /// porque su rama navegaba antes de llegar aquí.
+  ///
+  /// La oferta va ANTES de navegar y con `loginEnCurso` aún en true: si no, el
+  /// router saca al usuario de /login mientras el sheet está abierto.
+  Future<void> _offerBiometricsThenGo(AuthController auth, String route) async {
+    if (await auth.debeOfrecerBiometria()) {
+      if (mounted) await _offerBiometricSetup();
+    }
+    auth.loginEnCurso = false;
+    if (!mounted) return;
+    context.go(route);
+  }
+
   /// Login con huella/rostro. [isAutomatic] = disparado al montar: si falla o se
   /// cancela no muestra error (queda el formulario y el botón como reintento).
   Future<void> _signInWithBiometrics({bool isAutomatic = false}) async {
@@ -306,7 +314,13 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     }
     try {
       final profile = await auth.refreshProfile();
-      if (profile?.rolNombre != 'Cliente') {
+      final isAdmin = profile?.administrarAppClientes ?? false;
+      final isCliente = profile?.rolNombre == 'Cliente';
+      // El administrador entra con huella igual que el cliente: aquí no se
+      // exige el modo administrador (long-press del sello de versión) porque la
+      // huella ya es el segundo factor sobre un dispositivo de confianza. El
+      // destino sale del permiso del rol, no de un toggle de la UI.
+      if (!isCliente && !isAdmin) {
         await auth.signOut();
         auth.loginEnCurso = false;
         if (!mounted) return;
@@ -318,7 +332,11 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       }
       auth.loginEnCurso = false;
       if (!mounted) return;
-      context.go(profile!.debeCambiarPassword ? '/change-password' : '/inicio');
+      context.go(
+        profile!.debeCambiarPassword
+            ? '/change-password'
+            : (isAdmin ? '/seleccionar-cliente' : '/inicio'),
+      );
     } catch (_) {
       await auth.signOut();
       auth.loginEnCurso = false;
