@@ -1,6 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,8 +26,26 @@ import 'package:url_launcher/url_launcher.dart';
 /// Tras autenticar valida el rol Cliente (perfil vía RPC); si no es cliente,
 /// cierra sesión.
 ///
-/// Solo web: Ctrl+Shift+A (o Ctrl+Alt+A) alterna el acceso de administrador
-/// (impersonación de clientes vía selector). Ver [_onKeyEvent].
+/// ## Modo administrador: DOS formas de activarlo
+///
+/// El acceso de administrador (impersonación de clientes vía selector) se
+/// alterna de dos maneras, y las dos llaman a [_toggleAdminMode]:
+///
+/// 1. **Long-press de 1.5 s sobre el sello de versión** del pie
+///    ([_VersionStamp]). Funciona en TODAS las plataformas.
+/// 2. **Ctrl+Shift+A / Ctrl+Alt+A**, solo web. Ver [_onKeyEvent].
+///
+/// Hay dos porque el atajo de teclado es inalcanzable desde un teléfono: en
+/// Android/iOS el handler ni se instala, así que hasta que existió el gesto no
+/// había NINGUNA forma de entrar como administrador desde el móvil. El atajo se
+/// queda porque en escritorio es más rápido que sostener el puntero 1.5 s.
+///
+/// El gesto **no es una frontera de seguridad** y no pretende ser secreto: el
+/// interruptor solo pinta la pastilla y cambia el destino post-login. La
+/// autorización real la da el backend (`administrar_app_clientes` en el perfil);
+/// activarlo en una cuenta sin ese permiso no hace absolutamente nada y el login
+/// cae al camino normal de cliente. Lo que se busca del umbral de 1.5 s es que
+/// no se dispare por accidente, no que nadie lo encuentre.
 class LoginForm extends ConsumerStatefulWidget {
   const LoginForm({super.key});
 
@@ -87,8 +107,29 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   }
 
   // -------------------------------------------------------------------------
-  // Atajo de modo administrador
+  // Modo administrador (atajo de teclado + long-press del sello de versión)
   // -------------------------------------------------------------------------
+
+  /// Único punto que enciende y apaga el modo administrador: lo comparten el
+  /// atajo de teclado y el long-press del sello de versión, así los dos gestos
+  /// no pueden divergir (uno que vibre y el otro no, uno que alterne y el otro
+  /// que solo encienda).
+  void _toggleAdminMode() {
+    if (!mounted) return;
+    setState(() => _isAdminMode = !_isAdminMode);
+    // La pastilla es la señal principal, pero en el teléfono el pulgar tapa
+    // parte de la pantalla y el long-press no tiene estado intermedio: sin la
+    // vibración, un gesto que SÍ surtió efecto se siente igual que un toque
+    // perdido. En web y escritorio no hay motor que vibrar.
+    if (_isHapticPlatform) HapticFeedback.mediumImpact();
+  }
+
+  /// Solo Android/iOS: en web `HapticFeedback` no hace nada y en escritorio no
+  /// hay vibración que dar.
+  bool get _isHapticPlatform =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
 
   /// Alterna el modo administrador con **Ctrl+Shift+A** o **Ctrl+Alt+A**.
   ///
@@ -98,6 +139,9 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   ///
   /// Chrome/Edge se quedan Ctrl+Shift+A para su buscador de pestañas y la página
   /// no puede cancelarlo; por eso Ctrl+Alt+A queda como equivalente.
+  ///
+  /// Sigue siendo solo web: en móvil no hay teclado físico y el camino de ahí es
+  /// el long-press de [_VersionStamp].
   bool _onKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
     final keyboard = HardwareKeyboard.instance;
@@ -106,7 +150,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         event.physicalKey == PhysicalKeyboardKey.keyA;
     if (!isKeyA || !keyboard.isControlPressed) return false;
     if (!keyboard.isShiftPressed && !keyboard.isAltPressed) return false;
-    if (mounted) setState(() => _isAdminMode = !_isAdminMode);
+    _toggleAdminMode();
     return true; // consumido: no llega al campo de texto enfocado
   }
 
@@ -361,8 +405,8 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             SizedBox(height: t.space.xs),
             const AuthSubtitle('Entra a tu portal para seguir tu inversión.'),
 
-            // La pastilla solo aparece cuando el atajo activa el modo
-            // administrador, que es cuando de verdad comunica algo.
+            // La pastilla solo aparece cuando el modo administrador está
+            // encendido, que es cuando de verdad comunica algo.
             if (_isAdminMode) ...[
               SizedBox(height: t.space.sm),
               const _AdminModeBadge(),
@@ -461,13 +505,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             _RegistrationLine(onTap: _openPropertyRegistration),
 
             SizedBox(height: t.space.lg),
-            Text(
-              appVersionLabel,
-              textAlign: TextAlign.center,
-              style: t.text.overline.copyWith(
-                color: t.color.fgSubtle.withValues(alpha: 0.6),
-              ),
-            ),
+            _VersionStamp(onHold: _toggleAdminMode),
           ],
         ),
       ),
@@ -487,9 +525,71 @@ class _ForgotPasswordLink extends StatelessWidget {
   );
 }
 
-/// Pastilla de "Acceso administrador". Solo se pinta cuando el atajo
-/// (Ctrl+Shift+A / Ctrl+Alt+A) activa el modo admin: es el único indicio de que
-/// surtió efecto, así que tiene que ser inequívoco.
+/// Cuánto hay que sostener el sello de versión para alternar el modo
+/// administrador.
+///
+/// NO es una duración de animación, así que no sale de `context.s.motion`: es un
+/// umbral de gesto. 1.5 s es el triple del `kLongPressTimeout` de Flutter
+/// (500 ms) justamente para que nadie lo dispare al apoyar el dedo: se sostiene
+/// porque se quiere.
+const Duration _kAdminHoldDuration = Duration(milliseconds: 1500);
+
+/// Sello de versión del pie. A la vista, texto inerte; sostenido
+/// [_kAdminHoldDuration], el interruptor del modo administrador.
+///
+/// Es el patrón conocido del "toca el número de build" de Android, y se eligió
+/// sobre N toques en el logo porque unos toques repetidos sí se disparan sin
+/// querer. La alternativa de un botón visible se descarta por lo contrario: el
+/// modo administrador no le sirve de nada a un cliente.
+///
+/// **La apariencia no cambia y eso es el requisito.** De ahí salen las dos
+/// decisiones del widget:
+///
+/// * `RawGestureDetector` y no `GestureDetector`, porque el `onLongPress` de
+///   este último trae fijo el umbral de `kLongPressTimeout` (500 ms) y no se
+///   puede subir; el recognizer sí acepta `duration`.
+/// * y no `SPressable`, que es la superficie presionable del design system:
+///   pinta fondo de hover, ripple, cursor de mano y anillo de foco. Un sello de
+///   versión que se ve pulsable se toca por accidente, que es exactamente lo que
+///   este umbral evita.
+///
+/// La semántica sí se expone (el nodo queda con acción de mantener pulsado, sin
+/// bandera de botón): en móvil es el único camino al modo administrador, y
+/// ocultárselo a un lector de pantalla lo dejaría sin ninguno.
+class _VersionStamp extends StatelessWidget {
+  const _VersionStamp({required this.onHold});
+
+  final VoidCallback onHold;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return RawGestureDetector(
+      gestures: {
+        LongPressGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
+              () => LongPressGestureRecognizer(
+                duration: _kAdminHoldDuration,
+                debugOwner: this,
+              ),
+              (recognizer) => recognizer.onLongPress = onHold,
+            ),
+      },
+      child: Text(
+        appVersionLabel,
+        textAlign: TextAlign.center,
+        style: t.text.overline.copyWith(
+          color: t.color.fgSubtle.withValues(alpha: 0.6),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pastilla de "Acceso administrador". Solo se pinta cuando el modo admin está
+/// encendido (long-press del sello de versión o Ctrl+Shift+A / Ctrl+Alt+A): es
+/// el único indicio visual de que surtió efecto, así que tiene que ser
+/// inequívoco.
 class _AdminModeBadge extends StatelessWidget {
   const _AdminModeBadge();
 

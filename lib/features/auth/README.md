@@ -45,6 +45,36 @@ correcto para toolbars y filas de acciones, bajo al lado de un campo.
 El error GLOBAL del formulario (`_formError`) se sigue mostrando con `AuthAlert`.
 `STextField.errorText` es para el error POR CAMPO.
 
+### Modo administrador: dos formas de activarlo
+
+Viven las dos en `login_form.dart` y las dos llaman a `_toggleAdminMode()`:
+
+| Cómo | Dónde funciona | Por qué |
+|---|---|---|
+| **Long-press de 1.5 s en el sello de versión** del pie | todas las plataformas | es el único camino desde un teléfono |
+| **Ctrl+Shift+A** / **Ctrl+Alt+A** | solo web (`HardwareKeyboard`) | en escritorio es más rápido; ver `_onKeyEvent` |
+
+El atajo de teclado era lo único que había, y su handler ni se instala en
+Android/iOS: **desde el celular no existía manera de entrar como administrador.**
+
+- El gesto **no es una frontera de seguridad** y no pretende ser secreto. El
+  interruptor solo pinta la pastilla `_AdminModeBadge` y cambia el destino
+  post-login; la autorización la da el backend (`administrar_app_clientes` del
+  perfil). Encenderlo en una cuenta sin ese permiso no hace nada: el login cae al
+  camino normal de cliente. El umbral de 1.5 s está para que **no se dispare por
+  accidente**, no para esconderlo.
+- El sello sigue siendo texto: sin cursor de mano, sin hover y sin ripple. De ahí
+  que use `RawGestureDetector` con `LongPressGestureRecognizer(duration:)` -
+  `GestureDetector.onLongPress` trae fijo `kLongPressTimeout` (500 ms) y no se
+  puede subir- y **no** `SPressable`, que pinta las tres cosas. Un sello que se
+  ve pulsable se toca por accidente.
+- En móvil el toggle además vibra (`HapticFeedback.mediumImpact`): la pastilla es
+  la señal, pero con el pulgar encima y sin estado intermedio, un long-press que
+  sí funcionó se siente igual que un toque perdido.
+- Tests: `test/features/auth/login_form_test.dart`. Ojo, `tester.longPress`
+  presiona 500 ms, o sea un tercio del umbral: hay que sostener con
+  `startGesture` + `pump(1600 ms)` + `up`.
+
 ### Por qué tres carpetas
 
 | Carpeta | Criterio | Contraejemplo |

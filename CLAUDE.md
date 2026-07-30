@@ -206,10 +206,12 @@ que **solo** sea formato.
 - **NUNCA guiones medios largos.** Solo el guion normal `-`. Prohibidos `—` (em
   dash) y `–` (en dash) en código, comentarios, docs, strings de UI y mensajes de
   commit. Como separador en texto visible se usa `·` (punto medio) o `-`.
+  Única excepción: estas dos líneas, que tienen que nombrar los caracteres.
   Verificar antes de commitear:
   ```bash
   grep -rP '[\x{2014}\x{2013}]' --include="*.dart" --include="*.md" \
-       --include="*.yaml" --include="*.html" lib docs *.md *.yaml
+       --include="*.yaml" --include="*.html" lib test docs *.md *.yaml \
+    | grep -v '^CLAUDE.md'
   ```
   Debe salir vacío.
 - La versión WEB debe ser RESPONSIVE (móvil/tablet/desktop): contenido con
