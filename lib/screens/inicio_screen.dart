@@ -1580,8 +1580,11 @@ class _PortalActividadCard extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          // press (hundido de 1.5%): respuesta directa al dedo -> `fast`.
+          // press (hundido de 1.5%): respuesta directa al dedo -> `fast`. Curva
+          // `emphasized`: lo que domina es el hundido, que recorre distancia, y
+          // es la misma curva del press de `SPressable`.
           duration: context.s.motion.fast,
+          curve: context.s.motion.emphasized,
           transformAlignment: Alignment.center,
           transform: pressed
               ? Matrix4.diagonal3Values(0.985, 0.985, 1)
@@ -1778,8 +1781,11 @@ class _PortalQuickAction extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          // press (hundido de 1.5%): respuesta directa al dedo -> `fast`.
+          // press (hundido de 1.5%): respuesta directa al dedo -> `fast`. Curva
+          // `emphasized`: lo que domina es el hundido, que recorre distancia, y
+          // es la misma curva del press de `SPressable`.
           duration: context.s.motion.fast,
+          curve: context.s.motion.emphasized,
           transformAlignment: Alignment.center,
           transform: pressed
               ? Matrix4.diagonal3Values(0.985, 0.985, 1)

@@ -514,8 +514,11 @@ class _PortalNavItemState extends State<_PortalNavItem> {
       hoverColor: Colors.transparent,
       highlightColor: Colors.transparent,
       child: AnimatedContainer(
-        // hover/activo: cambio de fondo, cero desplazamiento -> `fast`.
+        // hover/activo: cambio de fondo, cero desplazamiento -> `fast` +
+        // `standard`. Nada se mueve de sitio, así que no hay distancia que
+        // pedirle a `emphasized`.
         duration: context.s.motion.fast,
+        curve: context.s.motion.standard,
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(kPortalRadiusSm),
@@ -613,8 +616,11 @@ class _SidebarProfileButtonState extends State<_SidebarProfileButton> {
       hoverColor: Colors.transparent,
       highlightColor: Colors.transparent,
       child: AnimatedContainer(
-        // hover/activo: cambio de fondo, cero desplazamiento -> `fast`.
+        // hover/activo: cambio de fondo, cero desplazamiento -> `fast` +
+        // `standard`. Nada se mueve de sitio, así que no hay distancia que
+        // pedirle a `emphasized`.
         duration: context.s.motion.fast,
+        curve: context.s.motion.standard,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: _hover ? PortalColors.mutedHover : Colors.transparent,
@@ -705,8 +711,11 @@ class _FooterActionButtonState extends State<_FooterActionButton> {
       hoverColor: Colors.transparent,
       highlightColor: Colors.transparent,
       child: AnimatedContainer(
-        // hover/activo: cambio de fondo, cero desplazamiento -> `fast`.
+        // hover/activo: cambio de fondo, cero desplazamiento -> `fast` +
+        // `standard`. Nada se mueve de sitio, así que no hay distancia que
+        // pedirle a `emphasized`.
         duration: context.s.motion.fast,
+        curve: context.s.motion.standard,
         padding: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
           color: bg,

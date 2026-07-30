@@ -184,8 +184,10 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        // tab de filtro: cambia fondo y sombra, no se mueve -> `fast`.
+        // tab de filtro: cambia fondo y sombra, no se mueve -> `fast` +
+        // `standard`.
         duration: context.s.motion.fast,
+        curve: context.s.motion.standard,
         padding: const EdgeInsets.symmetric(vertical: 8),
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -362,8 +364,10 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          // tab de filtro: cambia fondo y borde, no se mueve -> `fast`.
+          // tab de filtro: cambia fondo y borde, no se mueve -> `fast` +
+          // `standard`.
           duration: context.s.motion.fast,
+          curve: context.s.motion.standard,
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           alignment: Alignment.center,

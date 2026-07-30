@@ -185,9 +185,14 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
               ),
               const SizedBox(width: 4),
             ],
+            // El chevron recorre media vuelta: es la única cosa de la fila que
+            // de verdad se desplaza, así que va con `emphasized`. Su frenado
+            // largo es lo que hace que la punta se sienta con masa en lugar de
+            // girar como la aguja de un reloj de pared.
             AnimatedRotation(
               turns: _seccionAbierta ? 0.5 : 0,
               duration: context.s.motion.normal,
+              curve: context.s.motion.emphasized,
               child: Icon(Icons.expand_more, size: 20, color: tone.fgSubtle),
             ),
           ],

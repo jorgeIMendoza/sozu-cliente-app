@@ -105,6 +105,20 @@ class CountUpMoney extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Con "reducir movimiento" la cifra se muestra ya en su valor final.
+    //
+    // `motion.normal == Duration.zero` es la señal: con `SozuMotion.reduced`
+    // todas las duraciones se anulan (ver el token), así que preguntar por una
+    // basta y no hay que leer el MediaQuery por separado. Se pregunta aquí y no
+    // se ata `duration` al token porque el conteo tiene su propia duración a
+    // propósito (ver [_countUpDuration]).
+    //
+    // Contar dígitos es de los movimientos que peor caen a quien pidió no
+    // tenerlos: no es una transición que se pueda ignorar, es texto que cambia
+    // varias veces por frame en el elemento más grande de la pantalla.
+    if (context.s.motion.normal == Duration.zero) {
+      return Text(formatMXN(value), style: style);
+    }
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: value),
       duration: duration,
@@ -132,15 +146,24 @@ class _PressableScaleState extends State<PressableScale> {
 
   @override
   Widget build(BuildContext context) {
+    final m = context.s.motion;
     return GestureDetector(
       onTap: widget.onTap,
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
+      // `motion.pressScale` y no el 0.97 que traía cocido: con dos valores
+      // distintos, un `SButton` y una card envuelta aquí se hundían diferente en
+      // la misma pantalla, y esa incoherencia es justo lo que se lee como
+      // interfaz armada por manos distintas. De paso el hundido desaparece solo
+      // con movimiento reducido, donde el token vale 1.0.
+      //
+      // La curva es `emphasized` por lo mismo que en el press de `SPressable`:
+      // la escala recorre distancia, y es el mismo gesto en las dos primitivas.
       child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1,
-        duration: context.s.motion.fast,
-        curve: context.s.motion.standard,
+        scale: _pressed ? m.pressScale : 1,
+        duration: m.fast,
+        curve: m.emphasized,
         child: widget.child,
       ),
     );

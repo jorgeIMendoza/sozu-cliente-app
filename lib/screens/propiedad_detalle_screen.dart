@@ -729,8 +729,9 @@ class _PropiedadDetalleScreenState
           onTap: () => setState(() => _portalTab = id),
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
-            // tab: cambia fondo y sombra en el sitio -> `fast`.
+            // tab: cambia fondo y sombra en el sitio -> `fast` + `standard`.
             duration: context.s.motion.fast,
+            curve: context.s.motion.standard,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: active ? PortalColors.surface : Colors.transparent,
@@ -2500,7 +2501,10 @@ class _GaleriaCarruselState extends State<_GaleriaCarrusel> {
                   for (var i = 0; i < fotos.length; i++)
                     AnimatedContainer(
                       // El puntito activo se estira: superficie mínima -> `fast`.
+                      // La curva sí es `emphasized`: el ancho pasa de 6 a 18 px
+                      // (el triple), y eso es recorrido, no cambio de estado.
                       duration: context.s.motion.fast,
+                      curve: context.s.motion.emphasized,
                       margin: const EdgeInsets.symmetric(horizontal: 3),
                       width: i == safeIdx ? 18 : 6,
                       height: 6,
@@ -3202,8 +3206,9 @@ class _PortalCtaButton extends StatelessWidget {
         onTap: onPressed,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          // hover del botón: solo color de fondo -> `fast`.
+          // hover del botón: solo color de fondo -> `fast` + `standard`.
           duration: context.s.motion.fast,
+          curve: context.s.motion.standard,
           height: 40,
           alignment: Alignment.center,
           decoration: BoxDecoration(

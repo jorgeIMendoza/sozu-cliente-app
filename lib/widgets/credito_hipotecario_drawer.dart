@@ -719,8 +719,11 @@ class _CreditoHipotecarioDrawerState
         onTap: _guardando ? null : () => _seleccionarBanco(b),
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          // hover: solo cambian borde/sombra/fondo -> `fast`.
+          // hover: solo cambian borde/sombra/fondo -> `fast` + `standard`. La
+          // card no se desplaza, así que no hay distancia que justifique el
+          // frenado largo de `emphasized`.
           duration: context.s.motion.fast,
+          curve: context.s.motion.standard,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: PortalColors.surface,
@@ -1417,8 +1420,9 @@ class _CreditoHipotecarioDrawerState
             launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          // hover: solo cambian borde/sombra/fondo -> `fast`.
+          // hover: solo cambian borde/sombra/fondo -> `fast` + `standard`.
           duration: context.s.motion.fast,
+          curve: context.s.motion.standard,
           height: 44,
           alignment: Alignment.center,
           decoration: BoxDecoration(

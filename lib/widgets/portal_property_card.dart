@@ -214,9 +214,14 @@ class PortalPropertyCard extends StatelessWidget {
       builder: (context, hovered, pressed) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
+        // press: respuesta directa al dedo -> `fast`. La curva es `emphasized`
+        // porque aquí lo que domina es el hundido (un `transform` que sí recorre
+        // distancia), no el cambio de borde. Es la misma curva que usa el press
+        // de `SPressable`, para que hundir una card y hundir un botón se sientan
+        // igual.
         child: AnimatedContainer(
-          // press: respuesta directa al dedo -> `fast`.
           duration: context.s.motion.fast,
+          curve: context.s.motion.emphasized,
           transformAlignment: Alignment.center,
           transform: pressed
               ? Matrix4.diagonal3Values(0.985, 0.985, 1)
@@ -433,8 +438,11 @@ class PortalAcquisitionCard extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           // hover: la card se levanta y cambia sombra -> `normal`, el token de
-          // entrada/salida de elementos.
+          // entrada/salida de elementos. `emphasized` porque hay traslación real
+          // (2 px hacia arriba): su frenado largo es lo que da la sensación de
+          // que la card pesa y se despega, en vez de saltar de posición.
           duration: context.s.motion.normal,
+          curve: context.s.motion.emphasized,
           transformAlignment: Alignment.center,
           transform: hovered
               ? Matrix4.translationValues(0, -2, 0)
@@ -804,6 +812,8 @@ class PortalPatrimonyCard extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: context.s.motion.normal,
+          // Manda la traslación, no el color: la card recorre distancia.
+          curve: context.s.motion.emphasized,
           transformAlignment: Alignment.center,
           // hover:-translate-y-0.5 del portal (la card se levanta 2px).
           transform: hovered

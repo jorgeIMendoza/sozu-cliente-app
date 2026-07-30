@@ -5,6 +5,7 @@ import 'package:sozu_cliente_app/core/portal_theme.dart';
 // barrel, pero este archivo solo necesita las primitivas.
 import 'package:sozu_cliente_app/ui/primitives/s_pressable.dart';
 import 'package:sozu_cliente_app/ui/primitives/s_skeleton.dart';
+import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 
 /// Widgets base del "modo portal" web (réplica del Portal del Cliente de
 /// sozu-admin). Reutilizables entre pantallas: cards, pills de filtro, chips
@@ -134,7 +135,11 @@ class PortalPill extends StatelessWidget {
           onTap: onTap,
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
+            duration: context.s.motion.fast,
+            // La pastilla no se mueve ni cambia de tamaño: solo fondo, texto y
+            // borde. `standard` sale acelerada y frena, que es lo que hace que
+            // el color parezca responder al puntero y no parpadear.
+            curve: context.s.motion.standard,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: bg,
@@ -288,7 +293,12 @@ class PortalPrimaryButton extends StatelessWidget {
           onTap: enabled ? onPressed : null,
           behavior: HitTestBehavior.opaque,
           child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 120),
+            duration: context.s.motion.fast,
+            // `standard` y no `enter`/`exit`: el botón no aparece ni se va, se
+            // atenúa a 0.6 y vuelve. Es un cambio de estado bidireccional en el
+            // sitio, y una curva de entrada aplicada también al regreso haría
+            // que atenuar y recuperar se sintieran distintos sin motivo.
+            curve: context.s.motion.standard,
             opacity: loading ? 0.6 : 1,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -588,7 +598,9 @@ class PortalDashedButton extends StatelessWidget {
             kPortalRadiusLg,
           ),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
+            duration: context.s.motion.fast,
+            // Solo se tiñe el fondo dentro del marco punteado, que es fijo.
+            curve: context.s.motion.standard,
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
               color: hovered ? PortalColors.primarySoft6 : Colors.transparent,
@@ -920,7 +932,9 @@ class PortalBlockButton extends StatelessWidget {
           onTap: onPressed,
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
+            duration: context.s.motion.fast,
+            // Fondo y borde del hover, con la caja quieta.
+            curve: context.s.motion.standard,
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
               color: bg,
