@@ -61,13 +61,30 @@ if [ "$DEVICE" != "web-server" ] && [ "$DEVICE" != "chrome" ]; then
   # al nodo USB. Sin distinguirlo, el mensaje mandaba al camino inalambrico, que
   # no tiene nada que ver.
   if adb devices 2>/dev/null | grep -q "no permissions"; then
+    # El nodo se calcula desde sysfs, NO con `ls | tail -1`: los hubs virtuales
+    # de USB/IP tambien son nodos y son los que quedan al final de la lista.
+    # busnum/devnum cambian en cada reconexion, asi que no se puede cachear.
+    NODO=""
+    for D in /sys/bus/usb/devices/*/; do
+      [ -f "$D/idVendor" ] || continue
+      case "$(cat "$D/product" 2>/dev/null)" in
+        *"USB/IP"*|*"Virtual Host Controller"*) continue ;;
+      esac
+      B="$(cat "$D/busnum" 2>/dev/null)"; V="$(cat "$D/devnum" 2>/dev/null)"
+      [ -n "$B" ] && [ -n "$V" ] || continue
+      NODO="$(printf '/dev/bus/usb/%03d/%03d' "$B" "$V")"
+    done
     echo "!!  El dispositivo esta conectado pero sin permisos sobre el nodo USB." >&2
-    echo "    Permanente:" >&2
+    echo "    Permanente (una vez, y ya no vuelve a pasar al reconectar):" >&2
     echo "      sudo pacman -S --noconfirm android-udev" >&2
     echo "      sudo usermod -aG adbusers \$USER" >&2
-    echo "      (y reiniciar WSL:  wsl --shutdown  desde Windows)" >&2
-    echo "    Ahora mismo, sin reiniciar:" >&2
-    echo "      sudo chmod 666 \$(ls /dev/bus/usb/*/* | tail -1)" >&2
+    echo "      luego, desde Windows:  wsl --shutdown" >&2
+    if [ -n "$NODO" ]; then
+      echo "    Ahora mismo, sin reiniciar (se pierde al reconectar el cable):" >&2
+      echo "      sudo chmod 666 $NODO" >&2
+    else
+      echo "    No se pudo ubicar el nodo; revisa:  ls -la /dev/bus/usb/*/*" >&2
+    fi
     echo "      adb kill-server && adb devices" >&2
     exit 1
   fi
