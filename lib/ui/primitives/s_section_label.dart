@@ -5,9 +5,7 @@ import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 /// Etiqueta de grupo dentro de una lista: texto en mayúsculas, opcionalmente con
 /// icono. Separa secciones sin gastar el peso visual de un título.
 ///
-/// Usa el token `overline`, que existe justo para esto (11 px / w600 /
-/// tracking 0.4). Antes cada pantalla lo reinventaba con
-/// `TextStyle(fontSize: 12, fontWeight: w700, letterSpacing: 0.6)`.
+/// Usa el token de texto `overline`.
 class SSectionLabel extends StatelessWidget {
   final String text;
   final IconData? icon;

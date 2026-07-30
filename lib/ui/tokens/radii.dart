@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Escala de radios de borde.
 ///
-/// Los valores son los que ya usa el portal en producción (antes
-/// `kPortalRadiusSm/Md/Lg/Card`) y coinciden con el tema móvil, que usaba
-/// `circular(16)` = [lg] en inputs y botones.
-///
-/// Uso: `context.s.radius.card` o `context.s.radius.cardBorder` cuando se
+/// Uso: `context.s.radius.card`, o `context.s.radius.cardBorder` cuando se
 /// necesita el `BorderRadius` ya construido.
 @immutable
 class SozuRadii {
@@ -41,8 +37,7 @@ class SozuRadii {
     full: 999,
   );
 
-  /// Variante compacta para superficies chicas: las cards en móvil con radio 24
-  /// se ven infladas cuando el ancho es de 320 px.
+  /// Variante compacta para superficies chicas (cards en móvil).
   static const SozuRadii compact = SozuRadii(
     sm: 6,
     md: 8,

@@ -4,12 +4,9 @@ import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 
 /// Campo de búsqueda con lupa y botón de limpiar.
 ///
-/// El botón de limpiar se muestra solo cuando hay texto, y **se resuelve solo**:
-/// escucha al `controller` con un `ValueListenableBuilder` en vez de exigirle a
-/// la pantalla un `setState` por cada tecla. Eso es lo que estaba pasando antes
-/// -`onChanged: (v) => setState(() => _query = v)` existía en parte para
-/// refrescar el icono- y es la clase de estado que no tiene por qué vivir en una
-/// pantalla.
+/// El botón de limpiar aparece solo cuando hay texto y se resuelve solo: escucha
+/// al `controller` con un `ValueListenableBuilder`, sin pedirle a la pantalla un
+/// `setState` por tecla.
 class SSearchField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;

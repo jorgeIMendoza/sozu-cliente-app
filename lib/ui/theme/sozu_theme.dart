@@ -10,13 +10,8 @@ import 'package:sozu_cliente_app/ui/theme/breakpoints.dart';
 import 'package:sozu_cliente_app/ui/theme/density.dart';
 
 /// Todos los tokens de diseño de SOZU, colgados del `ThemeData` como
-/// `ThemeExtension`.
-///
-/// Es el equivalente Dart de las CSS custom properties de shadcn/ui: un solo
-/// objeto del que desciende toda la apariencia, resuelto por
-/// (brillo × densidad).
-///
-/// Acceso: `context.s`
+/// `ThemeExtension`: un solo objeto del que desciende toda la apariencia,
+/// resuelto por (brillo × densidad). Acceso: `context.s`.
 ///
 /// ```dart
 /// Container(
@@ -32,7 +27,7 @@ import 'package:sozu_cliente_app/ui/theme/density.dart';
 /// ```
 ///
 /// Nunca escribir `Color(0x…)`, `circular(16)` ni `fontSize: 14` en una
-/// pantalla: si el valor que necesitas no está aquí, se agrega aquí.
+/// pantalla: si el valor no está aquí, se agrega aquí.
 @immutable
 class SozuTheme extends ThemeExtension<SozuTheme> {
   /// Roles semánticos de color. La única fuente de color de la app.
@@ -44,25 +39,18 @@ class SozuTheme extends ThemeExtension<SozuTheme> {
   /// Escala de espaciado (base 4).
   final SozuSpacing space;
 
-  /// Escala tipográfica.
-  ///
-  /// Se llama `text` y no `type` porque `ThemeExtension` ya declara
-  /// `Object get type` y la usa como CLAVE del mapa de extensiones del
-  /// `ThemeData`. Sobrescribirla compila sin error pero rompe
-  /// `Theme.of(context).extension<SozuTheme>()`, que devolvería `null` para
-  /// siempre: `context.s` caería al tema por defecto en toda la app sin dar un
-  /// solo mensaje. No renombrar.
+  /// Escala tipográfica. Se llama `text` y NO `type` porque
+  /// `ThemeExtension.type` es la CLAVE del mapa de extensiones de Material:
+  /// pisarla deja `extension<SozuTheme>()` en `null` para siempre, sin error.
+  /// No renombrar.
   final SozuTypeScale text;
 
   /// Escala de sombras.
   final SozuElevation shadow;
 
-  /// Duraciones, curvas y factor de press.
-  ///
-  /// Se resuelve, no se elige en la pantalla: cuando el sistema pide reducir
-  /// movimiento este campo trae [SozuMotion.reduced] y toda animación que lea
-  /// `context.s.motion` se apaga sola, sin que cada widget tenga que
-  /// preguntarlo.
+  /// Duraciones, curvas y factor de press. Trae [SozuMotion.reduced] cuando el
+  /// sistema pide reducir movimiento, así que las animaciones que lean
+  /// `context.s.motion` se apagan solas.
   final SozuMotion motion;
 
   /// Densidad con la que se resolvió este tema. Expuesta para los pocos casos
@@ -80,10 +68,6 @@ class SozuTheme extends ThemeExtension<SozuTheme> {
   });
 
   /// Resuelve el set completo de tokens para un brillo y una densidad.
-  ///
-  /// [reduceMotion] va al final y con valor por defecto a propósito: es una
-  /// preferencia del entorno, no una dimensión del diseño, y así las llamadas
-  /// que solo piden brillo + densidad siguen compilando.
   factory SozuTheme.resolve({
     required Brightness brightness,
     required SozuDensity density,
@@ -111,11 +95,8 @@ class SozuTheme extends ThemeExtension<SozuTheme> {
     density: SozuDensity.comfortable,
   );
 
-  /// Tokens vigentes.
-  ///
-  /// Si el `ThemeData` no trae la extensión (tests con `MaterialApp` pelón,
-  /// widgets aislados en un `WidgetTester`), cae al set claro en vez de reventar:
-  /// un token faltante nunca debe tirar la pantalla.
+  /// Tokens vigentes. Si el `ThemeData` no trae la extensión (tests con
+  /// `MaterialApp` pelón) cae al set del brillo actual en vez de reventar.
   static SozuTheme of(BuildContext context) {
     final theme = Theme.of(context);
     return theme.extension<SozuTheme>() ??
@@ -154,30 +135,25 @@ class SozuTheme extends ThemeExtension<SozuTheme> {
       text: SozuTypeScale.lerp(text, other.text, t),
       shadow: SozuElevation.lerp(shadow, other.shadow, t),
       motion: SozuMotion.lerp(motion, other.motion, t),
-      // La densidad es discreta: no tiene sentido interpolarla. Salta a mitad
-      // de la transición.
+      // La densidad es discreta: salta a mitad de la transición.
       density: t < 0.5 ? density : other.density,
     );
   }
 }
 
-/// Atajo de acceso a los tokens.
+/// Atajo de acceso a los tokens: `context.s.color.fgMuted` en vez de
+/// `SozuTheme.of(context).color.fgMuted`.
 ///
-/// `context.s.color.fgMuted` en vez de `SozuTheme.of(context).color.fgMuted`.
-/// El nombre es corto a propósito: se escribe cientos de veces y un nombre largo
-/// empuja a la gente a hardcodear el valor.
+/// OJO: `context.s` NO puede ir dentro de una expresión `const` (leer un campo
+/// de un objeto const no es constante en Dart).
 extension SozuThemeContextX on BuildContext {
   SozuTheme get s => SozuTheme.of(this);
 }
 
 /// Ajusta la densidad de los tokens según el ancho disponible.
 ///
-/// El `ThemeData` se construye una vez y no sabe cuánto mide la ventana, así que
-/// la densidad no puede resolverse ahí. Este widget se coloca una sola vez, en
-/// el `builder` del `MaterialApp`, y reinyecta la extensión con la densidad
-/// correcta para que `context.s` la traiga resuelta en toda la app.
-///
-/// Sin esto, `context.s` siempre devuelve `comfortable`.
+/// Se coloca una sola vez en el `builder` del `MaterialApp` y reinyecta la
+/// extensión ya resuelta. Sin esto `context.s` siempre devuelve `comfortable`.
 class SozuAdaptiveTokens extends StatelessWidget {
   final Widget child;
 
@@ -191,16 +167,9 @@ class SozuAdaptiveTokens extends StatelessWidget {
     final base = Theme.of(context);
     final density = forceDensity ?? SozuDensity.fromBreakpoint(context.bp);
 
-    // Señal de "reducir movimiento" del sistema operativo: Reduce Motion en
-    // iOS/macOS, "Quitar animaciones" en Android, `prefers-reduced-motion` en
-    // web. No es una preferencia estética: a quien tiene un trastorno
-    // vestibular (vértigo, migraña vestibular, mareo por movimiento) una
-    // interfaz que se desliza y escala le produce náusea real. La persona ya
-    // pidió que el sistema no se mueva; ignorarlo aquí es sobrescribir esa
-    // petición.
-    //
-    // Se lee aquí y no en cada widget porque así se apaga una sola vez, en el
-    // token, y ningún componente puede olvidarse de preguntar.
+    // Señal de "reducir movimiento" del SO (Reduce Motion, "Quitar
+    // animaciones", `prefers-reduced-motion`). Se lee aquí y no en cada widget
+    // para que se apague una sola vez, en el token.
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     final tokens = SozuTheme.resolve(
@@ -209,11 +178,9 @@ class SozuAdaptiveTokens extends StatelessWidget {
       reduceMotion: reduceMotion,
     );
 
-    // Si ya está resuelto con esta densidad Y este movimiento, no re-inyectar:
-    // evita reconstruir el subárbol en cada rebuild del MaterialApp. El
-    // movimiento entra en la comparación porque `disableAnimations` puede
-    // cambiar en caliente (el usuario activa el ajuste con la app abierta) y sin
-    // esto el tema se quedaría pegado en el valor con el que arrancó.
+    // Si ya está resuelto con esta densidad Y este movimiento, no re-inyectar.
+    // El movimiento entra en la comparación porque `disableAnimations` puede
+    // cambiar en caliente y el tema se quedaría pegado.
     final current = base.extension<SozuTheme>();
     if (current != null &&
         current.density == density &&
@@ -221,9 +188,8 @@ class SozuAdaptiveTokens extends StatelessWidget {
       return child;
     }
 
-    // Se preservan las demás extensiones (hoy no hay ninguna, pero copyWith
-    // reemplaza el mapa completo: sin esto, agregar una en el futuro la borraría
-    // en silencio al pasar por aquí).
+    // Se preservan las demás extensiones: `copyWith` reemplaza el mapa completo
+    // y sin esto se borrarían en silencio.
     final extensions =
         base.extensions.values.where((e) => e is! SozuTheme).toList()
           ..add(tokens);
@@ -231,9 +197,8 @@ class SozuAdaptiveTokens extends StatelessWidget {
     return Theme(
       data: base.copyWith(
         extensions: extensions,
-        // La escala tipográfica también cambia con la densidad, así que el
-        // TextTheme de Material tiene que seguirla o los widgets del framework
-        // (AppBar, ListTile) se desincronizan de los nuestros.
+        // El TextTheme de Material tiene que seguir la densidad o los widgets
+        // del framework (AppBar, ListTile) se desincronizan de los nuestros.
         textTheme: sozuTextThemeFrom(tokens),
       ),
       child: child,

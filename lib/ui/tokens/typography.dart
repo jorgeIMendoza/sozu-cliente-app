@@ -1,26 +1,19 @@
 import 'package:flutter/material.dart';
 
-/// Sistema tipográfico de SOZU - **fuente de verdad única** de tamaños, pesos e
+/// Sistema tipográfico de SOZU: fuente de verdad única de tamaños, pesos e
 /// interlineados de toda la plataforma (web, Android e iOS).
 ///
-/// Dos familias con papeles distintos:
-///
-/// * **Poppins** (geométrica redondeada) en títulos y botones. Es donde se ve el
-///   carácter de la marca y donde el tamaño grande la favorece.
-/// * **Inter** (tipografía de interfaz) en texto corrido, etiquetas de campo y
-///   texto chico. A 12-13 px es sensiblemente más legible que Poppins, que se
-///   ensancha y pierde definición.
+/// Poppins en títulos y botones; Inter en texto corrido, etiquetas y texto
+/// chico.
 ///
 /// **Regla de uso:** no escribir `TextStyle(fontSize: …)` suelto en las
 /// pantallas. Usar un token de [SozuType], o `Theme.of(context).textTheme.*`
 /// (los roles de Material están mapeados en [sozuTextTheme]). Si hace falta un
 /// tamaño que no existe, se agrega aquí - no en la pantalla.
 ///
-/// **Sobre `fontFamilyFallback`:** no usarlo para pedir fuentes del sistema
-/// (`-apple-system`, `Segoe UI`). En web, CanvasKit rasteriza el texto él mismo y
-/// solo reconoce las familias declaradas en `pubspec.yaml`, así que un fallback a
-/// fuentes del sistema es código muerto - y en móvil produce render distinto al
-/// de web, que es exactamente lo que este archivo evita.
+/// **No usar `fontFamilyFallback` para pedir fuentes del sistema**
+/// (`-apple-system`, `Segoe UI`): en web CanvasKit solo reconoce las familias
+/// declaradas en `pubspec.yaml`, así que el fallback es código muerto.
 ///
 /// Escala (proporción ~1.25, redondeada a valores cómodos):
 ///
@@ -44,8 +37,6 @@ class SozuType {
   static const String body = 'Inter';
 
   // --- Títulos (Poppins) ---------------------------------------------------
-  // El tracking negativo crece con el tamaño: en display los espacios entre
-  // letras se ven enormes si no se cierran.
 
   static const TextStyle display = TextStyle(
     fontFamily: heading,
@@ -133,25 +124,17 @@ class SozuType {
   );
 
   /// Cifras tabulares: para columnas de montos y fechas que deben alinearse.
-  /// Inter trae `tnum`, así que basta pedir la feature.
   static const List<FontFeature> tabular = [FontFeature.tabularFigures()];
 }
 
 /// Familia por defecto de todo lo que no pida un estilo explícito.
-///
-/// Inter es lo más cercano al `system-ui` del navegador -comparte métrica y aire
-/// con Segoe UI / SF Pro / Roboto- pero al ir empaquetada se ve idéntica en las
-/// tres plataformas.
 const String kSozuFontFamily = SozuType.body;
 
-/// Mapea [SozuType] a los roles de Material para que
-/// `Theme.of(context).textTheme.headlineLarge` y los widgets del framework
-/// (AppBar, ListTile, SnackBar, diálogos) hereden la misma escala sin que cada
-/// pantalla la pida a mano.
+/// Mapea [SozuType] a los roles de Material para que los widgets del framework
+/// (AppBar, ListTile, SnackBar, diálogos) hereden la misma escala.
 ///
-/// [color] es el color de texto primario del tema: Material exige que los
-/// estilos del TextTheme traigan color, o los widgets del framework caen a
-/// negro sobre fondo oscuro.
+/// [color] es el texto primario del tema: los estilos del TextTheme deben traer
+/// color o los widgets del framework caen a negro sobre fondo oscuro.
 TextTheme sozuTextTheme({required Color color, required Color colorSuave}) {
   return TextTheme(
     displayLarge: SozuType.display.copyWith(color: color),
@@ -177,9 +160,7 @@ TextTheme sozuTextTheme({required Color color, required Color colorSuave}) {
 
 /// Escala tipográfica como token del tema, para que la densidad pueda ajustarla.
 ///
-/// En escritorio los títulos pueden respirar; en un móvil de 360 px un `h1` de
-/// 30 px parte las palabras. [compact] baja solo los títulos: el texto corrido
-/// NO se escala (14 px es 14 px en todas partes, o se vuelve ilegible).
+/// [compact] baja solo los títulos: el texto corrido NO se escala.
 @immutable
 class SozuTypeScale {
   final TextStyle display;

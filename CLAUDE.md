@@ -203,6 +203,17 @@ que **solo** sea formato.
 - iOS: requiere Mac/Xcode; la carpeta ios/ queda lista.
 
 ## Reglas de código
+- **dartdoc CONCISO**, estilo javadoc/doxygen: 1-3 líneas por miembro. Frase de
+  resumen primero, después SOLO lo que no es obvio del nombre y la firma.
+  - El **por qué** de una decisión va en el mensaje de commit o en `docs/adr/`,
+    NO encima de un campo. Ahí se pierde y envejece.
+  - Excepción: una trampa que **muerde en silencio** se documenta en el sitio, en
+    2-3 líneas. Hay tres hoy: `context.s` dentro de un `const`, el campo `type`
+    de `ThemeExtension`, y `SPressable.detector` (sin capa de gesto no hay foco
+    de teclado).
+  - Un bloque `///` de más de 10 líneas es señal de que sobra. Los de clase
+    pueden llegar a ~15 si documentan la API de un componente global.
+  - Se aplica a código NUEVO. El legacy se poda al migrarlo, no antes.
 - **NUNCA guiones medios largos.** Solo el guion normal `-`. Prohibidos `—` (em
   dash) y `–` (en dash) en código, comentarios, docs, strings de UI y mensajes de
   commit. Como separador en texto visible se usa `·` (punto medio) o `-`.

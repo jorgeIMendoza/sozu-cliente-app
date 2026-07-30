@@ -1,15 +1,8 @@
 /// Rampas de color CRUDAS de SOZU. Nivel más bajo del design system.
 ///
 /// **No usar estas constantes en pantallas.** Son la materia prima con la que
-/// `color_roles.dart` compone los roles semánticos (`surface`, `fgMuted`,
-/// `danger`, …). Una pantalla que pide `SozuNeutral.n500` está diciendo "quiero
-/// este gris", cuando debería decir "quiero texto secundario" -y así es como se
-/// bifurcó la paleta antes.
-///
-/// Uso correcto: `context.s.color.fgMuted`.
-///
-/// Estos valores son la fuente de verdad única: si alguna vez se genera CSS
-/// para otra superficie, se genera desde aquí.
+/// `color_roles.dart` compone los roles semánticos. Uso correcto:
+/// `context.s.color.fgMuted`.
 library;
 
 import 'package:flutter/material.dart';
@@ -20,12 +13,8 @@ import 'package:flutter/material.dart';
 
 /// Marca SOZU: fuente de verdad del verde institucional.
 ///
-/// Base: `#239F71` = `hsl(158 64% 38%)`. La rampa 50→700 son los mismos tono y
-/// saturación variando la luminosidad; los `soft*` son el verde aplicado con
-/// opacidad sobre blanco, ya aplanados (evita usar alpha en superficies
-/// grandes, que en web se ve sucio al superponerse sombras).
-///
-/// Cambiar [green] recolorea web, Android e iOS.
+/// La rampa 50→700 varía solo la luminosidad; los `soft*` son el verde con
+/// opacidad sobre blanco, ya aplanados. Cambiar [green] recolorea toda la app.
 class SozuBrand {
   SozuBrand._();
 
@@ -50,8 +39,7 @@ class SozuBrand {
   static const Color soft15 = Color(0xFFDEF1EA); // 15%
   static const Color border30 = Color(0xFFBDE2D4); // 30%
 
-  // Tintes para superficie oscura (el verde no se aclara: se oscurece hacia
-  // el fondo, que es como se comporta un tinte translúcido sobre negro).
+  // Tintes para superficie oscura.
   static const Color softDark = Color(0xFF0B3B30);
   static const Color softDarkStrong = Color(0xFF12513E);
   static const Color borderDark = Color(0xFF2A5A48);
@@ -61,16 +49,10 @@ class SozuBrand {
 // Neutros
 // ---------------------------------------------------------------------------
 
-/// Rampa neutra para superficie clara.
+/// Rampa neutra para superficie clara. **No es Tailwind `gray` puro**: los
+/// valores vienen del Portal del Cliente en producción (ADR 0001 §6.1).
 ///
-/// **No es Tailwind `gray` puro.** Los valores provienen del Portal del Cliente
-/// en producción (antes `PortalColors`), que es la referencia visual vigente.
-/// Se eligió esta rampa sobre la `slate` (azulada) que usaba el tema móvil:
-/// ver `docs/adr/0001-arquitectura-modular.md` §6.1.
-///
-/// `n150` existe porque el portal usa un borde suave levemente azulado
-/// (#E9EEF4) que no cae en la rampa; se conserva porque diferencia la topbar
-/// de las cards y eso es intencional en el diseño.
+/// `n150` queda fuera de la rampa a propósito: diferencia topbar de cards.
 class SozuNeutral {
   SozuNeutral._();
 
@@ -91,19 +73,10 @@ class SozuNeutral {
 
 /// Rampa neutra para superficie oscura.
 ///
-/// PROPUESTA, no medida: el Portal del Cliente es light-only, así que estos
-/// valores no existían en el código. Lo que el ADR fija es que el rol exista en
-/// dark; el hex exacto se afina con diseño (ADR §10.3). No se derivan invirtiendo
-/// [SozuNeutral]: una inversión mecánica da grises que "flotan" -los oscuros
-/// necesitan menos contraste entre niveles adyacentes que los claros.
+/// PROPUESTA, no medida: el hex exacto se afina con diseño (ADR §10.3).
 class SozuNeutralDark {
   SozuNeutralDark._();
 
-  // Los niveles de SUPERFICIE se aclararon respecto a la primera versión: el
-  // fondo estaba en #101215 y el resultado se leía como negro puro, que abarata
-  // la interfaz (las apps oscuras que se ven caras arrancan en ~#15-1A, no en
-  // #0B). Los niveles de TEXTO (n400/n500/n900) no se tocaron: ahí el contraste
-  // ya estaba calibrado y subirlos lo habría degradado.
   static const Color n0 = Color(0xFF1F2429); // superficie de cards
   static const Color n25 = Color(0xFF232830);
   static const Color n50 = Color(0xFF15181D); // fondo de página
@@ -127,8 +100,7 @@ class SozuAmber {
 
   static const Color base = Color(0xFFF59E0B);
 
-  /// Ámbar oscurecido, para TEXTO e iconos sobre [soft]. El [base] sobre fondo
-  /// claro no alcanza contraste AA (2.1:1); este sí (4.6:1).
+  /// Ámbar oscurecido, para TEXTO e iconos sobre [soft]: [base] no alcanza AA.
   static const Color strong = Color(0xFFD97706);
 
   static const Color soft = Color(0xFFFEF5E7); // 10% sobre blanco
@@ -139,9 +111,6 @@ class SozuAmber {
 }
 
 /// Rojo: errores / acciones destructivas.
-///
-/// Se adoptó red (#EF4444) sobre el rose (#E11D48) que usaba el tema móvil:
-/// rose tiene un sesgo magenta que choca con el verde de marca (ADR §6.2).
 class SozuRed {
   SozuRed._();
 
@@ -153,10 +122,8 @@ class SozuRed {
   static const Color onDark = Color(0xFFF87171); // realce en superficie oscura
 }
 
-/// Azul: información neutral, avisos que no son error ni advertencia.
-///
-/// No compite con el verde de marca porque nunca se usa para acciones: solo
-/// para cintillos, notas y estados informativos.
+/// Azul: información neutral, avisos que no son error ni advertencia. Nunca
+/// para acciones (eso es el verde de marca).
 class SozuBlue {
   SozuBlue._();
 

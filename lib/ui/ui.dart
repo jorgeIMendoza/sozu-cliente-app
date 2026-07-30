@@ -3,8 +3,6 @@
 ///
 /// Import único: `import 'package:sozu_cliente_app/ui/ui.dart';`
 ///
-/// ## Cómo se usa
-///
 /// ```dart
 /// Container(
 ///   padding: EdgeInsets.all(context.s.space.md),
@@ -22,28 +20,16 @@
 ///
 /// ## Reglas
 ///
-/// 1. **Nada de `Color(0x…)`, `circular(16)` ni `fontSize: 14` en pantallas.**
-///    Si el valor que necesitas no existe, se agrega a `tokens/`, no a la
-///    pantalla. Así es como se mantuvo una sola paleta.
-/// 2. **`ui/` no conoce el backend.** Nada aquí puede importar `supabase_flutter`,
-///    `flutter_riverpod` ni `data/`. Un componente que necesita datos los recibe
-///    por parámetro. Esta es la separación UI ↔ lógica de negocio, y es
-///    verificable: si aparece uno de esos imports, es un bug de arquitectura.
-/// 3. **Un concepto, un componente.** Antes existían `AppCard` y `PortalCard`
-///    haciendo lo mismo con paletas distintas. Si hace falta que algo se vea
-///    diferente en web, es una *variante* o una *densidad*, no un componente
-///    nuevo.
+/// 1. Nada de `Color(0x…)`, `circular(16)` ni `fontSize: 14` en pantallas: si el
+///    valor no existe, se agrega a `tokens/`.
+/// 2. `ui/` no conoce el backend: nada aquí importa `supabase_flutter`,
+///    `flutter_riverpod` ni `data/`. Los datos llegan por parámetro.
+/// 3. Un concepto, un componente. Si algo debe verse distinto en web es una
+///    *variante* o una *densidad*, no un componente nuevo.
 ///
-/// ## Estado de la migración
-///
-/// `SozuColors`, `SozuTone`, `core/theme.dart`, `core/brand.dart` y
-/// `core/typography.dart` fueron ELIMINADOS: no hay capa de alias ni mapeo
-/// intermedio. Todo el código lee los nombres definitivos desde aquí.
-///
-/// Queda un solo pendiente: `core/portal_theme.dart` (`PortalColors`). Sus 749
-/// referencias incluyen ~137 dentro de expresiones `const`, y migrarlas a
-/// `context.s.color` rompe la const-ness - hay que quitar el `const` caso por
-/// caso, y solo el compilador los localiza con precisión.
+/// Pendiente de migrar: `core/portal_theme.dart` (`PortalColors`). Ojo al
+/// hacerlo: `context.s` NO puede ir dentro de una expresión `const`, así que hay
+/// que quitar el `const` caso por caso y solo el compilador los localiza.
 ///
 /// Ver `docs/adr/0001-arquitectura-modular.md`.
 library;

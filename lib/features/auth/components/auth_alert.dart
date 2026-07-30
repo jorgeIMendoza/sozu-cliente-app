@@ -4,11 +4,8 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// Tipo de alerta del acceso.
 enum AuthAlertKind { error, warning, info, success }
 
-/// Caja de alerta con icono.
-///
-/// Cada variante toma su par fondo/texto de los roles semánticos. Antes salían
-/// de `AuthColors` con hex propios, y el caso `success` estaba mal: usaba el
-/// fondo ámbar de `warning` con texto verde.
+/// Caja de alerta con icono. Cada variante toma su par fondo/texto de los roles
+/// semánticos del tema.
 class AuthAlert extends StatelessWidget {
   const AuthAlert({
     super.key,

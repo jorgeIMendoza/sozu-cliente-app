@@ -1,14 +1,8 @@
 /// Construye el `ThemeData` de Material a partir de los tokens de SOZU.
 ///
-/// Dos trabajos:
-///
-/// 1. Colgar `SozuTheme` como `ThemeExtension` para que `context.s` funcione.
-/// 2. Mapear los roles a los temas de componente de Material, para que los
-///    widgets del framework (AppBar, SnackBar, diálogos, TextField) hereden la
-///    apariencia SOZU sin que cada pantalla se lo pida.
-///
-/// El punto 2 es lo que evita que aparezca un `TextField` azul de Material en
-/// una esquina de la app.
+/// Cuelga `SozuTheme` como `ThemeExtension` (para que `context.s` funcione) y
+/// mapea los roles a los temas de componente de Material, para que AppBar,
+/// SnackBar, diálogos y TextField hereden la apariencia SOZU sin pedirlo.
 library;
 
 import 'package:flutter/material.dart';
@@ -18,28 +12,11 @@ import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 
 /// Tema claro. **Memoizado**: siempre devuelve la MISMA instancia.
 ///
-/// No es micro-optimización. `MaterialApp` envuelve su tema en un
-/// `AnimatedTheme`, que interpola 200 ms cada vez que el `ThemeData` nuevo no es
-/// `==` al anterior. Y `main.dart` llama a esta función dentro de `build`, así
-/// que sin memoizar cada rebuild de la app producía:
-///
-/// 1. un `SozuTheme` nuevo (los getters `light`/`dark` llaman a `resolve`),
-/// 2. que hace el `ThemeData` distinto - `SozuTheme` no implementa `==`, así que
-///    el mapa de extensiones se compara por identidad,
-/// 3. y por lo tanto una re-interpolación de 200 ms de TODO el tema: colores,
-///    tipografía, radios y sombras, frame por frame.
-///
-/// Además evita reconstruir los ~18 temas de componente (AppBar, Card, Input,
-/// Dialog…) en cada build.
-///
-/// Memoizar es correcto porque la función es pura y sin argumentos: su resultado
-/// no puede depender de nada que cambie. La densidad y el movimiento reducido NO
-/// se resuelven aquí sino en `SozuAdaptiveTokens`, que reinyecta la extensión más
-/// abajo en el árbol.
-///
-/// La alternativa era implementar `==`/`hashCode` en `SozuTheme` y en sus cinco
-/// clases de tokens. Es más código y más superficie que mantener sincronizada
-/// para el mismo resultado.
+/// Devolver una instancia nueva hace que el `AnimatedTheme` del `MaterialApp`
+/// re-interpole el tema completo 200 ms en cada rebuild (`SozuTheme` no
+/// implementa `==`, así que el mapa de extensiones se compara por identidad).
+/// La densidad y el movimiento reducido NO se resuelven aquí sino en
+/// `SozuAdaptiveTokens`, más abajo en el árbol.
 ThemeData sozuLightTheme() => _lightTheme;
 
 /// Tema oscuro. Memoizado por las mismas razones que [sozuLightTheme].

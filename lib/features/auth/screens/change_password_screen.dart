@@ -12,8 +12,6 @@ import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Cambio OBLIGATORIO de contraseña temporal (debe_cambiar_password=true).
-/// Réplica del card del portal admin (`auth/ChangePassword.tsx`): misma tarjeta
-/// blanca de auth, logo SOZU, textos y checklist de requisitos.
 class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
 
@@ -33,9 +31,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   @override
   void initState() {
     super.initState();
-    // El checklist de reglas se actualiza en vivo. Se escucha el CONTROLLER y no
-    // `onChanged` del campo porque el controller también avisa de los cambios
-    // que no vienen del teclado (autocompletado del gestor de contraseñas).
+    // Se escucha el CONTROLLER y no `onChanged`: el controller también avisa de
+    // los cambios que no vienen del teclado (autocompletado del gestor).
     _pwd.addListener(() {
       if (_pwdValue != _pwd.text) {
         setState(() => _pwdValue = _pwd.text);
@@ -61,10 +58,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       // Pide guardar la contrasena nueva. Sin esto el gestor se queda con la
       // temporal, que ya no sirve para entrar.
       TextInput.finishAutofillContext();
-      // Divergencia intencional con el portal admin: allá se hace
-      // signOut → /login tras cambiar la contraseña. Aquí la app conserva la
-      // sesión por diseño (SecureSessionStorage / biometría), así que tras el
-      // éxito entramos directo a /inicio sin cerrar sesión.
+      // Se conserva la sesión a propósito: no hay signOut tras el cambio.
       if (mounted) context.go('/inicio');
     } catch (_) {
       setState(() {
@@ -95,9 +89,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             'continuar',
           ),
           SizedBox(height: t.space.lg),
-          // Igual que en el login: `autofillHints` en los campos no alcanza, el
-          // gestor de contrasenas necesita el AutofillGroup para reconocer el
-          // formulario y ofrecer guardar la contrasena NUEVA.
+          // No quitar: sin AutofillGroup el gestor de contrasenas no reconoce
+          // el formulario ni ofrece guardar la contrasena NUEVA.
           AutofillGroup(
             child: Form(
               key: _formKey,
@@ -113,8 +106,6 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     SizedBox(height: t.space.md),
                   ],
 
-                  // Cada campo trae su propio ojo de mostrar/ocultar: la pantalla
-                  // ya no guarda un `bool` de visibilidad por campo.
                   STextField.password(
                     controller: _pwd,
                     label: 'Nueva contraseña',
@@ -139,7 +130,6 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                   ),
                   SizedBox(height: t.space.md),
 
-                  // Checklist de requisitos con encabezado (como el portal).
                   Text(
                     'Requisitos:',
                     style: context.s.text.label.copyWith(
@@ -150,8 +140,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                   PasswordRulesChecklist(value: _pwdValue),
                   SizedBox(height: t.space.md),
 
-                  // lg: acción principal del formulario, al mismo alto que los
-                  // campos.
+                  // lg: acción principal, al mismo alto que los campos.
                   SButton(
                     label: 'Cambiar Contraseña',
                     size: SButtonSize.lg,

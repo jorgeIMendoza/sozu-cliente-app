@@ -4,14 +4,9 @@ import 'package:sozu_cliente_app/ui/tokens/radii.dart' show lerpDouble;
 
 /// Escala de espaciado (base 4).
 ///
-/// **Este token es nuevo: antes no existía escala.** Los paddings de la app son
-/// literales sueltos en cada pantalla (`EdgeInsets.all(14)`, `SizedBox(height: 18)`),
-/// por eso el ritmo vertical varía entre pantallas que deberían verse iguales.
-///
-/// Migración: NO se hace un barrido dedicado. Cada archivo que se toque por otra
-/// razón cambia sus literales por tokens. Regla al escribir código nuevo: si el
-/// número que ibas a poner no está en esta escala, casi siempre querías el de
-/// al lado.
+/// Migración: NO se hace un barrido dedicado; cada archivo que se toque por
+/// otra razón cambia sus literales por tokens. En código nuevo, si el número
+/// que ibas a poner no está en esta escala, casi siempre querías el de al lado.
 @immutable
 class SozuSpacing {
   /// 4 - separación entre un icono y su etiqueta.
@@ -55,8 +50,7 @@ class SozuSpacing {
     xxl: 48,
   );
 
-  /// En móvil el gutter y las separaciones grandes se aprietan: 32 px de padding
-  /// horizontal en una pantalla de 360 deja 296 de contenido.
+  /// En móvil el gutter y las separaciones grandes se aprietan.
   static const SozuSpacing compact = SozuSpacing(
     xxs: 4,
     xs: 8,
@@ -67,8 +61,7 @@ class SozuSpacing {
     xxl: 32,
   );
 
-  // Atajos para los casos más frecuentes, para no escribir
-  // `EdgeInsets.all(context.s.space.md)` en cada card.
+  // Atajos para los casos más frecuentes.
   EdgeInsets get allMd => EdgeInsets.all(md);
   EdgeInsets get allLg => EdgeInsets.all(lg);
   EdgeInsets get hMd => EdgeInsets.symmetric(horizontal: md);

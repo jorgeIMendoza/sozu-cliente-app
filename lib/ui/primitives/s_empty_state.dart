@@ -5,11 +5,7 @@ import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 
 /// Estado vacío: icono en círculo teñido + título + mensaje.
 ///
-/// Se ancla ARRIBA por defecto ([centered] = false) en lugar de centrarse en el
-/// espacio disponible. Centrado verticalmente dentro de un `Expanded` en
-/// escritorio, el bloque quedaba flotando en medio de 500 px de vacío y la
-/// pantalla se leía como si no hubiera cargado. Anclado arriba con un margen
-/// generoso se lee como lo que es: una instrucción.
+/// Se ancla ARRIBA por defecto ([centered] = false).
 class SEmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -74,8 +70,7 @@ class SEmptyState extends StatelessWidget {
     return Align(
       alignment: Alignment.topCenter,
       child: Padding(
-        // Margen superior generoso pero acotado: da aire sin depender del alto
-        // del contenedor.
+        // Margen superior acotado: da aire sin depender del alto del contenedor.
         padding: EdgeInsets.only(
           top: context.responsive(mobile: 32.0, desktop: 48.0),
           left: t.space.md,

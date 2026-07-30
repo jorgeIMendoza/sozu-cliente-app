@@ -8,9 +8,8 @@ import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
 import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
-/// Recuperar contraseña. Réplica del card del portal admin: misma tarjeta,
-/// logo, textos y estado de éxito "Revisa tu correo". Respuesta neutra (no
-/// revela si el correo existe).
+/// Recuperar contraseña, con estado de éxito "Revisa tu correo". La respuesta
+/// es neutra: no revela si el correo existe.
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -99,7 +98,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               },
             ),
             SizedBox(height: t.space.md),
-            // lg: acción principal del formulario, al mismo alto que el campo.
+            // lg: acción principal, al mismo alto que el campo.
             SButton(
               label: 'Validar',
               size: SButtonSize.lg,
@@ -124,8 +123,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   List<Widget> _successChildren() {
-    // Se lee una vez y se reutiliza: `context.s` no puede aparecer dentro de una
-    // expresion `const`, y estos bloques lo eran.
+    // Ojo: `context.s` no puede ir dentro de una expresion `const`.
     final t = context.s;
     final c = t.color;
     return [
