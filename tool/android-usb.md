@@ -22,10 +22,57 @@ instalar de nuevo.
 
 ---
 
-## Camino B: hot reload en el teléfono - depuración INALÁMBRICA
+## Camino B: hot reload por CABLE con usbipd-win  (PROBADO, es el bueno)
 
-Es el único que da hot reload desde WSL, y no necesita cable ni el servidor de
-adb en Windows.
+`usbipd-win` pasa el dispositivo USB al kernel de WSL, así que `adb` corre local
+y los `adb forward` quedan en WSL. Eso es lo que el puente al adb de Windows no
+puede dar. Ventaja sobre el inalámbrico: el serial es fijo y no depende de la red.
+
+```powershell
+# PowerShell ADMIN, una vez:
+winget install usbipd
+
+# cada vez que conectas el cable:
+usbipd list
+usbipd attach --wsl --busid <BUSID>
+```
+
+```bash
+# en WSL:
+./tool/dev.sh DYLRPNJNIRKNZPRG      # el serial no rota
+```
+
+### `no permissions`
+
+`adb devices` lista el teléfono pero como `no permissions`: el nodo en
+`/dev/bus/usb/` es `root:root` con `crw-rw-r--` y tu usuario no tiene escritura.
+`udev` y `systemd` sí corren en este WSL, así que las reglas aplican:
+
+```bash
+sudo pacman -S --noconfirm android-udev   # trae las reglas udev de Android
+sudo usermod -aG adbusers $USER           # el grupo que usan esas reglas
+# desde Windows:  wsl --shutdown          # el grupo no aplica hasta sesion nueva
+```
+
+Parche inmediato sin reiniciar, que se pierde al reconectar:
+
+```bash
+sudo chmod 666 /dev/bus/usb/001/002   # ls -la /dev/bus/usb/*/* para hallar el nodo
+adb kill-server && adb devices
+```
+
+---
+
+## Camino C: depuración INALÁMBRICA (sin cable)
+
+También da hot reload y no necesita `usbipd`. Su costo: teléfono y PC en la
+misma red, y Android rota el puerto cada vez.
+
+**WSL2 y el teléfono deben estar en la misma subred**, y con la red NAT por
+defecto normalmente NO lo están: WSL sale por `172.x` y el teléfono está en la
+`10.x`/`192.168.x` de la Wi-Fi. El `ping` puede responder y el emparejamiento
+igual se rechaza con "debes estar conectado a la misma red" - Android compara la
+subred, no la alcanzabilidad. Con NAT, usa el camino B.
 
 ### Por qué no sirve el puente por USB
 
@@ -122,14 +169,6 @@ sesión guardada. Para evitarlo, desinstalar antes a mano.
 
 Nota: el teléfono debe estar accesible desde WSL. Se comprueba con
 `ping <ip-telefono>`; WSL2 sale a la LAN sin configuración extra.
-
-## Alternativa: usbipd-win
-
-Existe [usbipd-win](https://github.com/dorssel/usbipd-win), que pasa el USB de
-verdad a WSL. Da un `adb` local sin puente, pero necesita soporte USB/IP en el
-kernel de WSL y un `usbipd attach` por sesión. El puente de adb es más simple y
-no depende del kernel; si el puente te falla de forma persistente, esta es la
-siguiente opción.
 
 ## No confundir con `tool/wsl-expose.ps1`
 
