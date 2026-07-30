@@ -318,48 +318,54 @@ void main() {
     expect(prompts.value, 0);
   });
 
-  testWidgets('enrolamiento viejo sin user_id: se ignora por completo', (
+  testWidgets('la pastilla de admin esconde el botón de huella', (
     tester,
   ) async {
-    // Antes de restringir la biometria a clientes, `habilitar()` no guardaba el
-    // id del usuario enrolado, asi que no hay forma de saber si ese
-    // enrolamiento es de un cliente o de un administrador. Se ignora: ni boton
-    // ni prompt. El siguiente login por contrasena lo rearma si toca.
-    mockBiometricsEnabled(enabled: true, withUserId: false);
-    final prompts = mockBiometricPromptAlwaysRejected();
-    await pumpLoginForm(tester);
-    for (var i = 0; i < 5; i++) {
-      await tester.pump();
-    }
-
-    expect(find.text(biometricLabel), findsNothing);
-    expect(prompts.value, 0);
-  });
-
-  testWidgets('encender el modo admin NO pide la huella', (tester) async {
-    // La huella es solo para clientes: la sesion de un administrador puede
-    // impersonar a cualquier cliente, asi que no queda detras de la huella
-    // enrolada en un telefono. El admin entra con correo y contrasena.
+    // La pastilla puesta significa que quien entra NO es cliente, y la
+    // biometria es solo para clientes. Es la unica senal disponible antes de
+    // autenticar: el token guardado es opaco y el rol se sabe con el perfil ya
+    // cargado.
     mockBiometricsEnabled(enabled: true);
     final prompts = mockBiometricPromptAlwaysRejected();
     await pumpLoginForm(tester);
     for (var i = 0; i < 5; i++) {
       await tester.pump();
     }
+    expect(find.text(biometricLabel), findsOneWidget);
     // El prompt automatico del montaje, el unico que debe existir.
     expect(prompts.value, 1);
 
-    await holdVersionStamp(tester);
+    await holdVersionStamp(tester); // pone la pastilla
     for (var i = 0; i < 5; i++) {
       await tester.pump();
     }
 
     expect(find.text(badgeLabel), findsOneWidget);
+    expect(find.text(biometricLabel), findsNothing);
     expect(
       prompts.value,
       1,
       reason: 'poner la pastilla de admin no debe pedir la huella',
     );
+  });
+
+  testWidgets('quitar la pastilla devuelve el botón de huella', (tester) async {
+    mockBiometricsEnabled(enabled: true);
+    mockBiometricPromptAlwaysRejected();
+    await pumpLoginForm(tester);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+
+    await holdVersionStamp(tester); // pone
+    await tester.pump();
+    expect(find.text(biometricLabel), findsNothing);
+
+    await holdVersionStamp(tester); // quita
+    await tester.pump();
+
+    expect(find.text(badgeLabel), findsNothing);
+    expect(find.text(biometricLabel), findsOneWidget);
   });
 }
 

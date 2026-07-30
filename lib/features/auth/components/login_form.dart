@@ -69,6 +69,12 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   // Biometría
   // -------------------------------------------------------------------------
 
+  /// La pastilla de administrador puesta significa que quien entra NO es un
+  /// cliente, y la biometría es solo para clientes: se esconde el botón. Es la
+  /// única señal disponible antes de autenticar, porque el token guardado es
+  /// opaco y el rol solo se sabe con el perfil ya cargado.
+  bool get _showBiometricButton => _isBiometricAvailable && !_isAdminMode;
+
   /// El botón se ofrece con que el usuario haya activado la biometría, aunque el
   /// token guardado ya no sirva: en ese caso el intento falla y pide contraseña,
   /// pero el botón sigue ahí. Que desaparezca se lee como que se rompió.
@@ -413,7 +419,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
               onPressed: _isSubmitting ? null : _submit,
             ),
 
-            if (_isBiometricAvailable) ...[
+            if (_showBiometricButton) ...[
               SizedBox(height: t.space.xs),
               SButton.secondary(
                 label: 'Entrar con huella o rostro',

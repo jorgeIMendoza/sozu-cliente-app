@@ -75,15 +75,9 @@ class BiometricService {
   }
 
   /// Flag persistido: el usuario activó el login biométrico.
-  ///
-  /// Exige además el id del usuario enrolado. Un enrolamiento sin id viene de
-  /// antes de restringir la biometría a clientes y no hay forma de saber de qué
-  /// cuenta es: se ignora, así que el botón y el prompt no aparecen para una
-  /// cuenta administradora que se enroló entonces.
   Future<bool> habilitada() async {
     if (!_esMovil) return false;
-    if (await _storage.read(key: _keyHabilitada) != 'true') return false;
-    return await _storage.read(key: _keyUserId) != null;
+    return await _storage.read(key: _keyHabilitada) == 'true';
   }
 
   /// Habilitada Y con refresh token guardado: se puede ofrecer el botón
@@ -182,8 +176,15 @@ class BiometricService {
     // huella acababa restaurando ESA sesión: un administrador que entrara en el
     // teléfono de un cliente enrolado quedaba accesible con la huella del
     // cliente.
+    final userId = session!.user.id;
     final enrolado = await _storage.read(key: _keyUserId);
-    if (enrolado != null && enrolado != session!.user.id) return;
+    if (enrolado == null) {
+      // Enrolamiento de una build que no guardaba el dueño: se adopta el de esta
+      // sesión para que quede atado de aquí en adelante.
+      await _storage.write(key: _keyUserId, value: userId);
+    } else if (enrolado != userId) {
+      return;
+    }
     await _storage.write(key: _keyRefreshToken, value: token);
   }
 
