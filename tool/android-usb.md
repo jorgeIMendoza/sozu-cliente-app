@@ -22,87 +22,106 @@ instalar de nuevo.
 
 ---
 
-## Camino B: hot reload en el teléfono (recomendado)
+## Camino B: hot reload en el teléfono - depuración INALÁMBRICA
 
-La idea: el **servidor** de adb corre en Windows (donde está el USB) y el
-**cliente** de adb corre en WSL apuntándole por TCP. Flutter en WSL ve el
-teléfono como si estuviera conectado localmente.
+Es el único que da hot reload desde WSL, y no necesita cable ni el servidor de
+adb en Windows.
 
-### Una vez: platform-tools en Windows
+### Por qué no sirve el puente por USB
 
-Descarga
-<https://dl.google.com/android/repository/platform-tools-latest-windows.zip>
-y descomprímelo, por ejemplo en `C:\platform-tools`.
+Se puede hacer que el servidor de adb corra en Windows y el cliente en WSL
+(`adb -a -P 5037 nodaemon server` + `ADB_SERVER_SOCKET`). Eso alcanza para
+**instalar y lanzar** la app, pero **no para hot reload**:
 
-### Una vez: depuración USB en el teléfono
+`adb forward` crea el túnel al Dart VM service en el host donde corre el
+**servidor**, o sea Windows. WSL no puede alcanzar ese puerto, así que
+`flutter run` nunca conecta al VM service y `r` / `R` no hacen nada.
 
-Ajustes → Acerca del teléfono → toca 7 veces "Número de compilación" →
-Ajustes → Opciones de desarrollador → **Depuración por USB**.
+Comprobado: `adb forward --list` muestra el forward, y desde WSL el puerto no
+responde.
 
-Conecta el cable y acepta el diálogo de "¿Permitir depuración USB?" que sale en
-la pantalla del teléfono.
+### Una vez: activar depuración inalámbrica
+
+Teléfono y PC en la **misma red Wi-Fi**.
+
+Ajustes → Opciones de desarrollador → **Depuración inalámbrica** → activar.
 
 ### Cada sesión
 
-**1. En Windows** (PowerShell normal, sin admin). Deja esta ventana abierta:
+En la pantalla de Depuración inalámbrica hay **dos puertos distintos**:
 
-```powershell
-cd C:\platform-tools
-.\adb.exe kill-server
-.\adb.exe -a -P 5037 nodaemon server
-```
-
-`-a` es la parte que importa: hace que el servidor escuche en todas las
-interfaces y no solo en `127.0.0.1`. Sin eso WSL no lo alcanza.
-
-**2. En WSL**, en otra terminal:
+- el de la pantalla principal → para `adb connect`
+- el que sale en "Vincular dispositivo con código de emparejamiento" → para
+  `adb pair`, junto con un código de 6 dígitos
 
 ```bash
-export ADB_SERVER_SOCKET=tcp:$(ip route show default | awk '{print $3}'):5037
-adb devices
+export PATH="$HOME/android-sdk/platform-tools:$PATH"
+unset ADB_SERVER_SOCKET          # adb tiene que correr LOCAL, en WSL
+
+# Solo la primera vez con esta red, o cuando el telefono lo pida de nuevo:
+adb pair 10.203.192.183:PUERTO_DE_EMPAREJAMIENTO
+# pega el codigo de 6 digitos
+
+adb connect 10.203.192.183:PUERTO_DE_DEPURACION
+adb devices                      # debe aparecer como <ip>:<puerto>  device
 ```
 
-`ip route show default` da la IP del host Windows visto desde WSL. **No uses una
-IP fija**: cambia en cada reinicio.
-
-Deberías ver tu teléfono listado. Si dice `unauthorized`, mira la pantalla del
-teléfono y acepta el diálogo.
-
-**3. Correr la app:**
+La IP del teléfono sale en la misma pantalla de Depuración inalámbrica.
 
 ```bash
-./tool/dev.sh <id-del-dispositivo>     # el id sale de: flutter devices
+./tool/dev.sh 10.203.192.183:PUERTO_DE_DEPURACION
 ```
 
-`r` hot reload, `R` hot restart, igual que en web.
-
-### Para que persista
-
-En `~/.bashrc`:
-
-```bash
-export ANDROID_HOME="$HOME/android-sdk"
-export ANDROID_SDK_ROOT="$HOME/android-sdk"
-export PATH="$HOME/flutter/bin:$ANDROID_HOME/platform-tools:$PATH"
-# Solo si el servidor de adb de Windows esta corriendo:
-export ADB_SERVER_SOCKET=tcp:$(ip route show default | awk '{print $3}'):5037
-```
-
-⚠️ Con `ADB_SERVER_SOCKET` puesto y el servidor de Windows apagado, `adb` en WSL
-falla en vez de arrancar su propio servidor. Si te estorba, exporta la variable
-solo cuando la ocupes.
+`r` hot reload, `R` hot restart. `dev.sh` prefiere el adb local sobre el puente,
+así que no hay que configurar nada más.
 
 ---
+
+## Web y móvil a la vez
+
+Dos terminales, una por plataforma. Cada una con su propio hot reload:
+
+```bash
+# terminal 1
+./tool/dev.sh
+
+# terminal 2
+./tool/dev.sh 10.203.192.183:PUERTO
+```
+
+Comparten el código fuente, así que el mismo cambio se prueba en las dos
+resoluciones presionando `r` en cada terminal.
+
+`flutter run -d all` **no** sirve para esto: incluye móviles y escritorio, pero
+no el dispositivo `web-server`.
+
+---
+
+## Si el teléfono ya tenía la app de producción
+
+```
+INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures do not match newer version
+```
+
+El build local va firmado con la llave de debug y la app distribuida con la de
+release; Android no permite reemplazar una por otra. Flutter lo resuelve solo
+desinstalando la anterior, pero **se pierden los datos de la app**, incluida la
+sesión guardada. Para evitarlo, desinstalar antes a mano.
 
 ## Si algo falla
 
 | Síntoma | Causa |
 |---|---|
-| `adb devices` vacío | falta `-a` en el servidor de Windows, o el firewall bloquea el 5037 |
-| `unauthorized` | falta aceptar el diálogo en la pantalla del teléfono |
-| `adb: failed to check server version` | el servidor de Windows no está corriendo, o la IP cambió tras reiniciar |
+| `r` / `R` no hacen nada, la app corre | estás con el puente al adb de Windows; los forwards viven en el host. Usa inalámbrico |
+| `adb devices` vacío | Depuración inalámbrica apagada, o el teléfono en otra red |
+| `failed to connect` en `adb connect` | puerto equivocado: el de `connect` no es el de `pair` |
+| `device unauthorized` | falta el `adb pair` con el código de 6 dígitos |
+| el puerto cambia solo | Android lo rota al reactivar Depuración inalámbrica; volver a `adb connect` |
 | `flutter devices` no lo muestra pero `adb devices` sí | falta `flutter config --android-sdk`; corre `./tool/android-setup.sh` |
-| Versiones de adb distintas | usa la misma `platform-tools` en los dos lados |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | ver la sección de arriba |
+
+Nota: el teléfono debe estar accesible desde WSL. Se comprueba con
+`ping <ip-telefono>`; WSL2 sale a la LAN sin configuración extra.
 
 ## Alternativa: usbipd-win
 
