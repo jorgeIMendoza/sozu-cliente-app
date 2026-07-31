@@ -187,6 +187,17 @@ por eso `flutter analyze` y el panel de Problems dan idéntico resultado.
 `dart format .` reescribe medio archivo ajeno. Cuando se haga, que sea un commit
 que **solo** sea formato.
 
+## Medir rendimiento: NUNCA en debug
+`./tool/dev.sh` corre en modo debug y en web eso es DDC sin optimizar: varias
+veces mas lento que release, y el coste escala con el numero de widgets. Una
+pantalla densa se siente pesada aunque en produccion vaya bien.
+- `PROFILE=1 ./tool/dev.sh` - tiempos reales (sin hot reload)
+- `./tool/web.sh` - release servido en :5001, con fallback SPA
+- `./tool/apk.sh` - APK release
+
+Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIEW:
+`isPreviewBuild` es constante de compilacion y dart2js borra la rama completa.
+
 ## Tiempos de build (esperados, no un problema)
 - `flutter build web --release`: ~110-150 s. dart2js optimiza el programa
   completo; no es incremental por diseño.

@@ -14,6 +14,31 @@ Flujo diario. El detalle y el diagnóstico están en `android-usb.md`.
 
 ---
 
+## Probar rendimiento y ver la app sin la franja de PREVIEW
+
+```bash
+./tool/web.sh            # compila release y sirve en http://localhost:5001
+./tool/web.sh --serve    # solo sirve lo que ya hay en build/web
+./tool/apk.sh            # APK release para el telefono
+```
+
+`dev.sh` corre en modo **DEBUG**, y en Flutter web debug compila con DDC sin
+optimizar: es varias veces mas lento que release y el coste escala con el numero
+de widgets, asi que una pantalla densa se siente pesada aunque en produccion vaya
+bien. **Para juzgar fluidez hay que medir en release o con `PROFILE=1
+./tool/dev.sh`**, nunca en debug.
+
+Los dos scripts compilan con `--dart-define=APP_ENV=prod`, y como
+`isPreviewBuild` es constante de compilacion, dart2js elimina la rama entera: la
+cadena `PREVIEW` no queda ni en el bundle (verificado con grep sobre
+`main.dart.js`). En `dev.sh` el banner SI sale, que es lo correcto.
+
+`web.sh` sirve con fallback a `index.html` porque la app usa
+`usePathUrlStrategy()` (URLs sin `#`): sin eso, recargar en `/inicio` daria 404 y
+parece un bug de la app. Un `python3 -m http.server` pelon NO lo hace.
+
+---
+
 ## Móvil por CABLE (camino probado, con hot reload)
 
 `usbipd-win` pasa el USB de verdad a WSL, así que `adb` corre **local** y los
@@ -159,7 +184,8 @@ presionando `r` en cada terminal.
 | Script | Para qué |
 |---|---|
 | `check.sh` | formato + `analyze` + tests. Lo mismo que el IDE |
-| `apk.sh` | compila el APK y lo copia a Descargas de Windows |
+| `apk.sh` | compila el APK release y lo copia a Descargas de Windows |
+| `web.sh` | compila la web en release y la sirve, para medir rendimiento |
 | `android-setup.sh` | reinstalar el SDK de Android (ya está hecho) |
 | `install-temurin.sh` | reinstalar el JDK (ya está hecho) |
 | `wsl-expose.ps1` | abrir la **web** en el navegador del celular. NO es la app nativa |
