@@ -1,12 +1,12 @@
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/domain/api_error.dart';
+import 'package:sozu_cliente_app/shared/api_error.dart';
 
 /// Banco recien dado de alta en el catalogo: id asignado y nombre guardado.
 typedef BancoCatalogo = ({int id, String nombre});
 
 /// Perfil del cliente: datos personales, fiscales, cuentas bancarias y avatar.
 ///
-/// Igual que `ClientPortalPort`, la instancia ya sabe de que cliente se trata.
+/// Igual que los demas puertos de `client`, la instancia ya sabe de que cliente se trata.
 /// Todos los metodos lanzan [ApiError].
 abstract interface class ProfilePort {
   /// Perfil completo del cliente.

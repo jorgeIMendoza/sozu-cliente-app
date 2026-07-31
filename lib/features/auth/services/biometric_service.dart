@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
+import 'package:sozu_cliente_app/shared/api_error.dart';
 
 /// Resultado de [BiometricService.loginBiometrico]. Distinguir los casos importa
 /// porque solo uno se arregla reintentando: `sessionExpired` exige un login por
@@ -30,18 +32,25 @@ enum BiometricLoginResult {
 /// el refresh token de Supabase, así que la biometría es un candado local sobre
 /// una sesión ya autenticada, no una identificación contra el servidor.
 ///
-/// Guarda el refresh token de Supabase en secure storage (Keystore/Keychain)
-/// bajo una key propia, separada de la sesión que persiste
-/// SecureSessionStorage (esa se borra en signOut; esta sobrevive para poder
-/// re-entrar con biometría).
+/// Guarda el refresh token en secure storage (Keystore/Keychain) bajo una key
+/// propia, separada de la sesión que persiste SecureSessionStorage (esa se
+/// borra en signOut; esta sobrevive para poder re-entrar con biometría).
 ///
-/// IMPORTANTE - rotación: Supabase invalida el refresh token anterior en cada
-/// refresh, por lo que hay que re-guardar el token nuevo tras cada
-/// signedIn/tokenRefreshed (el AuthController llama a [persistirSesion] desde
-/// su listener de onAuthStateChange) y tras cada setSession exitoso.
+/// IMPORTANTE - rotación: el backend invalida el refresh token anterior en
+/// cada refresh, por lo que hay que re-guardar el token nuevo tras cada
+/// cambio de sesión (el AuthController llama a [persistirSesion] desde su
+/// listener de sessionChanges) y tras cada [loginBiometrico] exitoso.
 class BiometricService {
   BiometricService._();
   static final BiometricService instance = BiometricService._();
+
+  /// Puerto de auth, inyectado por AuthController al construirse (este
+  /// singleton no puede leer providers). Usarlo antes es error de wiring:
+  /// `late` a propósito para que truene en vez de fallar en silencio.
+  late AuthPort _port;
+
+  /// Inyecta el puerto. Lo llama AuthController; los tests pasan su doble.
+  void usarPuerto(AuthPort port) => _port = port;
 
   static const _keyHabilitada = 'sozu_biometria_habilitada';
   static const _keyRefreshToken = 'sozu_biometria_refresh_token';
@@ -109,9 +118,9 @@ class BiometricService {
   /// el refresh token de la sesión ACTUAL + el flag.
   Future<bool> habilitar() async {
     if (!_esMovil) return false;
-    final session = Supabase.instance.client.auth.currentSession;
+    final session = _port.currentSession;
     final token = session?.refreshToken;
-    final userId = session?.user.id;
+    final userId = session?.userId;
     if (token == null || token.isEmpty || userId == null) return false;
     if (!await autenticar()) return false;
     await _storage.write(key: _keyRefreshToken, value: token);
@@ -161,13 +170,13 @@ class BiometricService {
   }
 
   /// Re-guarda el refresh token rotado. Llamar en cada evento de
-  /// onAuthStateChange con sesión (signedIn / tokenRefreshed): el token
-  /// anterior queda invalidado por Supabase y sin esto el login biométrico
-  /// moriría al primer refresh.
+  /// sessionChanges con sesión (login / refresh): el token anterior queda
+  /// invalidado por el backend y sin esto el login biométrico moriría al
+  /// primer refresh.
   ///
   /// Ignora las sesiones de otra cuenta: el enrolamiento está atado al usuario
   /// que lo activó.
-  Future<void> persistirSesion(Session? session) async {
+  Future<void> persistirSesion(AuthSession? session) async {
     final token = session?.refreshToken;
     if (token == null || token.isEmpty) return;
     if (!await habilitada()) return;
@@ -176,7 +185,7 @@ class BiometricService {
     // huella acababa restaurando ESA sesión: un administrador que entrara en el
     // teléfono de un cliente enrolado quedaba accesible con la huella del
     // cliente.
-    final userId = session!.user.id;
+    final userId = session!.userId;
     final enrolado = await _storage.read(key: _keyUserId);
     if (enrolado == null) {
       // Enrolamiento de una build que no guardaba el dueño: se adopta el de esta
@@ -189,7 +198,7 @@ class BiometricService {
   }
 
   /// Flujo completo: autenticar → restaurar sesión con el refresh token
-  /// guardado. Si Supabase rechaza el token (inválido/revocado) se borra el
+  /// guardado. Si el backend rechaza el token (inválido/revocado) se borra el
   /// token guardado y se mantiene el flag: el próximo login por contraseña lo
   /// re-alimenta vía [persistirSesion]. Errores de red NO borran el token.
   Future<BiometricLoginResult> loginBiometrico() async {
@@ -201,18 +210,19 @@ class BiometricService {
     }
     if (!await autenticar()) return BiometricLoginResult.cancelled;
     try {
-      final res = await Supabase.instance.client.auth.setSession(token);
-      final nuevo = res.session?.refreshToken;
+      final nueva = await _port.restoreSession(token);
+      final nuevo = nueva.refreshToken;
       if (nuevo != null && nuevo.isNotEmpty) {
         await _storage.write(key: _keyRefreshToken, value: nuevo);
       }
-      return res.session != null
-          ? BiometricLoginResult.success
-          : BiometricLoginResult.sessionExpired;
-    } on AuthRetryableFetchException {
-      return BiometricLoginResult.networkError;
-    } on AuthException {
-      await _storage.delete(key: _keyRefreshToken);
+      return BiometricLoginResult.success;
+    } on AuthError catch (e) {
+      if (e.reason == AuthFailure.network) {
+        return BiometricLoginResult.networkError;
+      }
+      if (e.reason == AuthFailure.sessionRevoked) {
+        await _storage.delete(key: _keyRefreshToken);
+      }
       return BiometricLoginResult.sessionExpired;
     } catch (_) {
       return BiometricLoginResult.sessionExpired;

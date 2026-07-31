@@ -18,11 +18,11 @@ import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
 /// atar cada fetch al id del usuario autenticado, cualquier cambio de sesión
 /// fuerza un refetch con la identidad correcta.
 
-/// Id del usuario autenticado de Supabase. `Provider` solo propaga cuando el
+/// Id del usuario autenticado. `Provider` solo propaga cuando el
 /// valor cambia (==), así los providers de datos solo se refetchean al
 /// cambiar realmente de usuario (no en cada notify del perfil/token).
 final authUserIdProvider = Provider<String?>((ref) {
-  return ref.watch(authProvider).session?.user.id;
+  return ref.watch(authProvider).session?.userId;
 });
 
 /// "Version gate" nativo: versión mínima/sugerida + URLs de store. No depende

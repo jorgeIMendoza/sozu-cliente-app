@@ -4,7 +4,6 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/api_client.dart';
@@ -58,14 +57,14 @@ Future<bool> ensurePerfilPwAuth(BuildContext context) async {
   return false;
 }
 
-class _PwGateSheet extends StatefulWidget {
+class _PwGateSheet extends ConsumerStatefulWidget {
   const _PwGateSheet();
 
   @override
-  State<_PwGateSheet> createState() => _PwGateSheetState();
+  ConsumerState<_PwGateSheet> createState() => _PwGateSheetState();
 }
 
-class _PwGateSheetState extends State<_PwGateSheet> {
+class _PwGateSheetState extends ConsumerState<_PwGateSheet> {
   final _pw = TextEditingController();
   bool _show = false;
   bool _busy = false;
@@ -78,24 +77,24 @@ class _PwGateSheetState extends State<_PwGateSheet> {
   }
 
   Future<void> _verify() async {
-    final sb = Supabase.instance.client;
-    final email = sb.auth.currentSession?.user.email;
-    if (email == null || _pw.text.isEmpty) return;
+    if (_pw.text.isEmpty) return;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      await sb.auth.signInWithPassword(email: email, password: _pw.text);
+      final ok = await ref.read(authPortProvider).verifyPassword(_pw.text);
       if (!mounted) return;
-      Navigator.pop(context, true);
-    } on AuthException {
-      if (!mounted) return;
+      if (ok) {
+        Navigator.pop(context, true);
+        return;
+      }
       setState(() {
         _error = 'Contraseña incorrecta';
         _busy = false;
       });
     } catch (_) {
+      // AuthError de red/servidor: no se pudo verificar, no es contraseña mala.
       if (!mounted) return;
       setState(() {
         _error = 'No se pudo verificar. Intenta de nuevo.';

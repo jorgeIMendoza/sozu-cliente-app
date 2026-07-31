@@ -74,6 +74,17 @@ trabaja para el portal cliente; su `src/components/portal/` es legacy.
 - Plan y decisiones: `docs/adr/0001-arquitectura-modular.md`.
   `docs/web_portal_spec/tokens.md` es documentación derivada, ya no contrato.
 
+## Puertos y adaptadores (hexagonal)
+- Contratos en `features/<f>/ports/` (o `shared/ports/` si los consumen 2+
+  features). Implementaciones en `features/<f>/adapters/`.
+- **PROHIBIDO el vendor en nombres**: ni archivos ni clases ni identificadores
+  llevan "supabase". Se nombra por ROL: `AuthPort` / `AuthAdapter`. El vendor
+  solo aparece dentro del adaptador (import + una línea de dartdoc). Si el
+  backend cambia, se reescribe el interior y ningún nombre queda mintiendo.
+- Los puertos importan SOLO `data/models.dart` y `shared/api_error.dart`.
+  Ni flutter, ni riverpod, ni el SDK del backend. Verificable con grep.
+- ADR: `docs/adr/0002-puertos-y-adaptadores.md`.
+
 ## Estructura de una feature (patrón obligatorio para código nuevo)
 
 ```

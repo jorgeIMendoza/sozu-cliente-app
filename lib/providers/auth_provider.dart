@@ -2,47 +2,34 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:sozu_cliente_app/features/auth/services/biometric_service.dart';
 import 'package:sozu_cliente_app/core/portal_tracking.dart';
 import 'package:sozu_cliente_app/core/push_service.dart';
+import 'package:sozu_cliente_app/features/auth/adapters/auth_adapter.dart';
+import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
+import 'package:sozu_cliente_app/features/auth/services/biometric_service.dart';
+import 'package:sozu_cliente_app/shared/api_error.dart';
 
 /// Estado de sesión/JWT + perfil (espejo de src/providers/AuthProvider.tsx).
-/// - Perfil vía RPC SECURITY DEFINER `get_current_user_profile` (por auth.uid()).
-///   NO se consultan tablas directamente.
+/// - Todo acceso al backend va por [AuthPort]; este archivo no conoce Supabase.
 /// - `mustChangePassword` fuerza el cambio de contraseña temporal.
-/// - El listener de onAuthStateChange solo actualiza la sesión; el perfil se
+/// - El listener de sessionChanges solo actualiza la sesión; el perfil se
 ///   carga aparte (mismo patrón anti-deadlock que el app RN).
 
 class WrongCurrentPasswordError implements Exception {}
 
-class UserProfile {
-  final String? nombre;
-  final String? email;
-  final String? rolNombre;
-  final int? idPersona;
-  final bool debeCambiarPassword;
-
-  /// roles.administrar_app_clientes: habilita el acceso administrador del app
-  /// (selector de clientes, envío de avisos, configuración).
-  final bool administrarAppClientes;
-
-  const UserProfile({
-    this.nombre,
-    this.email,
-    this.rolNombre,
-    this.idPersona,
-    this.debeCambiarPassword = false,
-    this.administrarAppClientes = false,
-  });
-}
-
 class AuthController extends ChangeNotifier {
-  final SupabaseClient _sb = Supabase.instance.client;
-  StreamSubscription<AuthState>? _sub;
+  /// Al construirse inyecta el puerto en [BiometricService]: el singleton no
+  /// puede leer providers, y así el doble de un test lo alcanza sin más wiring.
+  AuthController(this._port) {
+    BiometricService.instance.usarPuerto(_port);
+    _init();
+  }
 
-  Session? session;
+  final AuthPort _port;
+  StreamSubscription<AuthSession?>? _sub;
+
+  AuthSession? session;
   UserProfile? profile;
 
   /// true mientras una pantalla de autenticación sigue trabajando después de
@@ -53,7 +40,7 @@ class AuthController extends ChangeNotifier {
   /// que el redirect se llevaría el sheet a medias).
   bool authFlowInProgress = false;
 
-  /// Candado biométrico: la sesión de Supabase sigue viva (nunca se revocó)
+  /// Candado biométrico: la sesión del backend sigue viva (nunca se revocó)
   /// pero la app se comporta como deslogueada hasta desbloquear con
   /// huella/rostro o contraseña. El router lo trata como "sin sesión".
   bool locked = false;
@@ -69,12 +56,8 @@ class AuthController extends ChangeNotifier {
   /// Acceso administrador del app: por permiso del rol (no por nombre).
   bool get isSuperAdmin => profile?.administrarAppClientes ?? false;
 
-  AuthController() {
-    _init();
-  }
-
   Future<void> _init() async {
-    session = _sb.auth.currentSession;
+    session = _port.currentSession;
     // Arranque en frío con candado activo: la app abre bloqueada (login con
     // prompt biométrico) aunque la sesión siga viva por debajo.
     if (session != null &&
@@ -89,13 +72,12 @@ class AuthController extends ChangeNotifier {
     _profileReady = true;
     notifyListeners();
 
-    _sub = _sb.auth.onAuthStateChange.listen((data) {
-      final next = data.session;
-      final changedUser = next?.user.id != session?.user.id;
+    _sub = _port.sessionChanges.listen((next) {
+      final changedUser = next?.userId != session?.userId;
       session = next;
-      // Supabase ROTA el refresh token en cada signedIn/tokenRefreshed: si el
-      // login biométrico está habilitado hay que re-guardar el token nuevo o
-      // el guardado queda invalidado.
+      // El backend ROTA el refresh token en cada login/refresh: si el login
+      // biométrico está habilitado hay que re-guardar el token nuevo o el
+      // guardado queda invalidado.
       if (next != null) {
         unawaited(BiometricService.instance.persistirSesion(next));
       }
@@ -104,10 +86,9 @@ class AuthController extends ChangeNotifier {
         _profileForUserId = null;
         _profileReady = true;
         notifyListeners();
-      } else if (!locked &&
-          (changedUser || _profileForUserId != next.user.id)) {
+      } else if (!locked && (changedUser || _profileForUserId != next.userId)) {
         // Bloqueada: no cargar perfil (se carga al desbloquear).
-        _loadProfileFor(next.user.id);
+        _loadProfileFor(next.userId);
       } else {
         notifyListeners();
       }
@@ -123,77 +104,44 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Lee el perfil vía RPC (rol + flag de cambio de contraseña).
+  /// Lee el perfil vía el puerto (rol + flag de cambio de contraseña).
   Future<UserProfile?> refreshProfile() async {
-    try {
-      final data = await _sb.rpc('get_current_user_profile');
-      final rows = data is List ? data : [data];
-      if (rows.isEmpty || rows.first == null) {
-        profile = null;
-        notifyListeners();
-        return null;
-      }
-      final row = Map<String, dynamic>.from(rows.first as Map);
-      profile = UserProfile(
-        nombre: row['nombre'] as String?,
-        email: row['email'] as String?,
-        rolNombre: row['rol_nombre'] as String?,
-        idPersona: row['id_persona'] is int
-            ? row['id_persona'] as int
-            : int.tryParse('${row['id_persona']}'),
-        debeCambiarPassword: row['debe_cambiar_password'] == true,
-        administrarAppClientes: row['administrar_app_clientes'] == true,
-      );
-      _profileForUserId = session?.user.id;
-      notifyListeners();
-      return profile;
-    } catch (_) {
-      profile = null;
-      notifyListeners();
-      return null;
-    }
+    profile = await _port.profile();
+    if (profile != null) _profileForUserId = session?.userId;
+    notifyListeners();
+    return profile;
   }
 
-  /// Traduce el fallo de `signInWithPassword` a un mensaje accionable.
+  /// Traduce el fallo de [signIn] a un mensaje accionable.
   ///
-  /// Vive aqui y no en la pantalla porque interpretar un `AuthException` exige
-  /// importar `supabase_flutter`, y la capa de UI no debe conocer el backend.
+  /// Vive aquí y no en la pantalla porque el mapa fallo→mensaje es política de
+  /// auth, no de UI. La causa ([AuthFailure]) ya viene traducida del adaptador.
   ///
-  /// Antes todo caia en "Correo o contrasena incorrectos", incluido el 429 por
-  /// demasiados intentos y la red caida: el usuario reintentaba con la
-  /// contrasena correcta y volvia a fallar sin saber por que.
-  ///
-  /// Ojo con el caso mas comun: Supabase responde **400** en
-  /// `/auth/v1/token?grant_type=password` tanto para contrasena equivocada como
-  /// para usuario inexistente o correo sin confirmar. Se conserva el mensaje
-  /// generico para no revelar que cuentas existen.
+  /// Antes todo caía en "Correo o contrasena incorrectos", incluido el límite
+  /// de intentos y la red caída: el usuario reintentaba con la contraseña
+  /// correcta y volvía a fallar sin saber por qué.
   static String mensajeErrorAcceso(Object e) {
-    if (e is AuthException) {
-      final code = e.code ?? '';
-      final status = int.tryParse(e.statusCode ?? '') ?? 0;
-      if (status == 429 || code == 'over_request_rate_limit') {
-        return 'Demasiados intentos. Espera un minuto y vuelve a probar.';
-      }
-      if (code == 'email_not_confirmed') {
-        return 'Tu correo aun no esta confirmado. Revisa tu bandeja.';
-      }
-      return 'Correo o contrasena incorrectos.';
-    }
-    // Sin AuthException no hubo respuesta del servidor: fue la red.
-    return 'No pudimos conectar. Revisa tu conexion e intenta de nuevo.';
+    // Sin AuthError no hubo respuesta del servidor: fue la red.
+    final reason = e is AuthError ? e.reason : AuthFailure.network;
+    return switch (reason) {
+      AuthFailure.tooManyAttempts =>
+        'Demasiados intentos. Espera un minuto y vuelve a probar.',
+      AuthFailure.emailNotConfirmed =>
+        'Tu correo aun no esta confirmado. Revisa tu bandeja.',
+      AuthFailure.network =>
+        'No pudimos conectar. Revisa tu conexion e intenta de nuevo.',
+      _ => 'Correo o contrasena incorrectos.',
+    };
   }
 
   Future<void> signIn(String email, String password) async {
-    final res = await _sb.auth.signInWithPassword(
-      email: email.trim(),
-      password: password,
-    );
+    final nueva = await _port.signIn(email: email, password: password);
     // Entrar por contraseña también levanta el candado biométrico.
     locked = false;
     await BiometricService.instance.desmarcarBloqueada();
     // Si la biometría ya está habilitada, refresca el token guardado con el
     // de esta sesión (además del listener, para no depender de su orden).
-    await BiometricService.instance.persistirSesion(res.session);
+    await BiometricService.instance.persistirSesion(nueva);
     await refreshProfile();
   }
 
@@ -212,31 +160,25 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> resetPassword(String email) async {
-    await _sb.auth.resetPasswordForEmail(email.trim());
+    await _port.sendPasswordReset(email);
   }
 
-  /// Cambio forzado (contraseña temporal): updateUser + mark_password_changed.
+  /// Cambio forzado (contraseña temporal): updatePassword + limpiar el flag.
   Future<void> updatePassword(String newPassword) async {
-    await _sb.auth.updateUser(UserAttributes(password: newPassword));
-    await _sb.rpc('mark_password_changed');
+    await _port.updatePassword(newPassword);
+    await _port.markPasswordChanged();
     await refreshProfile();
   }
 
   /// Cambio voluntario: verifica la contraseña actual re-autenticando.
   Future<void> changePassword(String current, String next) async {
-    final email = session?.user.email ?? profile?.email;
-    if (email == null || email.isEmpty) throw WrongCurrentPasswordError();
-    try {
-      await _sb.auth.signInWithPassword(email: email, password: current);
-    } on AuthException {
+    // verifyPassword lanza AuthError si no se pudo verificar (red/servidor):
+    // eso NO es contraseña equivocada y se deja propagar tal cual.
+    if (!await _port.verifyPassword(current)) {
       throw WrongCurrentPasswordError();
     }
-    await _sb.auth.updateUser(UserAttributes(password: next));
-    try {
-      await _sb.rpc('mark_password_changed');
-    } catch (_) {
-      // no bloquear el cambio si el RPC falla; el flag se limpia luego
-    }
+    await _port.updatePassword(next);
+    await _port.markPasswordChanged();
     await refreshProfile();
   }
 
@@ -250,14 +192,14 @@ class AuthController extends ChangeNotifier {
     PushService.olvidarSesion();
     // Cierra la sesión de mediciones ANTES de perder el JWT.
     await PortalTracking.cerrar();
-    await _sb.auth.signOut();
+    await _port.signOut();
     locked = false;
     profile = null;
     notifyListeners();
   }
 
   /// Cierre iniciado por el usuario o por inactividad. Con biometría
-  /// habilitada NO se toca el servidor: gotrue revoca la sesión actual en
+  /// habilitada NO se toca el servidor: el backend revoca la sesión actual en
   /// cualquier signOut (aun scope local), lo que invalidaría el refresh
   /// token guardado y mataría el acceso con huella. En su lugar la app se
   /// BLOQUEA (candado persistido): la sesión sigue viva por debajo y la
@@ -294,8 +236,13 @@ class AuthController extends ChangeNotifier {
   }
 }
 
+/// Puerto de auth. El default es el adaptador real, la única composición
+/// que existe en producción; los tests lo sobreescriben con un doble
+/// (`overrideWithValue`), así que main.dart no necesita wiring propio.
+final authPortProvider = Provider<AuthPort>((ref) => AuthAdapter());
+
 final authProvider = ChangeNotifierProvider<AuthController>((ref) {
-  return AuthController();
+  return AuthController(ref.watch(authPortProvider));
 });
 
 /// Se enciende cuando InactivityWatcher cierra la sesión por inactividad;

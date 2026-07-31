@@ -188,7 +188,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       // enrolamiento suyo (de antes de la restricción) se apaga aquí. No toca el
       // de otra cuenta que use el mismo teléfono.
       if (isAdminAccess) {
-        final userId = auth.session?.user.id;
+        final userId = auth.session?.userId;
         if (userId != null) {
           await BiometricService.instance.deshabilitarSiEsDe(userId);
         }

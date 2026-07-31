@@ -1,4 +1,4 @@
-import 'package:sozu_cliente_app/domain/api_error.dart';
+import 'package:sozu_cliente_app/shared/api_error.dart';
 
 /// Sesion autenticada, vista desde el dominio.
 class AuthSession {

@@ -1,7 +1,15 @@
-# lib/domain/ - puertos
+# Puertos - lib/shared/ + features/<f>/ports/
 
 Capa de contratos de la arquitectura hexagonal. Aqui vive **lo que la app
 necesita del exterior**, nunca **como se consigue**.
+
+Cada puerto vive en la hoja de la feature que lo consume:
+
+- `lib/shared/api_error.dart` - errores comunes a todos los puertos.
+- `lib/shared/ports/` - puertos transversales (`PushPort`, `AppVersionPort`).
+- `lib/features/<f>/ports/` - el puerto de cada feature (`auth`, `admin`).
+- `lib/features/client/<area>/ports/` - la feature `client` se organiza por
+  menu: `home`, `properties`, `products`, `documents`, `profile`.
 
 Un **puerto** es una `abstract interface class` que declara operaciones, tipos de
 retorno y errores. El **adaptador** (fuera de esta carpeta) la implementa contra
@@ -13,11 +21,13 @@ implementar, no una base para heredar.
 
 ## Regla: CERO dependencias
 
-`lib/domain/` solo puede importar `lib/data/models.dart` y sus propios archivos.
-Prohibido `supabase_flutter`, `flutter_riverpod` y `package:flutter/*`.
+Los puertos solo pueden importar `lib/data/models.dart` y
+`lib/shared/api_error.dart`. Prohibido `supabase_flutter`, `flutter_riverpod` y
+`package:flutter/*`.
 
 ```bash
-grep -rn "supabase_flutter\|flutter_riverpod\|package:flutter/" lib/domain/
+grep -rn "supabase_flutter\|flutter_riverpod\|package:flutter/" \
+     lib/shared/ lib/features/*/ports/ lib/features/client/*/ports/
 ```
 
 Debe salir vacio. Si un metodo parece necesitar Flutter, esta mal definido: lo
@@ -51,13 +61,13 @@ Esto convierte la impersonacion en una propiedad del **tipo** de puerto:
 
 | Puerto | Impersona |
 |---|---|
-| `ClientPortalPort`, `ProfilePort` | si: el target es el cliente que se ve |
+| `HomePort`, `PropertiesPort`, `ProductsPort`, `DocumentsPort`, `ProfilePort` | si: el target es el cliente que se ve |
 | `AdminPort` | no: actua como el administrador |
 | `PushPort` | no: el token es del dispositivo logueado |
 | `AppVersionPort` | no: pre-login, llave anonima |
 | `AuthPort` | no: la sesion es la del usuario real |
 
-Coste: el provider que expone `ClientPortalPort`/`ProfilePort` debe observar la
+Coste: los providers que exponen los puertos de `client` deben observar la
 impersonacion, de modo que cambiar de cliente reconstruya el puerto e invalide
 los providers que dependan de el.
 
@@ -65,7 +75,10 @@ los providers que dependan de el.
 
 | Puerto | Edge Functions / RPC |
 |---|---|
-| `ClientPortalPort` | `cliente-resumen`, `cliente-menu`, `cliente-pagos`, `cliente-propiedades`, `cliente-propiedad-detalle`, `cliente-productos`, `cliente-documentos`, `cliente-expediente`, `cliente-notificaciones`, `cliente-estado-cuenta`, `cliente-estado-cuenta-pdf`, `cliente-datos-pago`, `cliente-recibo-pago`, `cliente-pago-final` |
+| `HomePort` | `cliente-resumen`, `cliente-menu`, `cliente-notificaciones` |
+| `PropertiesPort` | `cliente-propiedades`, `cliente-propiedad-detalle`, `cliente-pagos`, `cliente-estado-cuenta`, `cliente-estado-cuenta-pdf`, `cliente-datos-pago`, `cliente-recibo-pago`, `cliente-pago-final` |
+| `ProductsPort` | `cliente-productos` |
+| `DocumentsPort` | `cliente-documentos`, `cliente-expediente` |
 | `ProfilePort` | `cliente-perfil` (acciones `catalogos`, `update_personal`, `update_fiscal`, `cuenta_add`, `cuenta_update`, `banco_add`, `avatar_upload`, `avatar_delete`) |
 | `AdminPort` | `admin-clientes`, `admin-avisos-app` |
 | `PushPort` | `cliente-push-token` |
@@ -95,7 +108,7 @@ dejaria al usuario fuera.
 
 1. **`ApiError` y `DocumentoInvalidoError` estan duplicados.** Los originales
    siguen en `lib/data/api_client.dart` porque borrarlos rompe todo lo que los
-   importa. El adaptador debe usar los de `domain/api_error.dart` y, cuando ya
+   importa. El adaptador debe usar los de `shared/api_error.dart` y, cuando ya
    nadie importe `api_client.dart`, los de alli se **borran** (no se dejan como
    alias: eso es como nacio la paleta bifurcada). `isNotClientError` NO se
    duplico: tiene 0 usos en el repo, es codigo muerto y se borra con el resto.
@@ -115,7 +128,7 @@ dejaria al usuario fuera.
    suscribe a la tabla `notificaciones_cliente` (unico acceso directo a una tabla
    del repo). Alimenta la misma campana que los push, asi que su sitio natural es
    `PushPort` como `Stream`, pero queda fuera de esta tanda.
-6. **`cliente-expediente` se queda en `ClientPortalPort`** (decidido, ya no es una
+6. **`cliente-expediente` se queda en `DocumentsPort`** (decidido, ya no es una
    discrepancia). Lo consumen `expediente_screen` Y `perfil_screen`, asi que
    cualquiera de los dos puertos deja a una pantalla pidiendo el otro. El criterio
    que decide: las dos superficies de documentos van juntas. `documents()` son los

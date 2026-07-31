@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/features/auth/components/login_form.dart';
+import 'package:sozu_cliente_app/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'fake_auth_port.dart';
 
 /// Lo que fija este archivo es el **acceso al modo administrador desde el
 /// teléfono**: hasta que existió el long-press del sello de versión, el único
@@ -24,42 +26,23 @@ void main() {
 
   const badgeLabel = 'Acceso administrador';
 
-  /// Montar `LoginForm` exige dos cosas del entorno, y las dos son mínimas a
-  /// propósito:
+  /// Único andamio de entorno que el formulario exige: **el canal de
+  /// flutter_secure_storage respondiendo `null`.** En un test
+  /// `defaultTargetPlatform` es Android, así que `BiometricService` sí entra
+  /// a leer el flag de biometría; sin handler eso lanza
+  /// `MissingPluginException` dentro del fire-and-forget de `initState` y el
+  /// test muere por un error asíncrono ajeno al gesto. Devolver `null` es la
+  /// respuesta honesta: "no hay biometría guardada".
   ///
-  /// 1. **Supabase inicializado.** `AuthController` toma
-  ///    `Supabase.instance.client` en un inicializador de campo, así que ni
-  ///    siquiera un `overrideWith` con una subclase lo evita: el constructor
-  ///    base corre igual. Se inicializa con `EmptyLocalStorage` para que no
-  ///    toque plugins ni intente recuperar sesión; sin credenciales reales no
-  ///    hay red que golpear.
-  /// 2. **El canal de flutter_secure_storage respondiendo `null`.** En un test
-  ///    `defaultTargetPlatform` es Android, así que `BiometricService` sí entra
-  ///    a leer el flag de biometría; sin handler eso lanza
-  ///    `MissingPluginException` dentro del fire-and-forget de `initState` y el
-  ///    test muere por un error asíncrono ajeno al gesto. Devolver `null` es la
-  ///    respuesta honesta: "no hay biometría guardada".
-  setUpAll(() async {
+  /// El backend NO se toca: `authPortProvider` se sobreescribe con
+  /// [FakeAuthPort] en `pumpLoginForm`.
+  setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
           (call) async => null,
         );
-    await Supabase.initialize(
-      url: 'http://localhost:54321',
-      publishableKey: 'test-publishable-key',
-      authOptions: const FlutterAuthClientOptions(
-        localStorage: EmptyLocalStorage(),
-        // El almacén de PKCE es aparte de `localStorage` y por defecto es
-        // SharedPreferences, o sea otro plugin que no existe en un test.
-        pkceAsyncStorage: _InMemoryPkceStorage(),
-        // Sin observador de deep links: arrastraría el plugin app_links y esta
-        // pantalla no llega por URL en un test.
-        detectSessionInUri: false,
-      ),
-      debug: false,
-    );
   });
 
   /// Monta el formulario como lo monta la app: tema claro forzado (lo hace
@@ -78,6 +61,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [authPortProvider.overrideWithValue(FakeAuthPort())],
         child: MaterialApp(
           theme: sozuLightTheme(),
           builder: (context, child) =>
@@ -372,20 +356,4 @@ void main() {
 /// Caja mutable para contar prompts desde el handler del canal.
 class _PromptCounter {
   int value = 0;
-}
-
-/// Almacén de PKCE en memoria: 12 líneas contra mockear el canal de
-/// SharedPreferences. Nunca se escribe nada porque el test no autentica; existe
-/// solo para que `Supabase.initialize` no busque un plugin.
-class _InMemoryPkceStorage implements GotrueAsyncStorage {
-  const _InMemoryPkceStorage();
-
-  @override
-  Future<String?> getItem({required String key}) async => null;
-
-  @override
-  Future<void> setItem({required String key, required String value}) async {}
-
-  @override
-  Future<void> removeItem({required String key}) async {}
 }

@@ -50,7 +50,7 @@ class InicioScreen extends ConsumerWidget {
       ...?props.valueOrNull?.patrimonioActivo,
     ];
 
-    final ultimoAcceso = formatDate(auth.session?.user.lastSignInAt);
+    final ultimoAcceso = formatDate(auth.session?.lastSignInAt);
 
     void abrirProp(int id) => context.push('/propiedad/$id');
 
@@ -877,7 +877,7 @@ class _PortalInicio extends ConsumerWidget {
     final resumen = ref.watch(clienteResumenProvider);
     final props = ref.watch(clientePropiedadesProvider);
     final auth = ref.watch(authProvider);
-    final ultimoAcceso = _ultimoAcceso(auth.session?.user.lastSignInAt);
+    final ultimoAcceso = _ultimoAcceso(auth.session?.lastSignInAt);
 
     return resumen.when(
       loading: () => const SingleChildScrollView(
