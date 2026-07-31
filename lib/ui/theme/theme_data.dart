@@ -131,7 +131,7 @@ ThemeData _build(SozuTheme t, Brightness brightness) {
         disabledForegroundColor: c.fgSubtle,
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(borderRadius: t.radius.lgBorder),
-        textStyle: t.text.button.copyWith(fontSize: 16),
+        textStyle: t.text.label,
       ),
     ),
 
@@ -141,14 +141,14 @@ ThemeData _build(SozuTheme t, Brightness brightness) {
         side: BorderSide(color: c.border),
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(borderRadius: t.radius.lgBorder),
-        textStyle: t.text.button,
+        textStyle: t.text.label,
       ),
     ),
 
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: c.primaryHover,
-        textStyle: t.text.button,
+        textStyle: t.text.label,
       ),
     ),
 

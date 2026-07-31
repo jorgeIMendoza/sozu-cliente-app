@@ -164,7 +164,10 @@ void main() {
       );
       await hover(tester);
       final d = decorationOf(tester);
-      expect(d.color, light.primarySoft);
+      // `primarySoftStrong` (10%) y no `primarySoft` (6%): al 6% el hover apenas
+      // se distinguia del reposo. Mismo criterio que los badges y el overlay de
+      // "Cerrar sesion".
+      expect(d.color, light.primarySoftStrong);
       expect(d.border?.top.color, light.primary);
       expect(labelColor(tester, 'Cancelar'), light.primary);
     });

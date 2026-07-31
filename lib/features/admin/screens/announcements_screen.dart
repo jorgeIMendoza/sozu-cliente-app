@@ -5,7 +5,10 @@ import 'package:intl/intl.dart';
 import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/widgets/animacion_llegada.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sozu_cliente_app/features/admin/components/admin_header_bar.dart';
 import 'package:sozu_cliente_app/features/admin/layouts/admin_layout.dart';
+import 'package:sozu_cliente_app/widgets/theme_mode_button.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Lado del spinner que sustituye al icono mientras se envía o se guarda.
@@ -57,6 +60,10 @@ class AnnouncementsScreen extends ConsumerStatefulWidget {
   ConsumerState<AnnouncementsScreen> createState() =>
       _AnnouncementsScreenState();
 }
+
+/// Ancho maximo del contenido. El mismo que `select_client_screen`: las dos son
+/// pantallas de admin y no deben medir distinto.
+const double _kMaxWidth = 880;
 
 class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -396,253 +403,272 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
   @override
   Widget build(BuildContext context) {
     final t = context.s;
+    // Mismo layout y mismo ancho que el selector de cliente. Antes montaba su
+    // propio Scaffold con AppBar, y el AppBar ocupa el ancho COMPLETO de la
+    // ventana mientras el contenido va centrado: el titulo quedaba pegado al
+    // borde izquierdo, sin relacion con la columna. Es el motivo por el que
+    // existe `AdminHeaderBar`.
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        backgroundColor: t.color.surface,
-        appBar: AppBar(
-          title: const Text('Enviar avisos'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Nuevo aviso'),
-              Tab(text: 'Configuración'),
-            ],
-          ),
+      child: AdminLayout.fixed(
+        maxWidth: _kMaxWidth,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AdminHeaderBar(
+              title: 'Enviar avisos',
+              actions: [
+                const ThemeModeButton(),
+                SizedBox(width: t.space.xxs),
+                AdminHeaderAction(
+                  label: 'Volver',
+                  icon: Icons.arrow_back,
+                  onPressed: () => context.pop(),
+                ),
+              ],
+            ),
+            SizedBox(height: t.space.sm),
+            const TabBar(
+              tabs: [
+                Tab(text: 'Nuevo aviso'),
+                Tab(text: 'Configuración'),
+              ],
+            ),
+            SizedBox(height: t.space.md),
+            // `Expanded` + scroll por tab: un `TabBarView` no tiene alto
+            // intrinseco, asi que no cabe en un scroll de pagina. Aqui el
+            // encabezado y los tabs quedan fijos y desplaza el contenido, que es
+            // el patron correcto para una pantalla con pestanas.
+            Expanded(
+              child: TabBarView(
+                children: [_tabNuevoAviso(t), _tabConfiguracion(t)],
+              ),
+            ),
+          ],
         ),
-        body: TabBarView(children: [_tabNuevoAviso(t), _tabConfiguracion(t)]),
       ),
     );
   }
 
   Widget _tabNuevoAviso(SozuTheme t) {
     final tone = t.color;
-    return AdminScrollArea(
-      maxWidth: 760,
+    return RefreshIndicator(
       onRefresh: _cargarAvisos,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Form(
-            key: _formKey,
-            child: SCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Nuevo aviso',
-                    style: t.text.bodyLarge.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: tone.fg,
-                    ),
-                  ),
-                  SizedBox(height: t.space.sm),
-                  // `lg` en los dos campos que son el contenido del aviso; los
-                  // seis selectores de abajo van en filas de dos, y ahí manda
-                  // `md` (lo mismo que usa `SAutocompleteField`).
-                  STextField(
-                    controller: _titulo,
-                    label: 'Título',
-                    hint: 'Corte de agua programado',
-                    maxLength: 120,
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Escribe el título'
-                        : null,
-                  ),
-                  SizedBox(height: t.space.sm),
-                  STextField(
-                    controller: _mensaje,
-                    label: 'Mensaje',
-                    maxLines: 8,
-                    maxLength: 1000,
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Escribe el mensaje'
-                        : null,
-                  ),
-                  SizedBox(height: t.space.sm),
-
-                  // Tipo y Categoría describen el aviso, así que van con el
-                  // título y el mensaje: debajo de los chips se leían como parte
-                  // del grupo "Canales".
-                  _dosColumnas(
-                    t,
-                    _SelectField(
-                      label: 'Tipo',
-                      value: _tipo,
-                      opciones: _tipos,
-                      onChanged: (v) => setState(() => _tipo = v ?? _tipo),
-                    ),
-                    _SelectField(
-                      label: 'Categoría',
-                      value: _categoria,
-                      opciones: _categorias,
-                      onChanged: (v) =>
-                          setState(() => _categoria = v ?? _categoria),
-                    ),
-                  ),
-                  SizedBox(height: t.space.md),
-
-                  const SSectionLabel(text: 'Canales'),
-                  Wrap(
-                    spacing: t.space.xs,
-                    runSpacing: t.space.xxs,
-                    children: [
-                      _canalChip(
-                        'push',
-                        'Push (app)',
-                        Icons.notifications_active_outlined,
-                      ),
-                      _canalChip('email', 'Correo', Icons.mail_outline),
-                      _canalChip('wa', 'WhatsApp', Icons.chat_outlined),
-                    ],
-                  ),
-                  SizedBox(height: t.space.md),
-
-                  const SSectionLabel(text: 'Destinatarios'),
-                  _dosColumnas(
-                    t,
-                    _MultiSelectField(
-                      label: 'Proyectos',
-                      items: _proyectos,
-                      selected: _proyectosSel,
-                      placeholder: 'Todos los clientes',
-                      onChanged: _onProyectosChanged,
-                    ),
-                    _MultiSelectField(
-                      label: 'Modelos',
-                      items: _modelos,
-                      selected: _modelosSel,
-                      placeholder: _proyectosSel.isEmpty
-                          ? 'Primero elige proyecto'
-                          : _cargandoModelos
-                          ? 'Cargando…'
-                          : 'Todos los modelos',
-                      enabled: _proyectosSel.isNotEmpty && !_cargandoModelos,
-                      onChanged: _onModelosChanged,
-                    ),
-                  ),
-                  SizedBox(height: t.space.xs),
-                  _dosColumnas(
-                    t,
-                    _MultiSelectField(
-                      label: 'Niveles',
-                      items: _niveles,
-                      selected: _nivelesSel,
-                      placeholder: _proyectosSel.isEmpty
-                          ? 'Primero elige proyecto'
-                          : _cargandoNiveles
-                          ? 'Cargando…'
-                          : _niveles.isEmpty
-                          ? 'Niveles no disponibles'
-                          : 'Todos los niveles',
-                      enabled: _proyectosSel.isNotEmpty && !_cargandoNiveles,
-                      onChanged: _onNivelesChanged,
-                    ),
-                    _MultiSelectField(
-                      label: 'Propiedades',
-                      items: _propiedades,
-                      prefijo: 'U-',
-                      selected: _propiedadesSel,
-                      placeholder: _proyectosSel.isEmpty
-                          ? 'Primero elige proyecto'
-                          : _cargandoPropiedades
-                          ? 'Cargando…'
-                          : 'Todas las propiedades',
-                      enabled:
-                          _proyectosSel.isNotEmpty && !_cargandoPropiedades,
-                      onChanged: (sel) => setState(
-                        () => _propiedadesSel
-                          ..clear()
-                          ..addAll(sel),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Form(
+              key: _formKey,
+              child: SCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Nuevo aviso',
+                      style: t.text.bodyLarge.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: tone.fg,
                       ),
                     ),
-                  ),
-                  SizedBox(height: t.space.xs),
-                  Text(
-                    'Destino: $_resumenDestino',
-                    style: t.text.caption.copyWith(color: tone.fgMuted),
-                  ),
-                  SizedBox(height: t.space.md),
+                    SizedBox(height: t.space.sm),
+                    // `lg` en los dos campos que son el contenido del aviso; los
+                    // seis selectores de abajo van en filas de dos, y ahí manda
+                    // `md` (lo mismo que usa `SAutocompleteField`).
+                    STextField(
+                      controller: _titulo,
+                      label: 'Título',
+                      hint: 'Corte de agua programado',
+                      maxLength: 120,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Escribe el título'
+                          : null,
+                    ),
+                    SizedBox(height: t.space.sm),
+                    STextField(
+                      controller: _mensaje,
+                      label: 'Mensaje',
+                      maxLines: 8,
+                      maxLength: 1000,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Escribe el mensaje'
+                          : null,
+                    ),
+                    SizedBox(height: t.space.sm),
 
-                  const SSectionLabel(text: 'Programación'),
-                  Row(
-                    children: [
-                      Switch(
-                        value: _programar,
-                        onChanged: (v) => setState(() => _programar = v),
+                    // Tipo y Categoría describen el aviso, así que van con el
+                    // título y el mensaje: debajo de los chips se leían como parte
+                    // del grupo "Canales".
+                    _dosColumnas(
+                      t,
+                      _SelectField(
+                        label: 'Tipo',
+                        value: _tipo,
+                        opciones: _tipos,
+                        onChanged: (v) => setState(() => _tipo = v ?? _tipo),
                       ),
-                      SizedBox(width: t.space.xxs),
-                      Expanded(
-                        child: Text(
-                          _programar
-                              ? (_fechaHora == null
-                                    ? 'Elige fecha y hora'
-                                    : DateFormat(
-                                        'dd/MM/yyyy HH:mm',
-                                      ).format(_fechaHora!))
-                              : 'Enviar de inmediato',
-                          style: t.text.body.copyWith(color: tone.fg),
+                      _SelectField(
+                        label: 'Categoría',
+                        value: _categoria,
+                        opciones: _categorias,
+                        onChanged: (v) =>
+                            setState(() => _categoria = v ?? _categoria),
+                      ),
+                    ),
+                    SizedBox(height: t.space.md),
+
+                    const SSectionLabel(text: 'Canales'),
+                    Wrap(
+                      spacing: t.space.xs,
+                      runSpacing: t.space.xxs,
+                      children: [
+                        _canalChip(
+                          'push',
+                          'Push (app)',
+                          Icons.notifications_active_outlined,
+                        ),
+                        _canalChip('email', 'Correo', Icons.mail_outline),
+                        _canalChip('wa', 'WhatsApp', Icons.chat_outlined),
+                      ],
+                    ),
+                    SizedBox(height: t.space.md),
+
+                    const SSectionLabel(text: 'Destinatarios'),
+                    _dosColumnas(
+                      t,
+                      _MultiSelectField(
+                        label: 'Proyectos',
+                        items: _proyectos,
+                        selected: _proyectosSel,
+                        placeholder: 'Todos los clientes',
+                        onChanged: _onProyectosChanged,
+                      ),
+                      _MultiSelectField(
+                        label: 'Modelos',
+                        items: _modelos,
+                        selected: _modelosSel,
+                        placeholder: _proyectosSel.isEmpty
+                            ? 'Primero elige proyecto'
+                            : _cargandoModelos
+                            ? 'Cargando…'
+                            : 'Todos los modelos',
+                        enabled: _proyectosSel.isNotEmpty && !_cargandoModelos,
+                        onChanged: _onModelosChanged,
+                      ),
+                    ),
+                    SizedBox(height: t.space.xs),
+                    _dosColumnas(
+                      t,
+                      _MultiSelectField(
+                        label: 'Niveles',
+                        items: _niveles,
+                        selected: _nivelesSel,
+                        placeholder: _proyectosSel.isEmpty
+                            ? 'Primero elige proyecto'
+                            : _cargandoNiveles
+                            ? 'Cargando…'
+                            : _niveles.isEmpty
+                            ? 'Niveles no disponibles'
+                            : 'Todos los niveles',
+                        enabled: _proyectosSel.isNotEmpty && !_cargandoNiveles,
+                        onChanged: _onNivelesChanged,
+                      ),
+                      _MultiSelectField(
+                        label: 'Propiedades',
+                        items: _propiedades,
+                        prefijo: 'U-',
+                        selected: _propiedadesSel,
+                        placeholder: _proyectosSel.isEmpty
+                            ? 'Primero elige proyecto'
+                            : _cargandoPropiedades
+                            ? 'Cargando…'
+                            : 'Todas las propiedades',
+                        enabled:
+                            _proyectosSel.isNotEmpty && !_cargandoPropiedades,
+                        onChanged: (sel) => setState(
+                          () => _propiedadesSel
+                            ..clear()
+                            ..addAll(sel),
                         ),
                       ),
-                      if (_programar)
-                        TextButton.icon(
-                          onPressed: _elegirFechaHora,
-                          icon: const Icon(Icons.event_outlined, size: 18),
-                          label: const Text('Fecha y hora'),
+                    ),
+                    SizedBox(height: t.space.xs),
+                    Text(
+                      'Destino: $_resumenDestino',
+                      style: t.text.caption.copyWith(color: tone.fgMuted),
+                    ),
+                    SizedBox(height: t.space.md),
+
+                    const SSectionLabel(text: 'Programación'),
+                    Row(
+                      children: [
+                        Switch(
+                          value: _programar,
+                          onChanged: (v) => setState(() => _programar = v),
                         ),
-                    ],
-                  ),
-                  SizedBox(height: t.space.sm),
-                  FilledButton.icon(
-                    onPressed: _enviando ? null : _enviar,
-                    icon: _enviando
-                        ? SizedBox(
-                            width: _kSpinnerSize,
-                            height: _kSpinnerSize,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: tone.onPrimary,
-                            ),
-                          )
-                        : Icon(
+                        SizedBox(width: t.space.xxs),
+                        Expanded(
+                          child: Text(
                             _programar
-                                ? Icons.schedule_send_outlined
-                                : Icons.send_outlined,
-                            size: 18,
+                                ? (_fechaHora == null
+                                      ? 'Elige fecha y hora'
+                                      : DateFormat(
+                                          'dd/MM/yyyy HH:mm',
+                                        ).format(_fechaHora!))
+                                : 'Enviar de inmediato',
+                            style: t.text.body.copyWith(color: tone.fg),
                           ),
-                    label: Text(
-                      _programar ? 'Programar aviso' : 'Enviar ahora',
+                        ),
+                        if (_programar)
+                          TextButton.icon(
+                            onPressed: _elegirFechaHora,
+                            icon: const Icon(Icons.event_outlined, size: 18),
+                            label: const Text('Fecha y hora'),
+                          ),
+                      ],
                     ),
-                  ),
-                ],
+                    SizedBox(height: t.space.sm),
+                    // Sin icono: la accion principal la dice el texto, y el
+                    // `loading` del propio SButton sustituye al spinner a mano.
+                    SButton(
+                      label: _programar ? 'Programar aviso' : 'Enviar ahora',
+                      size: SButtonSize.lg,
+                      loading: _enviando,
+                      loadingLabel: _programar
+                          ? 'Programando...'
+                          : 'Enviando...',
+                      onPressed: _enviando ? null : _enviar,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          const SSectionLabel.heading(
-            icon: Icons.history_outlined,
-            text: 'Avisos recientes',
-          ),
-          if (_cargandoAvisos)
-            const SSkeleton(height: 80, radius: 16)
-          else if (_avisos.isEmpty)
-            const SEmptyState.card(
-              icon: Icons.campaign_outlined,
-              title: 'Aún no hay avisos',
-            )
-          else
-            for (final a in _avisos) ...[
-              _AvisoRow(a: a, onCancelar: () => _cancelar(a)),
-              SizedBox(height: t.space.sm),
-            ],
-        ],
+            const SSectionLabel.heading(
+              icon: Icons.history_outlined,
+              text: 'Avisos recientes',
+            ),
+            if (_cargandoAvisos)
+              const SSkeleton(height: 80, radius: 16)
+            else if (_avisos.isEmpty)
+              const SEmptyState.card(
+                icon: Icons.campaign_outlined,
+                title: 'Aún no hay avisos',
+              )
+            else
+              for (final a in _avisos) ...[
+                _AvisoRow(a: a, onCancelar: () => _cancelar(a)),
+                SizedBox(height: t.space.sm),
+              ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _tabConfiguracion(SozuTheme t) {
     final tone = t.color;
-    return AdminScrollArea(
-      maxWidth: 760,
+    return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1205,18 +1231,40 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
           ],
         ),
       ),
+      // Una fila, no `actions`: el `OverflowBar` de `AlertDialog` los apila en
+      // vertical cuando no caben, y apilados quedaban pegados y sin jerarquia.
+      // Los tres al mismo tamano (`sm`); lo que los distingue es la variante.
+      actionsPadding: EdgeInsets.fromLTRB(
+        t.space.md,
+        t.space.xs,
+        t.space.md,
+        t.space.md,
+      ),
       actions: [
-        TextButton(
-          onPressed: _sel.isEmpty ? null : () => setState(() => _sel.clear()),
-          child: const Text('Limpiar'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, _sel),
-          child: const Text('Aplicar'),
+        Row(
+          children: [
+            SButton.ghost(
+              label: 'Limpiar',
+              size: SButtonSize.sm,
+              onPressed: _sel.isEmpty
+                  ? null
+                  : () => setState(() => _sel.clear()),
+            ),
+            const Spacer(),
+            SButton.secondary(
+              label: 'Cancelar',
+              size: SButtonSize.sm,
+              fullWidth: false,
+              onPressed: () => Navigator.pop(context),
+            ),
+            SizedBox(width: t.space.xs),
+            SButton(
+              label: 'Aplicar',
+              size: SButtonSize.sm,
+              fullWidth: false,
+              onPressed: () => Navigator.pop(context, _sel),
+            ),
+          ],
         ),
       ],
     );

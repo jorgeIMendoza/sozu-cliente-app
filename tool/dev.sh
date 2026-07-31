@@ -4,6 +4,13 @@
 #   ./tool/dev.sh              -> web en http://localhost:5000
 #   PORT=5100 ./tool/dev.sh    -> otro puerto
 #   ./tool/dev.sh <device-id>  -> un dispositivo (ver: flutter devices)
+#   PROFILE=1 ./tool/dev.sh    -> modo PROFILE (para medir rendimiento)
+#
+# OJO CON EL RENDIMIENTO: por defecto esto corre en modo DEBUG, y en Flutter web
+# debug compila con DDC sin optimizar. Es varias veces mas lento que release y el
+# coste escala con el numero de widgets, asi que una pantalla densa se siente
+# pesada aunque en produccion vaya bien. Para juzgar rendimiento hay que usar
+# `PROFILE=1`; medir en debug lleva a "optimizar" cosas que no son el problema.
 #
 # WEB Y MOVIL A LA VEZ: dos terminales, una por plataforma. Cada una tiene su
 # propio hot reload. `flutter run -d all` NO sirve aqui porque no incluye el
@@ -139,6 +146,13 @@ COMMON_ARGS=(
   --dart-define=BUILD_TIMESTAMP="$BUILD_TIMESTAMP"
   --dart-define=APP_ENV=dev
 )
+
+# En profile no hay hot reload (el JIT no esta), pero es el UNICO modo en el que
+# los tiempos significan algo.
+if [ -n "${PROFILE:-}" ]; then
+  COMMON_ARGS+=(--profile)
+  echo "==> modo PROFILE: sin hot reload, con tiempos reales"
+fi
 
 if [ "$DEVICE" = "web-server" ] || [ "$DEVICE" = "chrome" ]; then
   # 0.0.0.0 para poder abrirlo desde el navegador de Windows y desde el

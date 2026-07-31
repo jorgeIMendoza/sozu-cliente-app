@@ -519,7 +519,9 @@ class _SButtonStyle {
         final accent = colorOverride ?? c.primary;
         return _SButtonStyle(
           background: Colors.transparent,
-          backgroundHighlight: c.primarySoft,
+          // `primarySoftStrong` (10%) y no `primarySoft` (6%): al 6% el hover
+          // apenas se distingue del reposo. Mismo criterio que los badges.
+          backgroundHighlight: c.primarySoftStrong,
           foreground: colorOverride ?? c.fg,
           foregroundHighlight: accent,
           border: Border.all(color: colorOverride ?? c.border, width: 1.5),
