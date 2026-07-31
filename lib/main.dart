@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -18,6 +19,21 @@ import 'widgets/version_gate.dart';
 /// sensible vía Edge Functions (ver CLAUDE.md).
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Edge-to-edge (Android 15 / SDK 35): dibuja detrás de las barras del
+  // sistema y las transparenta para que se vean sobre la UI de SOZU. Flutter
+  // 3.29+ ya lo hace por defecto; esto lo deja explícito y fija el contraste
+  // de los íconos (barras transparentes, íconos oscuros/claros según fondo).
+  // Los insets los respetan Scaffold + SafeArea en cada pantalla.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    ),
+  );
+
   await dotenv.load(fileName: 'assets/env');
   await initializeDateFormatting('es_MX');
 
