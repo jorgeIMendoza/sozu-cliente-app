@@ -62,7 +62,7 @@ class ClientFilters extends StatelessWidget {
       value: selected,
       labelOf: (p) => p.nombre,
       labelText: 'Proyecto',
-      hintText: 'Escribe el nombre…',
+      hintText: 'Margot, Bottura, Daiku...',
       prefixIcon: Icons.apartment_outlined,
       noResultsLabel: 'Ningún proyecto coincide con',
       enabled: projects.isNotEmpty,
@@ -78,7 +78,7 @@ class ClientFilters extends StatelessWidget {
         style: t.text.body.copyWith(color: t.color.fg),
         decoration: InputDecoration(
           labelText: 'Unidad',
-          hintText: 'Ej. 411',
+          hintText: '101',
           isDense: true,
           prefixIcon: Icon(
             Icons.home_outlined,

@@ -118,6 +118,13 @@ class _SeleccionarClienteScreenState
       // `background`, no `surface`: el fondo de página es un nivel por DEBAJO de
       // las tarjetas. Usar surface aquí aplanaba todo en un solo tono.
       backgroundColor: c.background,
+      // El teclado NO reacomoda la pantalla. Con el resize, en un teléfono el
+      // encabezado y los filtros no caben en lo que queda y el Column desborda
+      // ("BOTTOM OVERFLOWED BY 47 PIXELS"). Aquí se escribe arriba y los
+      // resultados van debajo, así que es correcto que el teclado los tape: la
+      // lista compensa con padding inferior y se sigue pudiendo llegar al
+      // último.
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -183,10 +190,14 @@ class _SeleccionarClienteScreenState
   Widget _results() {
     final clientes = ref.watch(adminClientesProvider);
     final t = context.s;
+    // Con `resizeToAvoidBottomInset: false` el teclado se dibuja ENCIMA de la
+    // lista: sin este padding el último resultado queda inalcanzable.
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final bottomPad = EdgeInsets.only(bottom: keyboard);
 
     return clientes.when(
       loading: () => ListView(
-        padding: EdgeInsets.zero,
+        padding: bottomPad,
         children: [
           for (var i = 0; i < 4; i++) ...[
             const _ClientTileSkeleton(),
@@ -219,13 +230,17 @@ class _SeleccionarClienteScreenState
               message: 'No encontramos clientes para "$_query".',
             );
           }
-          return _ClientList(clientes: items, onTap: _viewAs);
+          return _ClientList(
+            clientes: items,
+            onTap: _viewAs,
+            padding: bottomPad,
+          );
         }
 
         // Con filtro Proyecto + Unidad: copropietarios arriba y "Todos los
         // clientes" debajo (paridad con el portal admin).
         return ListView(
-          padding: EdgeInsets.zero,
+          padding: bottomPad,
           children: [
             ..._ownersSection(),
             const SSectionLabel(
@@ -368,8 +383,10 @@ class _FiltersPanel extends StatelessWidget {
           SizedBox(height: t.space.xs),
           SSearchField(
             controller: searchController,
-            hintText: 'Buscar por nombre o correo…',
-            autofocus: true,
+            hintText: 'Alex Hernández o alex@example.com',
+            // Solo donde hay teclado físico: en teléfono, abrirlo al entrar tapa
+            // media pantalla antes de que el usuario pida escribir.
+            autofocus: context.bp.isDesktop,
             onChanged: onQueryChanged,
           ),
         ],
@@ -381,14 +398,19 @@ class _FiltersPanel extends StatelessWidget {
 class _ClientList extends StatelessWidget {
   final List<AdminCliente> clientes;
   final void Function(AdminCliente) onTap;
+  final EdgeInsets padding;
 
-  const _ClientList({required this.clientes, required this.onTap});
+  const _ClientList({
+    required this.clientes,
+    required this.onTap,
+    this.padding = EdgeInsets.zero,
+  });
 
   @override
   Widget build(BuildContext context) {
     final t = context.s;
     return ListView.separated(
-      padding: EdgeInsets.zero,
+      padding: padding,
       itemCount: clientes.length,
       separatorBuilder: (_, __) => SizedBox(height: t.space.xs),
       // Entrada escalonada: cada fila entra un poco después de la anterior, así

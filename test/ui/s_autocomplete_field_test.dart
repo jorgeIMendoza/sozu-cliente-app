@@ -14,6 +14,7 @@ void main() {
     WidgetTester tester, {
     String? value,
     ValueChanged<String?>? onSelected,
+    double width = 400,
   }) async {
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1.0;
@@ -26,7 +27,7 @@ void main() {
           body: Align(
             alignment: Alignment.topCenter,
             child: SizedBox(
-              width: 400,
+              width: width,
               child: SAutocompleteField<String>(
                 options: projects,
                 value: value,
@@ -145,6 +146,30 @@ void main() {
       ),
     );
     expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+  });
+
+  testWidgets('el menú mide lo mismo que el campo, aun sobre 520 px', (
+    tester,
+  ) async {
+    // 700 px a proposito: el menu tenia un `maxWidth: 520` fijo, asi que con un
+    // campo mas angosto que eso el bug no se ve. En escritorio el campo pasa de
+    // 520 y el desplegable quedaba visiblemente mas angosto que el input.
+    await pumpField(tester, width: 700);
+    await tester.enterText(find.byType(TextField), 'dai');
+    await tester.pumpAndSettle();
+
+    final fieldWidth = tester.getSize(find.byType(TextField)).width;
+    final menuWidth = tester
+        .getSize(
+          find.ancestor(
+            of: find.text('Daiku'),
+            matching: find.byType(ListView),
+          ),
+        )
+        .width;
+
+    expect(fieldWidth, 700);
+    expect(menuWidth, closeTo(fieldWidth, 4));
   });
 
   testWidgets('desmontar no revienta: el controller se libera', (tester) async {

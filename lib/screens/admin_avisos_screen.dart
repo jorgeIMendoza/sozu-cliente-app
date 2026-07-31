@@ -416,7 +416,7 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
                       maxLength: 120,
                       decoration: const InputDecoration(
                         labelText: 'Título',
-                        hintText: 'Ej. Corte de agua programado',
+                        hintText: 'Corte de agua programado',
                       ),
                       validator: (v) => (v == null || v.trim().isEmpty)
                           ? 'Escribe el título'

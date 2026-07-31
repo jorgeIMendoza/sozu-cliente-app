@@ -257,32 +257,42 @@ class _Menu<T extends Object> extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.only(top: t.space.xxs),
-      child: Material(
-        color: c.surface,
-        elevation: 0,
-        borderRadius: t.radius.mdBorder,
-        clipBehavior: Clip.antiAlias,
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: _rowHeight * maxVisible + t.space.xs * 2,
-            maxWidth: 520,
-          ),
-          decoration: BoxDecoration(
+      // El menu NO lleva ancho propio: `RawAutocomplete` ya lo monta con el
+      // ancho del campo. Lo que lo encogia era un `maxWidth: 520` fijo, que en
+      // escritorio dejaba el desplegable mas angosto que el input.
+      //
+      // La sombra va FUERA del Material que recorta: dentro, el `clipBehavior`
+      // la recortaba hacia adentro y se pintaba como un degradado oscuro en los
+      // bordes en vez de como sombra.
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: t.radius.mdBorder,
+          boxShadow: t.shadow.lg,
+        ),
+        child: Material(
+          color: c.surface,
+          elevation: 0,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
             borderRadius: t.radius.mdBorder,
-            border: Border.all(color: c.border),
-            boxShadow: t.shadow.lg,
+            side: BorderSide(color: c.border),
           ),
-          child: isPlaceholder
-              ? _NoResults(text: noResultsText)
-              : ListView.builder(
-                  padding: EdgeInsets.symmetric(vertical: t.space.xxs),
-                  shrinkWrap: true,
-                  itemCount: rows.length,
-                  itemBuilder: (context, i) => _OptionRow<T>(
-                    label: labelOf(rows[i].value!),
-                    onTap: () => onSelected(rows[i]),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: _rowHeight * maxVisible + t.space.xs * 2,
+            ),
+            child: isPlaceholder
+                ? _NoResults(text: noResultsText)
+                : ListView.builder(
+                    padding: EdgeInsets.symmetric(vertical: t.space.xxs),
+                    shrinkWrap: true,
+                    itemCount: rows.length,
+                    itemBuilder: (context, i) => _OptionRow<T>(
+                      label: labelOf(rows[i].value!),
+                      onTap: () => onSelected(rows[i]),
+                    ),
                   ),
-                ),
+          ),
         ),
       ),
     );
