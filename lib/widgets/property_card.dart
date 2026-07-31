@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
@@ -31,12 +30,12 @@ class PropertyCardWidget extends StatelessWidget {
     final tienePlusvalia = item.plusvaliaPct != null;
     final chips = <Widget>[
       if (item.proximaFecha != null)
-        StatusBadge(
+        SBadge(
           label: 'Próx. pago ${formatDate(item.proximaFecha)}',
-          tone: BadgeTone.pending,
+          tone: SBadgeTone.pending,
         ),
       if (item.docsPendientes > 0)
-        StatusBadge(
+        SBadge(
           label: item.docsPendientes == 1
               ? '1 doc pendiente'
               : '${item.docsPendientes} docs pendientes',
@@ -197,7 +196,7 @@ class PropertyCardWidget extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  SozuProgressBar(percent: item.avancePago),
+                  SProgressBar(thickness: SProgressBarThickness.thick, percent: item.avancePago),
 
                   // Chips informativos (próximo pago / docs pendientes).
                   if (chips.isNotEmpty) ...[
@@ -251,11 +250,11 @@ class PropertyCardWidget extends StatelessWidget {
   /// (PropiedadCard.estatusDerivado), mismo mapeo que el chip del detalle.
   Widget _estatusBadge(PropiedadCard item) {
     final tone = switch (item.etapaActiva) {
-      'pago_final' => BadgeTone.pending,
-      'entrega' || 'post_entrega' => BadgeTone.positive,
-      _ => BadgeTone.neutral,
+      'pago_final' => SBadgeTone.pending,
+      'entrega' || 'post_entrega' => SBadgeTone.positive,
+      _ => SBadgeTone.neutral,
     };
-    return StatusBadge(label: item.estatusDerivado, tone: tone);
+    return SBadge(label: item.estatusDerivado, tone: tone);
   }
 }
 

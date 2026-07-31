@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/core/media_cache.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// ImageProvider cacheado (misma clave estable y cache manager). Para usar en
@@ -40,7 +39,7 @@ class SozuNetworkImage extends StatelessWidget {
       // El cruce skeleton -> foto es la entrada de un elemento: `normal`, el
       // mismo token que usan las cards al aparecer.
       fadeInDuration: context.s.motion.normal,
-      placeholder: (_, __) => const Skeleton(height: double.infinity),
+      placeholder: (_, __) => const SSkeleton(height: double.infinity),
       errorWidget: (_, __, ___) => _fallback(tone),
     );
   }

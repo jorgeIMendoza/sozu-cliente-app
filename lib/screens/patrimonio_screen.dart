@@ -6,7 +6,6 @@ import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/patrimonio_card.dart';
 import 'package:sozu_cliente_app/widgets/portal_property_card.dart';
@@ -105,7 +104,7 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
           error: (_, __) => ListView(
             padding: const EdgeInsets.symmetric(vertical: 24),
             children: [
-              ErrorCard(
+              SErrorState(
                 title: 'No pudimos cargar tus propiedades',
                 onRetry: () => ref.invalidate(clientePropiedadesProvider),
               ),
@@ -129,12 +128,12 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
           loading: () => ListView(
             padding: const EdgeInsets.all(16),
             children: const [
-              AppCard(
+              SCard(
                 child: Column(
                   children: [
-                    Skeleton(height: 160, radius: 12),
+                    SSkeleton(height: 160, radius: 12),
                     SizedBox(height: 12),
-                    Skeleton(height: 16),
+                    SSkeleton(height: 16),
                   ],
                 ),
               ),
@@ -143,7 +142,7 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
           error: (_, __) => ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              ErrorCard(
+              SErrorState(
                 title: 'No pudimos cargar tus propiedades',
                 onRetry: () => ref.invalidate(clientePropiedadesProvider),
               ),
@@ -212,9 +211,9 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
                   ),
                   const SizedBox(height: 16),
                   if (items.isEmpty)
-                    const EmptyCard(
+                    const SEmptyState.card(
                       icon: Icons.account_balance_wallet_outlined,
-                      text: 'Aún no tienes propiedades entregadas.',
+                      title: 'Aún no tienes propiedades entregadas.',
                     )
                   else ...[
                     TextField(
@@ -237,9 +236,9 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
                     ),
                     const SizedBox(height: 16),
                     if (filtrados.isEmpty)
-                      const EmptyCard(
+                      const SEmptyState.card(
                         icon: Icons.search_off_outlined,
-                        text: 'Sin resultados',
+                        title: 'Sin resultados',
                       )
                     else
                       ResponsiveCardGrid(
@@ -365,7 +364,7 @@ class _KpiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = context.s.color;
-    return AppCard(
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

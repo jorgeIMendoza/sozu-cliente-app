@@ -43,7 +43,7 @@ Es la red que falta antes de tocar 26 archivos en el paso 3.
 
 Verificados, reales, menores:
 
-- `SozuLogo.aspectRatio` es API pública que nadie consume.
+- `SLogo.aspectRatio` es API pública que nadie consume.
 - `s_search_field` y `s_autocomplete_field` usan el `InputDecoration` por defecto
   de Material, **con label flotante** - justo lo que `STextField` documenta como
   prohibido. Los tres campos de texto de la app no se ven iguales. **Este es el
@@ -58,6 +58,10 @@ así que no sirve en contexto `const`.
 
 Es la fractura que queda: **una misma pantalla tiene dos árboles de widgets**, y
 el interruptor es `isPortalMode(context)` con **40 usos en 26 archivos**.
+
+**Actualización 2026-07-31:** las mitades MÓVIL ya se fusionaron en `lib/ui/`
+(`widgets/common.dart` eliminado, 264 sitios migrados). Lo que queda son las
+mitades `Portal*`, cuyas primitivas ya existen y las contemplan por variantes.
 
 | Móvil | Portal web | Usos | Riesgo |
 |---|---|---|---|
@@ -124,7 +128,7 @@ que leer sus changelogs antes de invertir el rato.
 ### 6. Siguiente feature: `admin`
 
 Después de `auth`. Tiene la mitad de los componentes hechos
-(`widgets/admin/{admin_header_bar,client_filters,client_tile}.dart`) y
+(`features/admin/components/{admin_header_bar,client_filters,client_row}.dart`) y
 `seleccionar_cliente_screen` ya está compuesto, no monolítico.
 `admin_avisos_screen.dart` son 1,126 líneas con 31 `setState`.
 

@@ -12,14 +12,14 @@ import 'package:sozu_cliente_app/ui/tokens/palette.dart';
 /// El color por defecto es [SozuColorRoles.fg] (sigue el tema).
 ///
 /// ```dart
-/// const SozuLogo(height: 24)                    // sigue el tema
-/// const SozuLogo.onBrand(height: 40)            // blanco, sobre el verde
-/// SozuLogo(height: 20, color: context.s.color.fgMuted)  // atenuado
+/// const SLogo(height: 24)                    // sigue el tema
+/// const SLogo.onBrand(height: 40)            // blanco, sobre el verde
+/// SLogo(height: 20, color: context.s.color.fgMuted)  // atenuado
 /// ```
 ///
 /// Ojo: se dimensiona por ALTO y el ancho sale de la proporción; nunca fijar
 /// ambos o se deforma.
-class SozuLogo extends StatelessWidget {
+class SLogo extends StatelessWidget {
   /// Alto en px lógicos. El ancho se deriva de la proporción del asset.
   final double height;
 
@@ -32,7 +32,7 @@ class SozuLogo extends StatelessWidget {
   /// Solo importa si el padre estira el widget.
   final Alignment alignment;
 
-  const SozuLogo({
+  const SLogo({
     super.key,
     this.height = 24,
     this.color,
@@ -42,7 +42,7 @@ class SozuLogo extends StatelessWidget {
 
   /// Para fondos de marca y superficies oscuras saturadas: siempre blanco, sin
   /// importar el tema.
-  const SozuLogo.onBrand({
+  const SLogo.onBrand({
     super.key,
     this.height = 24,
     this.semanticLabel = 'SOZU',
@@ -51,7 +51,7 @@ class SozuLogo extends StatelessWidget {
 
   /// Para superficies **claras fijas**: siempre oscuro, sin importar el tema.
   /// Es la correcta en el shell y las cards del portal web (light-only).
-  const SozuLogo.onLight({
+  const SLogo.onLight({
     super.key,
     this.height = 24,
     this.semanticLabel = 'SOZU',

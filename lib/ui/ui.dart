@@ -8,7 +8,7 @@
 ///   padding: EdgeInsets.all(context.s.space.md),
 ///   decoration: BoxDecoration(
 ///     color: context.s.color.surface,
-///     borderRadius: context.s.radius.cardBorder,
+///     borderRadius: context.s.radius.sheetBorder,
 ///     border: Border.all(color: context.s.color.border),
 ///     boxShadow: context.s.shadow.md,
 ///   ),
@@ -45,16 +45,21 @@ export 'package:sozu_cliente_app/ui/tokens/typography.dart';
 
 // Primitivas
 export 'package:sozu_cliente_app/ui/primitives/s_autocomplete_field.dart';
+export 'package:sozu_cliente_app/ui/primitives/s_avatar.dart';
+export 'package:sozu_cliente_app/ui/primitives/s_badge.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_button.dart';
+export 'package:sozu_cliente_app/ui/primitives/s_card.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_empty_state.dart';
+export 'package:sozu_cliente_app/ui/primitives/s_error_state.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_pressable.dart';
+export 'package:sozu_cliente_app/ui/primitives/s_progress_bar.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_search_field.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_section_label.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_skeleton.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_stagger.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_text_field.dart';
-export 'package:sozu_cliente_app/ui/primitives/sozu_logo.dart';
-export 'package:sozu_cliente_app/ui/primitives/web_selectable.dart';
+export 'package:sozu_cliente_app/ui/primitives/s_logo.dart';
+export 'package:sozu_cliente_app/ui/primitives/s_web_selectable.dart';
 
 // Tema
 export 'package:sozu_cliente_app/ui/theme/breakpoints.dart';

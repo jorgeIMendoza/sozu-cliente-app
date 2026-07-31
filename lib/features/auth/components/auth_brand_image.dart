@@ -32,7 +32,7 @@ class AuthBrandImage extends StatelessWidget {
         // que relanzar `flutter run`.
         errorBuilder: (context, error, stack) => const ColoredBox(
           color: SozuBrand.green,
-          child: Center(child: SozuLogo.onBrand(height: 40)),
+          child: Center(child: SLogo.onBrand(height: 40)),
         ),
       ),
     );

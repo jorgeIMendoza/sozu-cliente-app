@@ -2,10 +2,28 @@ import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 
-/// Etiqueta de grupo dentro de una lista: texto en mayúsculas, opcionalmente con
-/// icono. Separa secciones sin gastar el peso visual de un título.
+/// Jerarquía del encabezado de sección.
 ///
-/// Usa el token de texto `overline`.
+/// Son el mismo componente y no dos: misma fila (icono · texto · trailing) y
+/// mismo papel en la página; lo único que cambia es cuánto peso pide.
+enum SSectionLabelVariant {
+  /// Etiqueta de grupo dentro de una lista: 11 px en MAYÚSCULAS, texto sutil.
+  label,
+
+  /// Título de bloque de una pantalla: 16 px w700 en su caja original.
+  heading,
+}
+
+/// Encabezado de sección: icono opcional, texto y contenido a la derecha.
+///
+/// Dos variantes en un componente porque son la misma fila con distinto peso; la
+/// [SSectionLabelVariant.label] separa grupos de una lista y la
+/// [SSectionLabelVariant.heading] titula un bloque de la pantalla.
+///
+/// ```dart
+/// SSectionLabel(text: 'Todos los clientes')
+/// SSectionLabel.heading(text: 'Pagos', icon: Icons.payments)
+/// ```
 class SSectionLabel extends StatelessWidget {
   final String text;
   final IconData? icon;
@@ -13,33 +31,104 @@ class SSectionLabel extends StatelessWidget {
   /// Contenido a la derecha (contador, acción).
   final Widget? trailing;
 
+  final SSectionLabelVariant variant;
+
   const SSectionLabel({
     super.key,
     required this.text,
     this.icon,
     this.trailing,
+    this.variant = SSectionLabelVariant.label,
   });
+
+  /// Atajo legible de [SSectionLabelVariant.heading].
+  const SSectionLabel.heading({
+    super.key,
+    required this.text,
+    this.icon,
+    this.trailing,
+  }) : variant = SSectionLabelVariant.heading;
 
   @override
   Widget build(BuildContext context) {
     final t = context.s;
+    final style = _SSectionLabelStyle.resolve(variant: variant, theme: t);
+
     return Padding(
-      padding: EdgeInsets.only(top: t.space.xxs, bottom: t.space.xs),
+      padding: style.padding,
       child: Row(
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 14, color: t.color.fgSubtle),
-            SizedBox(width: t.space.xxs + 2),
+            Icon(icon, size: style.iconSize, color: style.iconColor),
+            SizedBox(width: style.gap),
           ],
           Expanded(
             child: Text(
-              text.toUpperCase(),
-              style: t.text.overline.copyWith(color: t.color.fgSubtle),
+              style.uppercase ? text.toUpperCase() : text,
+              style: style.textStyle,
             ),
           ),
           if (trailing != null) trailing!,
         ],
       ),
     );
+  }
+}
+
+/// Apariencia ya resuelta: el único lugar del archivo que sabe de variantes.
+@immutable
+class _SSectionLabelStyle {
+  final EdgeInsets padding;
+  final double iconSize;
+  final Color iconColor;
+  final double gap;
+  final TextStyle textStyle;
+  final bool uppercase;
+
+  const _SSectionLabelStyle({
+    required this.padding,
+    required this.iconSize,
+    required this.iconColor,
+    required this.gap,
+    required this.textStyle,
+    required this.uppercase,
+  });
+
+  factory _SSectionLabelStyle.resolve({
+    required SSectionLabelVariant variant,
+    required SozuTheme theme,
+  }) {
+    final c = theme.color;
+    switch (variant) {
+      case SSectionLabelVariant.label:
+        return _SSectionLabelStyle(
+          padding: EdgeInsets.only(
+            top: theme.space.xxs,
+            bottom: theme.space.xs,
+          ),
+          iconSize: 14,
+          iconColor: c.fgSubtle,
+          gap: theme.space.xxs + 2,
+          textStyle: theme.text.overline.copyWith(color: c.fgSubtle),
+          uppercase: true,
+        );
+
+      case SSectionLabelVariant.heading:
+        return _SSectionLabelStyle(
+          // Más aire arriba que abajo: el título pertenece a lo que sigue, no a
+          // lo que quedó encima.
+          padding: EdgeInsets.only(top: theme.space.lg, bottom: theme.space.xs),
+          iconSize: 16,
+          // `primary` y no `positive`: el icono es acento de marca, no un
+          // indicador de éxito.
+          iconColor: c.primary,
+          gap: theme.space.xs,
+          textStyle: theme.text.bodyLarge.copyWith(
+            fontWeight: FontWeight.w700,
+            color: c.fg,
+          ),
+          uppercase: false,
+        );
+    }
   }
 }

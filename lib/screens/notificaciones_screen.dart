@@ -7,7 +7,6 @@ import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -76,13 +75,13 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
           loading: () => ListView(
             padding: const EdgeInsets.all(16),
             children: const [
-              AppCard(
+              SCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Skeleton(height: 18),
+                    SSkeleton(height: 18),
                     SizedBox(height: 8),
-                    Skeleton(width: 200, height: 14),
+                    SSkeleton(width: 200, height: 14),
                   ],
                 ),
               ),
@@ -91,7 +90,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
           error: (_, __) => ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              ErrorCard(
+              SErrorState(
                 title: 'No pudimos cargar tus notificaciones',
                 onRetry: () => ref.invalidate(clienteNotificacionesProvider),
               ),
@@ -645,7 +644,7 @@ class _NotifRow extends StatelessWidget {
           onTap: onTap,
           child: Opacity(
             opacity: n.leida ? 0.7 : 1,
-            child: AppCard(
+            child: SCard(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

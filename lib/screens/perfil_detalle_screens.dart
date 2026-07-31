@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/perfil_section_card.dart';
 import 'package:sozu_cliente_app/widgets/perfil_sheets.dart';
@@ -67,7 +66,7 @@ class PerfilPersonalScreen extends ConsumerWidget {
           if (perfil.isLoading)
             const _DetalleSkeleton()
           else if (perfil.hasError)
-            ErrorCard(
+            SErrorState(
               title: 'No pudimos cargar tu información',
               onRetry: () => ref.invalidate(clientePerfilProvider),
             )
@@ -100,7 +99,7 @@ class PerfilPersonalScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            AppCard(
+            SCard(
               child: perfil.isLoading
                   ? const _DetalleSkeleton()
                   : Column(
@@ -151,7 +150,7 @@ class PerfilPersonalScreen extends ConsumerWidget {
             if (perfil.hasError)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
-                child: ErrorCard(
+                child: SErrorState(
                   title: 'No pudimos cargar tu información',
                   onRetry: () => ref.invalidate(clientePerfilProvider),
                 ),
@@ -198,7 +197,7 @@ class PerfilFiscalScreen extends ConsumerWidget {
           if (perfil.isLoading)
             const _DetalleSkeleton()
           else if (perfil.hasError)
-            ErrorCard(
+            SErrorState(
               title: 'No pudimos cargar tu información',
               onRetry: () => ref.invalidate(clientePerfilProvider),
             )
@@ -241,7 +240,7 @@ class PerfilFiscalScreen extends ConsumerWidget {
               text: 'Tus datos serán validados por el área correspondiente.',
             ),
             const SizedBox(height: 12),
-            AppCard(
+            SCard(
               child: perfil.isLoading
                   ? const _DetalleSkeleton()
                   : Column(
@@ -282,7 +281,7 @@ class PerfilFiscalScreen extends ConsumerWidget {
             if (perfil.hasError)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
-                child: ErrorCard(
+                child: SErrorState(
                   title: 'No pudimos cargar tu información',
                   onRetry: () => ref.invalidate(clientePerfilProvider),
                 ),
@@ -313,7 +312,7 @@ class PerfilCuentasScreen extends ConsumerWidget {
       if (perfil.isLoading)
         const _DetalleSkeleton()
       else if (perfil.hasError)
-        ErrorCard(
+        SErrorState(
           title: 'No pudimos cargar tus cuentas',
           onRetry: () => ref.invalidate(clientePerfilProvider),
         )
@@ -620,18 +619,18 @@ class _CuentaCard extends StatelessWidget {
   /// Estatus derivado igual que ClientePerfil.tsx: sin carátula (evidencia) no
   /// puede ir a revisión → "Incompleto"; 2 validada; 3 rechazada; el resto en
   /// revisión.
-  (String, BadgeTone) get _badge {
-    if (cuenta.evidencia == null) return ('Incompleto', BadgeTone.negative);
-    if (cuenta.estatus == 2) return ('Validada', BadgeTone.positive);
-    if (cuenta.estatus == 3) return ('Rechazada', BadgeTone.negative);
-    return ('En revisión', BadgeTone.pending);
+  (String, SBadgeTone) get _badge {
+    if (cuenta.evidencia == null) return ('Incompleto', SBadgeTone.negative);
+    if (cuenta.estatus == 2) return ('Validada', SBadgeTone.positive);
+    if (cuenta.estatus == 3) return ('Rechazada', SBadgeTone.negative);
+    return ('En revisión', SBadgeTone.pending);
   }
 
   @override
   Widget build(BuildContext context) {
     final tone = context.s.color;
     final (label, badgeTone) = _badge;
-    return AppCard(
+    return SCard(
       child: Row(
         children: [
           Container(
@@ -677,7 +676,7 @@ class _CuentaCard extends StatelessWidget {
               ],
             ),
           ),
-          StatusBadge(label: label, tone: badgeTone),
+          SBadge(label: label, tone: badgeTone),
         ],
       ),
     );
@@ -762,15 +761,15 @@ class _DetalleSkeleton extends StatelessWidget {
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Skeleton(width: 180, height: 18),
+        SSkeleton(width: 180, height: 18),
         SizedBox(height: 16),
-        Skeleton(height: 14),
+        SSkeleton(height: 14),
         SizedBox(height: 12),
-        Skeleton(height: 14),
+        SSkeleton(height: 14),
         SizedBox(height: 12),
-        Skeleton(height: 14),
+        SSkeleton(height: 14),
         SizedBox(height: 12),
-        Skeleton(width: 200, height: 14),
+        SSkeleton(width: 200, height: 14),
       ],
     );
   }

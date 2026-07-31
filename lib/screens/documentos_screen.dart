@@ -6,12 +6,11 @@ import 'package:http/http.dart' as http;
 
 import 'package:sozu_cliente_app/core/file_download.dart';
 import 'package:sozu_cliente_app/core/format.dart';
-import 'package:sozu_cliente_app/core/open_doc.dart';
+import 'package:sozu_cliente_app/core/open_document.dart';
 import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/portal_top_bar.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
@@ -179,15 +178,15 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
           loading: () => ListView(
             padding: const EdgeInsets.all(16),
             children: const [
-              AppCard(
+              SCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Skeleton(height: 18),
+                    SSkeleton(height: 18),
                     SizedBox(height: 10),
-                    Skeleton(width: 200, height: 14),
+                    SSkeleton(width: 200, height: 14),
                     SizedBox(height: 10),
-                    Skeleton(width: 260, height: 14),
+                    SSkeleton(width: 260, height: 14),
                   ],
                 ),
               ),
@@ -196,7 +195,7 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
           error: (_, __) => ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              ErrorCard(
+              SErrorState(
                 title: 'No pudimos cargar tus documentos',
                 onRetry: () => ref.invalidate(clienteDocumentosProvider),
               ),
@@ -322,10 +321,11 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
             ),
             const SizedBox(height: 20),
           ],
-          const EmptyCard(
+          const SEmptyState.card(
             icon: Icons.folder_open_outlined,
-            text:
-                'Sin documentos aún.\nTus documentos aparecerán aquí conforme avance tu proceso.',
+            title: 'Sin documentos aún.',
+            message:
+                'Tus documentos aparecerán aquí conforme avance tu proceso.',
           ),
         ],
       );

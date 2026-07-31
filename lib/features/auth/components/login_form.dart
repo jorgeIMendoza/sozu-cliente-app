@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sozu_cliente_app/core/biometric_service.dart';
+import 'package:sozu_cliente_app/features/auth/services/biometric_service.dart';
 import 'package:sozu_cliente_app/features/auth/components/biometric_setup_sheet.dart';
 import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';

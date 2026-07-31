@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:sozu_cliente_app/core/biometric_service.dart';
+import 'package:sozu_cliente_app/features/auth/services/biometric_service.dart';
 import 'package:sozu_cliente_app/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -9,7 +9,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// "Ahora no" en esta ejecución, o la cuenta no es de cliente.
 ///
 /// El otro camino para activarla es la card de Perfil
-/// (`widgets/biometric_tile.dart`), que se oculta con las mismas reglas.
+/// (`biometric_toggle_card.dart`), que se oculta con las mismas reglas.
 ///
 /// Recibe [auth] por parámetro en vez de leer el provider: quien conoce la
 /// sesión es la pantalla.
@@ -29,7 +29,7 @@ Future<void> offerBiometricSetup(
     context: context,
     backgroundColor: t.color.surface,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(t.radius.card)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(t.radius.sheet)),
     ),
     builder: (sheetContext) => Padding(
       padding: EdgeInsets.fromLTRB(

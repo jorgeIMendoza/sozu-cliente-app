@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:sozu_cliente_app/ui/primitives/s_text_field.dart';
 import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 
 /// Campo de búsqueda con lupa y botón de limpiar.
@@ -9,6 +10,11 @@ import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 /// `setState` por tecla.
 class SSearchField extends StatelessWidget {
   final TextEditingController controller;
+
+  /// Etiqueta arriba del campo. Sin ella el buscador queda sin titulo al lado de
+  /// campos que si lo tienen.
+  final String? label;
+
   final String hintText;
   final ValueChanged<String>? onChanged;
 
@@ -20,6 +26,7 @@ class SSearchField extends StatelessWidget {
   const SSearchField({
     super.key,
     required this.controller,
+    this.label,
     this.hintText = 'Buscar…',
     this.onChanged,
     this.onCleared,
@@ -32,29 +39,29 @@ class SSearchField extends StatelessWidget {
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
       builder: (context, value, _) {
-        return TextField(
+        // `STextField` y no un `TextField` con `InputDecoration`: comparte borde,
+        // anillo de foco y alto con el resto de los campos.
+        return STextField(
           controller: controller,
           autofocus: autofocus,
           onChanged: onChanged,
           textInputAction: TextInputAction.search,
-          style: t.text.body.copyWith(color: t.color.fg),
-          decoration: InputDecoration(
-            isDense: true,
-            hintText: hintText,
-            prefixIcon: Icon(Icons.search, size: 20, color: t.color.fgSubtle),
-            suffixIcon: value.text.isEmpty
-                ? null
-                : IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    color: t.color.fgSubtle,
-                    tooltip: 'Limpiar',
-                    onPressed: () {
-                      controller.clear();
-                      onChanged?.call('');
-                      onCleared?.call();
-                    },
-                  ),
-          ),
+          label: label,
+          hint: hintText,
+          prefixIcon: Icons.search,
+          size: STextFieldSize.md,
+          suffix: value.text.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  color: t.color.fgSubtle,
+                  tooltip: 'Limpiar',
+                  onPressed: () {
+                    controller.clear();
+                    onChanged?.call('');
+                    onCleared?.call();
+                  },
+                ),
         );
       },
     );

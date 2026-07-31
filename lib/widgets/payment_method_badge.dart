@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -93,7 +92,7 @@ class PaymentMethodBadge extends StatelessWidget {
               runSpacing: 6,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                StatusBadge(label: estatusLabel, tone: estatusTone),
+                SBadge(label: estatusLabel, tone: estatusTone),
                 if (solicitud?.fechaExpiracion != null)
                   Text(
                     'Vence ${formatDate(solicitud!.fechaExpiracion)}',
@@ -191,7 +190,7 @@ class PaymentMethodBadge extends StatelessWidget {
         child: fila,
       );
     }
-    return AppCard(
+    return SCard(
       padding: const EdgeInsets.all(12),
       borderColor: tone.primary.withValues(alpha: 0.25),
       child: fila,
@@ -200,7 +199,7 @@ class PaymentMethodBadge extends StatelessWidget {
 
   /// (etiqueta, tono) por estatus de la solicitud - mapa de ESTATUS_LINEA del
   /// portal: aprobados en verde, rechazo/expiración en rojo, resto ámbar.
-  (String, BadgeTone) _estatusBadge(String estatus) {
+  (String, SBadgeTone) _estatusBadge(String estatus) {
     final e = estatus.toLowerCase();
     const labels = {
       'nuevo': 'Solicitud enviada',
@@ -228,12 +227,12 @@ class PaymentMethodBadge extends StatelessWidget {
       'pre_aprobado' ||
       'aprobado' ||
       'oferta_vinculante' ||
-      'formalizado' => BadgeTone.positive,
+      'formalizado' => SBadgeTone.positive,
       'rechazado' ||
       'desistido' ||
       'expirada' ||
-      'expirado' => BadgeTone.negative,
-      _ => BadgeTone.pending,
+      'expirado' => SBadgeTone.negative,
+      _ => SBadgeTone.pending,
     };
     return (label, badgeTone);
   }

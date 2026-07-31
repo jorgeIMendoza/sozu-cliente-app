@@ -6,7 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ignore: always_use_package_imports -- import condicional: la resolucion por plataforma exige ruta relativa.
-import 'ua/ua_stub.dart' if (dart.library.js_interop) 'ua/ua_web.dart';
+import 'user_agent/user_agent_stub.dart'
+    if (dart.library.js_interop) 'user_agent/user_agent_web.dart';
 import 'package:sozu_cliente_app/core/version.dart';
 
 /// Mediciones de uso ("Uso por portal" en Alta Dirección): registra la sesión

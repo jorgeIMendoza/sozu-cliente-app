@@ -26,7 +26,7 @@ const double _defaultOffset = 12.0;
 ///
 /// ```dart
 /// SFadeInUp(child: ResumenCard(...))
-/// SFadeInUp(delay: SStaggered.delayForIndex(i), child: ClientTile(...))
+/// SFadeInUp(delay: SStaggered.delayForIndex(i), child: ClientRow(...))
 /// ```
 class SFadeInUp extends StatefulWidget {
   final Widget child;
@@ -139,7 +139,7 @@ class _SFadeInUpState extends State<SFadeInUp>
 /// ```dart
 /// itemBuilder: (context, i) => SFadeInUp(
 ///   delay: SStaggered.delayForIndex(i),
-///   child: ClientTile(...),
+///   child: ClientRow(...),
 /// )
 /// ```
 class SStaggered extends StatelessWidget {

@@ -10,8 +10,7 @@ import 'package:sozu_cliente_app/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/providers/theme_provider.dart';
-import 'package:sozu_cliente_app/widgets/biometric_tile.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/features/auth/components/biometric_toggle_card.dart';
 import 'package:sozu_cliente_app/widgets/expediente_card.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/network_image.dart';
@@ -282,7 +281,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                             ),
                           ),
                           perfil.isLoading
-                              ? const Skeleton(width: 32, height: 12)
+                              ? const SSkeleton(width: 32, height: 12)
                               : Text(
                                   '$completado%',
                                   style: portalText(
@@ -400,7 +399,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
             ),
           ),
           // Solo móvil con biometría; en web se colapsa sola.
-          const BiometricSettingTile(),
+          const BiometricToggleCard(),
         ],
       );
 
@@ -449,7 +448,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                   if (perfil.hasError)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
-                      child: ErrorCard(
+                      child: SErrorState(
                         title: 'No pudimos cargar tu perfil',
                         onRetry: () => ref.invalidate(clientePerfilProvider),
                       ),
@@ -471,7 +470,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
           children: [
             // ── Identidad: avatar, nombre, estatus, % completado ─────────────
-            AppCard(
+            SCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -487,8 +486,8 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                             onTap: p != null
                                 ? () => showAvatarSheet(context, p)
                                 : null,
-                            fallback: SozuAvatar(
-                              iniciales: p?.iniciales ?? initials(nombre),
+                            fallback: SAvatar(
+                              initials: p?.iniciales ?? initials(nombre),
                               size: 52,
                             ),
                           ),
@@ -544,7 +543,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                                 ),
                               ),
                               perfil.isLoading
-                                  ? const Skeleton(width: 32, height: 12)
+                                  ? const SSkeleton(width: 32, height: 12)
                                   : Text(
                                       '$completado%',
                                       style: TextStyle(
@@ -556,7 +555,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                             ],
                           ),
                           const SizedBox(height: 5),
-                          SozuProgressBar(percent: completado.toDouble()),
+                          SProgressBar(thickness: SProgressBarThickness.thick, percent: completado.toDouble()),
                         ],
                       );
                       if (wide) {
@@ -607,7 +606,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
             if (perfil.hasError)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: ErrorCard(
+                child: SErrorState(
                   title: 'No pudimos cargar tu perfil',
                   onRetry: () => ref.invalidate(clientePerfilProvider),
                 ),
@@ -615,10 +614,10 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
 
             // ── Secciones propias del app (no existen en el portal) ─────────
             _sectionLabel(tone, 'Apariencia'),
-            AppCard(child: _ThemeSelector(tone: tone)),
+            SCard(child: _ThemeSelector(tone: tone)),
 
             _sectionLabel(tone, 'Notificaciones'),
-            AppCard(
+            SCard(
               child: Column(
                 children: [
                   Row(
@@ -669,7 +668,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
 
             // Solo móvil con biometría disponible; en web se colapsa sola.
             const SizedBox(height: 8),
-            const BiometricSettingTile(),
+            const BiometricToggleCard(),
 
             // Cerrar sesión (en móvil no hay menú de avatar en la topbar).
             const SizedBox(height: 24),
@@ -709,17 +708,17 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
   /// ≥50 en revisión, resto incompleto).
   Widget _estatusBadge(String estatus) {
     return switch (estatus) {
-      'verified' => const StatusBadge(
+      'verified' => const SBadge(
         label: 'Perfil verificado',
-        tone: BadgeTone.positive,
+        tone: SBadgeTone.positive,
       ),
-      'review' => const StatusBadge(
+      'review' => const SBadge(
         label: 'En revisión',
-        tone: BadgeTone.pending,
+        tone: SBadgeTone.pending,
       ),
-      _ => const StatusBadge(
+      _ => const SBadge(
         label: 'Información incompleta',
-        tone: BadgeTone.negative,
+        tone: SBadgeTone.negative,
       ),
     };
   }

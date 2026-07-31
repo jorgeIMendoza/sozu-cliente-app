@@ -12,7 +12,6 @@ import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/expediente_card.dart'
     show expedienteEstatusStyle;
 import 'package:sozu_cliente_app/widgets/perfil_sheets.dart'
@@ -310,7 +309,7 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
                 if (portal)
                   PortalCard(padding: const EdgeInsets.all(22), child: cardBody)
                 else
-                  AppCard(padding: const EdgeInsets.all(22), child: cardBody),
+                  SCard(padding: const EdgeInsets.all(22), child: cardBody),
               ],
             ),
           ),
@@ -329,22 +328,22 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
     return exp.when(
       loading: () => const Column(
         children: [
-          Skeleton(height: 56),
+          SSkeleton(height: 56),
           SizedBox(height: 10),
-          Skeleton(height: 56),
+          SSkeleton(height: 56),
           SizedBox(height: 10),
-          Skeleton(height: 56),
+          SSkeleton(height: 56),
         ],
       ),
-      error: (_, __) => ErrorCard(
+      error: (_, __) => SErrorState(
         title: 'No pudimos cargar tu expediente',
         onRetry: () => ref.invalidate(clienteExpedienteProvider),
       ),
       data: (data) {
         if (data.slots.isEmpty) {
-          return const EmptyCard(
+          return const SEmptyState.card(
             icon: Icons.folder_open_outlined,
-            text: 'Aún no hay documentos configurados en tu expediente.',
+            title: 'Aún no hay documentos configurados en tu expediente.',
           );
         }
 

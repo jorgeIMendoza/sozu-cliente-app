@@ -5,7 +5,6 @@ import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 import 'package:sozu_cliente_app/ui/theme/theme_data.dart';
 import 'package:sozu_cliente_app/ui/tokens/color_roles.dart';
 import 'package:sozu_cliente_app/ui/tokens/radii.dart';
-import 'package:sozu_cliente_app/widgets/common.dart' show Skeleton;
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart'
     show PortalSkeletonBox;
 
@@ -288,25 +287,7 @@ void main() {
     });
   });
 
-  group('delegación de los widgets legacy', () {
-    testWidgets('Skeleton(width: 200, height: 14) sigue midiendo 200x14', (
-      tester,
-    ) async {
-      await pump(tester, const Skeleton(width: 200, height: 14));
-
-      // La garantía de que los sitios de uso no se movieron un pixel.
-      expect(tester.getSize(find.byType(Skeleton)), const Size(200, 14));
-      expect(find.byType(SSkeleton), findsOneWidget);
-    });
-
-    testWidgets('Skeleton respeta su radio por defecto de 8', (tester) async {
-      await pump(tester, const Skeleton(width: 200, height: 14));
-
-      // Aquí el 8 SÍ es un literal a propósito: es el default de la API vieja y
-      // el contrato es que no se mueva ni un pixel en los sitios de uso.
-      expect(decorationAt(tester).borderRadius, BorderRadius.circular(8));
-    });
-
+  group('delegación del legacy del portal', () {
     testWidgets('PortalSkeletonBox conserva medidas y forma', (tester) async {
       await pump(
         tester,
@@ -335,14 +316,14 @@ void main() {
       );
     });
 
-    testWidgets('los dos legacy ahora comparten el mismo shimmer', (
+    testWidgets('PortalSkeletonBox usa el mismo shimmer que SSkeleton', (
       tester,
     ) async {
       await pump(
         tester,
         const Column(
           children: [
-            Skeleton(width: 100, height: 20),
+            SSkeleton(width: 100, height: 20),
             PortalSkeletonBox(width: 100, height: 20),
           ],
         ),

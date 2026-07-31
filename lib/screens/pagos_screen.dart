@@ -9,7 +9,6 @@ import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/payment_method_badge.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/widgets/recibo_pago_sheet.dart';
@@ -153,13 +152,13 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
           loading: () => ListView(
             padding: const EdgeInsets.all(16),
             children: const [
-              AppCard(
+              SCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Skeleton(height: 18),
+                    SSkeleton(height: 18),
                     SizedBox(height: 8),
-                    Skeleton(width: 200, height: 12),
+                    SSkeleton(width: 200, height: 12),
                   ],
                 ),
               ),
@@ -168,7 +167,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
           error: (_, __) => ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              ErrorCard(
+              SErrorState(
                 title: 'No pudimos cargar tus pagos',
                 onRetry: () => ref.invalidate(clientePagosProvider),
               ),
@@ -243,7 +242,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
       children: [
-        AppCard(
+        SCard(
           child: Row(
             children: [
               _saldoItem(tone, 'Total', data.saldoTotal, tone.fg),
@@ -265,9 +264,9 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
         ),
         const SizedBox(height: 12),
         if (propiedades.isEmpty)
-          const EmptyCard(
+          const SEmptyState.card(
             icon: Icons.receipt_outlined,
-            text: 'Aún no hay pagos',
+            title: 'Aún no hay pagos',
           )
         else ...[
           TextField(
@@ -279,9 +278,9 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
           ),
           const SizedBox(height: 12),
           if (filtradas.isEmpty)
-            EmptyCard(
+            SEmptyState.card(
               icon: Icons.search_off_outlined,
-              text: 'Sin resultados para "$_query".',
+              title: 'Sin resultados para "$_query".',
             )
           else
             for (final numero in filtradas) ...[
@@ -308,7 +307,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
         : '$pendientes pagos pendientes';
     return GestureDetector(
       onTap: () => _seleccionar(numero),
-      child: AppCard(
+      child: SCard(
         child: Row(
           children: [
             Container(
@@ -432,28 +431,28 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
             solicitud: det.solicitudCredito,
           ),
         ],
-        const SectionTitle(
+        const SSectionLabel.heading(
           icon: Icons.schedule_outlined,
           text: 'Próximos pagos',
         ),
         if (proximos.isEmpty)
-          const EmptyCard(
+          const SEmptyState.card(
             icon: Icons.task_alt_outlined,
-            text: 'Sin pagos pendientes',
+            title: 'Sin pagos pendientes',
           )
         else
           for (final p in proximos) ...[
             _ProximoRow(p: p, onPagar: () => context.push('/pagar?id=${p.id}')),
             const SizedBox(height: 12),
           ],
-        const SectionTitle(
+        const SSectionLabel.heading(
           icon: Icons.receipt_long_outlined,
           text: 'Historial',
         ),
         if (items.isEmpty)
-          const EmptyCard(
+          const SEmptyState.card(
             icon: Icons.receipt_outlined,
-            text: 'Aún no hay pagos registrados',
+            title: 'Aún no hay pagos registrados',
           )
         else ...[
           _resumenHistorial(tone, items),
@@ -461,9 +460,9 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
           _filtrosHistorial(tone, anios, mantenimiento.isNotEmpty),
           const SizedBox(height: 8),
           if (filtrados.isEmpty)
-            const EmptyCard(
+            const SEmptyState.card(
               icon: Icons.filter_alt_off_outlined,
-              text: 'Sin pagos para este filtro',
+              title: 'Sin pagos para este filtro',
             )
           else
             for (final k in claves) ...[
@@ -491,7 +490,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
         : (pagados.first.pago != null
               ? formatDate(pagados.first.pago!.fechaPago)
               : _mesLabel(pagados.first.mesKey));
-    return AppCard(
+    return SCard(
       child: Wrap(
         spacing: 12,
         runSpacing: 12,
@@ -1926,7 +1925,7 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
     final tone = context.s.color;
     final p = widget.p;
     final parcial = p.pagado > 0 && p.pagado < p.monto;
-    return AppCard(
+    return SCard(
       borderColor: p.vencido ? tone.danger.withValues(alpha: 0.4) : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1960,18 +1959,18 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
                       runSpacing: 6,
                       children: [
                         p.vencido
-                            ? const StatusBadge(
+                            ? const SBadge(
                                 label: 'Vencido',
-                                tone: BadgeTone.negative,
+                                tone: SBadgeTone.negative,
                               )
-                            : const StatusBadge(
+                            : const SBadge(
                                 label: 'Pendiente',
-                                tone: BadgeTone.pending,
+                                tone: SBadgeTone.pending,
                               ),
                         if (parcial)
-                          const StatusBadge(
+                          const SBadge(
                             label: 'Parcial',
-                            tone: BadgeTone.pending,
+                            tone: SBadgeTone.pending,
                           ),
                       ],
                     ),
@@ -2181,7 +2180,7 @@ class _HistorialRowState extends ConsumerState<_HistorialRow> {
     final h = widget.h;
     return GestureDetector(
       onTap: () => showReciboPagoSheet(context, pago: h),
-      child: AppCard(
+      child: SCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2259,11 +2258,11 @@ class _MantenimientoRow extends StatelessWidget {
     final tone = context.s.color;
     final e = m.estatus.toLowerCase();
     final (label, badgeTone) = e == 'pagado'
-        ? ('Pagado', BadgeTone.positive)
+        ? ('Pagado', SBadgeTone.positive)
         : e == 'vencido'
-        ? ('Vencido', BadgeTone.negative)
-        : ('Pendiente', BadgeTone.pending);
-    return AppCard(
+        ? ('Vencido', SBadgeTone.negative)
+        : ('Pendiente', SBadgeTone.pending);
+    return SCard(
       child: Row(
         children: [
           Expanded(
@@ -2287,7 +2286,7 @@ class _MantenimientoRow extends StatelessWidget {
                   style: TextStyle(fontSize: 12, color: tone.fgMuted),
                 ),
                 const SizedBox(height: 6),
-                StatusBadge(label: label, tone: badgeTone),
+                SBadge(label: label, tone: badgeTone),
               ],
             ),
           ),

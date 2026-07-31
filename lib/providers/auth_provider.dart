@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:sozu_cliente_app/core/biometric_service.dart';
+import 'package:sozu_cliente_app/features/auth/services/biometric_service.dart';
 import 'package:sozu_cliente_app/core/portal_tracking.dart';
 import 'package:sozu_cliente_app/core/push_service.dart';
 

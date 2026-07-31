@@ -158,7 +158,8 @@ void main() {
     await tester.enterText(find.byType(TextField), 'dai');
     await tester.pumpAndSettle();
 
-    final fieldWidth = tester.getSize(find.byType(TextField)).width;
+    // El STextField, no el TextField interno: ese mide 3 px menos por el borde.
+    final fieldWidth = tester.getSize(find.byType(STextField)).width;
     final menuWidth = tester
         .getSize(
           find.ancestor(
@@ -170,6 +171,14 @@ void main() {
 
     expect(fieldWidth, 700);
     expect(menuWidth, closeTo(fieldWidth, 4));
+  });
+
+  testWidgets('sin valor NO hay flecha de desplegable', (tester) async {
+    await pumpField(tester);
+
+    // Esto se escribe, no se despliega: una flecha promete un menu que un toque
+    // no abre.
+    expect(find.byIcon(Icons.keyboard_arrow_down), findsNothing);
   });
 
   testWidgets('desmontar no revienta: el controller se libera', (tester) async {

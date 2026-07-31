@@ -36,7 +36,7 @@ class AdminHeaderBar extends StatelessWidget {
       children: [
         Text(title, style: t.text.h2.copyWith(color: c.fg)),
         if (subtitle != null) ...[
-          const SizedBox(height: 2),
+          SizedBox(height: t.space.xxs),
           Text(subtitle!, style: t.text.bodySmall.copyWith(color: c.fgMuted)),
         ],
       ],
@@ -70,16 +70,26 @@ class AdminHeaderBar extends StatelessWidget {
   }
 }
 
+/// Alto de todos los controles del encabezado. El selector de tema es un
+/// cuadrado de 36 px, así que los botones de texto se fijan al mismo alto: con el
+/// alto por defecto de `TextButton` el hover quedaba visiblemente más bajo que el
+/// del icono, al lado.
+const double kAdminHeaderControlHeight = 36;
+
 /// Acción de texto del encabezado. Existe para que la pantalla no repita el
-/// mismo `TextButton` con `TextStyle(fontWeight: w600, color: …)` cuatro veces.
+/// mismo `TextButton` con su estilo de texto y su color a mano cuatro veces.
 class AdminHeaderAction extends StatelessWidget {
   final String label;
   final IconData? icon;
   final VoidCallback onPressed;
 
-  /// `false` lo pinta en gris secundario (acciones de salida como "Cerrar
-  /// sesión", que no deben competir con la acción principal).
+  /// `false` lo pinta en gris secundario (acciones que no deben competir con la
+  /// principal).
   final bool isPrimary;
+
+  /// Acción destructiva: se pinta en rojo. Para "Cerrar sesión", donde el gris
+  /// no distinguía salir de la sesión de una acción secundaria cualquiera.
+  final bool isDanger;
 
   const AdminHeaderAction({
     super.key,
@@ -87,24 +97,51 @@ class AdminHeaderAction extends StatelessWidget {
     required this.onPressed,
     this.icon,
     this.isPrimary = true,
+    this.isDanger = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = context.s;
-    final color = isPrimary ? t.color.primaryHover : t.color.fgMuted;
+    final color = isDanger
+        ? t.color.danger
+        : (isPrimary ? t.color.primaryHover : t.color.fgMuted);
     final estilo = t.text.label.copyWith(color: color);
-
-    if (icon == null) {
-      return TextButton(
-        onPressed: onPressed,
-        child: Text(label, style: estilo),
+    // El hover cubre exactamente el control: `minimumSize` fija el alto y
+    // `tapTargetSize.shrinkWrap` quita el relleno invisible que Material añade
+    // alrededor y que hacía que el area pintada no coincidiera con la visible.
+    var style = TextButton.styleFrom(
+      minimumSize: const Size(0, kAdminHeaderControlHeight),
+      padding: EdgeInsets.symmetric(horizontal: t.space.sm),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      shape: RoundedRectangleBorder(borderRadius: t.radius.mdBorder),
+    );
+    if (isDanger) {
+      // Sin esto el overlay de una acción destructiva sale gris (el default de
+      // Material) y el hover no se lee como destructivo.
+      style = style.copyWith(
+        overlayColor: WidgetStateProperty<Color?>.fromMap({
+          WidgetState.pressed: t.color.dangerSoftStrong,
+          WidgetState.hovered: t.color.dangerSoft,
+          WidgetState.focused: t.color.dangerSoft,
+        }),
       );
     }
-    return TextButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18, color: color),
-      label: Text(label, style: estilo),
+
+    return SizedBox(
+      height: kAdminHeaderControlHeight,
+      child: icon == null
+          ? TextButton(
+              onPressed: onPressed,
+              style: style,
+              child: Text(label, style: estilo),
+            )
+          : TextButton.icon(
+              onPressed: onPressed,
+              style: style,
+              icon: Icon(icon, size: 18, color: color),
+              label: Text(label, style: estilo),
+            ),
     );
   }
 }

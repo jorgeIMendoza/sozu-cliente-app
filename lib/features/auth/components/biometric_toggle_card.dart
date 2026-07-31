@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:sozu_cliente_app/core/biometric_service.dart';
+import 'package:sozu_cliente_app/features/auth/services/biometric_service.dart';
 import 'package:sozu_cliente_app/providers/auth_provider.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
-/// Card de Perfil para activar/desactivar el inicio de sesión con biometría.
+/// Card de Perfil con el interruptor de acceso por huella / Face ID.
+///
+/// Se llamaba `BiometricSettingTile`: "tile" es jerga de Material (una fila de
+/// lista) y no decía ni que fuera una card ni que llevara un interruptor.
 /// Autocontenida: se oculta (SizedBox.shrink) si el dispositivo no soporta
 /// biometría (web incluido). Al activar pide autenticar y guarda el refresh
 /// token de la sesión ACTUAL; al desactivar borra token + flag.
-class BiometricSettingTile extends ConsumerStatefulWidget {
-  const BiometricSettingTile({super.key});
+///
+/// API PÚBLICA de la feature `auth`: vive aquí porque la biometría es de auth,
+/// pero la consume `screens/perfil_screen.dart`, que es de otra pantalla. Se usa
+/// tal cual, sin alias ni copia.
+class BiometricToggleCard extends ConsumerStatefulWidget {
+  const BiometricToggleCard({super.key});
 
   @override
-  ConsumerState<BiometricSettingTile> createState() =>
-      _BiometricSettingTileState();
+  ConsumerState<BiometricToggleCard> createState() =>
+      _BiometricToggleCardState();
 }
 
-class _BiometricSettingTileState extends ConsumerState<BiometricSettingTile> {
+class _BiometricToggleCardState extends ConsumerState<BiometricToggleCard> {
   bool _soportado = false;
   bool _habilitada = false;
   bool _ocupado = false;
@@ -75,42 +81,45 @@ class _BiometricSettingTileState extends ConsumerState<BiometricSettingTile> {
     if (!_soportado || !ref.watch(authProvider).isCliente) {
       return const SizedBox.shrink();
     }
-    final tone = context.s.color;
+    final t = context.s;
     // Margen propio: al colapsar en web no debe quedar hueco en Perfil.
-    return Padding(padding: const EdgeInsets.only(top: 12), child: _card(tone));
+    return Padding(
+      padding: EdgeInsets.only(top: t.space.sm),
+      child: _card(t),
+    );
   }
 
-  Widget _card(SozuColorRoles tone) {
-    return AppCard(
+  Widget _card(SozuTheme t) {
+    final tone = t.color;
+    return SCard(
       child: Row(
         children: [
-          const Icon(Icons.fingerprint, size: 20, color: SozuBrand.green600),
-          const SizedBox(width: 12),
+          Icon(Icons.fingerprint, size: 20, color: tone.positive),
+          SizedBox(width: t.space.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Inicio de sesión con biometría',
-                  style: TextStyle(
-                    fontSize: 16,
+                  style: t.text.bodyLarge.copyWith(
                     fontWeight: FontWeight.w600,
                     color: tone.fg,
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: t.space.xxs),
                 Text(
                   _habilitada
                       ? 'Entras con tu huella o rostro'
                       : 'Usa tu huella o rostro para entrar',
-                  style: TextStyle(fontSize: 12, color: tone.fgMuted),
+                  style: t.text.caption.copyWith(color: tone.fgMuted),
                 ),
               ],
             ),
           ),
           Switch(
             value: _habilitada,
-            activeTrackColor: SozuBrand.green500,
+            activeTrackColor: tone.primary,
             onChanged: _ocupado ? null : _toggle,
           ),
         ],

@@ -80,7 +80,8 @@ trabaja para el portal cliente; su `src/components/portal/` es legacy.
 lib/features/<feature>/
 ├── layouts/       ← ESTRUCTURA que envuelve pantallas
 ├── screens/       ← las pantallas: SOLO composición
-└── components/    ← piezas REUTILIZABLES
+├── components/    ← piezas REUTILIZABLES
+└── services/      ← lógica SIN UI (solo si la feature la tiene)
 ```
 
 Criterio de cada carpeta:
@@ -92,6 +93,10 @@ Criterio de cada carpeta:
   partir algo en componentes por partirlo: si una pantalla tiene un formulario
   único, es **un** componente de formulario y ya. Fragmentarlo en sub-piezas de
   un solo uso agrega archivos sin quitar acoplamiento.
+- **`services/`** - lógica de negocio propia de la feature: plugins de
+  plataforma, almacenamiento, sesión. NO importa `material.dart`. Solo se crea si
+  la feature tiene lógica que no es de UI (hoy: `auth/services/biometric_service`).
+  No es `data/`: en este repo `lib/data/` son los DTOs de las Edge Functions.
 - **`screens/`** - no tienen lógica ni estado propio: ensamblan layout +
   componentes. Si una pantalla tiene un `State` con lógica, esa lógica va a un
   componente.
@@ -105,12 +110,31 @@ cualquier duda de "¿dónde va esto?", ver `lib/features/auth/README.md`.
 
 ```
 layouts/auth_layout.dart        AuthLayout + AuthFormBody
-screens/login_screen.dart       33 líneas: AuthLayout(brand:, child:)
-screens/forgot_password_screen.dart
-screens/change_password_screen.dart
-components/auth_brand_image.dart · auth_header.dart · auth_text_field.dart
-components/auth_buttons.dart · auth_alert.dart · login_form.dart
+screens/login_screen.dart       40 líneas: AuthLayout(brand:, child:)
+screens/forgot_password_screen.dart · change_password_screen.dart
+components/auth_brand_image.dart · auth_header.dart · auth_alert.dart
+components/biometric_setup_sheet.dart · biometric_toggle_card.dart · login_form.dart
+services/biometric_service.dart BiometricService · BiometricLoginResult
 ```
+
+Toda la biometría (huella / Face ID) vive en `auth`: es autenticación. El servicio,
+la oferta post-login y el switch de Perfil son el mismo mecanismo.
+`BiometricToggleCard` lo consume `screens/perfil_screen.dart` (legacy): es API
+pública de la feature, no un motivo para duplicarlo ni dejar un alias.
+
+**`features/admin/` está MIGRADA** (2ª feature, auditoría en 0). Detalle y deuda
+pendiente en `lib/features/admin/README.md`.
+
+```
+layouts/admin_layout.dart       AdminLayout + AdminScrollArea
+screens/select_client_screen.dart · announcements_screen.dart
+components/admin_header_bar.dart · client_filters.dart · client_row.dart
+```
+
+`AdminScrollArea`: el scroll envuelve al limitador de ancho, NO al revés. Al
+revés, la rueda del ratón solo mueve la columna de contenido y en los laterales
+la página no responde. Por lo mismo las rutas de admin van `sinMarco: true` en el
+router: el `WebFrame` volvía a meter el limitador por fuera.
 
 Se migra de a una feature. `lib/screens/` y `lib/widgets/` son legacy: **siguen
 funcionando y no se tocan salvo para migrarlos**, pero nada nuevo va ahí.
@@ -120,7 +144,9 @@ funcionando y no se tocan salvo para migrarlos**, pero nada nuevo va ahí.
 F=lib/features/auth
 for p in "PortalColors" "isPortalMode" "SozuType\." "Color(0x" "fontSize:" \
          "circular([0-9]" "EdgeInsets.all([0-9]" "import '\.\./"; do
-  printf "%-26s %s\n" "$p" "$(grep -rn "$p" $F --include=*.dart | grep -vE ':[0-9]+: *///' | wc -l)"
+  # -H es obligatorio: sin el prefijo de archivo (p.ej. al auditar UN archivo)
+  # la salida es "80:///..." y el filtro de dartdoc no coincide.
+  printf "%-26s %s\n" "$p" "$(grep -rHn "$p" $F --include=*.dart | grep -vE ':[0-9]+: *///' | wc -l)"
 done
 ```
 Todo debe dar 0.
@@ -172,13 +198,18 @@ que **solo** sea formato.
 
 ## Estructura lib/
 - ui/: design system (tokens + tema + primitivas). Ver sección anterior.
-- features/: código nuevo, por feature. Hoy: `auth/`.
-- core/: format, secure_session_storage, open_doc, version, portal_theme (legacy)
+  16 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
+  SSkeleton · SEmptyState · SErrorState · SSectionLabel · SPressable · SStagger ·
+  SSearchField · SAutocompleteField · SLogo · SWebSelectable.
+  `widgets/common.dart` fue ELIMINADO: sus 8 widgets viven aquí.
+- features/: código nuevo, por feature. Hoy: `auth/` (cerrada), `admin/` (en curso).
+- core/: format, secure_session_storage, open_document, version, push_service,
+  portal_tracking, portal_theme (legacy). La biometría salió a `features/auth/`.
 - data/: models (DTOs de las 7 functions), api_client (invoke + ApiError)
 - providers/: auth (sesión+perfil+password flows), data (FutureProviders), theme
 - router.dart: guards + shell 5 tabs + secundarias
-- widgets/: common (AppCard/Badge/Avatar/ProgressBar/Skeleton), theme_mode_button,
-  admin/ (cliente_tile, filtros_cliente, admin_header_bar), portal_*, level_map
+- widgets/: theme_mode_button, inactivity_watcher,
+  portal_*, level_map. La carpeta admin/ salio a features/admin/components/.
 - screens/: LEGACY, pendiente de migrar a features/ - inicio, adquisicion,
   patrimonio, documentos, perfil, pagos, estado_cuenta, notificaciones,
   cambiar_password, propiedad_detalle, seleccionar_cliente, forgot,

@@ -10,7 +10,6 @@ import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/widgets/recibo_pago_sheet.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
@@ -91,7 +90,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            ErrorCard(
+            SErrorState(
               title: 'No pudimos cargar tus propiedades',
               onRetry: () => ref.invalidate(clientePropiedadesProvider),
             ),
@@ -215,9 +214,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         ),
         const SizedBox(height: 12),
         if (filtradas.isEmpty)
-          EmptyCard(
+          SEmptyState.card(
             icon: Icons.search_off_outlined,
-            text: 'Sin resultados para "$_query".',
+            title: 'Sin resultados para "$_query".',
           )
         else
           for (final c in filtradas) ...[
@@ -239,7 +238,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         _ordenDesc = true;
         _acuerdosExpandidos.clear();
       }),
-      child: AppCard(
+      child: SCard(
         child: Row(
           children: [
             Container(
@@ -300,7 +299,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
       error: (_, __) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          ErrorCard(
+          SErrorState(
             title: 'No pudimos cargar el estado de cuenta',
             onRetry: () => ref.invalidate(estadoCuentaProvider(c.id)),
           ),
@@ -364,14 +363,14 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     final estatusLower = c.estatusDerivado.toLowerCase();
     final estatusTone =
         estatusLower.contains('pendiente') || estatusLower.contains('vencid')
-        ? BadgeTone.pending
-        : BadgeTone.positive;
+        ? SBadgeTone.pending
+        : SBadgeTone.positive;
 
     final progreso = d.precioFinal > 0
         ? (d.totalPagado / d.precioFinal).clamp(0.0, 1.0).toDouble()
         : 0.0;
 
-    return AppCard(
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -383,7 +382,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                   style: TextStyle(fontSize: 12, color: tone.fgMuted),
                 ),
               ),
-              StatusBadge(label: c.estatusDerivado, tone: estatusTone),
+              SBadge(label: c.estatusDerivado, tone: estatusTone),
             ],
           ),
           const SizedBox(height: 12),
@@ -650,9 +649,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
     if (acuerdos.isEmpty) {
       return [
-        const EmptyCard(
+        const SEmptyState.card(
           icon: Icons.receipt_long_outlined,
-          text: 'Sin acuerdos para este filtro',
+          title: 'Sin acuerdos para este filtro',
         ),
       ];
     }
@@ -674,7 +673,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         ],
       ],
       if (d.multas.isNotEmpty) ...[
-        const SectionTitle(icon: Icons.gavel_outlined, text: 'Multas'),
+        const SSectionLabel.heading(icon: Icons.gavel_outlined, text: 'Multas'),
         for (final m in d.multas) ...[
           _multaRow(tone, m),
           const SizedBox(height: 8),
@@ -691,9 +690,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
     if (pagos.isEmpty) {
       return [
-        const EmptyCard(
+        const SEmptyState.card(
           icon: Icons.payments_outlined,
-          text: 'Sin pagos para este filtro',
+          title: 'Sin pagos para este filtro',
         ),
       ];
     }
@@ -740,7 +739,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     final apps = a.aplicaciones;
     final key = '${a.orden}-${a.concepto}-${a.fecha ?? ''}';
     final expanded = _acuerdosExpandidos.contains(key);
-    return AppCard(
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -765,13 +764,13 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                   ],
                 ),
               ),
-              StatusBadge(
+              SBadge(
                 label: a.pagadoCompleto
                     ? 'Pagado'
                     : parcial
                     ? 'Parcial'
                     : 'Pendiente',
-                tone: a.pagadoCompleto ? BadgeTone.positive : BadgeTone.pending,
+                tone: a.pagadoCompleto ? SBadgeTone.positive : SBadgeTone.pending,
               ),
             ],
           ),
@@ -974,7 +973,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   }
 
   Widget _multaRow(SozuColorRoles tone, MultaItem m) {
-    return AppCard(
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -990,9 +989,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                   ),
                 ),
               ),
-              StatusBadge(
+              SBadge(
                 label: m.pagada ? 'Pagada' : 'Pendiente',
-                tone: m.pagada ? BadgeTone.positive : BadgeTone.negative,
+                tone: m.pagada ? SBadgeTone.positive : SBadgeTone.negative,
               ),
             ],
           ),
@@ -1041,7 +1040,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
   Widget _pagoRow(SozuColorRoles tone, PagoRealizado p) {
     final tieneCep = (p.urlCep ?? '').isNotEmpty;
-    return AppCard(
+    return SCard(
       child: Column(
         children: [
           Row(
@@ -1160,7 +1159,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   }
 
   Widget _totalPagos(SozuColorRoles tone, double total) {
-    return AppCard(
+    return SCard(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -1204,7 +1203,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
   // ── Instrucciones de pago ─────────────────────────────────────────────────
   Widget _instruccionesPago(SozuColorRoles tone, InstruccionesPago i) {
-    return AppCard(
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1662,7 +1661,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
       error: (_, __) => ListView(
         padding: const EdgeInsets.symmetric(vertical: 24),
         children: [
-          ErrorCard(
+          SErrorState(
             title: 'No pudimos cargar el estado de cuenta',
             onRetry: () => ref.invalidate(estadoCuentaProvider(c.id)),
           ),
@@ -2336,7 +2335,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
           // 1. Encabezado de marca (logo SOZU) + chip de estatus real.
           Row(
             children: [
-              const SozuLogo.onLight(height: 14),
+              const SLogo.onLight(height: 14),
               const SizedBox(width: 8),
               Text(
                 '-',
@@ -2580,13 +2579,13 @@ class _LoadingList extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(16),
     children: const [
-      AppCard(
+      SCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Skeleton(width: 160, height: 12),
+            SSkeleton(width: 160, height: 12),
             SizedBox(height: 8),
-            Skeleton(width: 220, height: 30),
+            SSkeleton(width: 220, height: 30),
           ],
         ),
       ),
@@ -2601,9 +2600,9 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(16),
     children: const [
-      EmptyCard(
+      SEmptyState.card(
         icon: Icons.receipt_long_outlined,
-        text: 'Aún no tienes propiedades con estado de cuenta.',
+        title: 'Aún no tienes propiedades con estado de cuenta.',
       ),
     ],
   );

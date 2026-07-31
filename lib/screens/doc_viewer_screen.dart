@@ -6,7 +6,7 @@ import 'package:pdfx/pdfx.dart';
 
 import 'package:sozu_cliente_app/core/file_download.dart';
 import 'package:sozu_cliente_app/core/media_cache.dart';
-import 'package:sozu_cliente_app/core/open_doc.dart';
+import 'package:sozu_cliente_app/core/open_document.dart';
 import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 

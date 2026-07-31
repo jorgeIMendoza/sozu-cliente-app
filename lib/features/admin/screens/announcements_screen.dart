@@ -5,9 +5,17 @@ import 'package:intl/intl.dart';
 import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/widgets/animacion_llegada.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
-import 'package:sozu_cliente_app/widgets/fx.dart';
+import 'package:sozu_cliente_app/features/admin/layouts/admin_layout.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
+
+/// Lado del spinner que sustituye al icono mientras se envía o se guarda.
+/// No es espaciado: iguala el `size` del icono al que reemplaza.
+const double _kSpinnerSize = 18;
+
+/// Lienzo del diálogo del selector múltiple. Alto fijo para que la lista
+/// scrollee en vez de estirar el diálogo.
+const double _kSelectorDialogWidth = 380;
+const double _kSelectorDialogHeight = 420;
 
 const _tipos = ['informativa', 'accionable', 'urgente', 'exito'];
 const _categorias = [
@@ -23,14 +31,15 @@ const _categorias = [
 /// calendarizado, a todos o filtrado por proyecto/modelo/propiedad, por
 /// canales push / correo / WhatsApp. Espejo ligero de "Administrar avisos"
 /// de sozu-admin, apoyado en la edge function admin-avisos-app.
-class AdminAvisosScreen extends ConsumerStatefulWidget {
-  const AdminAvisosScreen({super.key});
+class AnnouncementsScreen extends ConsumerStatefulWidget {
+  const AnnouncementsScreen({super.key});
 
   @override
-  ConsumerState<AdminAvisosScreen> createState() => _AdminAvisosScreenState();
+  ConsumerState<AnnouncementsScreen> createState() =>
+      _AnnouncementsScreenState();
 }
 
-class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
+class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titulo = TextEditingController();
   final _mensaje = TextEditingController();
@@ -367,11 +376,11 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = context.s.color;
+    final t = context.s;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: tone.surface,
+        backgroundColor: t.color.surface,
         appBar: AppBar(
           title: const Text('Enviar avisos'),
           bottom: const TabBar(
@@ -381,247 +390,243 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [_tabNuevoAviso(tone), _tabConfiguracion(tone)],
-        ),
+        body: TabBarView(children: [_tabNuevoAviso(t), _tabConfiguracion(t)]),
       ),
     );
   }
 
-  Widget _tabNuevoAviso(SozuColorRoles tone) {
-    return WebFrame(
+  Widget _tabNuevoAviso(SozuTheme t) {
+    final tone = t.color;
+    return AdminScrollArea(
       maxWidth: 760,
-      child: RefreshIndicator(
-        onRefresh: _cargarAvisos,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Form(
-              key: _formKey,
-              child: AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Nuevo aviso',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: tone.fg,
-                      ),
+      onRefresh: _cargarAvisos,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Form(
+            key: _formKey,
+            child: SCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Nuevo aviso',
+                    style: t.text.bodyLarge.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: tone.fg,
                     ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _titulo,
-                      maxLength: 120,
-                      decoration: const InputDecoration(
-                        labelText: 'Título',
-                        hintText: 'Corte de agua programado',
-                      ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Escribe el título'
-                          : null,
+                  ),
+                  SizedBox(height: t.space.sm),
+                  TextFormField(
+                    controller: _titulo,
+                    maxLength: 120,
+                    decoration: const InputDecoration(
+                      labelText: 'Título',
+                      hintText: 'Corte de agua programado',
                     ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _mensaje,
-                      minLines: 3,
-                      maxLines: 8,
-                      maxLength: 1000,
-                      decoration: const InputDecoration(
-                        labelText: 'Mensaje',
-                        alignLabelWithHint: true,
-                      ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Escribe el mensaje'
-                          : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Escribe el título'
+                        : null,
+                  ),
+                  SizedBox(height: t.space.xs),
+                  TextFormField(
+                    controller: _mensaje,
+                    minLines: 3,
+                    maxLines: 8,
+                    maxLength: 1000,
+                    decoration: const InputDecoration(
+                      labelText: 'Mensaje',
+                      alignLabelWithHint: true,
                     ),
-                    const SizedBox(height: 12),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Escribe el mensaje'
+                        : null,
+                  ),
+                  SizedBox(height: t.space.sm),
 
-                    _label(tone, 'CANALES'),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        _canalChip(
-                          'push',
-                          'Push (app)',
-                          Icons.notifications_active_outlined,
-                        ),
-                        _canalChip('email', 'Correo', Icons.mail_outline),
-                        _canalChip('wa', 'WhatsApp', Icons.chat_outlined),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _dropdown(
-                            'Tipo',
-                            _tipo,
-                            _tipos,
-                            (v) => setState(() => _tipo = v ?? _tipo),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _dropdown(
-                            'Categoría',
-                            _categoria,
-                            _categorias,
-                            (v) => setState(() => _categoria = v ?? _categoria),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    _label(tone, 'DESTINATARIOS'),
-                    _MultiSelectField(
-                      label: 'Proyectos',
-                      items: _proyectos,
-                      selected: _proyectosSel,
-                      placeholder: 'Todos los clientes',
-                      onChanged: _onProyectosChanged,
-                    ),
-                    const SizedBox(height: 8),
-                    _MultiSelectField(
-                      label: 'Modelos',
-                      items: _modelos,
-                      selected: _modelosSel,
-                      placeholder: _proyectosSel.isEmpty
-                          ? 'Primero elige proyecto'
-                          : _cargandoModelos
-                          ? 'Cargando…'
-                          : 'Todos los modelos',
-                      enabled: _proyectosSel.isNotEmpty && !_cargandoModelos,
-                      onChanged: _onModelosChanged,
-                    ),
-                    const SizedBox(height: 8),
-                    _MultiSelectField(
-                      label: 'Niveles',
-                      items: _niveles,
-                      selected: _nivelesSel,
-                      placeholder: _proyectosSel.isEmpty
-                          ? 'Primero elige proyecto'
-                          : _cargandoNiveles
-                          ? 'Cargando…'
-                          : _niveles.isEmpty
-                          ? 'Niveles no disponibles'
-                          : 'Todos los niveles',
-                      enabled: _proyectosSel.isNotEmpty && !_cargandoNiveles,
-                      onChanged: _onNivelesChanged,
-                    ),
-                    const SizedBox(height: 8),
-                    _MultiSelectField(
-                      label: 'Propiedades',
-                      items: _propiedades,
-                      prefijo: 'U-',
-                      selected: _propiedadesSel,
-                      placeholder: _proyectosSel.isEmpty
-                          ? 'Primero elige proyecto'
-                          : _cargandoPropiedades
-                          ? 'Cargando…'
-                          : 'Todas las propiedades',
-                      enabled:
-                          _proyectosSel.isNotEmpty && !_cargandoPropiedades,
-                      onChanged: (sel) => setState(
-                        () => _propiedadesSel
-                          ..clear()
-                          ..addAll(sel),
+                  _label(t, 'CANALES'),
+                  Wrap(
+                    spacing: t.space.xs,
+                    children: [
+                      _canalChip(
+                        'push',
+                        'Push (app)',
+                        Icons.notifications_active_outlined,
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Destino: $_resumenDestino',
-                      style: TextStyle(fontSize: 12, color: tone.fgMuted),
-                    ),
-                    const SizedBox(height: 16),
+                      _canalChip('email', 'Correo', Icons.mail_outline),
+                      _canalChip('wa', 'WhatsApp', Icons.chat_outlined),
+                    ],
+                  ),
+                  SizedBox(height: t.space.sm),
 
-                    _label(tone, 'PROGRAMACIÓN'),
-                    Row(
-                      children: [
-                        Switch(
-                          value: _programar,
-                          onChanged: (v) => setState(() => _programar = v),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _dropdown(
+                          'Tipo',
+                          _tipo,
+                          _tipos,
+                          (v) => setState(() => _tipo = v ?? _tipo),
                         ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            _programar
-                                ? (_fechaHora == null
-                                      ? 'Elige fecha y hora'
-                                      : DateFormat(
-                                          'dd/MM/yyyy HH:mm',
-                                        ).format(_fechaHora!))
-                                : 'Enviar de inmediato',
-                            style: TextStyle(fontSize: 14, color: tone.fg),
-                          ),
+                      ),
+                      SizedBox(width: t.space.sm),
+                      Expanded(
+                        child: _dropdown(
+                          'Categoría',
+                          _categoria,
+                          _categorias,
+                          (v) => setState(() => _categoria = v ?? _categoria),
                         ),
-                        if (_programar)
-                          TextButton.icon(
-                            onPressed: _elegirFechaHora,
-                            icon: const Icon(Icons.event_outlined, size: 18),
-                            label: const Text('Fecha y hora'),
-                          ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: t.space.md),
+
+                  _label(t, 'DESTINATARIOS'),
+                  _MultiSelectField(
+                    label: 'Proyectos',
+                    items: _proyectos,
+                    selected: _proyectosSel,
+                    placeholder: 'Todos los clientes',
+                    onChanged: _onProyectosChanged,
+                  ),
+                  SizedBox(height: t.space.xs),
+                  _MultiSelectField(
+                    label: 'Modelos',
+                    items: _modelos,
+                    selected: _modelosSel,
+                    placeholder: _proyectosSel.isEmpty
+                        ? 'Primero elige proyecto'
+                        : _cargandoModelos
+                        ? 'Cargando…'
+                        : 'Todos los modelos',
+                    enabled: _proyectosSel.isNotEmpty && !_cargandoModelos,
+                    onChanged: _onModelosChanged,
+                  ),
+                  SizedBox(height: t.space.xs),
+                  _MultiSelectField(
+                    label: 'Niveles',
+                    items: _niveles,
+                    selected: _nivelesSel,
+                    placeholder: _proyectosSel.isEmpty
+                        ? 'Primero elige proyecto'
+                        : _cargandoNiveles
+                        ? 'Cargando…'
+                        : _niveles.isEmpty
+                        ? 'Niveles no disponibles'
+                        : 'Todos los niveles',
+                    enabled: _proyectosSel.isNotEmpty && !_cargandoNiveles,
+                    onChanged: _onNivelesChanged,
+                  ),
+                  SizedBox(height: t.space.xs),
+                  _MultiSelectField(
+                    label: 'Propiedades',
+                    items: _propiedades,
+                    prefijo: 'U-',
+                    selected: _propiedadesSel,
+                    placeholder: _proyectosSel.isEmpty
+                        ? 'Primero elige proyecto'
+                        : _cargandoPropiedades
+                        ? 'Cargando…'
+                        : 'Todas las propiedades',
+                    enabled: _proyectosSel.isNotEmpty && !_cargandoPropiedades,
+                    onChanged: (sel) => setState(
+                      () => _propiedadesSel
+                        ..clear()
+                        ..addAll(sel),
                     ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: _enviando ? null : _enviar,
-                      icon: _enviando
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Icon(
-                              _programar
-                                  ? Icons.schedule_send_outlined
-                                  : Icons.send_outlined,
-                              size: 18,
+                  ),
+                  SizedBox(height: t.space.xs),
+                  Text(
+                    'Destino: $_resumenDestino',
+                    style: t.text.caption.copyWith(color: tone.fgMuted),
+                  ),
+                  SizedBox(height: t.space.md),
+
+                  _label(t, 'PROGRAMACIÓN'),
+                  Row(
+                    children: [
+                      Switch(
+                        value: _programar,
+                        onChanged: (v) => setState(() => _programar = v),
+                      ),
+                      SizedBox(width: t.space.xxs),
+                      Expanded(
+                        child: Text(
+                          _programar
+                              ? (_fechaHora == null
+                                    ? 'Elige fecha y hora'
+                                    : DateFormat(
+                                        'dd/MM/yyyy HH:mm',
+                                      ).format(_fechaHora!))
+                              : 'Enviar de inmediato',
+                          style: t.text.body.copyWith(color: tone.fg),
+                        ),
+                      ),
+                      if (_programar)
+                        TextButton.icon(
+                          onPressed: _elegirFechaHora,
+                          icon: const Icon(Icons.event_outlined, size: 18),
+                          label: const Text('Fecha y hora'),
+                        ),
+                    ],
+                  ),
+                  SizedBox(height: t.space.sm),
+                  FilledButton.icon(
+                    onPressed: _enviando ? null : _enviar,
+                    icon: _enviando
+                        ? SizedBox(
+                            width: _kSpinnerSize,
+                            height: _kSpinnerSize,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: tone.onPrimary,
                             ),
-                      label: Text(
-                        _programar ? 'Programar aviso' : 'Enviar ahora',
-                      ),
+                          )
+                        : Icon(
+                            _programar
+                                ? Icons.schedule_send_outlined
+                                : Icons.send_outlined,
+                            size: 18,
+                          ),
+                    label: Text(
+                      _programar ? 'Programar aviso' : 'Enviar ahora',
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
+          ),
 
-            const SectionTitle(
-              icon: Icons.history_outlined,
-              text: 'Avisos recientes',
-            ),
-            if (_cargandoAvisos)
-              const Skeleton(height: 80, radius: 16)
-            else if (_avisos.isEmpty)
-              const EmptyCard(
-                icon: Icons.campaign_outlined,
-                text: 'Aún no hay avisos',
-              )
-            else
-              for (final a in _avisos) ...[
-                _AvisoRow(a: a, onCancelar: () => _cancelar(a)),
-                const SizedBox(height: 10),
-              ],
-          ],
-        ),
+          const SSectionLabel.heading(
+            icon: Icons.history_outlined,
+            text: 'Avisos recientes',
+          ),
+          if (_cargandoAvisos)
+            const SSkeleton(height: 80, radius: 16)
+          else if (_avisos.isEmpty)
+            const SEmptyState.card(
+              icon: Icons.campaign_outlined,
+              title: 'Aún no hay avisos',
+            )
+          else
+            for (final a in _avisos) ...[
+              _AvisoRow(a: a, onCancelar: () => _cancelar(a)),
+              SizedBox(height: t.space.sm),
+            ],
+        ],
       ),
     );
   }
 
-  Widget _tabConfiguracion(SozuColorRoles tone) {
-    return WebFrame(
+  Widget _tabConfiguracion(SozuTheme t) {
+    final tone = t.color;
+    return AdminScrollArea(
       maxWidth: 760,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppCard(
+          SCard(
             child: Row(
               children: [
                 Expanded(
@@ -630,25 +635,21 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
                     children: [
                       Text(
                         'Animación al llegar una notificación',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: tone.fg,
-                        ),
+                        style: t.text.label.copyWith(color: tone.fg),
                       ),
                       Text(
                         'Aplica a todos los clientes (configuración general, '
                         'no por notificación).',
-                        style: TextStyle(fontSize: 12, color: tone.fgMuted),
+                        style: t.text.caption.copyWith(color: tone.fgMuted),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: t.space.sm),
                 if (_guardandoAnimacion)
                   const SizedBox(
-                    width: 18,
-                    height: 18,
+                    width: _kSpinnerSize,
+                    height: _kSpinnerSize,
                     child: CircularProgressIndicator(strokeWidth: 2.5),
                   )
                 else
@@ -659,10 +660,7 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
                       for (final a in AnimacionCampana.values)
                         DropdownMenuItem(
                           value: a.clave,
-                          child: Text(
-                            a.etiqueta,
-                            style: const TextStyle(fontSize: 14),
-                          ),
+                          child: Text(a.etiqueta, style: t.text.label),
                         ),
                     ],
                     onChanged: _guardarAnimacion,
@@ -670,7 +668,7 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: t.space.sm),
           // Vista previa en vivo de la animación seleccionada.
           _DemoAnimacion(variante: AnimacionCampana.desde(_animacion)),
         ],
@@ -678,17 +676,9 @@ class _AdminAvisosScreenState extends ConsumerState<AdminAvisosScreen> {
     );
   }
 
-  Widget _label(SozuColorRoles tone, String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 6),
-    child: Text(
-      text,
-      style: TextStyle(
-        fontSize: 11,
-        letterSpacing: 1,
-        fontWeight: FontWeight.w600,
-        color: tone.fgSubtle,
-      ),
-    ),
+  Widget _label(SozuTheme t, String text) => Padding(
+    padding: EdgeInsets.only(bottom: t.space.xs),
+    child: Text(text, style: t.text.overline.copyWith(color: t.color.fgSubtle)),
   );
 
   Widget _canalChip(String canal, String label, IconData icon) {
@@ -770,8 +760,9 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
 
   @override
   Widget build(BuildContext context) {
-    final tone = context.s.color;
-    return AppCard(
+    final t = context.s;
+    final tone = t.color;
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -780,8 +771,7 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
               Expanded(
                 child: Text(
                   'Vista previa · ${widget.variante.etiqueta}',
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: t.text.bodySmall.copyWith(
                     fontWeight: FontWeight.w600,
                     color: tone.fgMuted,
                   ),
@@ -794,16 +784,16 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: t.space.xxs),
           ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: t.radius.lgBorder,
             child: Container(
               height: 300,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: tone.surface,
                 border: Border.all(color: tone.border),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: t.radius.lgBorder,
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -891,10 +881,11 @@ class _MultiSelectField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = context.s.color;
+    final t = context.s;
+    final tone = t.color;
     return InkWell(
       onTap: enabled && items.isNotEmpty ? () => _abrir(context) : null,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: t.radius.mdBorder,
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
@@ -905,8 +896,7 @@ class _MultiSelectField extends StatelessWidget {
           _resumen,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14,
+          style: t.text.body.copyWith(
             color: selected.isEmpty || !enabled ? tone.fgSubtle : tone.fg,
           ),
         ),
@@ -938,7 +928,8 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = context.s.color;
+    final t = context.s;
+    final tone = t.color;
     final filtrados = _busqueda.trim().isEmpty
         ? widget.items
         : widget.items
@@ -950,10 +941,15 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
               .toList();
     return AlertDialog(
       title: Text(widget.label),
-      contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      contentPadding: EdgeInsets.fromLTRB(
+        t.space.lg,
+        t.space.sm,
+        t.space.lg,
+        0,
+      ),
       content: SizedBox(
-        width: 380,
-        height: 420,
+        width: _kSelectorDialogWidth,
+        height: _kSelectorDialogHeight,
         child: Column(
           children: [
             TextField(
@@ -965,12 +961,12 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
               ),
               onChanged: (v) => setState(() => _busqueda = v),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: t.space.xxs),
             Row(
               children: [
                 Text(
                   '${_sel.length} seleccionados',
-                  style: TextStyle(fontSize: 12, color: tone.fgSubtle),
+                  style: t.text.caption.copyWith(color: tone.fgSubtle),
                 ),
                 const Spacer(),
                 // Opera sobre los resultados visibles (respeta la búsqueda).
@@ -992,7 +988,7 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
                             filtrados.every((e) => _sel.contains(e.id))
                         ? 'Deseleccionar todos'
                         : 'Seleccionar todos',
-                    style: const TextStyle(fontSize: 12),
+                    style: t.text.caption.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -1002,7 +998,7 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
                   ? Center(
                       child: Text(
                         'Sin resultados',
-                        style: TextStyle(color: tone.fgSubtle),
+                        style: t.text.body.copyWith(color: tone.fgSubtle),
                       ),
                     )
                   : ListView.builder(
@@ -1015,7 +1011,7 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
                           contentPadding: EdgeInsets.zero,
                           title: Text(
                             '${widget.prefijo}${item.nombre}',
-                            style: const TextStyle(fontSize: 14),
+                            style: t.text.body,
                           ),
                           value: _sel.contains(item.id),
                           onChanged: (v) => setState(() {
@@ -1056,19 +1052,20 @@ class _AvisoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = context.s.color;
+    final t = context.s;
+    final tone = t.color;
     final (badge, badgeTone) = switch (a.estado) {
-      'enviado' => ('Enviado', BadgeTone.positive),
-      'pendiente' => ('Programado', BadgeTone.pending),
-      'cancelado' => ('Cancelado', BadgeTone.neutral),
-      _ => ('Error', BadgeTone.negative),
+      'enviado' => ('Enviado', SBadgeTone.positive),
+      'pendiente' => ('Programado', SBadgeTone.pending),
+      'cancelado' => ('Cancelado', SBadgeTone.neutral),
+      _ => ('Error', SBadgeTone.negative),
     };
     String fmtFecha(String? iso) {
       final d = iso != null ? DateTime.tryParse(iso)?.toLocal() : null;
       return d != null ? DateFormat('dd/MM/yyyy HH:mm').format(d) : '-';
     }
 
-    return AppCard(
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1079,24 +1076,23 @@ class _AvisoRow extends StatelessWidget {
                   a.titulo,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
+                  style: t.text.body.copyWith(
                     fontWeight: FontWeight.w700,
                     color: tone.fg,
                   ),
                 ),
               ),
-              StatusBadge(label: badge, tone: badgeTone),
+              SBadge(label: badge, tone: badgeTone),
             ],
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: t.space.xxs),
           Text(
             a.mensaje,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 13, color: tone.fgMuted),
+            style: t.text.bodySmall.copyWith(color: tone.fgMuted),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: t.space.xs),
           Text(
             [
               'Canales: ${a.canales.join(", ")}',
@@ -1107,7 +1103,7 @@ class _AvisoRow extends StatelessWidget {
               if (a.totalDestinatarios != null)
                 '${a.totalDestinatarios} destinatarios',
             ].join(' · '),
-            style: TextStyle(fontSize: 12, color: tone.fgSubtle),
+            style: t.text.caption.copyWith(color: tone.fgSubtle),
           ),
           if (a.estado == 'pendiente')
             Align(
@@ -1116,10 +1112,7 @@ class _AvisoRow extends StatelessWidget {
                 onPressed: onCancelar,
                 child: Text(
                   'Cancelar envío',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: tone.danger,
-                  ),
+                  style: t.text.button.copyWith(color: tone.danger),
                 ),
               ),
             ),

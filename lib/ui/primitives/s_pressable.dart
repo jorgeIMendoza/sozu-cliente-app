@@ -22,7 +22,7 @@ typedef SPressStateBuilder =
 /// ```dart
 /// SPressable(
 ///   onTap: () => abrirDetalle(id),
-///   borderRadius: context.s.radius.cardBorder,
+///   borderRadius: context.s.radius.sheetBorder,
 ///   hoverLift: true,
 ///   semanticLabel: 'Departamento 402',
 ///   child: _contenidoDeLaCard(),

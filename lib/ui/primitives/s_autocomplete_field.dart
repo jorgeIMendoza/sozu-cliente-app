@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sozu_cliente_app/ui/primitives/s_text_field.dart';
 import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 
 /// Campo de selección **por escritura**, no por lista desplegable.
@@ -148,9 +149,6 @@ class _SAutocompleteFieldState<T extends Object>
 
   @override
   Widget build(BuildContext context) {
-    final t = context.s;
-    final c = t.color;
-
     return RawAutocomplete<_Row<T>>(
       focusNode: _focusNode,
       textEditingController: _controller ??= TextEditingController(
@@ -165,28 +163,27 @@ class _SAutocompleteFieldState<T extends Object>
         widget.onSelected(row.value);
         _focusNode.unfocus();
       },
+      // El campo es un `STextField`, no un `TextField` con `InputDecoration`:
+      // asi comparte borde, anillo de foco, alto y la etiqueta ARRIBA (no
+      // flotante) con el resto de los campos de la app. Antes esta era la unica
+      // parte del design system con label flotante.
       fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-        return TextField(
+        return STextField(
           controller: controller,
           focusNode: focusNode,
           enabled: widget.enabled,
+          label: widget.labelText,
+          hint: widget.hintText,
+          prefixIcon: widget.prefixIcon,
+          size: STextFieldSize.md,
           onSubmitted: (_) => onSubmitted(),
-          style: t.text.body.copyWith(color: c.fg),
-          decoration: InputDecoration(
-            isDense: true,
-            labelText: widget.labelText,
-            hintText: widget.hintText,
-            prefixIcon: widget.prefixIcon == null
-                ? null
-                : Icon(widget.prefixIcon, size: 20, color: c.fgSubtle),
-            suffixIcon: _Suffix(
-              hasValue: _selected != null || controller.text.isNotEmpty,
-              onClear: () {
-                controller.clear();
-                setState(() => _selected = null);
-                widget.onSelected(null);
-              },
-            ),
+          suffix: _Suffix(
+            hasValue: _selected != null || controller.text.isNotEmpty,
+            onClear: () {
+              controller.clear();
+              setState(() => _selected = null);
+              widget.onSelected(null);
+            },
           ),
         );
       },
@@ -208,7 +205,10 @@ class _SAutocompleteFieldState<T extends Object>
   }
 }
 
-/// Sufijo del campo: limpiar si hay algo, flecha si no.
+/// Sufijo del campo: limpiar si hay algo, nada si no.
+///
+/// Sin flecha de desplegable a proposito: esto NO se despliega, se escribe. La
+/// flecha prometia un menu que un toque no abre.
 class _Suffix extends StatelessWidget {
   const _Suffix({required this.hasValue, required this.onClear});
 
@@ -218,9 +218,7 @@ class _Suffix extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.s.color;
-    if (!hasValue) {
-      return Icon(Icons.keyboard_arrow_down, size: 20, color: c.fgSubtle);
-    }
+    if (!hasValue) return const SizedBox.shrink();
     return IconButton(
       icon: const Icon(Icons.close, size: 18),
       color: c.fgSubtle,

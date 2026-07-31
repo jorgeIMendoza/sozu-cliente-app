@@ -7,7 +7,6 @@ import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -70,7 +69,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              ErrorCard(
+              SErrorState(
                 title: 'No pudimos cargar los datos de pago',
                 onRetry: () => setState(() {
                   final id = int.tryParse(widget.referencia ?? '') ?? 0;
@@ -168,7 +167,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         // Banner: el pago se refleja al confirmarlo el banco.
-        AppCard(
+        SCard(
           borderColor: tone.primaryHover.withValues(alpha: 0.25),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,7 +191,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
         ),
         const SizedBox(height: 12),
         // Monto + vencimiento.
-        AppCard(
+        SCard(
           child: Column(
             children: [
               Text(
@@ -235,7 +234,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
         ),
         const SizedBox(height: 12),
         if (sinClabe)
-          AppCard(
+          SCard(
             child: Row(
               children: [
                 Icon(Icons.info_outline, size: 20, color: tone.warningFg),
@@ -288,7 +287,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
         ],
         const SizedBox(height: 16),
         // Nota de seguridad.
-        AppCard(
+        SCard(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -341,7 +340,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
     VoidCallback? onCopy,
     bool mono = false,
   }) {
-    return AppCard(
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -392,7 +391,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
           style: TextStyle(fontSize: 13, color: tone.fgSubtle),
         ),
         const SizedBox(height: 12),
-        AppCard(
+        SCard(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -421,7 +420,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        AppCard(
+        SCard(
           borderColor: tone.primaryHover,
           child: Row(
             children: [
@@ -481,7 +480,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
         ),
         const SizedBox(height: 12),
         // Monto + vencimiento.
-        AppCard(
+        SCard(
           child: Column(
             children: [
               Text(
@@ -524,7 +523,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
         ),
         const SizedBox(height: 12),
         if (sinClabe)
-          AppCard(
+          SCard(
             child: Row(
               children: [
                 Icon(Icons.info_outline, size: 20, color: tone.warningFg),
@@ -540,7 +539,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
             ),
           )
         else
-          AppCard(
+          SCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -565,7 +564,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
             ),
           ),
         const SizedBox(height: 12),
-        AppCard(
+        SCard(
           child: Row(
             children: [
               Icon(Icons.info_outline, size: 20, color: tone.fgSubtle),

@@ -32,6 +32,16 @@ class ThemeModeButton extends ConsumerWidget {
       tooltip: 'Tema: ${_labelOf(modo)}',
       position: PopupMenuPosition.under,
       color: t.color.surface,
+      // Sin esto, el fondo y el ripple del primer y ultimo item se pintan por
+      // encima de las esquinas del `shape` y se ven cuadrados.
+      clipBehavior: Clip.antiAlias,
+      // Trampa: el menu trae 8 px de padding vertical por defecto
+      // (`defaults.menuPadding`), asi que el highlight del primer y ultimo item
+      // nunca llega al borde redondeado y se ve un hueco cuadrado arriba/abajo.
+      menuPadding: EdgeInsets.zero,
+      // El `child` va dentro de un `InkWell` que, sin esto, pinta el hover
+      // cuadrado por detras del control redondeado.
+      borderRadius: t.radius.mdBorder,
       shape: RoundedRectangleBorder(
         borderRadius: t.radius.lgBorder,
         side: BorderSide(color: t.color.border),
@@ -83,6 +93,10 @@ class ThemeModeButton extends ConsumerWidget {
   };
 }
 
+/// Lado del icono compacto. Los controles del encabezado de admin se alinean a
+/// este valor (`kAdminHeaderControlHeight`) para que los hovers midan igual.
+const double _compactSize = 36;
+
 class _CompactIcon extends StatelessWidget {
   final ThemeMode modo;
 
@@ -92,8 +106,8 @@ class _CompactIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.s;
     return Container(
-      width: 36,
-      height: 36,
+      width: _compactSize,
+      height: _compactSize,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: t.color.surfaceAlt,

@@ -7,7 +7,6 @@ import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/notification_bell.dart';
 import 'package:sozu_cliente_app/widgets/portal_property_card.dart';
@@ -75,8 +74,8 @@ class InicioScreen extends ConsumerWidget {
                 // Header
                 Row(
                   children: [
-                    SozuAvatar(
-                      iniciales: resumen.valueOrNull?.iniciales ?? '··',
+                    SAvatar(
+                      initials: resumen.valueOrNull?.iniciales ?? '··',
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -84,9 +83,9 @@ class InicioScreen extends ConsumerWidget {
                           ? const Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Skeleton(width: 180, height: 20),
+                                SSkeleton(width: 180, height: 20),
                                 SizedBox(height: 6),
-                                Skeleton(width: 240, height: 12),
+                                SSkeleton(width: 240, height: 12),
                               ],
                             )
                           : Column(
@@ -127,21 +126,21 @@ class InicioScreen extends ConsumerWidget {
 
                 ...resumen.when(
                   loading: () => [
-                    const AppCard(
+                    const SCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Skeleton(width: 140, height: 12),
+                          SSkeleton(width: 140, height: 12),
                           SizedBox(height: 10),
-                          Skeleton(width: 260, height: 34),
+                          SSkeleton(width: 260, height: 34),
                           SizedBox(height: 16),
-                          Skeleton(height: 12),
+                          SSkeleton(height: 12),
                         ],
                       ),
                     ),
                   ],
                   error: (_, __) => [
-                    ErrorCard(
+                    SErrorState(
                       title: 'No pudimos cargar tu información',
                       onRetry: () => ref.invalidate(clienteResumenProvider),
                     ),
@@ -177,7 +176,7 @@ class InicioScreen extends ConsumerWidget {
     return [
       // Hero patrimonio
       FadeSlideIn(
-        child: AppCard(
+        child: SCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -286,7 +285,7 @@ class InicioScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              SozuProgressBar(percent: r.porcentajePagado),
+              SProgressBar(thickness: SProgressBarThickness.thick, percent: r.porcentajePagado),
             ],
           ),
         ),
@@ -295,7 +294,7 @@ class InicioScreen extends ConsumerWidget {
       // Accesos rápidos (justo después del hero financiero)
       const FadeSlideIn(
         delayMs: 80,
-        child: SectionTitle(
+        child: SSectionLabel.heading(
           icon: Icons.grid_view_outlined,
           text: 'Accesos rápidos',
         ),
@@ -341,10 +340,10 @@ class InicioScreen extends ConsumerWidget {
       // Tu actividad
       const FadeSlideIn(
         delayMs: 120,
-        child: SectionTitle(icon: Icons.bolt_outlined, text: 'Tu actividad'),
+        child: SSectionLabel.heading(icon: Icons.bolt_outlined, text: 'Tu actividad'),
       ),
       if (data.actividad.isEmpty)
-        AppCard(
+        SCard(
           child: Row(
             children: [
               const Icon(
@@ -376,7 +375,7 @@ class InicioScreen extends ConsumerWidget {
           ),
         )
       else ...[
-        AppCard(
+        SCard(
           child: Row(
             children: [
               Container(
@@ -435,7 +434,7 @@ class InicioScreen extends ConsumerWidget {
 
       // Pendientes por propiedad
       if (data.pendientesPorPropiedad.isNotEmpty) ...[
-        const SectionTitle(
+        const SSectionLabel.heading(
           icon: Icons.pending_actions_outlined,
           text: 'Pendientes por propiedad',
         ),
@@ -452,7 +451,7 @@ class InicioScreen extends ConsumerWidget {
           child: _PortafolioVacio(),
         ),
       if (misPropiedades.isNotEmpty) ...[
-        const SectionTitle(icon: Icons.home_outlined, text: 'Mis propiedades'),
+        const SSectionLabel.heading(icon: Icons.home_outlined, text: 'Mis propiedades'),
         ResponsiveCardGrid(
           children: [
             for (final it in misPropiedades.take(3))
@@ -537,7 +536,7 @@ class _ActividadCard extends StatelessWidget {
     };
     return PressableScale(
       onTap: onTap,
-      child: AppCard(
+      child: SCard(
         borderColor: borde.withValues(alpha: 0.35),
         child: Row(
           children: [
@@ -558,11 +557,11 @@ class _ActividadCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      StatusBadge(
+                      SBadge(
                         label: a.tipo,
                         tone: a.urgencia == 'urgent'
-                            ? BadgeTone.pending
-                            : BadgeTone.neutral,
+                            ? SBadgeTone.pending
+                            : SBadgeTone.neutral,
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -637,7 +636,7 @@ class _PendienteRow extends StatelessWidget {
     };
     return PressableScale(
       onTap: onTap,
-      child: AppCard(
+      child: SCard(
         child: Row(
           children: [
             Container(
@@ -691,7 +690,7 @@ class _PortafolioVacio extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = context.s.color;
-    return AppCard(
+    return SCard(
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
       child: Column(
         children: [
@@ -791,7 +790,7 @@ class _QuickAccess extends StatelessWidget {
       onTap: onTap,
       child: destacado
           // Tarjeta destacada de ancho completo (Estado de cuenta).
-          ? AppCard(
+          ? SCard(
               child: Row(
                 children: [
                   iconBox,
@@ -808,7 +807,7 @@ class _QuickAccess extends StatelessWidget {
                 ],
               ),
             )
-          : AppCard(
+          : SCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [iconBox, const SizedBox(height: 10), textos],
@@ -920,7 +919,7 @@ class _PortalInicio extends ConsumerWidget {
       error: (_, __) => ListView(
         padding: const EdgeInsets.symmetric(vertical: 24),
         children: [
-          ErrorCard(
+          SErrorState(
             title: 'No pudimos cargar tu información',
             onRetry: () => ref.invalidate(clienteResumenProvider),
           ),

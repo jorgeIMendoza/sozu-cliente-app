@@ -18,7 +18,7 @@ import 'package:sozu_cliente_app/ui/theme/density.dart';
 ///   padding: EdgeInsets.all(context.s.space.md),
 ///   decoration: BoxDecoration(
 ///     color: context.s.color.surface,
-///     borderRadius: context.s.radius.cardBorder,
+///     borderRadius: context.s.radius.sheetBorder,
 ///     border: Border.all(color: context.s.color.border),
 ///     boxShadow: context.s.shadow.md,
 ///   ),

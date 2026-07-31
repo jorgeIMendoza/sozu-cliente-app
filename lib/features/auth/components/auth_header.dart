@@ -10,7 +10,7 @@ class AuthLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (context.bp.isDesktop) return const SizedBox.shrink();
-    return const Center(child: SozuLogo(height: 40));
+    return const Center(child: SLogo(height: 40));
   }
 }
 

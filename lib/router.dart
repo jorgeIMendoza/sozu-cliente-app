@@ -8,7 +8,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
-import 'package:sozu_cliente_app/screens/admin_avisos_screen.dart';
+import 'package:sozu_cliente_app/features/admin/screens/announcements_screen.dart';
 import 'package:sozu_cliente_app/screens/adquisicion_screen.dart';
 import 'package:sozu_cliente_app/screens/cambiar_password_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.dart';
@@ -26,7 +26,7 @@ import 'package:sozu_cliente_app/screens/perfil_screen.dart';
 import 'package:sozu_cliente_app/screens/producto_detalle_screen.dart';
 import 'package:sozu_cliente_app/screens/productos_screen.dart';
 import 'package:sozu_cliente_app/screens/propiedad_detalle_screen.dart';
-import 'package:sozu_cliente_app/screens/seleccionar_cliente_screen.dart';
+import 'package:sozu_cliente_app/features/admin/screens/select_client_screen.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/notificaciones_fx.dart';
 import 'package:sozu_cliente_app/widgets/portal_shell.dart';
@@ -165,15 +165,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       // Admin sin cliente seleccionado (fuera del shell del portal).
+      // `sinMarco` como las de acceso: AdminLayout ya trae su propio Scaffold,
+      // ancho maximo y scroll de viewport completo. Con el WebFrame, fuera de sus
+      // 900 px solo quedaba un ColoredBox y la rueda del raton no hacia nada en
+      // los laterales.
       GoRoute(
         path: '/seleccionar-cliente',
-        pageBuilder: (context, state) =>
-            _slidePage(context, state, const SeleccionarClienteScreen()),
+        pageBuilder: (context, state) => _slidePage(
+          context,
+          state,
+          const SelectClientScreen(),
+          sinMarco: true,
+        ),
       ),
       GoRoute(
         path: '/admin-avisos',
-        pageBuilder: (context, state) =>
-            _slidePage(context, state, const AdminAvisosScreen()),
+        pageBuilder: (context, state) => _slidePage(
+          context,
+          state,
+          const AnnouncementsScreen(),
+          sinMarco: true,
+        ),
       ),
       // Modo portal (web ≥1024px): PortalShellWrapper envuelve TODAS las
       // pantallas del cliente con el shell del portal (sidebar 256 + topbar

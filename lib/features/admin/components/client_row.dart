@@ -3,12 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
+/// Diámetro del avatar de la fila. Público porque el skeleton de la lista lo
+/// replica: si divergen, la lista brinca al terminar de cargar.
+const double kClientRowAvatarSize = 36;
+
 /// Fila de cliente del selector de super admin: nombre, correo y estado.
 ///
 /// Componente **tonto**: recibe el dato, si está isSelected y qué hacer al
 /// tocar. No lee providers ni navega - eso lo decide la pantalla. Así se puede
 /// montar en un test o en otra vista sin arrastrar Riverpod.
-class ClientTile extends StatelessWidget {
+class ClientRow extends StatelessWidget {
   final AdminCliente cliente;
 
   /// El cliente que el admin está viendo ahora mismo (impersonado).
@@ -16,7 +20,7 @@ class ClientTile extends StatelessWidget {
 
   final VoidCallback onTap;
 
-  const ClientTile({
+  const ClientRow({
     super.key,
     required this.cliente,
     required this.onTap,
@@ -59,7 +63,7 @@ class ClientTile extends StatelessWidget {
                       style: t.text.label.copyWith(color: c.fg),
                     ),
                     if (cliente.email != null) ...[
-                      const SizedBox(height: 2),
+                      SizedBox(height: t.space.xxs),
                       Text(
                         cliente.email!,
                         maxLines: 1,
@@ -101,8 +105,8 @@ class _Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.s;
     return Container(
-      width: 36,
-      height: 36,
+      width: kClientRowAvatarSize,
+      height: kClientRowAvatarSize,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: t.color.primarySoftStrong,
@@ -128,7 +132,10 @@ class _ViewingBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.s;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: t.space.xs, vertical: 3),
+      padding: EdgeInsets.symmetric(
+        horizontal: t.space.xs,
+        vertical: t.space.xxs,
+      ),
       decoration: BoxDecoration(
         color: t.color.primarySoftStrong,
         borderRadius: t.radius.fullBorder,

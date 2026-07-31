@@ -322,7 +322,7 @@ class _PortalSidebar extends ConsumerWidget {
               children: [
                 // Wordmark SOZU a 24px como el portal. `onLight` porque la
                 // sidebar es blanca por definición (el portal es light-only).
-                const SozuLogo.onLight(
+                const SLogo.onLight(
                   height: 24,
                   alignment: Alignment.centerLeft,
                 ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -129,7 +128,7 @@ class PerfilSectionCard extends StatelessWidget {
     if (isPortalMode(context)) return _buildPortal(context);
     final tone = context.s.color;
     final statusColor = statusOk ? tone.positive : tone.fgSubtle;
-    return AppCard(
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -211,7 +210,7 @@ class EtapaActualStepper extends StatelessWidget {
     }
     return Padding(
       padding: const EdgeInsets.only(top: 24),
-      child: AppCard(child: contenido),
+      child: SCard(child: contenido),
     );
   }
 }

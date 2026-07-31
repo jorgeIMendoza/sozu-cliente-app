@@ -90,7 +90,7 @@ ThemeData _build(SozuTheme t, Brightness brightness) {
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: t.radius.cardBorder,
+        borderRadius: t.radius.lgBorder,
         side: BorderSide(color: c.border),
       ),
     ),
@@ -162,7 +162,7 @@ ThemeData _build(SozuTheme t, Brightness brightness) {
     dialogTheme: DialogThemeData(
       backgroundColor: c.surface,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: t.radius.cardBorder),
+      shape: RoundedRectangleBorder(borderRadius: t.radius.sheetBorder),
       titleTextStyle: t.text.h3.copyWith(color: c.fg),
       contentTextStyle: t.text.body.copyWith(color: c.fgMuted),
     ),
@@ -173,7 +173,7 @@ ThemeData _build(SozuTheme t, Brightness brightness) {
       modalBarrierColor: c.overlay,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(t.radius.card),
+          top: Radius.circular(t.radius.sheet),
         ),
       ),
     ),

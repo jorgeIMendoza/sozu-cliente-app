@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
@@ -73,9 +72,9 @@ class PatrimonioCard extends StatelessWidget {
                 const Positioned(
                   top: 8,
                   right: 8,
-                  child: StatusBadge(
+                  child: SBadge(
                     label: 'Entregada',
-                    tone: BadgeTone.positive,
+                    tone: SBadgeTone.positive,
                   ),
                 ),
               ],
@@ -214,9 +213,9 @@ class PatrimonioCard extends StatelessWidget {
               child: Row(
                 children: [
                   if (manto != null && !mantoPendiente)
-                    const StatusBadge(
+                    const SBadge(
                       label: 'Mantenimiento al día',
-                      tone: BadgeTone.positive,
+                      tone: SBadgeTone.positive,
                     ),
                   const Spacer(),
                   Text(

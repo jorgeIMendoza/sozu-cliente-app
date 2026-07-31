@@ -6,7 +6,6 @@ import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/screens/producto_detalle_screen.dart'
@@ -98,30 +97,30 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
           loading: () => ListView(
             padding: const EdgeInsets.all(16),
             children: const [
-              Skeleton(width: 220, height: 14),
+              SSkeleton(width: 220, height: 14),
               SizedBox(height: 16),
-              AppCard(
+              SCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Skeleton(width: 180, height: 16),
+                    SSkeleton(width: 180, height: 16),
                     SizedBox(height: 12),
-                    Skeleton(height: 10),
+                    SSkeleton(height: 10),
                     SizedBox(height: 12),
-                    Skeleton(width: 140, height: 12),
+                    SSkeleton(width: 140, height: 12),
                   ],
                 ),
               ),
               SizedBox(height: 16),
-              AppCard(
+              SCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Skeleton(width: 180, height: 16),
+                    SSkeleton(width: 180, height: 16),
                     SizedBox(height: 12),
-                    Skeleton(height: 10),
+                    SSkeleton(height: 10),
                     SizedBox(height: 12),
-                    Skeleton(width: 140, height: 12),
+                    SSkeleton(width: 140, height: 12),
                   ],
                 ),
               ),
@@ -130,7 +129,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
           error: (_, __) => ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              ErrorCard(
+              SErrorState(
                 title: 'No pudimos cargar tus productos',
                 onRetry: () => ref.invalidate(clienteProductosProvider),
               ),
@@ -155,9 +154,9 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
                 ),
                 const SizedBox(height: 16),
                 if (n == 0)
-                  const EmptyCard(
+                  const SEmptyState.card(
                     icon: Icons.inventory_2_outlined,
-                    text: 'Aún no tienes productos adicionales',
+                    title: 'Aún no tienes productos adicionales',
                   )
                 else ...[
                   TextField(
@@ -180,13 +179,13 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
                   ),
                   if (filtrados.isEmpty) ...[
                     const SizedBox(height: 16),
-                    const EmptyCard(
+                    const SEmptyState.card(
                       icon: Icons.search_off_outlined,
-                      text: 'Sin resultados',
+                      title: 'Sin resultados',
                     ),
                   ] else
                     for (final (g, prods) in filtrados) ...[
-                      SectionTitle(
+                      SSectionLabel.heading(
                         icon: Icons.apartment_outlined,
                         text: _tituloGrupo(g),
                       ),
@@ -627,11 +626,11 @@ class _ProductoCard extends StatelessWidget {
 
   const _ProductoCard({required this.p});
 
-  BadgeTone get _badgeTone {
+  SBadgeTone get _badgeTone {
     final s = p.estatus.toLowerCase();
-    if (s.contains('pagado')) return BadgeTone.positive;
-    if (s.contains('curso')) return BadgeTone.neutral;
-    return BadgeTone.pending;
+    if (s.contains('pagado')) return SBadgeTone.positive;
+    if (s.contains('curso')) return SBadgeTone.neutral;
+    return SBadgeTone.pending;
   }
 
   @override
@@ -640,7 +639,7 @@ class _ProductoCard extends StatelessWidget {
     final descripcion = p.descripcion?.trim();
     return PressableScale(
       onTap: () => context.push('/productos/${p.cuentaId}'),
-      child: AppCard(
+      child: SCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -686,7 +685,7 @@ class _ProductoCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                StatusBadge(label: p.estatus, tone: _badgeTone),
+                SBadge(label: p.estatus, tone: _badgeTone),
               ],
             ),
             const SizedBox(height: 14),
@@ -716,7 +715,7 @@ class _ProductoCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(child: SozuProgressBar(percent: p.avancePct)),
+                Expanded(child: SProgressBar(thickness: SProgressBarThickness.thick, percent: p.avancePct)),
                 const SizedBox(width: 8),
                 Text(
                   '${p.avancePct.round()}%',

@@ -6,7 +6,6 @@ import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/portal_property_card.dart';
 import 'package:sozu_cliente_app/widgets/portal_top_bar.dart';
@@ -70,7 +69,7 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
           error: (_, __) => ListView(
             padding: const EdgeInsets.symmetric(vertical: 24),
             children: [
-              ErrorCard(
+              SErrorState(
                 title: 'No pudimos cargar tus propiedades',
                 onRetry: () => ref.invalidate(clientePropiedadesProvider),
               ),
@@ -94,23 +93,23 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
           loading: () => ListView(
             padding: const EdgeInsets.all(16),
             children: const [
-              AppCard(
+              SCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Skeleton(width: 160, height: 12),
+                    SSkeleton(width: 160, height: 12),
                     SizedBox(height: 8),
-                    Skeleton(width: 220, height: 24),
+                    SSkeleton(width: 220, height: 24),
                   ],
                 ),
               ),
               SizedBox(height: 16),
-              AppCard(
+              SCard(
                 child: Column(
                   children: [
-                    Skeleton(height: 160, radius: 12),
+                    SSkeleton(height: 160, radius: 12),
                     SizedBox(height: 12),
-                    Skeleton(height: 16),
+                    SSkeleton(height: 16),
                   ],
                 ),
               ),
@@ -119,7 +118,7 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
           error: (_, __) => ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              ErrorCard(
+              SErrorState(
                 title: 'No pudimos cargar tus propiedades',
                 onRetry: () => ref.invalidate(clientePropiedadesProvider),
               ),
@@ -139,7 +138,7 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
                     style: TextStyle(fontSize: 14, color: tone.fgMuted),
                   ),
                   const SizedBox(height: 16),
-                  AppCard(
+                  SCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -165,14 +164,14 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
                     ),
                   ),
 
-                  const SectionTitle(
+                  const SSectionLabel.heading(
                     icon: Icons.home_outlined,
                     text: 'Propiedades',
                   ),
                   if (data.enAdquisicion.isEmpty)
-                    const EmptyCard(
+                    const SEmptyState.card(
                       icon: Icons.shopping_bag_outlined,
-                      text: 'No tienes propiedades en proceso de compra.',
+                      title: 'No tienes propiedades en proceso de compra.',
                     )
                   else ...[
                     TextField(
@@ -195,9 +194,9 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
                     ),
                     const SizedBox(height: 16),
                     if (filtradas.isEmpty)
-                      const EmptyCard(
+                      const SEmptyState.card(
                         icon: Icons.search_off_outlined,
-                        text: 'Sin resultados',
+                        title: 'Sin resultados',
                       )
                     else
                       ResponsiveCardGrid(
@@ -212,7 +211,7 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
                   ],
 
                   if (data.productos.isNotEmpty) ...[
-                    SectionTitle(
+                    SSectionLabel.heading(
                       icon: Icons.inventory_2_outlined,
                       text: 'Productos adicionales (${data.productos.length})',
                     ),
@@ -226,7 +225,7 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
                   ],
 
                   if (data.mantenimiento.isNotEmpty) ...[
-                    const SectionTitle(
+                    const SSectionLabel.heading(
                       icon: Icons.build_outlined,
                       text: 'Mantenimiento',
                     ),
@@ -516,7 +515,7 @@ class _ProductoRow extends StatelessWidget {
     final tone = context.s.color;
     return PressableScale(
       onTap: onTap,
-      child: AppCard(
+      child: SCard(
         child: Row(
           children: [
             Container(
@@ -584,7 +583,7 @@ class _MantenimientoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = context.s.color;
     final alDia = m.saldoPendiente <= 0;
-    return AppCard(
+    return SCard(
       child: Row(
         children: [
           Container(
@@ -623,7 +622,7 @@ class _MantenimientoRow extends StatelessWidget {
             ),
           ),
           if (alDia)
-            const StatusBadge(label: 'Al día', tone: BadgeTone.positive)
+            const SBadge(label: 'Al día', tone: SBadgeTone.positive)
           else
             Text(
               formatMXN(m.saldoPendiente),

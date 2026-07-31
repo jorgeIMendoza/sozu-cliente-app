@@ -9,7 +9,6 @@ import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Datos que el recibo in-app necesita, desacoplados del modelo de origen para
@@ -340,9 +339,9 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
                       ],
                     ),
                   ),
-                  const StatusBadge(
+                  const SBadge(
                     label: 'Aplicado',
-                    tone: BadgeTone.positive,
+                    tone: SBadgeTone.positive,
                   ),
                 ],
               ),

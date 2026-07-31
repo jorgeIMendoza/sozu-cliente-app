@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
+/// Ancho del campo Unidad en la fila de escritorio. No es un token de
+/// espaciado: es el ancho de un control de 3-4 dígitos, y dejarlo `Expanded`
+/// le robaba la mitad del ancho al nombre del proyecto.
+const double _unitFieldWidth = 150;
+
 /// Filtros "Ver como" del selector de super admin: Proyecto + Unidad.
 ///
 /// Componente **tonto**: recibe el catálogo de proyectos y los valores actuales,
@@ -57,13 +62,14 @@ class ClientFilters extends StatelessWidget {
       }
     }
 
+    // Sin icono: el campo ya dice "Proyecto" y al escribir salen los proyectos.
+    // Un icono de edificio no agrega informacion y roba ancho al nombre.
     final projectField = SAutocompleteField<CatalogoItem>(
       options: projects,
       value: selected,
       labelOf: (p) => p.nombre,
       labelText: 'Proyecto',
       hintText: 'Margot, Bottura, Daiku...',
-      prefixIcon: Icons.apartment_outlined,
       noResultsLabel: 'Ningún proyecto coincide con',
       enabled: projects.isNotEmpty,
       onSelected: (p) => onProjectChanged(p?.id),
@@ -71,29 +77,22 @@ class ClientFilters extends StatelessWidget {
 
     final unitField = ValueListenableBuilder<TextEditingValue>(
       valueListenable: unitController,
-      builder: (context, value, _) => TextField(
+      builder: (context, value, _) => STextField(
         controller: unitController,
         onChanged: onUnitChanged,
         keyboardType: TextInputType.number,
-        style: t.text.body.copyWith(color: t.color.fg),
-        decoration: InputDecoration(
-          labelText: 'Unidad',
-          hintText: '101',
-          isDense: true,
-          prefixIcon: Icon(
-            Icons.home_outlined,
-            size: 20,
-            color: t.color.fgSubtle,
-          ),
-          suffixIcon: value.text.isEmpty
-              ? null
-              : IconButton(
-                  icon: const Icon(Icons.close, size: 18),
-                  color: t.color.fgSubtle,
-                  tooltip: 'Limpiar unidad',
-                  onPressed: onUnitCleared,
-                ),
-        ),
+        label: 'Unidad',
+        hint: '101',
+        prefixIcon: Icons.home_outlined,
+        size: STextFieldSize.md,
+        suffix: value.text.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                color: t.color.fgSubtle,
+                tooltip: 'Limpiar unidad',
+                onPressed: onUnitCleared,
+              ),
       ),
     );
 
@@ -113,7 +112,7 @@ class ClientFilters extends StatelessWidget {
       children: [
         Expanded(child: projectField),
         SizedBox(width: t.space.xs),
-        SizedBox(width: 150, child: unitField),
+        SizedBox(width: _unitFieldWidth, child: unitField),
       ],
     );
   }

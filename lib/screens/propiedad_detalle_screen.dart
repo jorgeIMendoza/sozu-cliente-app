@@ -11,7 +11,6 @@ import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/widgets/building_diagram.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/copropietarios_section.dart';
 import 'package:sozu_cliente_app/widgets/credito_hipotecario_drawer.dart';
 import 'package:sozu_cliente_app/widgets/cronograma_pagos.dart';
@@ -111,17 +110,17 @@ class _PropiedadDetalleScreenState
       loading: () => ListView(
         padding: const EdgeInsets.all(16),
         children: const [
-          Skeleton(height: 180, radius: 16),
+          SSkeleton(height: 180, radius: 16),
           SizedBox(height: 16),
-          Skeleton(width: 200, height: 20),
+          SSkeleton(width: 200, height: 20),
           SizedBox(height: 16),
-          Skeleton(height: 120, radius: 16),
+          SSkeleton(height: 120, radius: 16),
         ],
       ),
       error: (_, __) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          ErrorCard(
+          SErrorState(
             title: 'No pudimos cargar esta propiedad',
             onRetry: () =>
                 ref.invalidate(propiedadDetalleProvider(widget.cuentaId)),
@@ -212,7 +211,7 @@ class _PropiedadDetalleScreenState
                 ],
 
                 // Avance
-                AppCard(
+                SCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -234,7 +233,7 @@ class _PropiedadDetalleScreenState
                         ],
                       ),
                       const SizedBox(height: 6),
-                      SozuProgressBar(percent: d.avancePagoEfectivo),
+                      SProgressBar(thickness: SProgressBarThickness.thick, percent: d.avancePagoEfectivo),
                       if (d.saldoPendienteEfectivo > 0)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
@@ -287,11 +286,11 @@ class _PropiedadDetalleScreenState
                 ],
 
                 // Datos técnicos
-                const SectionTitle(
+                const SSectionLabel.heading(
                   icon: Icons.construction_outlined,
                   text: 'Datos técnicos',
                 ),
-                AppCard(
+                SCard(
                   child: Wrap(
                     runSpacing: 12,
                     children: [
@@ -328,7 +327,7 @@ class _PropiedadDetalleScreenState
 
                 // Productos adicionales
                 if (d.productos.isNotEmpty) ...[
-                  SectionTitle(
+                  SSectionLabel.heading(
                     icon: Icons.inventory_2_outlined,
                     text: 'Productos adicionales · ${d.productos.length}',
                   ),
@@ -360,14 +359,14 @@ class _PropiedadDetalleScreenState
                   _FichaTecnica(ficha: d.ficha),
 
                 // Documentos
-                const SectionTitle(
+                const SSectionLabel.heading(
                   icon: Icons.description_outlined,
                   text: 'Documentos',
                 ),
                 if (d.documentos.isEmpty)
-                  const EmptyCard(
+                  const SEmptyState.card(
                     icon: Icons.folder_open_outlined,
-                    text: 'Sin documentos para esta propiedad',
+                    title: 'Sin documentos para esta propiedad',
                   )
                 else
                   for (final doc in d.documentos) ...[
@@ -497,18 +496,18 @@ class _PropiedadDetalleScreenState
   /// o "Vendida" aunque la cuenta tenga saldo pendiente.
   Widget _estatusChip(PropiedadDetalle d) {
     final (label, tone) = switch (d.etapaActivaEfectiva) {
-      'preventa' => ('En Preventa', BadgeTone.neutral),
+      'preventa' => ('En Preventa', SBadgeTone.neutral),
       // Ámbar, como el chip "Pago Pendiente" del portal.
-      'pago_final' => ('Pago Pendiente', BadgeTone.pending),
-      'escrituracion' => ('En Escrituración', BadgeTone.neutral),
-      'entrega' => ('Por Entregar', BadgeTone.positive),
-      'post_entrega' => ('Entregada', BadgeTone.positive),
+      'pago_final' => ('Pago Pendiente', SBadgeTone.pending),
+      'escrituracion' => ('En Escrituración', SBadgeTone.neutral),
+      'entrega' => ('Por Entregar', SBadgeTone.positive),
+      'post_entrega' => ('Entregada', SBadgeTone.positive),
       _ => (
         d.estatus,
-        d.categoria == 'patrimonio' ? BadgeTone.positive : BadgeTone.neutral,
+        d.categoria == 'patrimonio' ? SBadgeTone.positive : SBadgeTone.neutral,
       ),
     };
-    return StatusBadge(label: label, tone: tone);
+    return SBadge(label: label, tone: tone);
   }
 
   Widget _dato(SozuColorRoles tone, String label, String value) {
@@ -555,17 +554,17 @@ class _PropiedadDetalleScreenState
       loading: () => ListView(
         padding: const EdgeInsets.only(top: 24, bottom: 32),
         children: const [
-          Skeleton(width: 320, height: 28, radius: 8),
+          SSkeleton(width: 320, height: 28, radius: 8),
           SizedBox(height: 20),
-          Skeleton(height: 320, radius: 24),
+          SSkeleton(height: 320, radius: 24),
           SizedBox(height: 16),
-          Skeleton(height: 160, radius: 24),
+          SSkeleton(height: 160, radius: 24),
         ],
       ),
       error: (_, __) => ListView(
         padding: const EdgeInsets.symmetric(vertical: 24),
         children: [
-          ErrorCard(
+          SErrorState(
             title: 'No pudimos cargar esta propiedad',
             onRetry: () =>
                 ref.invalidate(propiedadDetalleProvider(widget.cuentaId)),
@@ -2758,8 +2757,8 @@ class _UbicacionSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionTitle(icon: Icons.place_outlined, text: 'Ubicación'),
-        AppCard(
+        const SSectionLabel.heading(icon: Icons.place_outlined, text: 'Ubicación'),
+        SCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2820,13 +2819,13 @@ class _ProductoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = context.s.color;
     final badgeTone = switch (p.estatus) {
-      'Pagado' => BadgeTone.positive,
-      'En curso' => BadgeTone.neutral,
-      _ => BadgeTone.pending,
+      'Pagado' => SBadgeTone.positive,
+      'En curso' => SBadgeTone.neutral,
+      _ => SBadgeTone.pending,
     };
     return PressableScale(
       onTap: () => context.push('/productos/${p.id}'),
-      child: AppCard(
+      child: SCard(
         child: Row(
           children: [
             Container(
@@ -2858,7 +2857,7 @@ class _ProductoRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  StatusBadge(label: p.estatus, tone: badgeTone),
+                  SBadge(label: p.estatus, tone: badgeTone),
                 ],
               ),
             ),
@@ -3064,11 +3063,11 @@ class _FichaTecnica extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionTitle(
+        const SSectionLabel.heading(
           icon: Icons.map_outlined,
           text: 'Ficha técnica de tu propiedad',
         ),
-        AppCard(child: contenido),
+        SCard(child: contenido),
       ],
     );
   }
@@ -3135,7 +3134,7 @@ class _DocRow extends StatelessWidget {
     final tone = context.s.color;
     return PressableScale(
       onTap: () => openMedia(context, d.urlFirmada, titulo: d.nombre),
-      child: AppCard(
+      child: SCard(
         child: Row(
           children: [
             Container(

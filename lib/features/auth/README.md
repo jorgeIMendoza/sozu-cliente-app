@@ -1,6 +1,6 @@
 # Feature `auth` - CERRADA
 
-Estado: **migrada al design system global** · 2026-07-29 · 8 archivos
+Estado: **migrada al design system global** · 2026-07-30 · 10 archivos
 
 Primera feature en el patrón nuevo. Sirve de plantilla: cualquier duda de "¿dónde
 va esto?" se resuelve mirando aquí.
@@ -19,8 +19,28 @@ components/
   auth_header.dart          AuthLogo · AuthTitle · AuthSubtitle
   auth_alert.dart           AuthAlert · AuthAlertKind
   biometric_setup_sheet.dart  offerBiometricSetup() - login y cambio de password
+  biometric_toggle_card.dart       BiometricToggleCard - el switch de la card de Perfil
   login_form.dart           el formulario completo del login
+services/
+  biometric_service.dart    BiometricService · BiometricLoginResult
 ```
+
+### Toda la biometría vive aquí
+
+Huella / Face ID es **autenticación**, así que es de esta feature: el servicio, la
+oferta post-login y el switch de Perfil son tres piezas del mismo mecanismo y
+están juntas. Antes el servicio vivía en `lib/core/` y la card de Perfil en
+`lib/widgets/`; esos dos archivos ya no existen y **no** quedó ningún re-export.
+
+| Pieza | Dónde | Quién la usa |
+|---|---|---|
+| `BiometricService` (singleton) · `BiometricLoginResult` | `services/` | `login_form` · `biometric_setup_sheet` · `biometric_toggle_card` · `providers/auth_provider.dart` |
+| `offerBiometricSetup()` - el bottom sheet que la ofrece | `components/` | `login_form` · `change_password_screen` |
+| `BiometricToggleCard` - la card de Perfil | `components/` | `screens/perfil_screen.dart` (legacy, fuera de la feature) |
+
+`BiometricToggleCard` es **API pública de la feature**: lo consume una pantalla
+que no es de auth. Eso es correcto - lo incorrecto sería duplicarlo o dejar un
+alias en `widgets/`. Está anotado en su propio docstring.
 
 ### Campos y botones: del design system, no de auth
 
@@ -76,16 +96,26 @@ Android/iOS: **desde el celular no existía manera de entrar como administrador.
   presiona 500 ms, o sea un tercio del umbral: hay que sostener con
   `startGesture` + `pump(1600 ms)` + `up`.
 
-### Por qué tres carpetas
+### Por qué cuatro carpetas
 
 | Carpeta | Criterio | Contraejemplo |
 |---|---|---|
 | `layouts/` | envuelve pantallas; decide **tema, scroll, breakpoints** | un botón no elige el tema |
 | `screens/` | solo ensamblan; sin estado ni providers | si tiene un `State` con lógica, esa lógica va a un componente |
 | `components/` | **reutilizable** (2+ pantallas) | `login_form` es la excepción: único del login, pero partirlo en sub-piezas de un uso solo agrega archivos |
+| `services/` | lógica **sin UI**: plugins de plataforma, secure storage, sesión de Supabase. No importa `flutter/material.dart` ni construye widgets | un bottom sheet no es un servicio aunque haga I/O: `biometric_setup_sheet` es `components/` |
 
 `AuthFormBody` vive en `layouts/` y no en `components/` porque solo apila hijos
 con el aire correcto: eso es estructura, no una pieza de interfaz.
+
+`services/` es la cuarta carpeta y no estaba en el patrón original de tres, que
+solo cubre UI. `BiometricService` no cabía en ninguna: no es una pantalla, no
+envuelve nada y **no es un widget** - habla con `local_auth`, con
+`FlutterSecureStorage` y con `Supabase.auth`. Tampoco es `data/`: en este repo
+`lib/data/` significa DTOs de las Edge Functions + `api_client`, y aquí no hay ni
+DTO ni endpoint. Un servicio de feature es un singleton de proceso con estado
+persistido; por eso carpeta propia. Nombre `*_service.dart`, igual que los
+globales de `core/` (`push_service`, `media_cache`).
 
 ## Auditoría de cierre - todo en 0
 
@@ -124,7 +154,7 @@ las decide `SButtonSize` / `STextFieldSize` en `lib/ui/primitives/`.
 | `AuthColors` - 20 constantes, 16 hex crudos | roles de `context.s.color` |
 | `AuthCard` - tarjeta blanca solo en móvil | `AuthFormBody`, el formulario va directo sobre la página |
 | `kAuthSplitBreakpoint` (1024) · `kAuthCompactBreakpoint` (480) | `context.bp` del DS. El primero era **exactamente** `kSozuDesktopMin` |
-| `_LogoBlanco` + `ColorFiltered` a mano | `SozuLogo.onBrand` |
+| `_LogoBlanco` + `ColorFiltered` a mano | `SLogo.onBrand` |
 | `auth_buttons.dart` (292) - `AuthPrimaryButton` · `AuthOutlineButton` · `AuthLink` · `_HoverUnderline` | `SButton` · `SButton.secondary` · `SButton.link` del DS global |
 | `auth_text_field.dart` (137) - `AuthTextField` · `AuthFieldLabel` | `STextField` (la etiqueta es la prop `label:`) |
 | `bool _isPasswordHidden` / `_showPwd` / `_showConfirm` + 3 `IconButton` del ojo | `STextField.password`: la visibilidad es estado del campo |
@@ -135,7 +165,7 @@ las decide `SButtonSize` / `STextFieldSize` en `lib/ui/primitives/`.
 1. **`AuthAlertKind.success` pintaba mal** - usaba el fondo ámbar de `warning`
    con texto verde.
 2. **El logo era invisible en tema oscuro** - 4 de 5 usos pintaban el PNG negro
-   crudo. `SozuLogo` lo recolorea con `srcIn`.
+   crudo. `SLogo` lo recolorea con `srcIn`.
 3. **Todo error de acceso decía "Correo o contraseña incorrectos"** - incluidos
    el 429 por demasiados intentos y la red caída. Ahora `AuthController.mensajeErrorAcceso`
    los distingue. El mapeo vive en el provider, no en la UI: interpretar un

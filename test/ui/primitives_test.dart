@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
-import 'package:sozu_cliente_app/widgets/admin/client_filters.dart';
+import 'package:sozu_cliente_app/features/admin/components/client_filters.dart';
 
 Future<void> pump(
   WidgetTester tester,
@@ -104,6 +104,66 @@ void main() {
       expect(texto.style?.fontSize, SozuType.overline.fontSize);
       expect(texto.style?.fontWeight, SozuType.overline.fontWeight);
     });
+
+    // La variante heading reemplaza al `SectionTitle` legacy (20 sitios de uso):
+    // es un TÍTULO, no una etiqueta, y confundirlas cambiaría esos 20 sitios de
+    // 16 px en caja normal a 11 px en mayúsculas.
+    testWidgets('la variante heading NO pone el texto en mayusculas', (
+      tester,
+    ) async {
+      await pump(tester, const SSectionLabel.heading(text: 'Mis pagos'));
+      expect(find.text('Mis pagos'), findsOneWidget);
+      expect(find.text('MIS PAGOS'), findsNothing);
+    });
+
+    testWidgets('heading usa bodyLarge w700 y label sigue en overline', (
+      tester,
+    ) async {
+      await pump(tester, const SSectionLabel.heading(text: 'Mis pagos'));
+      final titulo = tester.widget<Text>(find.text('Mis pagos'));
+      expect(titulo.style?.fontSize, SozuType.bodyLarge.fontSize);
+      expect(titulo.style?.fontWeight, FontWeight.w700);
+
+      await pump(tester, const SSectionLabel(text: 'Mis pagos'));
+      final etiqueta = tester.widget<Text>(find.text('MIS PAGOS'));
+      expect(etiqueta.style?.fontSize, SozuType.overline.fontSize);
+      expect(etiqueta.style?.fontSize, lessThan(titulo.style!.fontSize!));
+    });
+
+    testWidgets('el icono de heading usa el rol primary, no un verde cocido', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const SSectionLabel.heading(text: 'Mis pagos', icon: Icons.payments),
+      );
+
+      final icono = tester.widget<Icon>(find.byIcon(Icons.payments));
+      expect(icono.color, SozuColorRoles.light.primary);
+      expect(icono.size, 16);
+    });
+
+    testWidgets('heading respeta el trailing y su aire propio', (tester) async {
+      await pump(
+        tester,
+        const SSectionLabel.heading(
+          text: 'Mis pagos',
+          trailing: Text('ver todo'),
+        ),
+      );
+
+      expect(find.text('ver todo'), findsOneWidget);
+      // 24 arriba (space.lg) contra los 4 de la etiqueta: el título abre bloque.
+      final padding = tester.widget<Padding>(
+        find
+            .ancestor(
+              of: find.text('Mis pagos'),
+              matching: find.byType(Padding),
+            )
+            .first,
+      );
+      expect(padding.padding, const EdgeInsets.only(top: 24, bottom: 8));
+    });
   });
 
   group('ClientFilters', () {
@@ -119,13 +179,14 @@ void main() {
       );
     }
 
-    // Proyecto dejo de ser un DropdownButtonFormField: ahora es
-    // SAutocompleteField (se busca escribiendo). Los dos campos son TextField,
-    // asi que se distinguen por su labelText.
+    // Los dos campos son STextField y se distinguen por su etiqueta. Se busca el
+    // STextField y NO el TextField interno: la etiqueta dejo de ser flotante, asi
+    // que es un `Text` hermano del campo dentro de la Column del STextField, no
+    // un descendiente del TextField.
     Offset topLeftOfField(WidgetTester tester, String label) =>
         tester.getTopLeft(
           find
-              .ancestor(of: find.text(label), matching: find.byType(TextField))
+              .ancestor(of: find.text(label), matching: find.byType(STextField))
               .first,
         );
 

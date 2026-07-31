@@ -4,7 +4,6 @@ import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -140,7 +139,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
     }
     return Padding(
       padding: const EdgeInsets.only(top: 24),
-      child: AppCard(child: contenido),
+      child: SCard(child: contenido),
     );
   }
 
@@ -469,17 +468,17 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
 
   Widget _chipEstado(_EstadoFila estado) {
     return switch (estado) {
-      _EstadoFila.pagado => const StatusBadge(
+      _EstadoFila.pagado => const SBadge(
         label: 'Pagado',
-        tone: BadgeTone.positive,
+        tone: SBadgeTone.positive,
       ),
-      _EstadoFila.parcial => const StatusBadge(
+      _EstadoFila.parcial => const SBadge(
         label: 'Parcial',
-        tone: BadgeTone.pending,
+        tone: SBadgeTone.pending,
       ),
-      _EstadoFila.pendiente => const StatusBadge(
+      _EstadoFila.pendiente => const SBadge(
         label: 'Pendiente',
-        tone: BadgeTone.pending,
+        tone: SBadgeTone.pending,
       ),
     };
   }

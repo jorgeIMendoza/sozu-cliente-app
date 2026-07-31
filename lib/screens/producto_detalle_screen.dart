@@ -8,7 +8,6 @@ import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -69,7 +68,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
         error: (_, __) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            ErrorCard(
+            SErrorState(
               title: 'No pudimos cargar el producto',
               onRetry: () => ref.invalidate(clienteProductosProvider),
             ),
@@ -79,9 +78,9 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
             ? ListView(
                 padding: const EdgeInsets.all(16),
                 children: const [
-                  EmptyCard(
+                  SEmptyState.card(
                     icon: Icons.inventory_2_outlined,
-                    text: 'Producto no encontrado.',
+                    title: 'Producto no encontrado.',
                   ),
                 ],
               )
@@ -133,7 +132,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
 
   // ── Resumen ────────────────────────────────────────────────────────────────
   Widget _resumen(SozuColorRoles tone, ProductoCliente p) {
-    return AppCard(
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -151,7 +150,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              StatusBadge(label: p.estatus, tone: _badgeEstatus(p.estatus)),
+              SBadge(label: p.estatus, tone: _badgeEstatus(p.estatus)),
             ],
           ),
           if ((p.descripcion ?? '').trim().isNotEmpty) ...[
@@ -193,7 +192,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
             ],
           ),
           const SizedBox(height: 6),
-          SozuProgressBar(percent: p.avancePct),
+          SProgressBar(thickness: SProgressBarThickness.thick, percent: p.avancePct),
           if ((p.clabe ?? '').trim().isNotEmpty) ...[
             Divider(color: tone.border, height: 24),
             _clabeRow(tone, p.clabe!.trim()),
@@ -262,15 +261,15 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
   void _snack(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
-  BadgeTone _badgeEstatus(String estatus) {
+  SBadgeTone _badgeEstatus(String estatus) {
     final e = estatus.toLowerCase();
     if (e.contains('pagado') || e.contains('liquidad')) {
-      return BadgeTone.positive;
+      return SBadgeTone.positive;
     }
     if (e.contains('pendiente') || e.contains('vencid')) {
-      return BadgeTone.pending;
+      return SBadgeTone.pending;
     }
-    return BadgeTone.neutral; // En curso
+    return SBadgeTone.neutral; // En curso
   }
 
   Widget _kpi(SozuColorRoles tone, String label, String value, Color color) {
@@ -385,9 +384,9 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
 
     if (acuerdos.isEmpty) {
       return const [
-        EmptyCard(
+        SEmptyState.card(
           icon: Icons.receipt_long_outlined,
-          text: 'Sin movimientos con ese filtro.',
+          title: 'Sin movimientos con ese filtro.',
         ),
       ];
     }
@@ -458,7 +457,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
     final tieneCep = (a.urlCep ?? '').isNotEmpty;
     final tieneRecibo = (a.urlRecibo ?? '').isNotEmpty;
 
-    return AppCard(
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -476,17 +475,17 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              StatusBadge(
+              SBadge(
                 label: a.completado
                     ? 'Pagado'
                     : parcial
                     ? 'Parcial'
                     : 'Pendiente',
                 tone: a.completado
-                    ? BadgeTone.positive
+                    ? SBadgeTone.positive
                     : parcial
-                    ? BadgeTone.pending
-                    : BadgeTone.neutral,
+                    ? SBadgeTone.pending
+                    : SBadgeTone.neutral,
               ),
             ],
           ),
@@ -662,22 +661,22 @@ class _LoadingDetalle extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(16),
     children: const [
-      AppCard(
+      SCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Skeleton(width: 180, height: 16),
+            SSkeleton(width: 180, height: 16),
             SizedBox(height: 12),
-            Skeleton(width: 240, height: 30),
+            SSkeleton(width: 240, height: 30),
             SizedBox(height: 12),
-            Skeleton(height: 10, radius: 999),
+            SSkeleton(height: 10, radius: 999),
           ],
         ),
       ),
       SizedBox(height: 12),
-      Skeleton(height: 90, radius: 16),
+      SSkeleton(height: 90, radius: 16),
       SizedBox(height: 8),
-      Skeleton(height: 90, radius: 16),
+      SSkeleton(height: 90, radius: 16),
     ],
   );
 }
@@ -1196,7 +1195,7 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
         children: [
           Row(
             children: [
-              const SozuLogo.onLight(height: 14),
+              const SLogo.onLight(height: 14),
               const SizedBox(width: 8),
               Text(
                 '-',

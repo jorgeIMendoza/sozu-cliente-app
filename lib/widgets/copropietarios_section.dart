@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -57,11 +56,11 @@ class CopropietariosSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(
+        SSectionLabel.heading(
           icon: Icons.group_outlined,
           text: 'Copropietarios · ${copropietarios.length}',
         ),
-        AppCard(
+        SCard(
           child: Column(
             children: [
               for (var i = 0; i < copropietarios.length; i++) ...[

@@ -2,7 +2,7 @@
 
 > Fuentes: `src/components/admin/portal-cliente/PortalClienteLayout.tsx`, `Sidebar.tsx`,
 > `TopBar.tsx`, `PortalSearchInput.tsx`, `ClienteImpersonationSelector.tsx`,
-> `src/components/ui/SozuLogo.tsx`, `src/lib/portal-cliente/portal-nav-data.ts`.
+> `src/components/ui/SLogo.tsx`, `src/lib/portal-cliente/portal-nav-data.ts`.
 > Colores hex resueltos en `tokens.md`. Todo verificado igual a `origin/dev`.
 
 ## Estructura general (PortalClienteLayout.tsx:91-207)
@@ -31,9 +31,9 @@ Contenedor (`Sidebar`, línea 135):
 
 ### 1. Brand (líneas 43-48)
 - Contenedor: `px-5 py-4` (20/16px), `border-b border-border-soft` (1px #E9EEF4), columna con `gap-1` (4px).
-- Logo SOZU: `<SozuLogo className="h-6" />` - **24px de alto**, ancho auto por aspect-ratio
+- Logo SOZU: `<SLogo className="h-6" />` - **24px de alto**, ancho auto por aspect-ratio
   `932/268` (≈ 83px). Es una máscara CSS del PNG del logo pintada con `--foreground`
-  (#14161A, casi negro) - ver SozuLogo.tsx. En Flutter: asset del logo teñido de #14161A.
+  (#14161A, casi negro) - ver SLogo.tsx. En Flutter: asset del logo teñido de #14161A.
 - Subtítulo: texto exacto **"Portal del cliente"** renderizado en mayúsculas -
   `text-[10px] font-semibold tracking-[0.18em] uppercase text-gray-500`
   → 10px, w600, letter-spacing 1.8px, color #6B7280 (gray-500 Tailwind).

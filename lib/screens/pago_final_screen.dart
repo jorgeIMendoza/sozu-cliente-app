@@ -11,7 +11,6 @@ import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -334,7 +333,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         style: TextStyle(fontSize: 13, color: tone.fgSubtle),
       ),
       const SizedBox(height: 12),
-      AppCard(
+      SCard(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -435,7 +434,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
   // ── Paso 1: método de pago ──
 
   List<Widget> _seleccion(SozuColorRoles tone) => [
-    AppCard(
+    SCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -524,7 +523,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
     final activo = _metodo == valor;
     return GestureDetector(
       onTap: () => setState(() => _metodo = valor),
-      child: AppCard(
+      child: SCard(
         borderColor: activo ? tone.primaryHover : null,
         child: Row(
           children: [
@@ -606,7 +605,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (bancos.isEmpty) ...[
-              AppCard(
+              SCard(
                 child: Text(
                   snap.hasError
                       ? 'No pudimos cargar los bancos con convenio. '
@@ -654,7 +653,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         _idBanco = b.id;
         _bancoSel = b;
       }),
-      child: AppCard(
+      child: SCard(
         borderColor: activo ? tone.primaryHover : null,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -717,9 +716,9 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   const SizedBox(height: 6),
                   const Wrap(
                     children: [
-                      StatusBadge(
+                      SBadge(
                         label: 'Aliado SOZU',
-                        tone: BadgeTone.positive,
+                        tone: SBadgeTone.positive,
                       ),
                     ],
                   ),
@@ -760,7 +759,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         ),
       ),
       const SizedBox(height: 12),
-      AppCard(
+      SCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -846,7 +845,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
       ),
       const SizedBox(height: 12),
       if (estimacion != null) ...[
-        AppCard(
+        SCard(
           borderColor: tone.primaryHover,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -885,7 +884,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         ),
         const SizedBox(height: 12),
       ] else if (banco.tasaDesde == null) ...[
-        AppCard(
+        SCard(
           child: Text(
             '${banco.nombre} te compartirá la tasa y mensualidad al revisar '
             'tu solicitud.',
@@ -940,7 +939,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
     final bancoNombre = s?.bancoNombre;
     final info = s != null ? _estatusInfo(s.estatus) : null;
     return [
-      AppCard(
+      SCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -970,7 +969,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
             if (info != null) ...[
               const SizedBox(height: 10),
               Wrap(
-                children: [StatusBadge(label: info.label, tone: info.tone)],
+                children: [SBadge(label: info.label, tone: info.tone)],
               ),
               const SizedBox(height: 8),
               Text(
@@ -1015,7 +1014,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
         _resumenEnviadoCard(tone, bancoNombre),
       ],
       const SizedBox(height: 12),
-      AppCard(
+      SCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1088,7 +1087,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
   /// "Estimación enviada a {banco}" del portal).
   Widget _resumenEnviadoCard(SozuColorRoles tone, String? bancoNombre) {
     final r = _resumenEnviado!;
-    return AppCard(
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1160,7 +1159,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
 
   /// Estatus de bancos_solicitudes → etiqueta legible + tono del badge
   /// (espejo de ESTATUS_LINEA / getPreValidationStatusInfo del portal).
-  ({String label, String descripcion, BadgeTone tone}) _estatusInfo(
+  ({String label, String descripcion, SBadgeTone tone}) _estatusInfo(
     String estatus,
   ) => switch (estatus) {
     'nuevo' => (
@@ -1168,64 +1167,64 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
       descripcion:
           'Solicitud enviada. El broker se pondrá en contacto contigo lo '
           'antes posible.',
-      tone: BadgeTone.pending,
+      tone: SBadgeTone.pending,
     ),
     'asignado' => (
       label: 'Ejecutivo asignado',
       descripcion: 'Un ejecutivo del banco fue asignado a tu solicitud.',
-      tone: BadgeTone.pending,
+      tone: SBadgeTone.pending,
     ),
     'contactado' => (
       label: 'Contactado',
       descripcion: 'El banco ya hizo el primer contacto contigo.',
-      tone: BadgeTone.pending,
+      tone: SBadgeTone.pending,
     ),
     'en_evaluacion' || 'en_revision' => (
       label: 'En evaluación',
       descripcion: 'El banco está evaluando tu solicitud.',
-      tone: BadgeTone.pending,
+      tone: SBadgeTone.pending,
     ),
     'pre_aprobado' => (
       label: 'Pre-aprobado',
       descripcion:
           '¡Pre-aprobado! El banco continuará con los siguientes pasos.',
-      tone: BadgeTone.positive,
+      tone: SBadgeTone.positive,
     ),
     'oferta_vinculante' => (
       label: 'Oferta vinculante',
       descripcion: 'El banco emitió tu oferta vinculante.',
-      tone: BadgeTone.positive,
+      tone: SBadgeTone.positive,
     ),
     'en_coordinacion' => (
       label: 'En coordinación',
       descripcion: 'Coordinando notario y fecha de firma con el banco.',
-      tone: BadgeTone.positive,
+      tone: SBadgeTone.positive,
     ),
     'formalizado' => (
       label: 'Crédito formalizado',
       descripcion: 'Crédito formalizado. Listo para escriturar.',
-      tone: BadgeTone.positive,
+      tone: SBadgeTone.positive,
     ),
     'rechazado' => (
       label: 'Solicitud rechazada',
       descripcion: 'El banco declinó la solicitud. Puedes elegir otro banco.',
-      tone: BadgeTone.negative,
+      tone: SBadgeTone.negative,
     ),
     'expirada' => (
       label: 'Solicitud expirada',
       descripcion:
           'Venció el plazo de respuesta del banco. Puedes elegir otro banco.',
-      tone: BadgeTone.negative,
+      tone: SBadgeTone.negative,
     ),
     'desistido' => (
       label: 'Solicitud desistida',
       descripcion: 'Solicitud cancelada. Puedes elegir otro banco.',
-      tone: BadgeTone.neutral,
+      tone: SBadgeTone.neutral,
     ),
     _ => (
       label: 'En proceso',
       descripcion: 'Tu asesor dará seguimiento al proceso con el banco.',
-      tone: BadgeTone.pending,
+      tone: SBadgeTone.pending,
     ),
   };
 

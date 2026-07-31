@@ -10,19 +10,18 @@ import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 // Import directo mientras el export de la primitiva no está en ui/ui.dart.
-import 'package:sozu_cliente_app/widgets/admin/admin_header_bar.dart';
-import 'package:sozu_cliente_app/widgets/admin/client_tile.dart';
-import 'package:sozu_cliente_app/widgets/admin/client_filters.dart';
-import 'package:sozu_cliente_app/widgets/common.dart';
+import 'package:sozu_cliente_app/features/admin/components/admin_header_bar.dart';
+import 'package:sozu_cliente_app/features/admin/layouts/admin_layout.dart';
+import 'package:sozu_cliente_app/features/admin/components/client_row.dart';
+import 'package:sozu_cliente_app/features/admin/components/client_filters.dart';
 import 'package:sozu_cliente_app/widgets/theme_mode_button.dart';
 
 /// Selector de cliente para super administradores (solo web).
 /// El admin elige un cliente y navega el portal viendo sus datos.
 ///
-/// Paridad con el "Ver como" del portal admin: al filtrar por Proyecto + Unidad
-/// (número de propiedad) se muestra arriba el grupo "Copropietarios (N)" (o
-/// "Dueño de la propiedad" si es uno) con los clientes dueños de esa unidad, y
-/// debajo "Todos los clientes".
+/// Al filtrar por Proyecto + Unidad (número de propiedad) se muestran SOLO los
+/// dueños de esa unidad: "Copropietarios (N)", o "Dueño de la propiedad" si es
+/// uno. Sin filtro, se busca por nombre o correo.
 ///
 /// ## Estructura
 ///
@@ -32,28 +31,22 @@ import 'package:sozu_cliente_app/widgets/theme_mode_button.dart';
 /// * [AdminHeaderBar] / [AdminHeaderAction] - encabezado y acciones
 /// * [ClientFilters] - Proyecto + Unidad
 /// * [SSearchField] - buscador
-/// * [ClientTile] - fila de cliente
+/// * [ClientRow] - fila de cliente
 /// * [SSectionLabel] - encabezado de grupo
 /// * [SEmptyState] - vacíos e instrucciones
 ///
 /// Antes eran ~480 líneas con seis `Widget _algo(SozuColorRoles tone)` privados
-/// pasándose el tema a mano, `TextStyle(fontSize: …)` sueltos y el layout
+/// pasándose el tema a mano, estilos de texto cocidos a mano y el layout
 /// mezclado con la lógica de filtrado.
-class SeleccionarClienteScreen extends ConsumerStatefulWidget {
-  const SeleccionarClienteScreen({super.key});
+class SelectClientScreen extends ConsumerStatefulWidget {
+  const SelectClientScreen({super.key});
 
   @override
-  ConsumerState<SeleccionarClienteScreen> createState() =>
-      _SeleccionarClienteScreenState();
+  ConsumerState<SelectClientScreen> createState() => _SelectClientScreenState();
 }
 
-class _SeleccionarClienteScreenState
-    extends ConsumerState<SeleccionarClienteScreen> {
+class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   static const _minQueryLength = 2;
-
-  /// Ancho máximo del content. 880 en vez de 720: con el encabezado y las
-  /// acciones dentro del mismo contenedor, 720 apretaba la fila de acciones.
-  static const _maxWidth = 880.0;
 
   final _search = TextEditingController();
   final _unidad = TextEditingController();
@@ -109,76 +102,57 @@ class _SeleccionarClienteScreenState
   @override
   Widget build(BuildContext context) {
     final t = context.s;
-    final c = t.color;
     final auth = ref.watch(authProvider);
     final imp = ref.watch(impersonationProvider);
-    final gutter = context.responsive(mobile: t.space.md, desktop: t.space.lg);
 
-    return Scaffold(
-      // `background`, no `surface`: el fondo de página es un nivel por DEBAJO de
-      // las tarjetas. Usar surface aquí aplanaba todo en un solo tono.
-      backgroundColor: c.background,
-      // El teclado NO reacomoda la pantalla. Con el resize, en un teléfono el
-      // encabezado y los filtros no caben en lo que queda y el Column desborda
-      // ("BOTTOM OVERFLOWED BY 47 PIXELS"). Aquí se escribe arriba y los
-      // resultados van debajo, así que es correcto que el teclado los tape: la
-      // lista compensa con padding inferior y se sigue pudiendo llegar al
-      // último.
-      resizeToAvoidBottomInset: false,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: _maxWidth),
-            child: Padding(
-              padding: EdgeInsets.all(gutter),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AdminHeaderBar(
-                    title: 'Selecciona un cliente',
-                    subtitle:
-                        'Acceso administrador · '
-                        '${auth.profile?.nombre ?? auth.profile?.email ?? ''}',
-                    actions: [
-                      const ThemeModeButton(),
-                      SizedBox(width: t.space.xxs),
-                      AdminHeaderAction(
-                        label: 'Enviar avisos',
-                        icon: Icons.campaign_outlined,
-                        onPressed: () => context.push('/admin-avisos'),
-                      ),
-                      if (imp.active)
-                        AdminHeaderAction(
-                          label: 'Volver al portal',
-                          onPressed: () => context.go('/inicio'),
-                        ),
-                      AdminHeaderAction(
-                        label: 'Cerrar sesión',
-                        isPrimary: false,
-                        onPressed: () => ref.read(authProvider).signOut(),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: t.space.md),
-                  _FiltersPanel(
-                    projects:
-                        ref.watch(adminProyectosProvider).asData?.value ??
-                        const <CatalogoItem>[],
-                    projectId: _proyectoId,
-                    onProjectChanged: (v) => setState(() => _proyectoId = v),
-                    unitController: _unidad,
-                    onUnitChanged: _onUnidadChanged,
-                    onUnitCleared: _clearUnit,
-                    searchController: _search,
-                    onQueryChanged: (v) => setState(() => _query = v),
-                  ),
-                  SizedBox(height: t.space.md),
-                  Expanded(child: _results()),
-                ],
+    return AdminLayout(
+      // 880 y no el default: con el encabezado y las acciones dentro del mismo
+      // contenedor, menos ancho aprieta la fila de acciones.
+      maxWidth: 880,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AdminHeaderBar(
+            title: 'Selecciona un cliente',
+            subtitle:
+                'Acceso administrador · '
+                '${auth.profile?.nombre ?? auth.profile?.email ?? ''}',
+            actions: [
+              const ThemeModeButton(),
+              SizedBox(width: t.space.xxs),
+              AdminHeaderAction(
+                label: 'Enviar avisos',
+                icon: Icons.campaign_outlined,
+                onPressed: () => context.push('/admin-avisos'),
               ),
-            ),
+              if (imp.active)
+                AdminHeaderAction(
+                  label: 'Volver al portal',
+                  onPressed: () => context.go('/inicio'),
+                ),
+              AdminHeaderAction(
+                label: 'Cerrar sesión',
+                isDanger: true,
+                onPressed: () => ref.read(authProvider).signOut(),
+              ),
+            ],
           ),
-        ),
+          SizedBox(height: t.space.md),
+          _FiltersPanel(
+            projects:
+                ref.watch(adminProyectosProvider).asData?.value ??
+                const <CatalogoItem>[],
+            projectId: _proyectoId,
+            onProjectChanged: (v) => setState(() => _proyectoId = v),
+            unitController: _unidad,
+            onUnitChanged: _onUnidadChanged,
+            onUnitCleared: _clearUnit,
+            searchController: _search,
+            onQueryChanged: (v) => setState(() => _query = v),
+          ),
+          SizedBox(height: t.space.md),
+          _results(),
+        ],
       ),
     );
   }
@@ -187,86 +161,56 @@ class _SeleccionarClienteScreenState
   // Resultados
   // -------------------------------------------------------------------------
 
+  /// El contenido NO trae scroll propio: el de la página lo da [AdminLayout].
+  /// Por eso las listas van como `Column` y no como `ListView`.
   Widget _results() {
     final clientes = ref.watch(adminClientesProvider);
     final t = context.s;
-    // Con `resizeToAvoidBottomInset: false` el teclado se dibuja ENCIMA de la
-    // lista: sin este padding el último resultado queda inalcanzable.
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    final bottomPad = EdgeInsets.only(bottom: keyboard);
+
+    // Con el filtro Proyecto + Unidad activo solo se muestran los dueños de esa
+    // unidad. Antes debajo iba un segundo bloque "Todos los clientes", que en la
+    // practica repetia el buscador de arriba: si ya acotaste a una unidad, la
+    // lista completa no aporta y solo alarga la pantalla.
+    if (_isPropertyFilterActive) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: _ownersSection(),
+      );
+    }
 
     return clientes.when(
-      loading: () => ListView(
-        padding: bottomPad,
+      loading: () => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < 4; i++) ...[
-            const _ClientTileSkeleton(),
+            const _ClientRowSkeleton(),
             SizedBox(height: t.space.xs),
           ],
         ],
       ),
-      error: (_, __) => ErrorCard(
+      error: (_, __) => SErrorState(
         title: 'No pudimos cargar la lista de clientes',
         onRetry: () => ref.invalidate(adminClientesProvider),
       ),
       data: (data) {
         final items = _filterBy(data.clientes);
-
-        // Sin filtro de propiedad: solo búsqueda por texto.
-        if (!_isPropertyFilterActive) {
-          if (_queryTooShort) {
-            return const SEmptyState(
-              icon: Icons.person_search_outlined,
-              title: 'Busca un cliente',
-              message:
-                  'Escribe al menos $_minQueryLength letras del nombre o '
-                  'correo, o filtra por proyecto y unidad.',
-            );
-          }
-          if (items.isEmpty) {
-            return SEmptyState(
-              icon: Icons.search_off_outlined,
-              title: 'Sin resultados',
-              message: 'No encontramos clientes para "$_query".',
-            );
-          }
-          return _ClientList(
-            clientes: items,
-            onTap: _viewAs,
-            padding: bottomPad,
+        if (_queryTooShort) {
+          return const SEmptyState(
+            icon: Icons.person_search_outlined,
+            title: 'Busca un cliente',
+            message:
+                'Escribe al menos $_minQueryLength letras del nombre o '
+                'correo, o filtra por proyecto y unidad.',
           );
         }
-
-        // Con filtro Proyecto + Unidad: copropietarios arriba y "Todos los
-        // clientes" debajo (paridad con el portal admin).
-        return ListView(
-          padding: bottomPad,
-          children: [
-            ..._ownersSection(),
-            const SSectionLabel(
-              text: 'Todos los clientes',
-              icon: Icons.people_alt_outlined,
-            ),
-            if (_queryTooShort)
-              _InlineNote(
-                'Escribe al menos $_minQueryLength letras del nombre o correo '
-                'para buscar en todos los clientes.',
-              )
-            else if (items.isEmpty)
-              _InlineNote('Sin resultados para "$_query".')
-            else
-              for (final cliente in items) ...[
-                ClientTile(
-                  cliente: cliente,
-                  isSelected:
-                      ref.watch(impersonationProvider).idPersona ==
-                      cliente.idPersona,
-                  onTap: () => _viewAs(cliente),
-                ),
-                SizedBox(height: t.space.xs),
-              ],
-          ],
-        );
+        if (items.isEmpty) {
+          return SEmptyState(
+            icon: Icons.search_off_outlined,
+            title: 'Sin resultados',
+            message: 'No encontramos clientes para "$_query".',
+          );
+        }
+        return _ClientList(clientes: items, onTap: _viewAs);
       },
     );
   }
@@ -282,11 +226,11 @@ class _SeleccionarClienteScreenState
     return propietarios.when(
       loading: () => [
         const SSectionLabel(text: 'Copropietarios', icon: Icons.group_outlined),
-        const _ClientTileSkeleton(),
+        const _ClientRowSkeleton(),
         SizedBox(height: t.space.md),
       ],
       error: (_, __) => [
-        ErrorCard(
+        SErrorState(
           title: 'No pudimos cargar los clientes de la unidad',
           onRetry: () => ref.invalidate(adminPropietariosProvider),
         ),
@@ -313,7 +257,7 @@ class _SeleccionarClienteScreenState
             icon: Icons.group_outlined,
           ),
           for (final cliente in items) ...[
-            ClientTile(
+            ClientRow(
               cliente: cliente,
               isSelected:
                   ref.watch(impersonationProvider).idPersona ==
@@ -383,6 +327,7 @@ class _FiltersPanel extends StatelessWidget {
           SizedBox(height: t.space.xs),
           SSearchField(
             controller: searchController,
+            label: 'Cliente',
             hintText: 'Alex Hernández o alex@example.com',
             // Solo donde hay teclado físico: en teléfono, abrirlo al entrar tapa
             // media pantalla antes de que el usuario pida escribir.
@@ -398,19 +343,17 @@ class _FiltersPanel extends StatelessWidget {
 class _ClientList extends StatelessWidget {
   final List<AdminCliente> clientes;
   final void Function(AdminCliente) onTap;
-  final EdgeInsets padding;
 
-  const _ClientList({
-    required this.clientes,
-    required this.onTap,
-    this.padding = EdgeInsets.zero,
-  });
+  const _ClientList({required this.clientes, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final t = context.s;
+    // `shrinkWrap` + sin physics: el scroll es el de la pagina (AdminLayout).
     return ListView.separated(
-      padding: padding,
+      padding: EdgeInsets.zero,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: clientes.length,
       separatorBuilder: (_, __) => SizedBox(height: t.space.xs),
       // Entrada escalonada: cada fila entra un poco después de la anterior, así
@@ -420,7 +363,7 @@ class _ClientList extends StatelessWidget {
       itemBuilder: (context, i) => SFadeInUp(
         delay: SStaggered.delayForIndex(i),
         child: Consumer(
-          builder: (context, ref, _) => ClientTile(
+          builder: (context, ref, _) => ClientRow(
             cliente: clientes[i],
             isSelected:
                 ref.watch(impersonationProvider).idPersona ==
@@ -452,8 +395,15 @@ class _InlineNote extends StatelessWidget {
   }
 }
 
-class _ClientTileSkeleton extends StatelessWidget {
-  const _ClientTileSkeleton();
+/// Ancho del renglón del correo en el skeleton. El correo es más corto que el
+/// nombre: dos renglones del mismo ancho se leen como un solo bloque gris.
+const double _emailSkeletonWidth = 180;
+
+/// Réplica en gris de [ClientRow]. Las medidas salen de los mismos tokens que
+/// la fila real ([kClientRowAvatarSize], `text.label`, `text.caption`) para que
+/// la lista no brinque al llegar los datos.
+class _ClientRowSkeleton extends StatelessWidget {
+  const _ClientRowSkeleton();
 
   @override
   Widget build(BuildContext context) {
@@ -467,15 +417,21 @@ class _ClientTileSkeleton extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Skeleton(width: 36, height: 36),
+          const SSkeleton(
+            width: kClientRowAvatarSize,
+            height: kClientRowAvatarSize,
+          ),
           SizedBox(width: t.space.sm),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Skeleton(height: 14),
-                SizedBox(height: 6),
-                Skeleton(width: 180, height: 12),
+                SSkeleton(height: t.text.label.fontSize!),
+                SizedBox(height: t.space.xxs),
+                SSkeleton(
+                  width: _emailSkeletonWidth,
+                  height: t.text.caption.fontSize!,
+                ),
               ],
             ),
           ),
