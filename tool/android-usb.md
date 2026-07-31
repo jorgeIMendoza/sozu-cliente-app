@@ -42,23 +42,29 @@ usbipd attach --wsl --busid <BUSID>
 ./tool/dev.sh DYLRPNJNIRKNZPRG      # el serial no rota
 ```
 
-### `no permissions`
+### `no permissions` o `adb devices` vacío
 
-`adb devices` lista el teléfono pero como `no permissions`: el nodo en
-`/dev/bus/usb/` es `root:root` con `crw-rw-r--` y tu usuario no tiene escritura.
-`udev` y `systemd` sí corren en este WSL, así que las reglas aplican:
+No se arregla a mano: **`./tool/dev.sh <serial>` lo resuelve solo.**
+
+`android-udev` deja el nodo como `root:adbusers` con modo `0660`, así que el
+acceso lo da el GRUPO. Pero la pertenencia a un grupo se fija al abrir la sesión:
+si `usermod -aG adbusers` se corrió después, una shell ya abierta no lo tiene
+aunque `/etc/group` ya lo diga, y `adb` no puede abrir el nodo. El síntoma es
+confuso porque `adb devices` a veces sale **vacío** en vez de `no permissions`.
+
+`dev.sh` detecta ese desfase y relanza el servidor de adb con `sg adbusers`. El
+servidor es el único proceso que toca el USB, así que con eso basta: sin
+`wsl --shutdown` y sin `chmod`.
+
+El `chmod` sobre el nodo funciona pero es el peor camino: `busnum`/`devnum` se
+renumeran en cada reconexión, así que hay que repetirlo cada vez y sobre una ruta
+distinta.
+
+Requisito, una sola vez:
 
 ```bash
-sudo pacman -S --noconfirm android-udev   # trae las reglas udev de Android
-sudo usermod -aG adbusers $USER           # el grupo que usan esas reglas
-# desde Windows:  wsl --shutdown          # el grupo no aplica hasta sesion nueva
-```
-
-Parche inmediato sin reiniciar, que se pierde al reconectar:
-
-```bash
-sudo chmod 666 /dev/bus/usb/001/002   # ls -la /dev/bus/usb/*/* para hallar el nodo
-adb kill-server && adb devices
+sudo pacman -S --noconfirm android-udev
+sudo usermod -aG adbusers $USER
 ```
 
 ---

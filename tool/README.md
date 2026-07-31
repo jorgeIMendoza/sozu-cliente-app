@@ -26,7 +26,7 @@ PowerShell **admin**: `winget install usbipd`
 
 ### Cada vez que conectas el cable
 
-PowerShell **admin**:
+PowerShell **admin** en Windows:
 
 ```powershell
 usbipd list                            # busca tu telefono, copia el BUSID
@@ -39,16 +39,30 @@ En WSL:
 ./tool/dev.sh DYLRPNJNIRKNZPRG
 ```
 
-Si sale `no permissions`, falta acceso al nodo USB. Permanente (una vez):
+Y ya. El serial no cambia nunca; el BUSID sí puede cambiar de puerto USB.
+
+**Si `adb devices` sale vacío o dice `no permissions`, no hagas nada a mano:**
+`dev.sh` lo resuelve solo. El nodo USB queda `root:adbusers 0660` por las reglas
+de `android-udev`, y la pertenencia a un grupo se fija al abrir la sesión, así
+que una shell abierta antes del `usermod` no lo tiene. El script relanza el
+servidor de adb con `sg adbusers`, que es el único proceso que necesita el grupo.
+Verás:
+
+```
+==> grupo adbusers pendiente en esta shell: relanzando adb con el grupo
+```
+
+Nada de `chmod`: se pierde en cada reconexión porque `busnum`/`devnum` se
+renumeran.
+
+### Requisito, una sola vez
 
 ```bash
 sudo pacman -S --noconfirm android-udev
 sudo usermod -aG adbusers $USER
-# y luego, desde Windows:  wsl --shutdown
 ```
 
-Inmediato, sin reiniciar: `sudo chmod 666 /dev/bus/usb/001/002` (se pierde al
-reconectar el cable). `dev.sh` imprime estos comandos si detecta el caso.
+No hace falta `wsl --shutdown`: el `sg` de `dev.sh` cubre las shells viejas.
 
 ---
 

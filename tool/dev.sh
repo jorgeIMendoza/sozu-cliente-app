@@ -57,6 +57,24 @@ if [ "$DEVICE" != "web-server" ] && [ "$DEVICE" != "chrome" ]; then
 
   # 1. Servidor local: si ya hay un dispositivo conectado, ese gana.
   unset ADB_SERVER_SOCKET
+
+  # Con android-udev el nodo USB queda root:adbusers 0660, asi que el acceso lo
+  # da el GRUPO. Pero la pertenencia a un grupo se fija al abrir la sesion: si
+  # `usermod -aG adbusers` se corrio despues, esta shell no lo tiene aunque
+  # /etc/group ya lo diga, y adb no puede abrir el nodo.
+  #
+  # `sg` arranca el servidor de adb con el grupo aplicado, que es todo lo que
+  # hace falta: el servidor es el unico proceso que toca el USB. Evita el
+  # `wsl --shutdown` y evita el chmod, que se pierde en cada reconexion.
+  if getent group adbusers 2>/dev/null | grep -qw "$USER" &&
+    ! id -nG 2>/dev/null | grep -qw adbusers; then
+    if ! adb devices 2>/dev/null | tail -n +2 | grep -q "device$"; then
+      echo "==> grupo adbusers pendiente en esta shell: relanzando adb con el grupo"
+      adb kill-server >/dev/null 2>&1 || true
+      sg adbusers -c "$ANDROID_HOME/platform-tools/adb start-server" >/dev/null 2>&1 || true
+    fi
+  fi
+
   # `no permissions` es un caso aparte: el dispositivo SI esta ahi, falta acceso
   # al nodo USB. Sin distinguirlo, el mensaje mandaba al camino inalambrico, que
   # no tiene nada que ver.
@@ -75,15 +93,18 @@ if [ "$DEVICE" != "web-server" ] && [ "$DEVICE" != "chrome" ]; then
       NODO="$(printf '/dev/bus/usb/%03d/%03d' "$B" "$V")"
     done
     echo "!!  El dispositivo esta conectado pero sin permisos sobre el nodo USB." >&2
-    echo "    Permanente (una vez, y ya no vuelve a pasar al reconectar):" >&2
-    echo "      sudo pacman -S --noconfirm android-udev" >&2
-    echo "      sudo usermod -aG adbusers \$USER" >&2
-    echo "      luego, desde Windows:  wsl --shutdown" >&2
+    if ! getent group adbusers >/dev/null 2>&1; then
+      echo "    Falta el paquete con las reglas udev de Android:" >&2
+      echo "      sudo pacman -S --noconfirm android-udev" >&2
+    fi
+    if ! getent group adbusers 2>/dev/null | grep -qw "$USER"; then
+      echo "    No estas en el grupo adbusers:" >&2
+      echo "      sudo usermod -aG adbusers \$USER" >&2
+      echo "    (este script aplica el grupo solo con \`sg\`, sin reiniciar WSL)" >&2
+    fi
     if [ -n "$NODO" ]; then
-      echo "    Ahora mismo, sin reiniciar (se pierde al reconectar el cable):" >&2
+      echo "    Ultimo recurso, se pierde al reconectar el cable:" >&2
       echo "      sudo chmod 666 $NODO" >&2
-    else
-      echo "    No se pudo ubicar el nodo; revisa:  ls -la /dev/bus/usb/*/*" >&2
     fi
     echo "      adb kill-server && adb devices" >&2
     exit 1
