@@ -23,6 +23,7 @@ class ProductosScreen extends ConsumerStatefulWidget {
 }
 
 class _ProductosScreenState extends ConsumerState<ProductosScreen> {
+  final _busquedaCtrl = TextEditingController();
   String _busqueda = '';
 
   /// Propiedad seleccionada en modo portal (detalle in-page). null = lista.
@@ -31,6 +32,12 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
   /// Producto (cuentaId) seleccionado en las tabs del detalle in-page. null =
   /// se usa el primero de la propiedad.
   int? _prodSel;
+
+  @override
+  void dispose() {
+    _busquedaCtrl.dispose();
+    super.dispose();
+  }
 
   /// Clave estable de un grupo/propiedad (para la selección in-page).
   String _grupoKey(ProductosPropiedad g) =>
@@ -251,7 +258,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
           ),
           const SizedBox(height: 16),
           if (n == 0)
-            PortalCard(
+            SCard(
               padding: const EdgeInsets.all(40),
               child: Center(
                 child: Column(
@@ -283,8 +290,9 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
               ),
             )
           else ...[
-            PortalSearchField(
-              hint: 'Buscar producto o propiedad…',
+            SSearchField(
+              controller: _busquedaCtrl,
+              hintText: 'Buscar producto o propiedad…',
               onChanged: (v) => setState(() => _busqueda = v),
             ),
             if (filtrados.isEmpty)
@@ -326,7 +334,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
     );
     final pct = totalPrecio > 0 ? (totalPagado / totalPrecio * 100).round() : 0;
 
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: () => setState(() {
           _grupoSel = _grupoKey(g);
@@ -441,7 +449,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
         children: [
           Row(
             children: [
-              PortalHoverBuilder(
+              SHoverBuilder(
                 builder: (context, hovered) => GestureDetector(
                   onTap: () => setState(() {
                     _grupoSel = null;
@@ -519,7 +527,7 @@ class _ProductosScreenState extends ConsumerState<ProductosScreen> {
   }
 
   Widget _portalTab(ProductoCliente p, {required bool active}) {
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: () => setState(() => _prodSel = p.cuentaId),
         behavior: HitTestBehavior.opaque,
@@ -715,7 +723,12 @@ class _ProductoCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(child: SProgressBar(thickness: SProgressBarThickness.thick, percent: p.avancePct)),
+                Expanded(
+                  child: SProgressBar(
+                    thickness: SProgressBarThickness.thick,
+                    percent: p.avancePct,
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   '${p.avancePct.round()}%',

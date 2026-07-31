@@ -210,7 +210,7 @@ class PortalPropertyCard extends StatelessWidget {
         : item.monto;
     final dotColor = portalPropiedadDotColor(item.etapaActiva);
 
-    return PortalPressable(
+    return SPressable.detector(
       builder: (context, hovered, pressed) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -339,9 +339,10 @@ class PortalPropertyCard extends StatelessWidget {
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    PortalThinProgressBar(
+                                    SProgressBar(
                                       percent: item.avancePago,
-                                      height: 2,
+                                      thickness: SProgressBarThickness.thin,
+                                      semanticsLabel: 'Avance de pago',
                                     ),
                                   ],
                                 ),
@@ -432,7 +433,7 @@ class PortalAcquisitionCard extends StatelessWidget {
     final ubicacion = item.ubicacion?.trim();
     final tieneSaldo = item.saldoPendiente > 0;
 
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -666,7 +667,10 @@ class PortalAcquisitionCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    PortalProgressBar(percent: item.avancePago, height: 6),
+                    SProgressBar(
+                      percent: item.avancePago,
+                      semanticsLabel: 'Avance de pago',
+                    ),
                   ],
                 ),
               ),
@@ -806,7 +810,7 @@ class PortalPatrimonyCard extends StatelessWidget {
         : item.monto;
     final ubicacion = item.ubicacion?.trim();
 
-    return PortalPressable(
+    return SPressable.detector(
       builder: (context, hovered, pressed) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -1061,19 +1065,17 @@ class PortalPatrimonyCard extends StatelessWidget {
                     // "Al día" (success) cuando no hay registro o está al
                     // corriente; "Pago próximo" (warning) si hay saldo.
                     mantoPendiente
-                        ? const PortalStatusChip(
-                            small: true,
+                        ? const SBadge(
+                            size: SBadgeSize.sm,
                             label: 'Pago próximo',
                             icon: Icons.calendar_today_outlined,
-                            background: PortalColors.warningSoft15,
-                            foreground: PortalColors.warning,
+                            tone: SBadgeTone.pending,
                           )
-                        : const PortalStatusChip(
-                            small: true,
+                        : const SBadge(
+                            size: SBadgeSize.sm,
                             label: 'Al día',
                             icon: Icons.check_circle_outline,
-                            background: PortalColors.primarySoft15,
-                            foreground: PortalColors.primary,
+                            tone: SBadgeTone.positive,
                           ),
                     _VerDetalle(hovered: hovered),
                   ],

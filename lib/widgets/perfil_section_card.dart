@@ -7,8 +7,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// Tarjetas de sección del Perfil (espejo de SectionCard en ClientePerfil.tsx
 /// del portal): icono, título/subtítulo, semáforo de estado, filas
 /// label→valor y botones de acción apilados. En modo portal (web ≥1024) la
-/// tarjeta se pinta con el estilo del portal (PortalCard + CTAs del portal);
-/// en móvil no cambia nada.
+/// tarjeta usa la tipografía y los CTAs del portal; en móvil no cambia nada.
 
 /// Acción de una tarjeta de sección del perfil.
 class PerfilCardAction {
@@ -201,11 +200,10 @@ class PerfilSectionCard extends StatelessWidget {
     );
   }
 
-  /// Variante portal: PortalCard (radio 24, sin sombra), tipografía del
-  /// portal y CTAs full-width verdes/blancos/rojos como SectionCard del
-  /// portal web.
+  /// Variante portal: tipografía del portal y CTAs full-width
+  /// verdes/blancos/rojos como SectionCard del portal web.
   Widget _buildPortal(BuildContext context) {
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

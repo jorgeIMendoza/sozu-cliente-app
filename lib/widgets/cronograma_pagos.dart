@@ -4,7 +4,6 @@ import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Cronograma de pagos del detalle de propiedad (espejo de PaymentSchedule en
@@ -20,9 +19,8 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 class CronogramaPagos extends StatefulWidget {
   final List<EsquemaPagoItem> esquemaPago;
 
-  /// true en modo portal web (≥1024): solo cambia el contenedor exterior a
-  /// PortalCard (radio 24, sin sombra) y el label del título al estilo
-  /// portal; el contenido y la vista móvil quedan idénticos.
+  /// true en modo portal web (≥1024): la card va sin el margen superior de la
+  /// vista móvil y el título usa el label de sección del design system.
   final bool portal;
 
   const CronogramaPagos({
@@ -44,6 +42,10 @@ const _limiteFilas = 5;
 
 /// Ancho mínimo para el layout de tabla con columnas.
 const _anchoTabla = 520.0;
+
+/// Columna ESTATUS. Tiene que caber el chip más largo ("Pendiente") sin
+/// recortarlo: con menos, el `SBadge` desborda su celda.
+const _anchoEstatus = 112.0;
 
 class _CronogramaPagosState extends State<CronogramaPagos> {
   bool _seccionAbierta = true;
@@ -135,7 +137,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
     );
 
     if (widget.portal) {
-      return PortalCard(padding: const EdgeInsets.all(20), child: contenido);
+      return SCard(padding: const EdgeInsets.all(20), child: contenido);
     }
     return Padding(
       padding: const EdgeInsets.only(top: 24),
@@ -165,7 +167,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
               child: widget.portal
                   ? const Align(
                       alignment: Alignment.centerLeft,
-                      child: PortalSectionLabel('Cronograma de pagos'),
+                      child: SSectionLabel(text: 'Cronograma de pagos'),
                     )
                   : Text(
                       'CRONOGRAMA DE PAGOS',
@@ -240,7 +242,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
           ),
           const SizedBox(width: 12),
           SizedBox(
-            width: 88,
+            width: _anchoEstatus,
             child: Text('ESTATUS', textAlign: TextAlign.right, style: estilo),
           ),
           const SizedBox(width: 28),
@@ -313,7 +315,7 @@ class _CronogramaPagosState extends State<CronogramaPagos> {
         ),
         const SizedBox(width: 12),
         SizedBox(
-          width: 88,
+          width: _anchoEstatus,
           child: Align(
             alignment: Alignment.centerRight,
             child: _chipEstado(estado),

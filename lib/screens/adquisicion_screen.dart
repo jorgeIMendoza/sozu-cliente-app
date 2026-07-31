@@ -26,6 +26,16 @@ class AdquisicionScreen extends ConsumerStatefulWidget {
 class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
   String _busqueda = '';
 
+  /// Controller del buscador del modo portal: `SSearchField` lo necesita para
+  /// resolver solo el botón de limpiar.
+  final _busquedaCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _busquedaCtrl.dispose();
+    super.dispose();
+  }
+
   List<PropiedadCard> _filtrar(List<PropiedadCard> items) {
     final q = _busqueda.trim().toLowerCase();
     if (q.isEmpty) return items;
@@ -262,7 +272,7 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
           ),
           const SizedBox(height: 20),
           if (data.enAdquisicion.isEmpty)
-            const PortalEmptyState(
+            const SEmptyState.card(
               icon: Icons.shopping_bag_outlined,
               title: 'No hay compras en curso',
               message:
@@ -270,8 +280,9 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
                   'con su progreso, pagos pendientes y documentación.',
             )
           else ...[
-            PortalSearchField(
-              hint: 'Buscar propiedad…',
+            SSearchField(
+              controller: _busquedaCtrl,
+              hintText: 'Buscar propiedad…',
               onChanged: (v) => setState(() => _busqueda = v),
             ),
             const SizedBox(height: 16),
@@ -308,8 +319,9 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
               style: portalText(size: 15, weight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
-            PortalCard(
+            SCard(
               clip: true,
+              padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   for (var i = 0; i < data.productos.length; i++) ...[
@@ -332,8 +344,9 @@ class _AdquisicionScreenState extends ConsumerState<AdquisicionScreen> {
               style: portalText(size: 15, weight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
-            PortalCard(
+            SCard(
               clip: true,
+              padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   for (var i = 0; i < data.mantenimiento.length; i++) ...[
@@ -360,7 +373,7 @@ class _PortalProductoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -481,12 +494,11 @@ class _PortalMantenimientoRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           if (alDia)
-            const PortalStatusChip(
-              small: true,
+            const SBadge(
               label: 'Al día',
+              tone: SBadgeTone.positive,
+              size: SBadgeSize.sm,
               icon: Icons.check_circle_outline,
-              background: PortalColors.primarySoft15,
-              foreground: PortalColors.primary,
             )
           else
             Text(

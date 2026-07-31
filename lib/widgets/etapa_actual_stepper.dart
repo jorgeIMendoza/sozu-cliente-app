@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Tarjeta "ETAPA ACTUAL" del detalle de propiedad, espejo del portal del
@@ -23,9 +22,8 @@ class EtapaActualStepper extends StatelessWidget {
   final String activa;
   final double saldoPendiente;
 
-  /// true en modo portal web (≥1024): solo cambia el contenedor exterior a
-  /// PortalCard (radio 24, sin sombra) y el label del título al estilo
-  /// portal; el contenido y la vista móvil quedan idénticos.
+  /// true en modo portal web (≥1024): la card va sin el margen superior de la
+  /// vista móvil y el título usa el label de sección del design system.
   final bool portal;
 
   const EtapaActualStepper({
@@ -106,7 +104,7 @@ class EtapaActualStepper extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             portal
-                ? const PortalSectionLabel('Etapa actual')
+                ? const Expanded(child: SSectionLabel(text: 'Etapa actual'))
                 : Text(
                     'ETAPA ACTUAL',
                     style: TextStyle(
@@ -206,7 +204,7 @@ class EtapaActualStepper extends StatelessWidget {
     );
 
     if (portal) {
-      return PortalCard(padding: const EdgeInsets.all(20), child: contenido);
+      return SCard(padding: const EdgeInsets.all(20), child: contenido);
     }
     return Padding(
       padding: const EdgeInsets.only(top: 24),

@@ -293,7 +293,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                 ),
               ),
               if (noLeidas > 0)
-                PortalHoverBuilder(
+                SHoverBuilder(
                   builder: (context, hovered) => GestureDetector(
                     onTap: () => _marcar(action: 'marcar_todas'),
                     behavior: HitTestBehavior.opaque,
@@ -358,7 +358,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
   /// Tab de filtro del portal: activa con fondo oscuro (foreground) y texto
   /// blanco; inactiva transparente con borde.
   Widget _portalTab(String label, bool active, VoidCallback onTap) {
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -395,7 +395,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
   }
 
   Widget _portalVacio() {
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
       child: Center(
         child: Column(
@@ -442,7 +442,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
     // El glifo lo define la categoría; el color sigue por tipo/severidad.
     final icon = _iconoCategoria(n.categoria) ?? tipoIcon;
     final etiqueta = _etiquetaAccion(n);
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: () => _abrir(n),
         behavior: HitTestBehavior.opaque,
@@ -572,7 +572,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                       onTap: () => alternarLeidaNotificacion(ref, n),
                     ),
                     const SizedBox(width: 2),
-                    PortalHoverBuilder(
+                    SHoverBuilder(
                       builder: (context, xHovered) => Tooltip(
                         message: 'Descartar',
                         child: GestureDetector(
@@ -920,7 +920,7 @@ class _ToggleLeidaBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final leida = n.leida;
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => Tooltip(
         message: leida ? 'Marcar como no leída' : 'Marcar como leída',
         child: GestureDetector(
@@ -975,7 +975,7 @@ class NotifPreviewRow extends StatelessWidget {
     final icon = _iconoCategoria(n.categoria) ?? tipoIcon;
     return Stack(
       children: [
-        PortalHoverBuilder(
+        SHoverBuilder(
           builder: (context, hovered) => GestureDetector(
             onTap: onTap,
             behavior: HitTestBehavior.opaque,
@@ -1075,7 +1075,7 @@ class NotifPreviewRow extends StatelessWidget {
               if (onToggleLeida != null)
                 _ToggleLeidaBtn(n: n, onTap: onToggleLeida!, size: 26),
               if (onToggleLeida != null) const SizedBox(width: 2),
-              PortalHoverBuilder(
+              SHoverBuilder(
                 builder: (context, xHovered) => Tooltip(
                   message: 'Descartar',
                   child: GestureDetector(

@@ -290,7 +290,7 @@ void main() {
       STextField.password(controller: TextEditingController()),
     );
 
-    expect(tester.getSize(find.byType(AnimatedContainer)).height, 52);
+    expect(tester.getSize(find.byType(AnimatedContainer)).height, 56);
   });
 
   testWidgets('enfocar NO cambia el alto del campo', (tester) async {

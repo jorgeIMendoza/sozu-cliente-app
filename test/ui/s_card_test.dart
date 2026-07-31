@@ -42,12 +42,14 @@ void main() {
     find.descendant(of: find.byType(SCard), matching: find.byType(Container)),
   );
 
-  testWidgets('elevated flota: sombra sí, borde no', (tester) async {
+  testWidgets('elevated se separa del fondo: borde Y sombra', (tester) async {
     await pump(tester, const SCard(child: Text('hola')));
     final d = decorationOf(tester);
 
+    // Las dos cosas: `AppCard` traia sombra sin borde y `PortalCard` borde sin
+    // sombra. Unificarlas en una sola card significa quedarse con ambas.
     expect(d.boxShadow, isNotEmpty);
-    expect(d.border, isNull);
+    expect(d.border, isNotNull);
     expect(d.color, SozuColorRoles.light.surface);
   });
 
@@ -110,8 +112,8 @@ void main() {
         child: SCard(fullWidth: false, child: SizedBox(width: 40, height: 10)),
       ),
     );
-    // 40 de contenido + 16 de padding por lado.
-    expect(tester.getSize(find.byType(SCard)).width, 40 + 2 * 16);
+    // 40 de contenido + 16 de padding y 1 de borde por lado.
+    expect(tester.getSize(find.byType(SCard)).width, 40 + 2 * 16 + 2 * 1);
   });
 
   testWidgets('clip recorta al radio solo cuando se pide', (tester) async {

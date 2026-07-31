@@ -12,6 +12,12 @@ enum SSectionLabelVariant {
 
   /// Título de bloque de una pantalla: 16 px w700 en su caja original.
   heading,
+
+  /// Misma tipografía que [label] pero SIN padding propio y ajustada al texto:
+  /// para cabeceras de columna de una tabla, donde la celda ya decide el aire y
+  /// la alineación. Con [label] el `Expanded` interno se comía la celda y un
+  /// `Align` alrededor no alineaba nada.
+  inline,
 }
 
 /// Encabezado de sección: icono opcional, texto y contenido a la derecha.
@@ -49,27 +55,50 @@ class SSectionLabel extends StatelessWidget {
     this.trailing,
   }) : variant = SSectionLabelVariant.heading;
 
+  /// Atajo legible de [SSectionLabelVariant.inline]. Sin `trailing`: quien
+  /// compone la celda decide qué va al lado.
+  const SSectionLabel.inline({super.key, required this.text, this.icon})
+    : trailing = null,
+      variant = SSectionLabelVariant.inline;
+
   @override
   Widget build(BuildContext context) {
     final t = context.s;
     final style = _SSectionLabelStyle.resolve(variant: variant, theme: t);
 
+    final label = Text(
+      style.uppercase ? text.toUpperCase() : text,
+      style: style.textStyle,
+    );
+
     return Padding(
       padding: style.padding,
-      child: Row(
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: style.iconSize, color: style.iconColor),
-            SizedBox(width: style.gap),
-          ],
-          Expanded(
-            child: Text(
-              style.uppercase ? text.toUpperCase() : text,
-              style: style.textStyle,
-            ),
-          ),
-          if (trailing != null) trailing!,
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // El flex se aplica solo si tiene sentido. Dos motivos distintos:
+          //
+          // 1. Con ancho NO acotado, cualquier flex revienta el layout
+          //    ("non-zero flex but incoming width constraints are unbounded").
+          //    `Flexible` no salva: su flex tambien es 1.
+          // 2. La variante `inline` NUNCA expande, ni con ancho acotado: en una
+          //    cabecera de tabla el `Expanded` se come la celda y el `Align` de
+          //    alrededor deja de alinear.
+          final expand =
+              variant != SSectionLabelVariant.inline &&
+              constraints.hasBoundedWidth;
+
+          return Row(
+            mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: style.iconSize, color: style.iconColor),
+                SizedBox(width: style.gap),
+              ],
+              if (expand) Expanded(child: label) else label,
+              if (trailing != null) trailing!,
+            ],
+          );
+        },
       ),
     );
   }
@@ -106,6 +135,16 @@ class _SSectionLabelStyle {
             top: theme.space.xxs,
             bottom: theme.space.xs,
           ),
+          iconSize: 14,
+          iconColor: c.fgSubtle,
+          gap: theme.space.xxs + 2,
+          textStyle: theme.text.overline.copyWith(color: c.fgSubtle),
+          uppercase: true,
+        );
+
+      case SSectionLabelVariant.inline:
+        return _SSectionLabelStyle(
+          padding: EdgeInsets.zero,
           iconSize: 14,
           iconColor: c.fgSubtle,
           gap: theme.space.xxs + 2,

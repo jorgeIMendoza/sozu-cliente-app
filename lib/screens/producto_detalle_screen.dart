@@ -192,7 +192,10 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
             ],
           ),
           const SizedBox(height: 6),
-          SProgressBar(thickness: SProgressBarThickness.thick, percent: p.avancePct),
+          SProgressBar(
+            thickness: SProgressBarThickness.thick,
+            percent: p.avancePct,
+          ),
           if ((p.clabe ?? '').trim().isNotEmpty) ...[
             Divider(color: tone.border, height: 24),
             _clabeRow(tone, p.clabe!.trim()),
@@ -801,7 +804,7 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
   Widget _filtros(List<String> anios) {
     Widget fila(String label, List<Widget> pills) => Row(
       children: [
-        PortalSectionLabel(label),
+        SSectionLabel(text: label),
         const SizedBox(width: 8),
         Expanded(
           child: Wrap(
@@ -814,8 +817,7 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
       ],
     );
 
-    return PortalCard(
-      padding: const EdgeInsets.all(16),
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -863,8 +865,9 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
 
   // ── Card "Movimientos" con tabla (desktopTable del portal) ────────────────
   Widget _movimientos(List<ProductoAcuerdo> acuerdos) {
-    return PortalCard(
+    return SCard(
       clip: true,
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -948,13 +951,13 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
             width: _wFecha,
             child: Padding(
               padding: EdgeInsets.only(left: 20, right: 12),
-              child: PortalSectionLabel('Fecha'),
+              child: SSectionLabel.inline(text: 'Fecha'),
             ),
           ),
           Expanded(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
-              child: PortalSectionLabel('Concepto'),
+              child: SSectionLabel.inline(text: 'Concepto'),
             ),
           ),
           SizedBox(
@@ -963,19 +966,19 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
               padding: EdgeInsets.symmetric(horizontal: 12),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: PortalSectionLabel('Monto'),
+                child: SSectionLabel.inline(text: 'Monto'),
               ),
             ),
           ),
           SizedBox(
             width: _wEstatus,
-            child: Center(child: PortalSectionLabel('Estatus')),
+            child: Center(child: SSectionLabel.inline(text: 'Estatus')),
           ),
           SizedBox(
             width: _wComp,
             child: Padding(
               padding: EdgeInsets.only(left: 12, right: 20),
-              child: Center(child: PortalSectionLabel('Comprobante')),
+              child: Center(child: SSectionLabel.inline(text: 'Comprobante')),
             ),
           ),
         ],
@@ -990,17 +993,15 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
     final tieneRecibo = (a.urlRecibo ?? '').isNotEmpty;
 
     final chip = a.completado
-        ? const PortalStatusChip(
+        ? const SBadge(
             label: 'Pagado',
+            tone: SBadgeTone.positive,
             icon: Icons.check_circle_outlined,
-            background: PortalColors.primarySoft10,
-            foreground: PortalColors.primary,
           )
-        : PortalStatusChip(
+        : SBadge(
             label: parcial ? 'Parcial' : 'Pendiente',
+            tone: SBadgeTone.pending,
             icon: Icons.schedule,
-            background: PortalColors.warningSoft10,
-            foreground: PortalColors.warning,
           );
 
     // MONTO: parcial con desglose (MontoCell del portal).
@@ -1040,7 +1041,7 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
             style: portalText(size: 13, weight: FontWeight.w600, tabular: true),
           );
 
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
@@ -1188,7 +1189,7 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
       ],
     );
 
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1282,7 +1283,7 @@ class _ProductoPortalHistorialState extends State<ProductoPortalHistorial> {
             ],
           ),
           const SizedBox(height: 6),
-          PortalProgressBar(percent: p.avancePct, height: 8),
+          SProgressBar(percent: p.avancePct),
           if ((p.clabe ?? '').trim().isNotEmpty) ...[
             sep(),
             PortalInfoRow(

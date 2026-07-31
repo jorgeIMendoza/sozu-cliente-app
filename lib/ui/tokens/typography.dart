@@ -20,16 +20,22 @@ import 'package:flutter/material.dart';
 /// | Token       | Rol Material   | Fuente  | px | Peso | Uso                        |
 /// |-------------|----------------|---------|----|------|----------------------------|
 /// | `display`   | displayLarge   | Poppins | 44 | 800  | Hero del panel de marca    |
-/// | `h1`        | headlineLarge  | Poppins | 30 | 700  | Título de pantalla         |
-/// | `h2`        | headlineSmall  | Poppins | 22 | 600  | Título de sección          |
-/// | `h3`        | titleLarge     | Poppins | 17 | 600  | Título de card / subsección|
-/// | `bodyLarge` | bodyLarge      | Inter   | 16 | 400  | Texto destacado            |
-/// | `bodyText`  | bodyMedium     | Inter   | 14 | 400  | Texto por defecto          |
-/// | `bodySmall` | bodySmall      | Inter   | 13 | 400  | Texto secundario           |
-/// | `label`     | labelLarge     | Inter   | 14 | 600  | Etiqueta de campo          |
-/// | `button`    | -              | Poppins | 15 | 600  | Texto de botón             |
+/// | `h1`        | headlineLarge  | Poppins | 32 | 700  | Título de pantalla         |
+/// | `h2`        | headlineSmall  | Poppins | 24 | 600  | Título de sección          |
+/// | `h3`        | titleLarge     | Poppins | 20 | 600  | Título de card / subsección|
+/// | `bodyLarge` | bodyLarge      | Inter   | 18 | 400  | Texto destacado            |
+/// | `button`    | -              | Poppins | 18 | 600  | Texto de botón             |
+/// | `bodyText`  | bodyMedium     | Inter   | 16 | 400  | Texto por defecto          |
+/// | `label`     | labelLarge     | Inter   | 16 | 600  | Etiqueta de campo          |
+/// | `bodySmall` | bodySmall      | Inter   | 14 | 400  | Texto secundario           |
 /// | `caption`   | labelSmall     | Inter   | 12 | 400  | Pies, ayudas, metadatos    |
-/// | `overline`  | labelMedium    | Inter   | 11 | 600  | Chips, separadores         |
+/// | `overline`  | labelMedium    | Inter   | 10 | 600  | Chips, separadores         |
+///
+/// **Escalera PAR de 9 pasos: 44 · 32 · 24 · 20 · 18 · 16 · 14 · 12 · 10.**
+/// Ningún paso es impar y ninguno se salta. Dos parejas comparten cuerpo a
+/// propósito y se distinguen por otra cosa: `button`/`bodyLarge` (18) por fuente
+/// (Poppins vs Inter) y `label`/`bodyText` (16) por peso (600 vs 400).
+///
 class SozuType {
   SozuType._();
 
@@ -48,7 +54,7 @@ class SozuType {
 
   static const TextStyle h1 = TextStyle(
     fontFamily: heading,
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: FontWeight.w700,
     height: 1.2,
     letterSpacing: -0.6,
@@ -56,7 +62,7 @@ class SozuType {
 
   static const TextStyle h2 = TextStyle(
     fontFamily: heading,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: FontWeight.w600,
     height: 1.28,
     letterSpacing: -0.3,
@@ -64,7 +70,7 @@ class SozuType {
 
   static const TextStyle h3 = TextStyle(
     fontFamily: heading,
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: FontWeight.w600,
     height: 1.35,
     letterSpacing: -0.1,
@@ -72,7 +78,7 @@ class SozuType {
 
   static const TextStyle button = TextStyle(
     fontFamily: heading,
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: FontWeight.w600,
     height: 1.2,
     letterSpacing: 0.1,
@@ -82,28 +88,28 @@ class SozuType {
 
   static const TextStyle bodyLarge = TextStyle(
     fontFamily: body,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: FontWeight.w400,
     height: 1.55,
   );
 
   static const TextStyle bodyText = TextStyle(
     fontFamily: body,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: FontWeight.w400,
     height: 1.5,
   );
 
   static const TextStyle bodySmall = TextStyle(
     fontFamily: body,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: FontWeight.w400,
     height: 1.45,
   );
 
   static const TextStyle label = TextStyle(
     fontFamily: body,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: FontWeight.w600,
     height: 1.3,
   );
@@ -117,7 +123,7 @@ class SozuType {
 
   static const TextStyle overline = TextStyle(
     fontFamily: body,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: FontWeight.w600,
     height: 1.3,
     letterSpacing: 0.4,
@@ -141,7 +147,7 @@ TextTheme sozuTextTheme({required Color color, required Color colorSuave}) {
     displayMedium: SozuType.h1.copyWith(fontSize: 36, color: color),
     displaySmall: SozuType.h1.copyWith(color: color),
     headlineLarge: SozuType.h1.copyWith(color: color),
-    headlineMedium: SozuType.h2.copyWith(fontSize: 25, color: color),
+    headlineMedium: SozuType.h2.copyWith(fontSize: 28, color: color),
     headlineSmall: SozuType.h2.copyWith(color: color),
     titleLarge: SozuType.h3.copyWith(color: color),
     titleMedium: SozuType.label.copyWith(color: color),
@@ -205,10 +211,10 @@ class SozuTypeScale {
 
   /// Títulos un paso más chicos. Texto corrido intacto.
   static final SozuTypeScale compact = SozuTypeScale(
-    display: SozuType.display.copyWith(fontSize: 34, letterSpacing: -0.9),
-    h1: SozuType.h1.copyWith(fontSize: 25, letterSpacing: -0.5),
-    h2: SozuType.h2.copyWith(fontSize: 19),
-    h3: SozuType.h3.copyWith(fontSize: 16),
+    display: SozuType.display.copyWith(fontSize: 36, letterSpacing: -0.9),
+    h1: SozuType.h1.copyWith(fontSize: 28, letterSpacing: -0.5),
+    h2: SozuType.h2.copyWith(fontSize: 20),
+    h3: SozuType.h3.copyWith(fontSize: 18),
     bodyLarge: SozuType.bodyLarge,
     body: SozuType.bodyText,
     bodySmall: SozuType.bodySmall,

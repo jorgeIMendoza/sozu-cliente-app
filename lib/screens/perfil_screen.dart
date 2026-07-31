@@ -199,7 +199,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
     if (portal) {
       // Header de identidad: avatar + nombre + estatus a la izquierda,
       // "Perfil completado N%" con barra a la derecha (220px como el portal).
-      final identidad = PortalCard(
+      final identidad = SCard(
         padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -327,11 +327,13 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
       final preferencias = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 20 y no 24, y sin `bottom`: SSectionLabel ya aporta 4 arriba y 8
+          // abajo por su cuenta, así que el total sigue siendo 24/8.
           const Padding(
-            padding: EdgeInsets.only(top: 24, bottom: 8),
-            child: PortalSectionLabel('Preferencias de la app'),
+            padding: EdgeInsets.only(top: 20),
+            child: SSectionLabel(text: 'Preferencias de la app'),
           ),
-          PortalCard(
+          SCard(
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -555,7 +557,10 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                             ],
                           ),
                           const SizedBox(height: 5),
-                          SProgressBar(thickness: SProgressBarThickness.thick, percent: completado.toDouble()),
+                          SProgressBar(
+                            thickness: SProgressBarThickness.thick,
+                            percent: completado.toDouble(),
+                          ),
                         ],
                       );
                       if (wide) {
@@ -679,27 +684,24 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
     );
   }
 
-  /// Chip de verificación en modo portal (colores del header de
-  /// ClientePerfil.tsx: verde / ámbar / rojo con icono).
+  /// Chip de verificación en modo portal: el mismo estatus que [_estatusBadge]
+  /// más el icono que lleva el header de ClientePerfil.tsx.
   Widget _portalEstatusChip(String estatus) {
     return switch (estatus) {
-      'verified' => const PortalStatusChip(
+      'verified' => const SBadge(
         label: 'Perfil verificado',
+        tone: SBadgeTone.positive,
         icon: Icons.check_circle_outline,
-        background: PortalColors.primarySoft10,
-        foreground: PortalColors.primary,
       ),
-      'review' => const PortalStatusChip(
+      'review' => const SBadge(
         label: 'En revisión',
+        tone: SBadgeTone.pending,
         icon: Icons.schedule,
-        background: PortalColors.warningSoft10,
-        foreground: Color(0xFF92400E),
       ),
-      _ => const PortalStatusChip(
+      _ => const SBadge(
         label: 'Información incompleta',
+        tone: SBadgeTone.negative,
         icon: Icons.error_outline,
-        background: PortalColors.destructiveSoft10,
-        foreground: PortalColors.destructive,
       ),
     };
   }
@@ -712,10 +714,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
         label: 'Perfil verificado',
         tone: SBadgeTone.positive,
       ),
-      'review' => const SBadge(
-        label: 'En revisión',
-        tone: SBadgeTone.pending,
-      ),
+      'review' => const SBadge(label: 'En revisión', tone: SBadgeTone.pending),
       _ => const SBadge(
         label: 'Información incompleta',
         tone: SBadgeTone.negative,

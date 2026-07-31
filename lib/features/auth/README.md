@@ -59,7 +59,7 @@ Lo específico de auth va por **props**, nunca por una copia del widget. Si algo
 no se puede expresar con una prop, la prop se agrega al componente GLOBAL - no se
 crea un componente de auth.
 
-`SButtonSize.lg` (52 px) es explícito en los botones de formulario: empareja el
+`SButtonSize.lg` (56 px) es explícito en los botones de formulario: empareja el
 alto de `STextField` (que nace en `lg`). El default de `SButton` es `md` (44 px),
 correcto para toolbars y filas de acciones, bajo al lado de un campo.
 

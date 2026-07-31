@@ -233,7 +233,10 @@ class _PropiedadDetalleScreenState
                         ],
                       ),
                       const SizedBox(height: 6),
-                      SProgressBar(thickness: SProgressBarThickness.thick, percent: d.avancePagoEfectivo),
+                      SProgressBar(
+                        thickness: SProgressBarThickness.thick,
+                        percent: d.avancePagoEfectivo,
+                      ),
                       if (d.saldoPendienteEfectivo > 0)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
@@ -717,7 +720,7 @@ class _PropiedadDetalleScreenState
 
   Widget _portalTabButton(_DetailTab id, String label, IconData icon) {
     final active = _portalTab == id;
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) {
         final Color fg = active
             ? PortalColors.foreground
@@ -852,21 +855,14 @@ class _PropiedadDetalleScreenState
   /// no reporte datos): card con el label de sección + mensaje muted, NO una
   /// card de avance fabricada.
   Widget _portalAvanceObraVacio() {
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.engineering_outlined,
-                size: 14,
-                color: PortalColors.mutedForeground,
-              ),
-              SizedBox(width: 8),
-              PortalSectionLabel('Avance de obra'),
-            ],
+          const SSectionLabel(
+            icon: Icons.engineering_outlined,
+            text: 'Avance de obra',
           ),
           const SizedBox(height: 14),
           Text(
@@ -884,7 +880,7 @@ class _PropiedadDetalleScreenState
 
   /// Empty state genérico discreto para una pestaña sin datos.
   Widget _portalTabVacio(String mensaje) {
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(20),
       child: Text(
         mensaje,
@@ -1133,23 +1129,14 @@ class _PropiedadDetalleScreenState
 
   // ── Productos adicionales (card única con filas, estilo portal) ──
   Widget _portalProductos(PropiedadDetalle d) {
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.inventory_2_outlined,
-                size: 14,
-                color: PortalColors.mutedForeground,
-              ),
-              const SizedBox(width: 8),
-              PortalSectionLabel(
-                'Productos adicionales · ${d.productos.length}',
-              ),
-            ],
+          SSectionLabel(
+            icon: Icons.inventory_2_outlined,
+            text: 'Productos adicionales · ${d.productos.length}',
           ),
           const SizedBox(height: 8),
           for (var i = 0; i < d.productos.length; i++) ...[
@@ -1186,7 +1173,7 @@ class _PropiedadDetalleScreenState
         .clamp(0, p.monto)
         .toDouble();
 
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: () => context.push('/productos/${p.id}'),
         behavior: HitTestBehavior.opaque,
@@ -1340,21 +1327,14 @@ class _PropiedadDetalleScreenState
 
   // ── Documentos (card única con filas, estilo portal) ──
   Widget _portalDocumentos(PropiedadDetalle d) {
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.description_outlined,
-                size: 14,
-                color: PortalColors.mutedForeground,
-              ),
-              SizedBox(width: 8),
-              PortalSectionLabel('Documentos'),
-            ],
+          const SSectionLabel(
+            icon: Icons.description_outlined,
+            text: 'Documentos',
           ),
           if (d.documentos.isEmpty)
             Padding(
@@ -1382,7 +1362,7 @@ class _PropiedadDetalleScreenState
   }
 
   Widget _portalDocRow(DocumentoItem doc) {
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: () => openMedia(context, doc.urlFirmada, titulo: doc.nombre),
         behavior: HitTestBehavior.opaque,
@@ -1442,12 +1422,12 @@ class _PropiedadDetalleScreenState
   Widget _portalPrecioCompra(PropiedadDetalle d) {
     final progreso = (d.avancePagoEfectivo / 100).clamp(0.0, 1.0).toDouble();
     final cta = _portalCta(d);
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PortalSectionLabel('Precio de compra', size: 10),
+          const SSectionLabel.inline(text: 'Precio de compra'),
           const SizedBox(height: 2),
           Text(
             formatMXN(d.montoEfectivo),
@@ -1503,7 +1483,7 @@ class _PropiedadDetalleScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const PortalSectionLabel('Pagado', size: 10),
+                      const SSectionLabel.inline(text: 'Pagado'),
                       const SizedBox(height: 2),
                       Text(
                         formatMXN(d.pagadoEfectivo),
@@ -1521,7 +1501,7 @@ class _PropiedadDetalleScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const PortalSectionLabel('Restante', size: 10),
+                      const SSectionLabel.inline(text: 'Restante'),
                       const SizedBox(height: 2),
                       Text(
                         formatMXN(d.saldoPendienteEfectivo),
@@ -1742,7 +1722,7 @@ class _PropiedadDetalleScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const PortalSectionLabel('Desglose a escrituración', size: 10),
+            const SSectionLabel.inline(text: 'Desglose a escrituración'),
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
@@ -1814,21 +1794,14 @@ class _PropiedadDetalleScreenState
       ('Piso', d.numeroPiso != null ? '${d.numeroPiso}' : '-'),
       ('Entrega', d.entrega),
     ];
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.apartment_outlined,
-                size: 14,
-                color: PortalColors.mutedForeground,
-              ),
-              SizedBox(width: 8),
-              PortalSectionLabel('Datos técnicos'),
-            ],
+          const SSectionLabel(
+            icon: Icons.apartment_outlined,
+            text: 'Datos técnicos',
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -1840,7 +1813,7 @@ class _PropiedadDetalleScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      PortalSectionLabel(label, size: 10),
+                      SSectionLabel.inline(text: label),
                       const SizedBox(height: 2),
                       Text(
                         valor,
@@ -1863,21 +1836,14 @@ class _PropiedadDetalleScreenState
   // aparece si el dato correspondiente viene del backend (degradación fina).
   Widget _portalAgente(AgenteComercial a, PropiedadDetalle d) {
     final asunto = '${d.proyecto} U-${d.unidad}';
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.person_outline,
-                size: 14,
-                color: PortalColors.mutedForeground,
-              ),
-              SizedBox(width: 8),
-              PortalSectionLabel('Tu agente comercial'),
-            ],
+          const SSectionLabel(
+            icon: Icons.person_outline,
+            text: 'Tu agente comercial',
           ),
           const SizedBox(height: 14),
           Row(
@@ -1998,7 +1964,7 @@ class _PropiedadDetalleScreenState
     /// de WhatsApp dibujado con CustomPaint en el botón "WhatsApp").
     Widget? leading,
   }) {
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -2068,21 +2034,14 @@ class _PropiedadDetalleScreenState
     final thumb = id != null
         ? 'https://img.youtube.com/vi/$id/hqdefault.jpg'
         : null;
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.play_circle_outline,
-                size: 14,
-                color: PortalColors.mutedForeground,
-              ),
-              SizedBox(width: 8),
-              PortalSectionLabel('Recorrido del avance'),
-            ],
+          const SSectionLabel(
+            icon: Icons.play_circle_outline,
+            text: 'Recorrido del avance',
           ),
           const SizedBox(height: 14),
           MouseRegion(
@@ -2136,21 +2095,14 @@ class _PropiedadDetalleScreenState
   // estimada). Se muestra solo cuando el objeto viene del backend.
   Widget _portalAvanceObra(AvanceObra o) {
     final currentIdx = o.hitos.indexWhere((h) => !h.completado);
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.engineering_outlined,
-                size: 14,
-                color: PortalColors.mutedForeground,
-              ),
-              const SizedBox(width: 8),
-              PortalSectionLabel(o.estatus ?? 'Avance de obra'),
-            ],
+          SSectionLabel(
+            icon: Icons.engineering_outlined,
+            text: o.estatus ?? 'Avance de obra',
           ),
           if ((o.ultimaActualizacion ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -2211,7 +2163,7 @@ class _PropiedadDetalleScreenState
               ],
             ),
             const SizedBox(height: 8),
-            PortalProgressBar(percent: o.avanceGlobal, height: 8),
+            SProgressBar(percent: o.avanceGlobal),
           ],
           if (o.hitos.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -2626,8 +2578,8 @@ class _UbicacionSection extends StatelessWidget {
   final PropiedadUbicacion ubicacion;
   final String proyecto;
 
-  /// true en modo portal web: PortalCard con label uppercase y botones del
-  /// portal; la vista móvil queda idéntica.
+  /// true en modo portal web: card con label uppercase y botones compactos; la
+  /// vista móvil queda idéntica.
   final bool portal;
 
   const _UbicacionSection({
@@ -2702,25 +2654,15 @@ class _UbicacionSection extends StatelessWidget {
       ),
     );
 
-    // ── Modo portal: PortalCard con label uppercase y botones del portal ──
+    // ── Modo portal: card con label uppercase y botones compactos ──
     if (portal) {
       final direccion = ubicacion.direccion?.trim();
-      return PortalCard(
+      return SCard(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
-                Icon(
-                  Icons.place_outlined,
-                  size: 14,
-                  color: PortalColors.mutedForeground,
-                ),
-                SizedBox(width: 8),
-                PortalSectionLabel('Ubicación'),
-              ],
-            ),
+            const SSectionLabel(icon: Icons.place_outlined, text: 'Ubicación'),
             const SizedBox(height: 12),
             mapa,
             if (direccion != null && direccion.isNotEmpty) ...[
@@ -2736,15 +2678,19 @@ class _UbicacionSection extends StatelessWidget {
             const SizedBox(height: 14),
             Row(
               children: [
-                PortalPrimaryButton(
+                SButton(
                   label: 'Cómo llegar',
                   icon: Icons.directions_outlined,
+                  size: SButtonSize.sm,
+                  fullWidth: false,
                   onPressed: () => _abrirComoLlegar(context),
                 ),
                 const SizedBox(width: 10),
-                PortalOutlineButton(
+                SButton.secondary(
                   label: 'Abrir en Maps',
                   icon: Icons.map_outlined,
+                  size: SButtonSize.sm,
+                  fullWidth: false,
                   onPressed: _abrirEnGoogleMaps,
                 ),
               ],
@@ -2757,7 +2703,10 @@ class _UbicacionSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SSectionLabel.heading(icon: Icons.place_outlined, text: 'Ubicación'),
+        const SSectionLabel.heading(
+          icon: Icons.place_outlined,
+          text: 'Ubicación',
+        ),
         SCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2881,8 +2830,8 @@ class _ProductoRow extends StatelessWidget {
 class _FichaTecnica extends StatelessWidget {
   final FichaTecnica ficha;
 
-  /// true en modo portal web: PortalCard (radio 24, sin sombra) con el label
-  /// uppercase dentro de la card; la vista móvil queda idéntica.
+  /// true en modo portal web: card con el label uppercase dentro; la vista
+  /// móvil queda idéntica.
   final bool portal;
 
   const _FichaTecnica({required this.ficha, this.portal = false});
@@ -2990,21 +2939,14 @@ class _FichaTecnica extends StatelessWidget {
     );
 
     if (portal) {
-      return PortalCard(
+      return SCard(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
-                Icon(
-                  Icons.map_outlined,
-                  size: 14,
-                  color: PortalColors.mutedForeground,
-                ),
-                SizedBox(width: 8),
-                PortalSectionLabel('Ficha técnica de tu propiedad'),
-              ],
+            const SSectionLabel(
+              icon: Icons.map_outlined,
+              text: 'Ficha técnica de tu propiedad',
             ),
             const SizedBox(height: 12),
             contenido,
@@ -3200,7 +3142,7 @@ class _PortalCtaButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: onPressed,
         behavior: HitTestBehavior.opaque,

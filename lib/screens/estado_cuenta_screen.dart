@@ -770,7 +770,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                     : parcial
                     ? 'Parcial'
                     : 'Pendiente',
-                tone: a.pagadoCompleto ? SBadgeTone.positive : SBadgeTone.pending,
+                tone: a.pagadoCompleto
+                    ? SBadgeTone.positive
+                    : SBadgeTone.pending,
               ),
             ],
           ),
@@ -1365,6 +1367,16 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     return (PortalColors.primarySoft15, PortalColors.primary);
   }
 
+  /// Tono del chip de estatus de la propiedad: mismo mapeo que
+  /// [_portalEstatusStyle] (pendiente/vencido en ámbar, el resto en verde).
+  SBadgeTone _portalEstatusTone(String estatus) {
+    final e = estatus.toLowerCase();
+    if (e.contains('pendiente') || e.contains('vencid')) {
+      return SBadgeTone.pending;
+    }
+    return SBadgeTone.positive;
+  }
+
   /// Movimientos del portal: los acuerdos del plan de pagos; sin plan, los
   /// pagos realizados (mismo fallback que buildMovements del portal).
   /// [propiedad] es la unidad (para el recibo in-app, que no la trae el modelo).
@@ -1542,7 +1554,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
   Widget _portalCardPropiedad(PropiedadCard c) {
     final (bg, fg) = _portalEstatusStyle(c.estatusDerivado);
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: () => setState(() {
           _selected = c.id;
@@ -1770,18 +1782,22 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         ),
         const SizedBox(width: 12),
         if (multi) ...[
-          PortalOutlineButton(
+          SButton.secondary(
             label: 'Cambiar propiedad',
             icon: Icons.swap_horiz,
+            size: SButtonSize.sm,
+            fullWidth: false,
             onPressed: () => setState(() => _selected = null),
           ),
           const SizedBox(width: 8),
         ],
-        PortalPrimaryButton(
+        SButton(
           label: 'Descargar PDF',
           loadingLabel: 'Generando…',
           icon: Icons.download_outlined,
           loading: _descargando,
+          size: SButtonSize.sm,
+          fullWidth: false,
           onPressed: () => _descargarPdf(c.id),
         ),
       ],
@@ -1792,7 +1808,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   Widget _portalFiltros(List<String> anios) {
     Widget fila(String label, List<Widget> pills) => Row(
       children: [
-        PortalSectionLabel(label),
+        SSectionLabel(text: label),
         const SizedBox(width: 8),
         Expanded(
           child: Wrap(
@@ -1805,8 +1821,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
       ],
     );
 
-    return PortalCard(
-      padding: const EdgeInsets.all(16),
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1854,8 +1869,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
   // ── Card "Movimientos" con tabla (spec §E) ────────────────────────────────
   Widget _portalMovimientos(List<_Mov> movs) {
-    return PortalCard(
+    return SCard(
       clip: true,
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1948,13 +1964,13 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
             width: _wFecha,
             child: const Padding(
               padding: EdgeInsets.only(left: 20, right: 12),
-              child: PortalSectionLabel('Fecha'),
+              child: SSectionLabel.inline(text: 'Fecha'),
             ),
           ),
           const Expanded(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
-              child: PortalSectionLabel('Concepto'),
+              child: SSectionLabel.inline(text: 'Concepto'),
             ),
           ),
           SizedBox(
@@ -1963,19 +1979,19 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
               padding: EdgeInsets.symmetric(horizontal: 12),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: PortalSectionLabel('Monto'),
+                child: SSectionLabel.inline(text: 'Monto'),
               ),
             ),
           ),
           const SizedBox(
             width: _wEstatus,
-            child: Center(child: PortalSectionLabel('Estatus')),
+            child: Center(child: SSectionLabel.inline(text: 'Estatus')),
           ),
           SizedBox(
             width: _wComp,
             child: const Padding(
               padding: EdgeInsets.only(left: 12, right: 20),
-              child: Center(child: PortalSectionLabel('Comprobante')),
+              child: Center(child: SSectionLabel.inline(text: 'Comprobante')),
             ),
           ),
         ],
@@ -2028,17 +2044,15 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
     // ESTATUS con icono (Pagado verde / Parcial y Pendiente ámbar).
     final chip = pagado
-        ? const PortalStatusChip(
+        ? const SBadge(
             label: 'Pagado',
+            tone: SBadgeTone.positive,
             icon: Icons.check_circle_outlined,
-            background: PortalColors.primarySoft10,
-            foreground: PortalColors.primary,
           )
-        : PortalStatusChip(
+        : SBadge(
             label: m.status == _MovStatus.parcial ? 'Parcial' : 'Pendiente',
+            tone: SBadgeTone.pending,
             icon: Icons.schedule,
-            background: PortalColors.warningSoft10,
-            foreground: PortalColors.warning,
           );
 
     // COMPROBANTE: toggle si hay varios pagos; si no, recibo / ver / CEP.
@@ -2096,7 +2110,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     }
 
     return [
-      PortalHoverBuilder(
+      SHoverBuilder(
         builder: (context, hovered) => Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
@@ -2289,7 +2303,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     // Chip = estatus REAL de la propiedad (getPropertyStatus del portal:
     // "En Preventa"/"Pago Pendiente"/"Entregada"…), no un derivado del saldo.
     // Mismo mapeo de color que el selector (warning si pendiente, si no primary).
-    final (chipBg, chipFg) = _portalEstatusStyle(c.estatusDerivado);
+    final chipTone = _portalEstatusTone(c.estatusDerivado);
     final pct = d.precioFinal > 0
         ? ((d.totalPagado / d.precioFinal) * 100).clamp(0, 100).round()
         : 0;
@@ -2327,7 +2341,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
       );
     }
 
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2354,11 +2368,10 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              PortalStatusChip(
-                small: true,
+              SBadge(
                 label: c.estatusDerivado,
-                background: chipBg,
-                foreground: chipFg,
+                tone: chipTone,
+                size: SBadgeSize.sm,
               ),
             ],
           ),
@@ -2448,8 +2461,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
   // ── Card "Instrucciones de Pago" (spec §G) - sin Beneficiario ─────────────
   Widget _portalInstrucciones(InstruccionesPago i) {
-    return PortalCard(
+    return SCard(
       clip: true,
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

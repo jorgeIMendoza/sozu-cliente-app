@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Chip compacto que confirma la forma de pago final elegida (espejo de
@@ -17,9 +16,8 @@ class PaymentMethodBadge extends StatelessWidget {
   /// Solicitud de crédito vigente (solo aplica para CREDITO_HIPOTECARIO).
   final SolicitudCredito? solicitud;
 
-  /// true en modo portal web (≥1024): solo cambia el contenedor exterior a
-  /// PortalCard (radio 24, sin sombra, borde primary/30); la vista móvil
-  /// queda idéntica.
+  /// true en modo portal web (≥1024): solo cambia el aire de la card (16 en vez
+  /// de 12) y el borde a primary/30; la vista móvil queda idéntica.
   final bool portal;
 
   const PaymentMethodBadge({
@@ -184,7 +182,7 @@ class PaymentMethodBadge extends StatelessWidget {
     );
 
     if (portal) {
-      return PortalCard(
+      return SCard(
         padding: const EdgeInsets.all(16),
         borderColor: PortalColors.primaryBorder30,
         child: fila,

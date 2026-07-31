@@ -5,12 +5,16 @@ import 'package:sozu_cliente_app/ui/tokens/color_roles.dart';
 
 /// Variantes de card, por RELACIÓN con el fondo de la página.
 ///
-/// El nombre describe el papel que juega la superficie, no cómo se ve.
+/// **NO son un interruptor de plataforma.** La app tenía dos cards, `AppCard` en
+/// móvil y `PortalCard` en web, y esa era justo la fractura: el responsive lo
+/// resuelven los tokens y los breakpoints, no dos componentes.
 enum SCardVariant {
-  /// Flota sobre el fondo: sombra suave, sin borde. Layout móvil.
+  /// Se separa del fondo: borde de 1 px más sombra suave. La card por defecto de
+  /// toda la app.
   elevated,
 
-  /// Plana, delimitada por un borde de 1 px. Portal web, grids y tablas densas.
+  /// Plana: mismo borde, sin sombra. Para cards ANIDADAS dentro de otra
+  /// superficie, donde una segunda sombra ensucia en vez de separar.
   outlined,
 }
 
@@ -128,12 +132,18 @@ class _SCardStyle {
     final radius = theme.radius.lgBorder;
 
     switch (variant) {
+      // Borde Y sombra. Antes eran dos componentes: `AppCard` (movil) tenia
+      // sombra sin borde y `PortalCard` (web) borde sin sombra. La distincion era
+      // por plataforma, y el responsive ya lo resuelven los tokens: una sola card
+      // lleva las dos cosas, el borde para definirla y la sombra para separarla
+      // del fondo.
       case SCardVariant.elevated:
         return _SCardStyle(
           background: colors.surface,
-          border: borderColor == null
-              ? null
-              : Border.all(color: borderColor, width: _borderWidth),
+          border: Border.all(
+            color: borderColor ?? colors.border,
+            width: _borderWidth,
+          ),
           radius: radius,
           shadow: theme.shadow.md,
         );

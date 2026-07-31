@@ -91,6 +91,65 @@ void main() {
   });
 
   group('SSectionLabel', () {
+    testWidgets('inline se ajusta al texto y respeta el Align de la celda', (
+      tester,
+    ) async {
+      // Cabecera de tabla: la celda decide el ancho y la alineacion. Con la
+      // variante `label` el `Expanded` interno se comia los 200 px y el `Align`
+      // quedaba inerte, asi que `MONTO` salia pegado a la izquierda.
+      await pump(
+        tester,
+        const SizedBox(
+          width: 200,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: SSectionLabel.inline(text: 'Monto'),
+          ),
+        ),
+      );
+
+      final celda = tester.getRect(find.byType(SizedBox).first);
+      final texto = tester.getRect(find.text('MONTO'));
+      expect(texto.width, lessThan(celda.width));
+      expect(texto.right, closeTo(celda.right, 1));
+    });
+
+    testWidgets('inline no aporta padding propio; label si', (tester) async {
+      await pump(tester, const SSectionLabel.inline(text: 'Fecha'));
+      final altoInline = tester.getSize(find.byType(SSectionLabel)).height;
+
+      await pump(tester, const SSectionLabel(text: 'Fecha'));
+      final altoLabel = tester.getSize(find.byType(SSectionLabel)).height;
+
+      // 4 arriba + 8 abajo del token: es lo que inflaba las celdas de cabecera
+      // de ~13 px a 25.
+      expect(altoLabel - altoInline, 12);
+    });
+
+    testWidgets('sobrevive como hijo no flexible de un Row', (tester) async {
+      // Llevaba un `Expanded` dentro, asi que con ancho NO acotado reventaba con
+      // "non-zero flex but incoming width constraints are unbounded". Aparecio al
+      // migrar `PortalSectionLabel`, que si podia ir dentro de un Row.
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: sozuLightTheme(),
+          builder: (context, child) =>
+              SozuAdaptiveTokens(child: child ?? const SizedBox()),
+          home: const Scaffold(
+            body: Row(
+              children: [
+                Icon(Icons.folder_outlined, size: 14),
+                SizedBox(width: 8),
+                SSectionLabel(text: 'Datos'),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('pone el texto en mayusculas', (tester) async {
       await pump(tester, const SSectionLabel(text: 'Todos los clientes'));
       expect(find.text('TODOS LOS CLIENTES'), findsOneWidget);

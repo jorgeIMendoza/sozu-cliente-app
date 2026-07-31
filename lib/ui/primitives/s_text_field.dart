@@ -7,7 +7,7 @@ enum STextFieldSize {
   /// ~44 px. Campos dentro de filas, filtros, formularios densos.
   md,
 
-  /// ~52 px. Formularios que son el contenido principal (acceso, pago, perfil).
+  /// ~56 px. Formularios que son el contenido principal (acceso, pago, perfil).
   lg,
 }
 
@@ -16,7 +16,7 @@ extension _STextFieldSizeMetrics on STextFieldSize {
   /// HIG de Apple): no bajarlo.
   double get minHeight => switch (this) {
     STextFieldSize.md => 44,
-    STextFieldSize.lg => 52,
+    STextFieldSize.lg => 56,
   };
 }
 

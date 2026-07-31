@@ -74,9 +74,7 @@ class InicioScreen extends ConsumerWidget {
                 // Header
                 Row(
                   children: [
-                    SAvatar(
-                      initials: resumen.valueOrNull?.iniciales ?? '··',
-                    ),
+                    SAvatar(initials: resumen.valueOrNull?.iniciales ?? '··'),
                     const SizedBox(width: 12),
                     Expanded(
                       child: resumen.isLoading
@@ -285,7 +283,10 @@ class InicioScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              SProgressBar(thickness: SProgressBarThickness.thick, percent: r.porcentajePagado),
+              SProgressBar(
+                thickness: SProgressBarThickness.thick,
+                percent: r.porcentajePagado,
+              ),
             ],
           ),
         ),
@@ -340,7 +341,10 @@ class InicioScreen extends ConsumerWidget {
       // Tu actividad
       const FadeSlideIn(
         delayMs: 120,
-        child: SSectionLabel.heading(icon: Icons.bolt_outlined, text: 'Tu actividad'),
+        child: SSectionLabel.heading(
+          icon: Icons.bolt_outlined,
+          text: 'Tu actividad',
+        ),
       ),
       if (data.actividad.isEmpty)
         SCard(
@@ -451,7 +455,10 @@ class InicioScreen extends ConsumerWidget {
           child: _PortafolioVacio(),
         ),
       if (misPropiedades.isNotEmpty) ...[
-        const SSectionLabel.heading(icon: Icons.home_outlined, text: 'Mis propiedades'),
+        const SSectionLabel.heading(
+          icon: Icons.home_outlined,
+          text: 'Mis propiedades',
+        ),
         ResponsiveCardGrid(
           children: [
             for (final it in misPropiedades.take(3))
@@ -874,15 +881,15 @@ class _PortalInicio extends ConsumerWidget {
           children: [
             Align(
               alignment: Alignment.centerLeft,
-              child: PortalSkeletonBox(width: 240, height: 24),
+              child: SSkeleton(width: 240, height: 24),
             ),
             SizedBox(height: 10),
             Align(
               alignment: Alignment.centerLeft,
-              child: PortalSkeletonBox(width: 320, height: 12),
+              child: SSkeleton(width: 320, height: 12),
             ),
             SizedBox(height: 16),
-            PortalSkeletonBox(height: 220, radius: kPortalRadiusCard),
+            SSkeleton(height: 220, radius: kPortalRadiusCard),
             SizedBox(height: 24),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -892,11 +899,11 @@ class _PortalInicio extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      PortalSkeletonBox(height: 88, radius: kPortalRadiusCard),
+                      SSkeleton(height: 88, radius: kPortalRadiusCard),
                       SizedBox(height: 12),
-                      PortalSkeletonBox(height: 120, radius: kPortalRadiusCard),
+                      SSkeleton(height: 120, radius: kPortalRadiusCard),
                       SizedBox(height: 12),
-                      PortalSkeletonBox(height: 120, radius: kPortalRadiusCard),
+                      SSkeleton(height: 120, radius: kPortalRadiusCard),
                     ],
                   ),
                 ),
@@ -905,9 +912,9 @@ class _PortalInicio extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      PortalSkeletonBox(height: 72, radius: kPortalRadiusLg),
+                      SSkeleton(height: 72, radius: kPortalRadiusLg),
                       SizedBox(height: 12),
-                      PortalSkeletonBox(height: 150, radius: kPortalRadiusCard),
+                      SSkeleton(height: 150, radius: kPortalRadiusCard),
                     ],
                   ),
                 ),
@@ -1022,7 +1029,7 @@ class _PortalInicio extends ConsumerWidget {
   // ── 2. Hero PATRIMONIO TOTAL (HeroFinancialSummary) ───────────────────────
   Widget _heroPatrimonio(ResumenFinanciero r) {
     final plusvalia = r.plusvaliaGenerada < 0 ? 0.0 : r.plusvaliaGenerada;
-    return PortalCard(
+    return SCard(
       borderColor: PortalColors.borderSoft,
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -1088,7 +1095,10 @@ class _PortalInicio extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                PortalThinProgressBar(percent: r.porcentajePagado),
+                SProgressBar(
+                  percent: r.porcentajePagado,
+                  thickness: SProgressBarThickness.thin,
+                ),
               ],
             ),
           ),
@@ -1322,7 +1332,7 @@ class _PortalInicio extends ConsumerWidget {
   List<Widget> _actividad(BuildContext context, ClienteResumen data) {
     if (data.actividad.isEmpty) {
       return [
-        PortalCard(
+        SCard(
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
@@ -1477,8 +1487,9 @@ class _PortalInicio extends ConsumerWidget {
             style: portalText(size: 14, weight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
-          PortalCard(
+          SCard(
             clip: true,
+            padding: EdgeInsets.zero,
             child: Column(
               children: [
                 for (
@@ -1552,15 +1563,15 @@ class _PortalActividadCard extends StatelessWidget {
 
   const _PortalActividadCard({required this.a, required this.onTap});
 
-  (Color, Color) _chipTipo() {
+  /// Tono del chip de tipo: pago final en rojo, parcialidad/mensualidad en
+  /// ámbar, el resto en verde.
+  SBadgeTone _toneTipo() {
     final t = a.tipo.toLowerCase();
-    if (t.contains('final')) {
-      return (PortalColors.destructiveSoft10, PortalColors.destructive);
-    }
+    if (t.contains('final')) return SBadgeTone.negative;
     if (t.contains('parcialidad') || t.contains('mensualidad')) {
-      return (PortalColors.warningSoft10, PortalColors.warning);
+      return SBadgeTone.pending;
     }
-    return (PortalColors.primarySoft10, PortalColors.primary);
+    return SBadgeTone.positive;
   }
 
   @override
@@ -1570,24 +1581,18 @@ class _PortalActividadCard extends StatelessWidget {
       'upcoming' => PortalColors.warning,
       _ => PortalColors.primary,
     };
-    final (chipBg, chipFg) = _chipTipo();
+    final toneTipo = _toneTipo();
     final pagar = a.accion == 'pagar' && a.monto > 0;
     final esPatrimonio = a.categoria == 'patrimonio';
 
-    return PortalPressable(
-      builder: (context, hovered, pressed) => GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          // press (hundido de 1.5%): respuesta directa al dedo -> `fast`. Curva
-          // `emphasized`: lo que domina es el hundido, que recorre distancia, y
-          // es la misma curva del press de `SPressable`.
+    return SPressable(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(kPortalRadiusCard),
+      child: SHoverBuilder(
+        builder: (context, hovered) => AnimatedContainer(
+          // Solo el borde se anima aquí: el hundido de press lo pone SPressable.
           duration: context.s.motion.fast,
           curve: context.s.motion.emphasized,
-          transformAlignment: Alignment.center,
-          transform: pressed
-              ? Matrix4.diagonal3Values(0.985, 0.985, 1)
-              : Matrix4.identity(),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: PortalColors.surface,
@@ -1625,11 +1630,10 @@ class _PortalActividadCard extends StatelessWidget {
                                   weight: FontWeight.w600,
                                 ),
                               ),
-                              PortalStatusChip(
-                                small: true,
+                              SBadge(
                                 label: a.tipo,
-                                background: chipBg,
-                                foreground: chipFg,
+                                tone: toneTipo,
+                                size: SBadgeSize.sm,
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
@@ -1775,20 +1779,15 @@ class _PortalQuickAction extends StatelessWidget {
         ),
       ],
     );
-    return PortalPressable(
-      builder: (context, hovered, pressed) => GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          // press (hundido de 1.5%): respuesta directa al dedo -> `fast`. Curva
-          // `emphasized`: lo que domina es el hundido, que recorre distancia, y
-          // es la misma curva del press de `SPressable`.
+    return SPressable(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(kPortalRadiusLg),
+      child: SHoverBuilder(
+        builder: (context, hovered) => AnimatedContainer(
+          // Solo el borde y la sombra se animan aquí: el hundido de press lo
+          // pone SPressable.
           duration: context.s.motion.fast,
           curve: context.s.motion.emphasized,
-          transformAlignment: Alignment.center,
-          transform: pressed
-              ? Matrix4.diagonal3Values(0.985, 0.985, 1)
-              : Matrix4.identity(),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: PortalColors.surface,
@@ -1847,7 +1846,7 @@ class _PortalPendienteRow extends StatelessWidget {
       'upcoming' => PortalColors.warning,
       _ => PortalColors.primary,
     };
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,

@@ -555,7 +555,7 @@ class _CreditoHipotecarioDrawerState
     required String subtitulo,
   }) {
     final activo = _metodo == valor;
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: () => setState(() => _metodo = valor),
         behavior: HitTestBehavior.opaque,
@@ -684,7 +684,7 @@ class _CreditoHipotecarioDrawerState
     ),
     const SizedBox(height: 6),
     Center(
-      child: PortalHoverBuilder(
+      child: SHoverBuilder(
         builder: (context, hovered) => GestureDetector(
           onTap: _guardando
               ? null
@@ -714,7 +714,7 @@ class _CreditoHipotecarioDrawerState
       if (b.producto != null) b.producto!,
       if (b.tasaDesde != null) 'desde ${_pct(b.tasaDesde!)}%',
     ].join(' · ');
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: _guardando ? null : () => _seleccionarBanco(b),
         behavior: HitTestBehavior.opaque,
@@ -931,7 +931,7 @@ class _CreditoHipotecarioDrawerState
         runSpacing: 8,
         children: [
           for (final p in _plazosAnios)
-            PortalHoverBuilder(
+            SHoverBuilder(
               builder: (context, hovered) => GestureDetector(
                 onTap: () => setState(() => _plazoAnios = p),
                 behavior: HitTestBehavior.opaque,
@@ -1180,7 +1180,7 @@ class _CreditoHipotecarioDrawerState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const PortalSectionLabel('Lo que sigue'),
+            const SSectionLabel(text: 'Lo que sigue'),
             const SizedBox(height: 10),
             for (final (idx, paso) in [
               s != null
@@ -1266,8 +1266,8 @@ class _CreditoHipotecarioDrawerState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          PortalSectionLabel(
-            bancoNombre != null
+          SSectionLabel(
+            text: bancoNombre != null
                 ? 'Estimación enviada a $bancoNombre'
                 : 'Estimación enviada',
           ),
@@ -1343,9 +1343,9 @@ class _CreditoHipotecarioDrawerState
         const SizedBox(height: 20),
         Container(height: 1, color: PortalColors.border),
         const SizedBox(height: 18),
-        const PortalSectionLabel('¿Necesitas ayuda con esta decisión?'),
+        const SSectionLabel(text: '¿Necesitas ayuda con esta decisión?'),
         const SizedBox(height: 12),
-        PortalCard(
+        SCard(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1414,7 +1414,7 @@ class _CreditoHipotecarioDrawerState
   }
 
   Widget _botonWhatsApp(String url) {
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: () =>
             launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),

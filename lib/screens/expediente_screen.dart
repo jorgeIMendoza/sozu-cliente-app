@@ -306,10 +306,7 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                if (portal)
-                  PortalCard(padding: const EdgeInsets.all(22), child: cardBody)
-                else
-                  SCard(padding: const EdgeInsets.all(22), child: cardBody),
+                SCard(padding: const EdgeInsets.all(22), child: cardBody),
               ],
             ),
           ),

@@ -34,7 +34,8 @@ enum SButtonSize {
   /// 44 px. El tamaño por defecto y el mínimo táctil de Apple/Material.
   md,
 
-  /// 52 px. Acción principal de un formulario o de una hoja modal.
+  /// 56 px. Acción principal de un formulario o de una hoja modal. Empareja
+  /// con [STextFieldSize.lg] a proposito: van uno sobre otro.
   lg,
 }
 
@@ -662,7 +663,7 @@ class _SButtonMetrics {
         );
       case SButtonSize.lg:
         return _SButtonMetrics(
-          height: 52,
+          height: 56,
           iconSize: 20,
           padding: h(t.space.lg),
           linkPadding: linkPadding,

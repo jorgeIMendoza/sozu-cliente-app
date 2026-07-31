@@ -38,6 +38,22 @@ String _mesLabel(String key) {
   return '${_kMeses[m - 1]} ${parts[0]}';
 }
 
+/// Tono del badge de estatus de una propiedad, con el mismo criterio que
+/// `portalEstatusStyle`: vencido/demanda/mora en rojo, pendiente en ámbar y el
+/// resto en verde.
+SBadgeTone _toneEstatus(String estatus) {
+  final e = estatus.toLowerCase();
+  if (e.contains('vencid') ||
+      e.contains('demanda') ||
+      e.contains('mora') ||
+      e.contains('atras') ||
+      e.contains('cancel')) {
+    return SBadgeTone.negative;
+  }
+  if (e.contains('pendiente')) return SBadgeTone.pending;
+  return SBadgeTone.positive;
+}
+
 /// Item unificado del historial: pago de inversión o cuota de mantenimiento.
 class _ItemHistorial {
   final HistorialPago? pago;
@@ -78,6 +94,7 @@ class PagosScreen extends ConsumerStatefulWidget {
 
 class _PagosScreenState extends ConsumerState<PagosScreen> {
   String? _propiedad; // numero de propiedad elegida (etiqueta de cliente-pagos)
+  final _queryCtrl = TextEditingController(); // controller del buscador
   String _query = ''; // buscador de la lista de propiedades
   String _anio = 'todos'; // filtro de año del historial
   String _estatus = 'todos'; // todos | pagado | pendiente
@@ -86,6 +103,12 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   // - Solo modo portal (web ≥1024): la vista móvil usa estados por fila -
   int? _generandoPortal; // id del pago cuyo recibo se genera en la tabla
   final Set<int> _proximosExpandidos = {}; // próximos con desglose abierto
+
+  @override
+  void dispose() {
+    _queryCtrl.dispose();
+    super.dispose();
+  }
 
   Color _colorEstatus(SozuColorRoles tone, String estatus) {
     final e = estatus.toLowerCase();
@@ -804,8 +827,9 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
               ),
             )
           else ...[
-            PortalSearchField(
-              hint: 'Buscar propiedad…',
+            SSearchField(
+              controller: _queryCtrl,
+              hintText: 'Buscar propiedad…',
               onChanged: (v) => setState(() => _query = v),
             ),
             const SizedBox(height: 12),
@@ -842,7 +866,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
     final pendientes = data.proximosPagos
         .where((p) => p.propiedad == numero)
         .length;
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: () => _seleccionar(numero),
         behavior: HitTestBehavior.opaque,
@@ -1055,9 +1079,11 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
               ),
               const SizedBox(width: 12),
               if (multi)
-                PortalOutlineButton(
+                SButton.secondary(
                   label: 'Cambiar propiedad',
                   icon: Icons.swap_horiz,
+                  size: SButtonSize.sm,
+                  fullWidth: false,
                   onPressed: () => _seleccionar(null),
                 ),
             ],
@@ -1088,8 +1114,9 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
 
   // ── Card "Próximos pagos" ─────────────────────────────────────────────────
   Widget _portalProximos(List<ProximoPago> proximos) {
-    return PortalCard(
+    return SCard(
       clip: true,
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1164,23 +1191,20 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
                       runSpacing: 6,
                       children: [
                         p.vencido
-                            ? const PortalStatusChip(
+                            ? const SBadge(
                                 label: 'Vencido',
                                 icon: Icons.error_outline,
-                                background: PortalColors.destructiveSoft10,
-                                foreground: PortalColors.destructive,
+                                tone: SBadgeTone.negative,
                               )
-                            : const PortalStatusChip(
+                            : const SBadge(
                                 label: 'Pendiente',
                                 icon: Icons.schedule,
-                                background: PortalColors.warningSoft10,
-                                foreground: PortalColors.warning,
+                                tone: SBadgeTone.pending,
                               ),
                         if (parcial)
-                          const PortalStatusChip(
+                          const SBadge(
                             label: 'Parcial',
-                            background: PortalColors.warningSoft10,
-                            foreground: PortalColors.warning,
+                            tone: SBadgeTone.pending,
                           ),
                       ],
                     ),
@@ -1220,9 +1244,11 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
                     ),
                   ],
                   const SizedBox(height: 8),
-                  PortalPrimaryButton(
+                  SButton(
                     label: 'Pagar',
                     icon: Icons.credit_card_outlined,
+                    size: SButtonSize.sm,
+                    fullWidth: false,
                     onPressed: () => context.push('/pagar?id=${p.id}'),
                   ),
                 ],
@@ -1231,7 +1257,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
           ),
           if (p.aplicaciones.isNotEmpty) ...[
             const SizedBox(height: 10),
-            PortalHoverBuilder(
+            SHoverBuilder(
               builder: (context, hovered) => GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => setState(() {
@@ -1342,7 +1368,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   Widget _portalFiltros(List<String> anios, bool conMantenimiento) {
     Widget fila(String label, List<Widget> pills) => Row(
       children: [
-        PortalSectionLabel(label),
+        SSectionLabel.inline(text: label),
         const SizedBox(width: 8),
         Expanded(
           child: Wrap(
@@ -1364,7 +1390,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
       child: child,
     );
 
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1433,8 +1459,9 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
     bool conMantenimiento,
   ) {
     final minTabla = conMantenimiento ? 760.0 : 660.0;
-    return PortalCard(
+    return SCard(
       clip: true,
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1530,13 +1557,13 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
             width: _wFecha,
             child: Padding(
               padding: EdgeInsets.only(left: 20, right: 12),
-              child: PortalSectionLabel('Fecha'),
+              child: SSectionLabel.inline(text: 'Fecha'),
             ),
           ),
           const Expanded(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
-              child: PortalSectionLabel('Concepto'),
+              child: SSectionLabel.inline(text: 'Concepto'),
             ),
           ),
           if (conMantenimiento)
@@ -1544,7 +1571,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
               width: _wTipo,
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
-                child: PortalSectionLabel('Tipo'),
+                child: SSectionLabel.inline(text: 'Tipo'),
               ),
             ),
           const SizedBox(
@@ -1553,19 +1580,19 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
               padding: EdgeInsets.symmetric(horizontal: 12),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: PortalSectionLabel('Monto'),
+                child: SSectionLabel.inline(text: 'Monto'),
               ),
             ),
           ),
           const SizedBox(
             width: _wEstatus,
-            child: Center(child: PortalSectionLabel('Estatus')),
+            child: Center(child: SSectionLabel.inline(text: 'Estatus')),
           ),
           const SizedBox(
             width: _wComp,
             child: Padding(
               padding: EdgeInsets.only(left: 12, right: 20),
-              child: Center(child: PortalSectionLabel('Comprobante')),
+              child: Center(child: SSectionLabel.inline(text: 'Comprobante')),
             ),
           ),
         ],
@@ -1591,21 +1618,15 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
     // ESTATUS con icono (Pagado verde / Pendiente ámbar / Vencido rojo).
     final vencido = (mant?.estatus.toLowerCase() ?? '') == 'vencido';
     final chip = it.pagado
-        ? const PortalStatusChip(
+        ? const SBadge(
             label: 'Pagado',
             icon: Icons.check_circle_outlined,
-            background: PortalColors.primarySoft10,
-            foreground: PortalColors.primary,
+            tone: SBadgeTone.positive,
           )
-        : PortalStatusChip(
+        : SBadge(
             label: vencido ? 'Vencido' : 'Pendiente',
             icon: vencido ? Icons.error_outline : Icons.schedule,
-            background: vencido
-                ? PortalColors.destructiveSoft10
-                : PortalColors.warningSoft10,
-            foreground: vencido
-                ? PortalColors.destructive
-                : PortalColors.warning,
+            tone: vencido ? SBadgeTone.negative : SBadgeTone.pending,
           );
 
     // COMPROBANTE: recibo (existente o bajo demanda) + CEP; mantenimiento no
@@ -1638,7 +1659,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
             ),
           );
 
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
@@ -1695,15 +1716,12 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: PortalStatusChip(
-                      small: true,
+                    child: SBadge(
+                      size: SBadgeSize.sm,
                       label: pago != null ? 'Inversión' : 'Mantenimiento',
-                      background: pago != null
-                          ? PortalColors.primarySoft10
-                          : PortalColors.muted,
-                      foreground: pago != null
-                          ? PortalColors.primary
-                          : PortalColors.mutedForeground,
+                      tone: pago != null
+                          ? SBadgeTone.positive
+                          : SBadgeTone.neutral,
                     ),
                   ),
                 ),
@@ -1786,9 +1804,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
       ],
     );
 
-    final (chipBg, chipFg) = portalEstatusStyle(card?.estatusDerivado ?? '');
-
-    return PortalCard(
+    return SCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1823,11 +1839,10 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
               ),
               if (card != null) ...[
                 const SizedBox(width: 8),
-                PortalStatusChip(
-                  small: true,
+                SBadge(
+                  size: SBadgeSize.sm,
                   label: card.estatusDerivado,
-                  background: chipBg,
-                  foreground: chipFg,
+                  tone: _toneEstatus(card.estatusDerivado),
                 ),
               ],
             ],
@@ -1871,7 +1886,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
               ],
             ),
             const SizedBox(height: 6),
-            PortalProgressBar(percent: card.avancePago, height: 8),
+            SProgressBar(percent: card.avancePago),
           ],
         ],
       ),

@@ -23,7 +23,14 @@ class PatrimonioScreen extends ConsumerStatefulWidget {
 }
 
 class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
+  final _busquedaCtrl = TextEditingController();
   String _busqueda = '';
+
+  @override
+  void dispose() {
+    _busquedaCtrl.dispose();
+    super.dispose();
+  }
 
   List<PropiedadCard> _filtrar(List<PropiedadCard> items) {
     final q = _busqueda.trim().toLowerCase();
@@ -285,7 +292,7 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
           ),
           const SizedBox(height: 20),
           if (items.isEmpty)
-            const PortalEmptyState(
+            const SEmptyState.card(
               icon: Icons.account_balance_wallet_outlined,
               title: 'Tu patrimonio se construirá aquí',
               message:
@@ -317,8 +324,9 @@ class _PatrimonioScreenState extends ConsumerState<PatrimonioScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            PortalSearchField(
-              hint: 'Buscar propiedad…',
+            SSearchField(
+              controller: _busquedaCtrl,
+              hintText: 'Buscar propiedad…',
               onChanged: (v) => setState(() => _busqueda = v),
             ),
             const SizedBox(height: 16),

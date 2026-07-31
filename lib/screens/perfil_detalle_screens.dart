@@ -54,9 +54,11 @@ class PerfilPersonalScreen extends ConsumerWidget {
     if (isPortalMode(context)) {
       final actions = [
         if (p != null)
-          PortalOutlineButton(
+          SButton.secondary(
             label: 'Editar',
             onPressed: () => showEditPersonalSheet(context, p),
+            size: SButtonSize.sm,
+            fullWidth: false,
           ),
       ];
       // El portal no muestra la nota "Tus datos serán validados…" en esta vista.
@@ -182,9 +184,11 @@ class PerfilFiscalScreen extends ConsumerWidget {
     if (isPortalMode(context)) {
       final actions = [
         if (p != null)
-          PortalOutlineButton(
+          SButton.secondary(
             label: 'Editar',
             onPressed: () => showEditFiscalSheet(context, p),
+            size: SButtonSize.sm,
+            fullWidth: false,
           ),
       ];
       final child = Column(
@@ -444,7 +448,7 @@ class _PerfilDetalleInline extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        PortalCard(
+        SCard(
           padding: const EdgeInsets.all(22),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

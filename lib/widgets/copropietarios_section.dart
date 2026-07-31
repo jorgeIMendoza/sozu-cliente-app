@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Sección "Copropietarios" del detalle de propiedad: lista cada
@@ -12,8 +11,8 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 class CopropietariosSection extends StatelessWidget {
   final List<Copropietario> copropietarios;
 
-  /// true en modo portal web (≥1024): PortalCard (radio 24, sin sombra) con
-  /// el label uppercase dentro de la card; la vista móvil queda idéntica.
+  /// true en modo portal web (≥1024): el label uppercase va DENTRO de la card;
+  /// en móvil va fuera, como encabezado de sección.
   final bool portal;
 
   const CopropietariosSection({
@@ -27,7 +26,7 @@ class CopropietariosSection extends StatelessWidget {
     if (copropietarios.length < 2) return const SizedBox.shrink();
     final tone = context.s.color;
     if (portal) {
-      return PortalCard(
+      return SCard(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,7 +39,11 @@ class CopropietariosSection extends StatelessWidget {
                   color: PortalColors.mutedForeground,
                 ),
                 const SizedBox(width: 8),
-                PortalSectionLabel('Copropietarios · ${copropietarios.length}'),
+                Expanded(
+                  child: SSectionLabel(
+                    text: 'Copropietarios · ${copropietarios.length}',
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 4),

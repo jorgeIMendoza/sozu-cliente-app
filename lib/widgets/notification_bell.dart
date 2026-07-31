@@ -351,7 +351,7 @@ class _NotifPreviewPanel extends ConsumerWidget {
             ),
           ),
           if (noLeidas > 0)
-            PortalHoverBuilder(
+            SHoverBuilder(
               builder: (context, hovered) => GestureDetector(
                 onTap: () => marcarNotificacion(ref, action: 'marcar_todas'),
                 behavior: HitTestBehavior.opaque,
@@ -398,7 +398,7 @@ class _NotifPreviewPanel extends ConsumerWidget {
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: PortalColors.border)),
       ),
-      child: PortalHoverBuilder(
+      child: SHoverBuilder(
         builder: (context, hovered) => GestureDetector(
           onTap: () {
             onClose();
