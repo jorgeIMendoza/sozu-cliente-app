@@ -52,6 +52,12 @@ Future<Map<String, dynamic>> _invoke(
   }
 }
 
+/// Info del "version gate" nativo (versión mínima/sugerida + URLs de store).
+/// Se invoca con la anon key: funciona pre-login, sin JWT de usuario ni
+/// impersonación. Puede lanzar [ApiError]; el provider degrada a "sin gate".
+Future<AppVersionInfo> fetchAppVersion() async =>
+    AppVersionInfo.fromJson(await _invoke('cliente-app-version'));
+
 Future<ClienteResumen> fetchClienteResumen({int? impersonate}) async =>
     ClienteResumen.fromJson(
       await _invoke('cliente-resumen', impersonate: impersonate),

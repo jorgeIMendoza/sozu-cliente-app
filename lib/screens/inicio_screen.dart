@@ -229,21 +229,22 @@ class InicioScreen extends ConsumerWidget {
                       _miniMetric(
                         tone,
                         'Invertido total',
-                        formatMXN(r.invertidoTotal),
+                        r.invertidoTotal,
                         tone.fg,
                       ),
                       const SizedBox(height: 8),
                       _miniMetric(
                         tone,
                         'Plusvalía generada',
-                        '+${formatMXN(r.plusvaliaGenerada)}',
+                        r.plusvaliaGenerada,
                         tone.positive,
+                        prefix: '+',
                       ),
                       const SizedBox(height: 8),
                       _miniMetric(
                         tone,
                         'Saldo pendiente',
-                        formatMXN(r.saldoPendiente),
+                        r.saldoPendiente,
                         tone.warningFg,
                       ),
                     ],
@@ -483,18 +484,23 @@ class InicioScreen extends ConsumerWidget {
     ];
   }
 
+  /// Recibe el MONTO, no una cadena ya formateada: la cifra cuenta hacia arriba
+  /// al aparecer (y se muestra completa con "reducir movimiento", lo resuelve
+  /// [CountUpMoney]).
   Widget _miniMetric(
     SozuColorRoles tone,
     String label,
-    String value,
-    Color color,
-  ) {
+    double value,
+    Color color, {
+    String prefix = '',
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(label, style: TextStyle(fontSize: 10, color: tone.fgSubtle)),
-        Text(
-          value,
+        CountUpMoney(
+          value: value,
+          prefix: prefix,
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
@@ -1124,8 +1130,8 @@ class _PortalInicio extends ConsumerWidget {
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: Text(
-            formatMXN(r.patrimonioTotal),
+          child: CountUpMoney(
+            value: r.patrimonioTotal,
             style: portalText(
               size: 56,
               weight: FontWeight.w700,
@@ -1241,7 +1247,12 @@ class _PortalInicio extends ConsumerWidget {
   }
 
   Widget _heroMetricas(ResumenFinanciero r, double plusvalia) {
-    Widget fila(String label, String valor, Color color) => Padding(
+    Widget fila(
+      String label,
+      double value,
+      Color color, {
+      String prefix = '',
+    }) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1250,8 +1261,9 @@ class _PortalInicio extends ConsumerWidget {
             label,
             style: portalText(size: 12, color: PortalColors.mutedForeground),
           ),
-          Text(
-            valor,
+          CountUpMoney(
+            value: value,
+            prefix: prefix,
             style: portalText(
               size: 14,
               weight: FontWeight.w600,
@@ -1264,23 +1276,16 @@ class _PortalInicio extends ConsumerWidget {
     );
     return Column(
       children: [
-        fila(
-          'Invertido total',
-          formatMXN(r.invertidoTotal),
-          PortalColors.foreground,
-        ),
+        fila('Invertido total', r.invertidoTotal, PortalColors.foreground),
         const Divider(height: 1, color: PortalColors.borderSoft),
         fila(
           'Plusvalía generada',
-          '+${formatMXN(plusvalia)}',
+          plusvalia,
           PortalColors.primary,
+          prefix: '+',
         ),
         const Divider(height: 1, color: PortalColors.borderSoft),
-        fila(
-          'Saldo pendiente',
-          formatMXN(r.saldoPendiente),
-          PortalColors.foreground,
-        ),
+        fila('Saldo pendiente', r.saldoPendiente, PortalColors.foreground),
       ],
     );
   }

@@ -16,7 +16,6 @@ import 'package:sozu_cliente_app/widgets/credito_hipotecario_drawer.dart';
 import 'package:sozu_cliente_app/widgets/cronograma_pagos.dart';
 import 'package:sozu_cliente_app/widgets/etapa_actual_stepper.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
-import 'package:sozu_cliente_app/widgets/level_map.dart';
 import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/widgets/payment_method_badge.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
@@ -2863,60 +2862,21 @@ class _FichaTecnica extends StatelessWidget {
             ),
           ),
         ],
-        // ¿Dónde está tu unidad? - diagrama del edificio (niveles) +
-        // rejilla del nivel, réplica del BuildingDiagram del portal.
+        // ¿Dónde está tu unidad? - diagrama del edificio con la planta del nivel
+        // (LevelMap) consolidada en su columna derecha, réplica del
+        // BuildingDiagram del portal. El bloque suelto de "UBICACIÓN EN EL
+        // NIVEL" desaparecio al consolidarse: mostraba el mismo mapa dos veces.
         if (ficha.numeroPiso != null) ...[
           const SizedBox(height: 16),
           BuildingDiagram(
             numeroPiso: ficha.numeroPiso!,
             totalPisos: ficha.totalPisos,
             unidad: ficha.numeroDepa ?? '${ficha.numeroPiso}',
+            regiones: ficha.regiones,
+            numeroDepa: ficha.numeroDepa,
           ),
         ],
-        // Ubicación en el nivel: mapa interactivo o imagen.
-        if (ficha.regiones.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(
-            'UBICACIÓN EN EL NIVEL',
-            style: TextStyle(
-              fontSize: 11,
-              letterSpacing: 1,
-              fontWeight: FontWeight.w600,
-              color: tone.fgSubtle,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: tone.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: tone.border),
-            ),
-            child: LevelMap(
-              regiones: ficha.regiones,
-              numeroDepa: ficha.numeroDepa,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: SozuBrand.green500,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'Tu unidad',
-                style: TextStyle(fontSize: 11, color: tone.fgMuted),
-              ),
-            ],
-          ),
-        ] else if (ficha.planoNivelUrl != null) ...[
+        if (ficha.regiones.isEmpty && ficha.planoNivelUrl != null) ...[
           const SizedBox(height: 12),
           _planoImage(
             context,

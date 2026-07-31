@@ -91,20 +91,36 @@ class _FadeSlideInState extends State<FadeSlideIn>
 const Duration _countUpDuration = Duration(milliseconds: 900);
 
 /// Cifra de dinero que "cuenta" desde 0 hasta el valor (hero del dashboard).
+///
+/// Parámetros opcionales (aditivos, sin romper llamadas existentes):
+/// - [prefix]: texto antepuesto al monto (p.ej. "+" para plusvalía).
+/// - [compact]: usa `formatMXNCompact` ("$2.46M") en vez de `formatMXN`.
+/// - [color]: conveniencia; si se pasa, tiñe el estilo (equivale a
+///   `style.copyWith(color: color)`).
 class CountUpMoney extends StatelessWidget {
   final double value;
   final TextStyle? style;
   final Duration duration;
+  final String prefix;
+  final bool compact;
+  final Color? color;
 
   const CountUpMoney({
     super.key,
     required this.value,
     this.style,
     this.duration = _countUpDuration,
+    this.prefix = '',
+    this.compact = false,
+    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveStyle = color != null
+        ? (style ?? const TextStyle()).copyWith(color: color)
+        : style;
+
     // Con "reducir movimiento" la cifra se muestra ya en su valor final.
     //
     // `motion.normal == Duration.zero` es la señal: con `SozuMotion.reduced`
@@ -117,7 +133,10 @@ class CountUpMoney extends StatelessWidget {
     // tenerlos: no es una transición que se pueda ignorar, es texto que cambia
     // varias veces por frame en el elemento más grande de la pantalla.
     if (context.s.motion.normal == Duration.zero) {
-      return Text(formatMXN(value), style: style);
+      return Text(
+        '$prefix${compact ? formatMXNCompact(value) : formatMXN(value)}',
+        style: effectiveStyle,
+      );
     }
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: value),
@@ -125,7 +144,10 @@ class CountUpMoney extends StatelessWidget {
       // easeOutCubic propio, no `motion.enter`: la curva la define el conteo
       // (frenar sobre los últimos dígitos), no la escala de movimiento.
       curve: Curves.easeOutCubic,
-      builder: (context, v, _) => Text(formatMXN(v), style: style),
+      builder: (context, v, _) => Text(
+        '$prefix${compact ? formatMXNCompact(v) : formatMXN(v)}',
+        style: effectiveStyle,
+      ),
     );
   }
 }

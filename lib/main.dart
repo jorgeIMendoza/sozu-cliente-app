@@ -12,6 +12,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/widgets/inactivity_watcher.dart';
 import 'package:sozu_cliente_app/widgets/preview_banner.dart';
 import 'package:sozu_cliente_app/widgets/push_registrar.dart';
+import 'package:sozu_cliente_app/widgets/version_gate.dart';
 
 /// SOZU - Portal del Cliente (Flutter).
 /// Seguridad: SOLO anon key + JWT; sesión en secure storage; todo dato
@@ -62,13 +63,16 @@ class SozuApp extends ConsumerWidget {
       themeMode: themeMode,
       routerConfig: router,
       // SozuAdaptiveTokens resuelve la densidad del design system según el ancho
-      // disponible y reinyecta los tokens. Debe ir lo más arriba posible: el
+      // disponible y reinyecta los tokens. Va lo más arriba posible: el
       // ThemeData se construye sin saber cuánto mide la ventana, así que sin
-      // esto `context.s` siempre devolvería la densidad `comfortable`.
+      // esto `context.s` siempre devolvería la densidad `comfortable`. Por eso
+      // envuelve a `VersionGate` y no al revés.
       builder: (context, child) => SozuAdaptiveTokens(
-        child: InactivityWatcher(
-          child: PushRegistrar(
-            child: PreviewBanner(child: child ?? const SizedBox.shrink()),
+        child: VersionGate(
+          child: InactivityWatcher(
+            child: PushRegistrar(
+              child: PreviewBanner(child: child ?? const SizedBox.shrink()),
+            ),
           ),
         ),
       ),
