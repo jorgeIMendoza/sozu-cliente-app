@@ -152,10 +152,33 @@ ThemeData _build(SozuTheme t, Brightness brightness) {
       ),
     ),
 
+    // Mismos roles que `SChoiceChip`, incluido el estado SELECCIONADO: sin
+    // `selectedColor` un FilterChip se rellena con `secondaryContainer` del
+    // ColorScheme (el verde de marca) y el label se queda en el gris fijo de
+    // `labelStyle` - gris sobre verde, 1.01:1.
     chipTheme: ChipThemeData(
-      backgroundColor: c.muted,
-      side: BorderSide(color: c.border),
-      labelStyle: t.text.caption.copyWith(color: c.fgMuted),
+      backgroundColor: c.surface,
+      selectedColor: c.primarySoftStrong,
+      disabledColor: c.muted,
+      checkmarkColor: c.primaryHover,
+      side: WidgetStateBorderSide.resolveWith(
+        (st) => BorderSide(
+          color: st.contains(WidgetState.disabled)
+              ? c.borderSoft
+              : st.contains(WidgetState.selected)
+              ? c.primaryBorder
+              : c.border,
+        ),
+      ),
+      labelStyle: t.text.bodySmall.copyWith(
+        fontWeight: FontWeight.w600,
+        // `WidgetStateColor` y no un color plano: el chip resuelve el color del
+        // label con los estados, y un color fijo no cambia al seleccionar.
+        color: WidgetStateColor.resolveWith((st) {
+          if (st.contains(WidgetState.disabled)) return c.fgSubtle;
+          return st.contains(WidgetState.selected) ? c.primaryHover : c.fgMuted;
+        }),
+      ),
       shape: RoundedRectangleBorder(borderRadius: t.radius.fullBorder),
     ),
 

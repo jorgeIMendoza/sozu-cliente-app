@@ -306,13 +306,10 @@ class _FiltersPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.s;
-    return Container(
-      padding: EdgeInsets.all(t.space.sm),
-      decoration: BoxDecoration(
-        color: t.color.surface,
-        borderRadius: t.radius.lgBorder,
-        border: Border.all(color: t.color.border),
-      ),
+    // `SCard` y no un Container a mano: repetia su decoracion (surface, radio lg,
+    // borde) y con `space.sm` el contenido quedaba pegado al borde. El padding
+    // por defecto de la primitiva es `space.md`.
+    return SCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

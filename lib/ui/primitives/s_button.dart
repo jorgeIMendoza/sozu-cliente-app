@@ -648,7 +648,9 @@ class _SButtonMetrics {
           padding: h(t.space.sm),
           linkPadding: linkPadding,
           linkIconSize: 14,
-          textStyle: t.text.button,
+          // El cuerpo escala con el control: 18 en un boton de 36 px iba
+          // apretado. Peso y familia los sigue dando el rol tipografico.
+          textStyle: t.text.bodySmall.copyWith(fontWeight: FontWeight.w600),
           gap: t.space.xs,
         );
       case SButtonSize.md:
@@ -658,7 +660,7 @@ class _SButtonMetrics {
           padding: h(t.space.md),
           linkPadding: linkPadding,
           linkIconSize: 15,
-          textStyle: t.text.button,
+          textStyle: t.text.label,
           gap: t.space.xs,
         );
       case SButtonSize.lg:

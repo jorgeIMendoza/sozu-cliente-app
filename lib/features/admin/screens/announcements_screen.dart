@@ -17,6 +17,25 @@ const double _kSpinnerSize = 18;
 const double _kSelectorDialogWidth = 380;
 const double _kSelectorDialogHeight = 420;
 
+/// Lado del icono al final de los campos que abren un selector. Igual que el
+/// del prefijo de `STextField`.
+const double _kSelectorIconSize = 20;
+
+/// Señal del selector MÚLTIPLE: abre un diálogo con buscador y casillas, no un
+/// menú. Sin flecha a propósito: prometía un desplegable que el toque no abre
+/// (mismo motivo por el que `SAutocompleteField` no la lleva).
+const IconData _kSelectorMultipleIcon = Icons.checklist;
+
+/// Señal del selector de UNA opción: aquí el menú sí se despliega bajo el campo.
+const IconData _kSelectorUnicoIcon = Icons.expand_more;
+
+/// Cuántos nombres se enumeran en el resumen antes de cortar con "+N".
+const int _kResumenMaxNombres = 3;
+
+/// "informativa" -> "Informativa". Los catálogos vienen en minúsculas.
+String _capitalizar(String s) =>
+    s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
 const _tipos = ['informativa', 'accionable', 'urgente', 'exito'];
 const _categorias = [
   'pagos',
@@ -417,36 +436,55 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                     ),
                   ),
                   SizedBox(height: t.space.sm),
-                  TextFormField(
+                  // `lg` en los dos campos que son el contenido del aviso; los
+                  // seis selectores de abajo van en filas de dos, y ahí manda
+                  // `md` (lo mismo que usa `SAutocompleteField`).
+                  STextField(
                     controller: _titulo,
+                    label: 'Título',
+                    hint: 'Corte de agua programado',
                     maxLength: 120,
-                    decoration: const InputDecoration(
-                      labelText: 'Título',
-                      hintText: 'Corte de agua programado',
-                    ),
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? 'Escribe el título'
                         : null,
                   ),
-                  SizedBox(height: t.space.xs),
-                  TextFormField(
+                  SizedBox(height: t.space.sm),
+                  STextField(
                     controller: _mensaje,
-                    minLines: 3,
+                    label: 'Mensaje',
                     maxLines: 8,
                     maxLength: 1000,
-                    decoration: const InputDecoration(
-                      labelText: 'Mensaje',
-                      alignLabelWithHint: true,
-                    ),
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? 'Escribe el mensaje'
                         : null,
                   ),
                   SizedBox(height: t.space.sm),
 
-                  _label(t, 'CANALES'),
+                  // Tipo y Categoría describen el aviso, así que van con el
+                  // título y el mensaje: debajo de los chips se leían como parte
+                  // del grupo "Canales".
+                  _dosColumnas(
+                    t,
+                    _SelectField(
+                      label: 'Tipo',
+                      value: _tipo,
+                      opciones: _tipos,
+                      onChanged: (v) => setState(() => _tipo = v ?? _tipo),
+                    ),
+                    _SelectField(
+                      label: 'Categoría',
+                      value: _categoria,
+                      opciones: _categorias,
+                      onChanged: (v) =>
+                          setState(() => _categoria = v ?? _categoria),
+                    ),
+                  ),
+                  SizedBox(height: t.space.md),
+
+                  const SSectionLabel(text: 'Canales'),
                   Wrap(
                     spacing: t.space.xs,
+                    runSpacing: t.space.xxs,
                     children: [
                       _canalChip(
                         'push',
@@ -457,83 +495,65 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                       _canalChip('wa', 'WhatsApp', Icons.chat_outlined),
                     ],
                   ),
-                  SizedBox(height: t.space.sm),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _dropdown(
-                          'Tipo',
-                          _tipo,
-                          _tipos,
-                          (v) => setState(() => _tipo = v ?? _tipo),
-                        ),
-                      ),
-                      SizedBox(width: t.space.sm),
-                      Expanded(
-                        child: _dropdown(
-                          'Categoría',
-                          _categoria,
-                          _categorias,
-                          (v) => setState(() => _categoria = v ?? _categoria),
-                        ),
-                      ),
-                    ],
-                  ),
                   SizedBox(height: t.space.md),
 
-                  _label(t, 'DESTINATARIOS'),
-                  _MultiSelectField(
-                    label: 'Proyectos',
-                    items: _proyectos,
-                    selected: _proyectosSel,
-                    placeholder: 'Todos los clientes',
-                    onChanged: _onProyectosChanged,
+                  const SSectionLabel(text: 'Destinatarios'),
+                  _dosColumnas(
+                    t,
+                    _MultiSelectField(
+                      label: 'Proyectos',
+                      items: _proyectos,
+                      selected: _proyectosSel,
+                      placeholder: 'Todos los clientes',
+                      onChanged: _onProyectosChanged,
+                    ),
+                    _MultiSelectField(
+                      label: 'Modelos',
+                      items: _modelos,
+                      selected: _modelosSel,
+                      placeholder: _proyectosSel.isEmpty
+                          ? 'Primero elige proyecto'
+                          : _cargandoModelos
+                          ? 'Cargando…'
+                          : 'Todos los modelos',
+                      enabled: _proyectosSel.isNotEmpty && !_cargandoModelos,
+                      onChanged: _onModelosChanged,
+                    ),
                   ),
                   SizedBox(height: t.space.xs),
-                  _MultiSelectField(
-                    label: 'Modelos',
-                    items: _modelos,
-                    selected: _modelosSel,
-                    placeholder: _proyectosSel.isEmpty
-                        ? 'Primero elige proyecto'
-                        : _cargandoModelos
-                        ? 'Cargando…'
-                        : 'Todos los modelos',
-                    enabled: _proyectosSel.isNotEmpty && !_cargandoModelos,
-                    onChanged: _onModelosChanged,
-                  ),
-                  SizedBox(height: t.space.xs),
-                  _MultiSelectField(
-                    label: 'Niveles',
-                    items: _niveles,
-                    selected: _nivelesSel,
-                    placeholder: _proyectosSel.isEmpty
-                        ? 'Primero elige proyecto'
-                        : _cargandoNiveles
-                        ? 'Cargando…'
-                        : _niveles.isEmpty
-                        ? 'Niveles no disponibles'
-                        : 'Todos los niveles',
-                    enabled: _proyectosSel.isNotEmpty && !_cargandoNiveles,
-                    onChanged: _onNivelesChanged,
-                  ),
-                  SizedBox(height: t.space.xs),
-                  _MultiSelectField(
-                    label: 'Propiedades',
-                    items: _propiedades,
-                    prefijo: 'U-',
-                    selected: _propiedadesSel,
-                    placeholder: _proyectosSel.isEmpty
-                        ? 'Primero elige proyecto'
-                        : _cargandoPropiedades
-                        ? 'Cargando…'
-                        : 'Todas las propiedades',
-                    enabled: _proyectosSel.isNotEmpty && !_cargandoPropiedades,
-                    onChanged: (sel) => setState(
-                      () => _propiedadesSel
-                        ..clear()
-                        ..addAll(sel),
+                  _dosColumnas(
+                    t,
+                    _MultiSelectField(
+                      label: 'Niveles',
+                      items: _niveles,
+                      selected: _nivelesSel,
+                      placeholder: _proyectosSel.isEmpty
+                          ? 'Primero elige proyecto'
+                          : _cargandoNiveles
+                          ? 'Cargando…'
+                          : _niveles.isEmpty
+                          ? 'Niveles no disponibles'
+                          : 'Todos los niveles',
+                      enabled: _proyectosSel.isNotEmpty && !_cargandoNiveles,
+                      onChanged: _onNivelesChanged,
+                    ),
+                    _MultiSelectField(
+                      label: 'Propiedades',
+                      items: _propiedades,
+                      prefijo: 'U-',
+                      selected: _propiedadesSel,
+                      placeholder: _proyectosSel.isEmpty
+                          ? 'Primero elige proyecto'
+                          : _cargandoPropiedades
+                          ? 'Cargando…'
+                          : 'Todas las propiedades',
+                      enabled:
+                          _proyectosSel.isNotEmpty && !_cargandoPropiedades,
+                      onChanged: (sel) => setState(
+                        () => _propiedadesSel
+                          ..clear()
+                          ..addAll(sel),
+                      ),
                     ),
                   ),
                   SizedBox(height: t.space.xs),
@@ -543,7 +563,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                   ),
                   SizedBox(height: t.space.md),
 
-                  _label(t, 'PROGRAMACIÓN'),
+                  const SSectionLabel(text: 'Programación'),
                   Row(
                     children: [
                       Switch(
@@ -676,40 +696,42 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     );
   }
 
-  Widget _label(SozuTheme t, String text) => Padding(
-    padding: EdgeInsets.only(bottom: t.space.xs),
-    child: Text(text, style: t.text.overline.copyWith(color: t.color.fgSubtle)),
-  );
-
-  Widget _canalChip(String canal, String label, IconData icon) {
-    final activo = _canales.contains(canal);
-    return FilterChip(
-      selected: activo,
-      avatar: Icon(icon, size: 16),
-      label: Text(label),
-      onSelected: (v) => setState(() {
-        v ? _canales.add(canal) : _canales.remove(canal);
-      }),
+  /// Dos campos por fila; en teléfono se apilan. Mismo mecanismo que
+  /// `ClientFilters`: lo decide `context.bp`, nunca `kIsWeb`.
+  Widget _dosColumnas(SozuTheme t, Widget izquierda, Widget derecha) {
+    if (context.bp.isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          izquierda,
+          SizedBox(height: t.space.xs),
+          derecha,
+        ],
+      );
+    }
+    // `start` y no `stretch`: con un campo en error el otro no debe crecer.
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: izquierda),
+        SizedBox(width: t.space.xs),
+        Expanded(child: derecha),
+      ],
     );
   }
 
-  Widget _dropdown(
-    String label,
-    String value,
-    List<String> opciones,
-    ValueChanged<String?> onChanged,
-  ) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      decoration: InputDecoration(labelText: label),
-      items: [
-        for (final o in opciones)
-          DropdownMenuItem(
-            value: o,
-            child: Text(o[0].toUpperCase() + o.substring(1)),
-          ),
-      ],
-      onChanged: onChanged,
+  /// `SChoiceChip` y no un `FilterChip` de Material: el `chipTheme` dejaba el
+  /// chip seleccionado en verde sobre verde (1.01:1 de contraste, ilegible en
+  /// claro y en oscuro). La primitiva resuelve el par de roles y trae foco de
+  /// teclado.
+  Widget _canalChip(String canal, String label, IconData icon) {
+    return SChoiceChip(
+      label: label,
+      icon: icon,
+      selected: _canales.contains(canal),
+      onSelected: (activo) => setState(() {
+        activo ? _canales.add(canal) : _canales.remove(canal);
+      }),
     );
   }
 }
@@ -835,9 +857,131 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
   }
 }
 
-/// Selector múltiple con buscador en tiempo real: campo que resume la
-/// selección y abre un diálogo con búsqueda + checkboxes.
-class _MultiSelectField extends StatelessWidget {
+/// Campo de una sola opción con la etiqueta ARRIBA: se ve igual que los demás
+/// campos del formulario y al tocarlo despliega el menú bajo el campo.
+///
+/// `DropdownButtonFormField` no sirve: su etiqueta va dentro de su propio
+/// `InputDecoration`, así que solo puede ser flotante.
+class _SelectField extends StatefulWidget {
+  final String label;
+  final String value;
+  final List<String> opciones;
+  final ValueChanged<String?> onChanged;
+
+  const _SelectField({
+    required this.label,
+    required this.value,
+    required this.opciones,
+    required this.onChanged,
+  });
+
+  @override
+  State<_SelectField> createState() => _SelectFieldState();
+}
+
+class _SelectFieldState extends State<_SelectField> {
+  /// [STextField] es un campo de texto real, así que el valor visible vive en un
+  /// controller.
+  late final TextEditingController _texto = TextEditingController(
+    text: _capitalizar(widget.value),
+  );
+
+  /// TRAMPA: el texto se sincroniza DESPUÉS del frame. Escribir en el controller
+  /// dentro de `didUpdateWidget` notifica a sus listeners en plena fase de build
+  /// y el `Form` de arriba muere con "setState() called during build".
+  @override
+  void didUpdateWidget(covariant _SelectField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_texto.text == _capitalizar(widget.value)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final visible = _capitalizar(widget.value);
+      if (_texto.text != visible) _texto.text = visible;
+    });
+  }
+
+  @override
+  void dispose() {
+    _texto.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    final tone = t.color;
+    // Los parámetros del menú son los de `ThemeModeButton`, incluidas sus dos
+    // trampas: sin `clipBehavior` y sin `menuPadding` los items se pintan
+    // cuadrados sobre las esquinas del `shape`.
+    return LayoutBuilder(
+      builder: (context, constraints) => PopupMenuButton<String>(
+        initialValue: widget.value,
+        tooltip: 'Elegir ${widget.label.toLowerCase()}',
+        position: PopupMenuPosition.under,
+        color: tone.surface,
+        clipBehavior: Clip.antiAlias,
+        menuPadding: EdgeInsets.zero,
+        borderRadius: t.radius.mdBorder,
+        shape: RoundedRectangleBorder(
+          borderRadius: t.radius.mdBorder,
+          side: BorderSide(color: tone.border),
+        ),
+        // El menú mide lo mismo que el campo, como el de `SAutocompleteField`.
+        constraints: constraints.hasBoundedWidth
+            ? BoxConstraints(minWidth: constraints.maxWidth)
+            : null,
+        onSelected: widget.onChanged,
+        itemBuilder: (context) => [
+          for (final o in widget.opciones)
+            PopupMenuItem<String>(
+              value: o,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _capitalizar(o),
+                      style: t.text.body.copyWith(
+                        color: o == widget.value ? tone.primaryHover : tone.fg,
+                        fontWeight: o == widget.value
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  if (o == widget.value)
+                    Icon(
+                      Icons.check,
+                      size: _kSelectorIconSize,
+                      color: tone.primaryHover,
+                    ),
+                ],
+              ),
+            ),
+        ],
+        // El campo NO debe recibir el toque: si lo recibe se enfoca y el menú no
+        // abre. El gesto y el foco de teclado los da el `PopupMenuButton`.
+        child: IgnorePointer(
+          child: STextField(
+            controller: _texto,
+            label: widget.label,
+            readOnly: true,
+            size: STextFieldSize.md,
+            suffix: Icon(
+              _kSelectorUnicoIcon,
+              size: _kSelectorIconSize,
+              color: tone.fgSubtle,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Selector múltiple con buscador en tiempo real: campo de solo lectura con la
+/// etiqueta ARRIBA que resume la selección y abre un diálogo con búsqueda +
+/// casillas.
+class _MultiSelectField extends StatefulWidget {
   final String label;
   final List<CatalogoItem> items;
   final Set<int> selected;
@@ -856,48 +1000,83 @@ class _MultiSelectField extends StatelessWidget {
     this.enabled = true,
   });
 
-  String get _resumen {
-    if (selected.isEmpty) return placeholder;
-    final nombres = items
-        .where((e) => selected.contains(e.id))
-        .map((e) => '$prefijo${e.nombre}')
-        .toList();
-    if (nombres.length <= 3) return nombres.join(', ');
-    return '${nombres.take(3).join(', ')} +${nombres.length - 3}';
+  @override
+  State<_MultiSelectField> createState() => _MultiSelectFieldState();
+}
+
+class _MultiSelectFieldState extends State<_MultiSelectField> {
+  late final TextEditingController _resumenCtrl = TextEditingController(
+    text: _resumen,
+  );
+
+  /// No se compara contra `oldWidget`: la pantalla muta SIEMPRE el mismo `Set`,
+  /// así que los dos widgets comparten la selección y nunca difieren.
+  ///
+  /// TRAMPA: la escritura va DESPUÉS del frame. Hacerla aquí notifica a los
+  /// listeners del controller en plena fase de build y el `Form` de arriba muere
+  /// con "setState() called during build".
+  @override
+  void didUpdateWidget(covariant _MultiSelectField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_resumenCtrl.text == _resumen) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _resumenCtrl.text != _resumen) {
+        _resumenCtrl.text = _resumen;
+      }
+    });
   }
 
-  Future<void> _abrir(BuildContext context) async {
+  @override
+  void dispose() {
+    _resumenCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Vacío sin selección: ahí lo que se ve es el `hint` del campo.
+  String get _resumen {
+    if (widget.selected.isEmpty) return '';
+    final nombres = widget.items
+        .where((e) => widget.selected.contains(e.id))
+        .map((e) => '${widget.prefijo}${e.nombre}')
+        .toList();
+    if (nombres.length <= _kResumenMaxNombres) return nombres.join(', ');
+    final visibles = nombres.take(_kResumenMaxNombres).join(', ');
+    return '$visibles +${nombres.length - _kResumenMaxNombres}';
+  }
+
+  Future<void> _abrir() async {
     final resultado = await showDialog<Set<int>>(
       context: context,
       builder: (ctx) => _MultiSelectDialog(
-        label: label,
-        items: items,
-        prefijo: prefijo,
-        inicial: selected,
+        label: widget.label,
+        items: widget.items,
+        prefijo: widget.prefijo,
+        inicial: widget.selected,
       ),
     );
-    if (resultado != null) onChanged(resultado);
+    if (resultado != null) widget.onChanged(resultado);
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.s;
-    final tone = t.color;
+    final puedeAbrir = widget.enabled && widget.items.isNotEmpty;
     return InkWell(
-      onTap: enabled && items.isNotEmpty ? () => _abrir(context) : null,
+      onTap: puedeAbrir ? _abrir : null,
       borderRadius: t.radius.mdBorder,
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          enabled: enabled,
-          suffixIcon: const Icon(Icons.arrow_drop_down),
-        ),
-        child: Text(
-          _resumen,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: t.text.body.copyWith(
-            color: selected.isEmpty || !enabled ? tone.fgSubtle : tone.fg,
+      // Ver la nota de `_SelectField`: el campo no puede quedarse el toque.
+      child: IgnorePointer(
+        child: STextField(
+          controller: _resumenCtrl,
+          label: widget.label,
+          hint: widget.placeholder,
+          enabled: widget.enabled,
+          readOnly: true,
+          size: STextFieldSize.md,
+          suffix: Icon(
+            _kSelectorMultipleIcon,
+            size: _kSelectorIconSize,
+            color: t.color.fgSubtle,
           ),
         ),
       ),

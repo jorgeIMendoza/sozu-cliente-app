@@ -49,6 +49,7 @@ export 'package:sozu_cliente_app/ui/primitives/s_avatar.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_badge.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_button.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_card.dart';
+export 'package:sozu_cliente_app/ui/primitives/s_choice_chip.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_empty_state.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_error_state.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_pressable.dart';

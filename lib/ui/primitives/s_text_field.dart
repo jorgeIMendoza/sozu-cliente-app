@@ -320,7 +320,11 @@ class _STextFieldState extends State<STextField> {
   Widget _buildField(SozuTheme t) {
     final c = t.color;
     final isLarge = widget.size == STextFieldSize.lg;
-    final textStyle = isLarge ? t.text.bodyLarge : t.text.body;
+    // El contenido NUNCA es mas grande que su propia etiqueta (`label`, 16):
+    // con `bodyLarge` (18) el input se leia mas grande que el texto que lo
+    // nombra, y en escritorio cantaba. Los dos tamanos comparten cuerpo; lo que
+    // cambia entre `md` y `lg` es el alto y el aire, no la tipografia.
+    final textStyle = t.text.body;
     final horizontal = isLarge ? t.space.md : t.space.sm;
     final vertical = isLarge ? t.space.sm : t.space.xs;
 
