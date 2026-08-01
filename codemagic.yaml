@@ -96,6 +96,23 @@ workflows:
         <<: *supabase_env
       flutter: stable
     scripts:
+      - name: Validar credenciales de Google Play
+        script: |
+          # Fallar aquí ahorra ~10 min de build: sin este JSON la publicación
+          # revienta al final con "Expecting value: line 1 column 1 (char 0)",
+          # que es json.loads() sobre una cadena vacía.
+          if [ -z "${GCLOUD_SERVICE_ACCOUNT_CREDENTIALS:-}" ]; then
+            echo "ERROR: falta GCLOUD_SERVICE_ACCOUNT_CREDENTIALS."
+            echo "Es el JSON del service account de Play Console y debe estar en el"
+            echo "grupo 'android_signing_custom' de esta app en Codemagic."
+            echo "Se puede subir desde el dashboard: Deploy App -> Credenciales Android."
+            exit 1
+          fi
+          echo "$GCLOUD_SERVICE_ACCOUNT_CREDENTIALS" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Service account:', d['client_email'])" || {
+            echo "ERROR: GCLOUD_SERVICE_ACCOUNT_CREDENTIALS no contiene un JSON valido."
+            echo "Debe ser el archivo completo, desde la primera llave hasta la ultima, sin base64."
+            exit 1
+          }
       - *env_setup
       - *build_stamp
       - *dashboard_keystore
@@ -230,6 +247,23 @@ workflows:
             exit 1
           fi
           echo "Release notes: $RELEASE_NOTES"
+      - name: Validar credenciales de Google Play
+        script: |
+          # Fallar aquí ahorra ~10 min de build: sin este JSON la publicación
+          # revienta al final con "Expecting value: line 1 column 1 (char 0)",
+          # que es json.loads() sobre una cadena vacía.
+          if [ -z "${GCLOUD_SERVICE_ACCOUNT_CREDENTIALS:-}" ]; then
+            echo "ERROR: falta GCLOUD_SERVICE_ACCOUNT_CREDENTIALS."
+            echo "Es el JSON del service account de Play Console y debe estar en el"
+            echo "grupo 'android_signing_custom' de esta app en Codemagic."
+            echo "Se puede subir desde el dashboard: Deploy App -> Credenciales Android."
+            exit 1
+          fi
+          echo "$GCLOUD_SERVICE_ACCOUNT_CREDENTIALS" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Service account:', d['client_email'])" || {
+            echo "ERROR: GCLOUD_SERVICE_ACCOUNT_CREDENTIALS no contiene un JSON valido."
+            echo "Debe ser el archivo completo, desde la primera llave hasta la ultima, sin base64."
+            exit 1
+          }
       - name: Promover internal → production
         script: |
           google-play tracks promote-release \
@@ -265,6 +299,23 @@ workflows:
             exit 1
           fi
           echo "Release notes: $RELEASE_NOTES"
+      - name: Validar credenciales de Google Play
+        script: |
+          # Fallar aquí ahorra ~10 min de build: sin este JSON la publicación
+          # revienta al final con "Expecting value: line 1 column 1 (char 0)",
+          # que es json.loads() sobre una cadena vacía.
+          if [ -z "${GCLOUD_SERVICE_ACCOUNT_CREDENTIALS:-}" ]; then
+            echo "ERROR: falta GCLOUD_SERVICE_ACCOUNT_CREDENTIALS."
+            echo "Es el JSON del service account de Play Console y debe estar en el"
+            echo "grupo 'android_signing_custom' de esta app en Codemagic."
+            echo "Se puede subir desde el dashboard: Deploy App -> Credenciales Android."
+            exit 1
+          fi
+          echo "$GCLOUD_SERVICE_ACCOUNT_CREDENTIALS" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Service account:', d['client_email'])" || {
+            echo "ERROR: GCLOUD_SERVICE_ACCOUNT_CREDENTIALS no contiene un JSON valido."
+            echo "Debe ser el archivo completo, desde la primera llave hasta la ultima, sin base64."
+            exit 1
+          }
       - *env_setup
       - *build_stamp
       - *dashboard_keystore
