@@ -49,27 +49,27 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   static const _minQueryLength = 2;
 
   final _search = TextEditingController();
-  final _unidad = TextEditingController();
+  final _unit = TextEditingController();
   Timer? _debounce;
 
   String _query = '';
-  int? _proyectoId;
+  int? _projectId;
   String _unitQuery = '';
 
   @override
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
-    _unidad.dispose();
+    _unit.dispose();
     super.dispose();
   }
 
   bool get _queryTooShort => _query.trim().length < _minQueryLength;
 
   bool get _isPropertyFilterActive =>
-      _proyectoId != null && _unitQuery.isNotEmpty;
+      _projectId != null && _unitQuery.isNotEmpty;
 
-  void _onUnidadChanged(String v) {
+  void _onUnitChanged(String v) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
       if (mounted) setState(() => _unitQuery = v.trim());
@@ -78,14 +78,14 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
 
   void _clearUnit() {
     _debounce?.cancel();
-    _unidad.clear();
+    _unit.clear();
     setState(() => _unitQuery = '');
   }
 
-  List<AdminCliente> _filterBy(List<AdminCliente> clientes) {
+  List<AdminCliente> _filterBy(List<AdminCliente> clients) {
     final q = _query.trim().toLowerCase();
     if (q.length < _minQueryLength) return const [];
-    return clientes
+    return clients
         .where(
           (c) =>
               c.nombre.toLowerCase().contains(q) ||
@@ -116,7 +116,7 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
             title: 'Selecciona un cliente',
             subtitle:
                 'Acceso administrador · '
-                '${auth.profile?.nombre ?? auth.profile?.email ?? ''}',
+                '${auth.profile?.displayName ?? auth.profile?.email ?? ''}',
             actions: [
               const ThemeModeButton(),
               SizedBox(width: t.space.xxs),
@@ -140,12 +140,12 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
           SizedBox(height: t.space.md),
           _FiltersPanel(
             projects:
-                ref.watch(adminProyectosProvider).asData?.value ??
+                ref.watch(adminProjectsProvider).asData?.value ??
                 const <CatalogoItem>[],
-            projectId: _proyectoId,
-            onProjectChanged: (v) => setState(() => _proyectoId = v),
-            unitController: _unidad,
-            onUnitChanged: _onUnidadChanged,
+            projectId: _projectId,
+            onProjectChanged: (v) => setState(() => _projectId = v),
+            unitController: _unit,
+            onUnitChanged: _onUnitChanged,
             onUnitCleared: _clearUnit,
             searchController: _search,
             onQueryChanged: (v) => setState(() => _query = v),
@@ -164,7 +164,7 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   /// El contenido NO trae scroll propio: el de la página lo da [AdminLayout].
   /// Por eso las listas van como `Column` y no como `ListView`.
   Widget _results() {
-    final clientes = ref.watch(adminClientesProvider);
+    final clients = ref.watch(adminClientsProvider);
     final t = context.s;
 
     // Con el filtro Proyecto + Unidad activo solo se muestran los dueños de esa
@@ -178,7 +178,7 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
       );
     }
 
-    return clientes.when(
+    return clients.when(
       loading: () => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -190,7 +190,7 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
       ),
       error: (_, __) => SErrorState(
         title: 'No pudimos cargar la lista de clientes',
-        onRetry: () => ref.invalidate(adminClientesProvider),
+        onRetry: () => ref.invalidate(adminClientsProvider),
       ),
       data: (data) {
         final items = _filterBy(data.clientes);
@@ -210,7 +210,7 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
             message: 'No encontramos clientes para "$_query".',
           );
         }
-        return _ClientList(clientes: items, onTap: _viewAs);
+        return _ClientList(clients: items, onTap: _viewAs);
       },
     );
   }
@@ -219,11 +219,11 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   /// filtro Proyecto + Unidad está activo.
   List<Widget> _ownersSection() {
     final t = context.s;
-    final propietarios = ref.watch(
-      adminPropietariosProvider((idProyecto: _proyectoId!, numero: _unitQuery)),
+    final owners = ref.watch(
+      adminOwnersProvider((projectId: _projectId!, propertyNumber: _unitQuery)),
     );
 
-    return propietarios.when(
+    return owners.when(
       loading: () => [
         const SSectionLabel(text: 'Copropietarios', icon: Icons.group_outlined),
         const _ClientRowSkeleton(),
@@ -232,7 +232,7 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
       error: (_, __) => [
         SErrorState(
           title: 'No pudimos cargar los clientes de la unidad',
-          onRetry: () => ref.invalidate(adminPropietariosProvider),
+          onRetry: () => ref.invalidate(adminOwnersProvider),
         ),
         SizedBox(height: t.space.md),
       ],
@@ -256,13 +256,12 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
                 : 'Dueño de la propiedad',
             icon: Icons.group_outlined,
           ),
-          for (final cliente in items) ...[
+          for (final client in items) ...[
             ClientRow(
-              cliente: cliente,
+              client: client,
               isSelected:
-                  ref.watch(impersonationProvider).idPersona ==
-                  cliente.idPersona,
-              onTap: () => _viewAs(cliente),
+                  ref.watch(impersonationProvider).clientId == client.idPersona,
+              onTap: () => _viewAs(client),
             ),
             SizedBox(height: t.space.xs),
           ],
@@ -338,10 +337,10 @@ class _FiltersPanel extends StatelessWidget {
 }
 
 class _ClientList extends StatelessWidget {
-  final List<AdminCliente> clientes;
+  final List<AdminCliente> clients;
   final void Function(AdminCliente) onTap;
 
-  const _ClientList({required this.clientes, required this.onTap});
+  const _ClientList({required this.clients, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -351,7 +350,7 @@ class _ClientList extends StatelessWidget {
       padding: EdgeInsets.zero,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: clientes.length,
+      itemCount: clients.length,
       separatorBuilder: (_, __) => SizedBox(height: t.space.xs),
       // Entrada escalonada: cada fila entra un poco después de la anterior, así
       // la lista se lee como algo que llega y no como un parpadeo del skeleton
@@ -361,11 +360,11 @@ class _ClientList extends StatelessWidget {
         delay: SStaggered.delayForIndex(i),
         child: Consumer(
           builder: (context, ref, _) => ClientRow(
-            cliente: clientes[i],
+            client: clients[i],
             isSelected:
-                ref.watch(impersonationProvider).idPersona ==
-                clientes[i].idPersona,
-            onTap: () => onTap(clientes[i]),
+                ref.watch(impersonationProvider).clientId ==
+                clients[i].idPersona,
+            onTap: () => onTap(clients[i]),
           ),
         ),
       ),
@@ -375,9 +374,9 @@ class _ClientList extends StatelessWidget {
 
 /// Nota de una línea dentro de la lista (no amerita un estado vacío completo).
 class _InlineNote extends StatelessWidget {
-  final String texto;
+  final String text;
 
-  const _InlineNote(this.texto);
+  const _InlineNote(this.text);
 
   @override
   Widget build(BuildContext context) {
@@ -385,7 +384,7 @@ class _InlineNote extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: t.space.xs),
       child: Text(
-        texto,
+        text,
         style: t.text.bodySmall.copyWith(color: t.color.fgMuted),
       ),
     );

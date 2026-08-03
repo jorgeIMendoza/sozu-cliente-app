@@ -17,40 +17,40 @@ void main() {
     return container;
   }
 
-  test('adminClientesProvider resuelve la lista del puerto', () async {
+  test('adminClientsProvider resuelve la lista del puerto', () async {
     final port = FakeAdminPort();
     final container = makeContainer(port);
 
-    final data = await container.read(adminClientesProvider.future);
+    final data = await container.read(adminClientsProvider.future);
 
     expect(data.clientes, hasLength(2));
     expect(data.clientes.first.nombre, 'Alex Hernández');
     expect(port.log, ['clients']);
   });
 
-  test('adminProyectosProvider resuelve el catálogo del puerto', () async {
+  test('adminProjectsProvider resuelve el catálogo del puerto', () async {
     final port = FakeAdminPort();
     final container = makeContainer(port);
 
-    final proyectos = await container.read(adminProyectosProvider.future);
+    final projects = await container.read(adminProjectsProvider.future);
 
-    expect(proyectos.map((p) => p.nombre), ['Toreo', 'Reforma']);
+    expect(projects.map((p) => p.nombre), ['Toreo', 'Reforma']);
     expect(port.log, ['projectCatalog']);
   });
 
-  test('adminPropietariosProvider pasa proyecto y unidad al puerto', () async {
+  test('adminOwnersProvider pasa proyecto y unidad al puerto', () async {
     final port = FakeAdminPort();
     final container = makeContainer(port);
 
-    final duenos = await container.read(
-      adminPropietariosProvider((idProyecto: 1, numero: '101')).future,
+    final owners = await container.read(
+      adminOwnersProvider((projectId: 1, propertyNumber: '101')).future,
     );
-    final vacios = await container.read(
-      adminPropietariosProvider((idProyecto: 2, numero: '999')).future,
+    final empty = await container.read(
+      adminOwnersProvider((projectId: 2, propertyNumber: '999')).future,
     );
 
-    expect(duenos.single.idPersona, 7);
-    expect(vacios, isEmpty);
+    expect(owners.single.idPersona, 7);
+    expect(empty, isEmpty);
     expect(port.log, ['owners', 'owners']);
   });
 
@@ -59,7 +59,7 @@ void main() {
     final container = makeContainer(port);
 
     await expectLater(
-      container.read(adminClientesProvider.future),
+      container.read(adminClientsProvider.future),
       throwsA(isA<ApiError>().having((e) => e.code, 'code', 'forbidden_role')),
     );
   });

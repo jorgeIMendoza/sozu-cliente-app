@@ -39,7 +39,7 @@ class AdminAdapter implements AdminPort {
     }
   }
 
-  static List<CatalogoItem> _catalogo(Map<String, dynamic> res, String key) =>
+  static List<CatalogoItem> _catalog(Map<String, dynamic> res, String key) =>
       ((res[key] as List?) ?? [])
           .map((e) => CatalogoItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
@@ -69,14 +69,14 @@ class AdminAdapter implements AdminPort {
   }
 
   @override
-  Future<List<CatalogoItem>> projectCatalog() async => _catalogo(
+  Future<List<CatalogoItem>> projectCatalog() async => _catalog(
     await _invoke('admin-avisos-app', body: {'action': 'catalogos'}),
     'proyectos',
   );
 
   @override
   Future<List<CatalogoItem>> modelCatalog(List<int> projectIds) async =>
-      _catalogo(
+      _catalog(
         await _invoke(
           'admin-avisos-app',
           body: {'action': 'modelos', 'ids_proyectos': projectIds},
@@ -88,7 +88,7 @@ class AdminAdapter implements AdminPort {
   Future<List<CatalogoItem>> levelCatalog(
     List<int> projectIds, {
     List<int> modelIds = const [],
-  }) async => _catalogo(
+  }) async => _catalog(
     await _invoke(
       'admin-avisos-app',
       body: {
@@ -105,7 +105,7 @@ class AdminAdapter implements AdminPort {
     List<int> projectIds, {
     List<int> modelIds = const [],
     List<int> levelIds = const [],
-  }) async => _catalogo(
+  }) async => _catalog(
     await _invoke(
       'admin-avisos-app',
       body: {

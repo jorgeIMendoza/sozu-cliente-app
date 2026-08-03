@@ -7,7 +7,7 @@ import '../auth/fake_auth_port.dart';
 /// [ImpersonationController] contra [FakeAuthPort]: el target de "Ver como"
 /// no debe sobrevivir a un cambio de usuario en la misma pestaña.
 void main() {
-  AuthSession sesion(String userId) => AuthSession(
+  AuthSession session(String userId) => AuthSession(
     userId: userId,
     email: '$userId@sozu.com',
     lastSignInAt: DateTime.utc(2026, 8, 1, 12),
@@ -16,24 +16,24 @@ void main() {
 
   test('cambiar de usuario limpia el cliente impersonado', () async {
     final port = FakeAuthPort();
-    port.emitSession(sesion('admin-a'));
+    port.emitSession(session('admin-a'));
     final controller = ImpersonationController(port);
     addTearDown(controller.dispose);
 
     controller.select(7, 'Alex Hernández', 'alex@x.com');
     expect(controller.active, isTrue);
 
-    port.emitSession(sesion('admin-b'));
+    port.emitSession(session('admin-b'));
     await pumpEventQueue();
 
     expect(controller.active, isFalse);
-    expect(controller.idPersona, isNull);
-    expect(controller.nombre, isNull);
+    expect(controller.clientId, isNull);
+    expect(controller.clientName, isNull);
   });
 
   test('cerrar sesión (session null) también limpia el target', () async {
     final port = FakeAuthPort();
-    port.emitSession(sesion('admin-a'));
+    port.emitSession(session('admin-a'));
     final controller = ImpersonationController(port);
     addTearDown(controller.dispose);
 
@@ -46,15 +46,15 @@ void main() {
 
   test('un refresh del MISMO usuario no tumba la impersonación', () async {
     final port = FakeAuthPort();
-    port.emitSession(sesion('admin-a'));
+    port.emitSession(session('admin-a'));
     final controller = ImpersonationController(port);
     addTearDown(controller.dispose);
 
     controller.select(7, 'Alex Hernández', 'alex@x.com');
-    port.emitSession(sesion('admin-a'));
+    port.emitSession(session('admin-a'));
     await pumpEventQueue();
 
     expect(controller.active, isTrue);
-    expect(controller.idPersona, 7);
+    expect(controller.clientId, 7);
   });
 }

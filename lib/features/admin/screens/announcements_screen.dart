@@ -27,20 +27,20 @@ const double _kSelectorIconSize = 20;
 /// Señal del selector MÚLTIPLE: abre un diálogo con buscador y casillas, no un
 /// menú. Sin flecha a propósito: prometía un desplegable que el toque no abre
 /// (mismo motivo por el que `SAutocompleteField` no la lleva).
-const IconData _kSelectorMultipleIcon = Icons.checklist;
+const IconData _kMultiSelectIcon = Icons.checklist;
 
 /// Señal del selector de UNA opción: aquí el menú sí se despliega bajo el campo.
-const IconData _kSelectorUnicoIcon = Icons.expand_more;
+const IconData _kSingleSelectIcon = Icons.expand_more;
 
 /// Cuántos nombres se enumeran en el resumen antes de cortar con "+N".
-const int _kResumenMaxNombres = 3;
+const int _kSummaryMaxNames = 3;
 
 /// "informativa" -> "Informativa". Los catálogos vienen en minúsculas.
-String _capitalizar(String s) =>
+String _capitalize(String s) =>
     s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
-const _tipos = ['informativa', 'accionable', 'urgente', 'exito'];
-const _categorias = [
+const _types = ['informativa', 'accionable', 'urgente', 'exito'];
+const _categories = [
   'pagos',
   'documentos',
   'mantenimiento',
@@ -67,279 +67,289 @@ const double _kMaxWidth = 880;
 
 class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titulo = TextEditingController();
-  final _mensaje = TextEditingController();
+  final _title = TextEditingController();
+  final _message = TextEditingController();
 
-  String _tipo = 'informativa';
-  String _categoria = 'pagos';
-  final Set<String> _canales = {'push'};
+  String _type = 'informativa';
+  String _category = 'pagos';
+  final Set<String> _channels = {'push'};
 
-  List<CatalogoItem> _proyectos = [];
-  List<CatalogoItem> _modelos = [];
-  List<CatalogoItem> _niveles = [];
-  List<CatalogoItem> _propiedades = [];
-  final Set<int> _proyectosSel = {};
-  final Set<int> _modelosSel = {};
-  final Set<int> _nivelesSel = {};
-  final Set<int> _propiedadesSel = {};
-  bool _cargandoModelos = false;
-  bool _cargandoNiveles = false;
-  bool _cargandoPropiedades = false;
+  List<CatalogoItem> _projects = [];
+  List<CatalogoItem> _models = [];
+  List<CatalogoItem> _levels = [];
+  List<CatalogoItem> _properties = [];
+  final Set<int> _selectedProjects = {};
+  final Set<int> _selectedModels = {};
+  final Set<int> _selectedLevels = {};
+  final Set<int> _selectedProperties = {};
+  bool _loadingModels = false;
+  bool _loadingLevels = false;
+  bool _loadingProperties = false;
 
-  bool _programar = false;
-  DateTime? _fechaHora;
+  bool _schedule = false;
+  DateTime? _scheduledAt;
 
-  bool _enviando = false;
-  bool _cargandoAvisos = true;
-  List<AvisoApp> _avisos = [];
+  bool _sending = false;
+  bool _loadingAnnouncements = true;
+  List<AvisoApp> _announcements = [];
 
   // Configuración general: animación de llegada en la campana.
-  String _animacion = 'gol';
-  bool _guardandoAnimacion = false;
+  String _bellAnimation = 'gol';
+  bool _savingBellAnimation = false;
 
   @override
   void initState() {
     super.initState();
-    _cargarCatalogos();
-    _cargarAvisos();
-    _cargarAnimacion();
+    _loadCatalogs();
+    _loadAnnouncements();
+    _loadBellAnimation();
   }
 
-  Future<void> _cargarAnimacion() async {
+  Future<void> _loadBellAnimation() async {
     try {
       final anim = await ref.read(adminPortProvider).bellAnimation();
-      if (mounted) setState(() => _animacion = anim);
+      if (mounted) setState(() => _bellAnimation = anim);
     } catch (_) {
       /* queda el default */
     }
   }
 
-  Future<void> _guardarAnimacion(String? valor) async {
-    if (valor == null || valor == _animacion) return;
-    final previa = _animacion;
+  Future<void> _saveBellAnimation(String? value) async {
+    if (value == null || value == _bellAnimation) return;
+    final previous = _bellAnimation;
     setState(() {
-      _animacion = valor;
-      _guardandoAnimacion = true;
+      _bellAnimation = value;
+      _savingBellAnimation = true;
     });
     try {
-      await ref.read(adminPortProvider).setBellAnimation(valor);
+      await ref.read(adminPortProvider).setBellAnimation(value);
       _snack('Animación actualizada para todos los clientes.');
     } catch (_) {
-      if (mounted) setState(() => _animacion = previa);
+      if (mounted) setState(() => _bellAnimation = previous);
       _snack('No se pudo guardar la animación.');
     } finally {
-      if (mounted) setState(() => _guardandoAnimacion = false);
+      if (mounted) setState(() => _savingBellAnimation = false);
     }
   }
 
   @override
   void dispose() {
-    _titulo.dispose();
-    _mensaje.dispose();
+    _title.dispose();
+    _message.dispose();
     super.dispose();
   }
 
-  Future<void> _cargarCatalogos() async {
+  Future<void> _loadCatalogs() async {
     try {
-      final proyectos = await ref.read(adminPortProvider).projectCatalog();
+      final projects = await ref.read(adminPortProvider).projectCatalog();
       if (!mounted) return;
-      setState(() => _proyectos = proyectos);
+      setState(() => _projects = projects);
     } catch (_) {
       /* selector queda vacío; el envío a todos sigue posible */
     }
   }
 
-  Future<void> _cargarAvisos() async {
-    setState(() => _cargandoAvisos = true);
+  Future<void> _loadAnnouncements() async {
+    setState(() => _loadingAnnouncements = true);
     try {
-      final avisos = await ref.read(adminPortProvider).announcements();
+      final announcements = await ref.read(adminPortProvider).announcements();
       if (!mounted) return;
       setState(() {
-        _avisos = avisos;
-        _cargandoAvisos = false;
+        _announcements = announcements;
+        _loadingAnnouncements = false;
       });
     } catch (_) {
-      if (mounted) setState(() => _cargandoAvisos = false);
+      if (mounted) setState(() => _loadingAnnouncements = false);
     }
   }
 
   /// Cascada: al cambiar proyectos se recargan modelos, niveles y propiedades
   /// y se limpian las selecciones dependientes.
-  Future<void> _onProyectosChanged(Set<int> sel) async {
+  Future<void> _onProjectsChanged(Set<int> selection) async {
     setState(() {
-      _proyectosSel
+      _selectedProjects
         ..clear()
-        ..addAll(sel);
-      _modelosSel.clear();
-      _nivelesSel.clear();
-      _propiedadesSel.clear();
-      _modelos = [];
-      _niveles = [];
-      _propiedades = [];
+        ..addAll(selection);
+      _selectedModels.clear();
+      _selectedLevels.clear();
+      _selectedProperties.clear();
+      _models = [];
+      _levels = [];
+      _properties = [];
     });
-    if (sel.isEmpty) return;
+    if (selection.isEmpty) return;
     setState(() {
-      _cargandoModelos = true;
-      _cargandoNiveles = true;
-      _cargandoPropiedades = true;
+      _loadingModels = true;
+      _loadingLevels = true;
+      _loadingProperties = true;
     });
     try {
       final port = ref.read(adminPortProvider);
       final res = await Future.wait([
-        port.modelCatalog(sel.toList()),
+        port.modelCatalog(selection.toList()),
         // Tolerante: si el backend aún no expone "niveles" no debe tumbar
         // la carga de modelos/propiedades.
-        port.levelCatalog(sel.toList()).catchError((_) => <CatalogoItem>[]),
-        port.propertyCatalog(sel.toList()),
+        port
+            .levelCatalog(selection.toList())
+            .catchError((_) => <CatalogoItem>[]),
+        port.propertyCatalog(selection.toList()),
       ]);
       if (!mounted) return;
       setState(() {
-        _modelos = res[0];
-        _niveles = res[1];
-        _propiedades = res[2];
+        _models = res[0];
+        _levels = res[1];
+        _properties = res[2];
       });
     } catch (_) {
       /* filtros finos no disponibles */
     } finally {
       if (mounted) {
         setState(() {
-          _cargandoModelos = false;
-          _cargandoNiveles = false;
-          _cargandoPropiedades = false;
+          _loadingModels = false;
+          _loadingLevels = false;
+          _loadingProperties = false;
         });
       }
     }
   }
 
   /// Cascada: con modelos seleccionados se recalculan niveles y propiedades.
-  Future<void> _onModelosChanged(Set<int> sel) async {
+  Future<void> _onModelsChanged(Set<int> selection) async {
     setState(() {
-      _modelosSel
+      _selectedModels
         ..clear()
-        ..addAll(sel);
-      _nivelesSel.clear();
-      _propiedadesSel.clear();
-      _niveles = [];
-      _propiedades = [];
-      _cargandoNiveles = true;
-      _cargandoPropiedades = true;
+        ..addAll(selection);
+      _selectedLevels.clear();
+      _selectedProperties.clear();
+      _levels = [];
+      _properties = [];
+      _loadingLevels = true;
+      _loadingProperties = true;
     });
     try {
       final port = ref.read(adminPortProvider);
       final res = await Future.wait([
         port
-            .levelCatalog(_proyectosSel.toList(), modelIds: sel.toList())
+            .levelCatalog(
+              _selectedProjects.toList(),
+              modelIds: selection.toList(),
+            )
             .catchError((_) => <CatalogoItem>[]),
-        port.propertyCatalog(_proyectosSel.toList(), modelIds: sel.toList()),
+        port.propertyCatalog(
+          _selectedProjects.toList(),
+          modelIds: selection.toList(),
+        ),
       ]);
       if (!mounted) return;
       setState(() {
-        _niveles = res[0];
-        _propiedades = res[1];
+        _levels = res[0];
+        _properties = res[1];
       });
     } catch (_) {
       /* filtro fino no disponible */
     } finally {
       if (mounted) {
         setState(() {
-          _cargandoNiveles = false;
-          _cargandoPropiedades = false;
+          _loadingLevels = false;
+          _loadingProperties = false;
         });
       }
     }
   }
 
   /// Cascada: con niveles seleccionados solo se listan sus propiedades.
-  Future<void> _onNivelesChanged(Set<int> sel) async {
+  Future<void> _onLevelsChanged(Set<int> selection) async {
     setState(() {
-      _nivelesSel
+      _selectedLevels
         ..clear()
-        ..addAll(sel);
-      _propiedadesSel.clear();
-      _propiedades = [];
-      _cargandoPropiedades = true;
+        ..addAll(selection);
+      _selectedProperties.clear();
+      _properties = [];
+      _loadingProperties = true;
     });
     try {
       final props = await ref
           .read(adminPortProvider)
           .propertyCatalog(
-            _proyectosSel.toList(),
-            modelIds: _modelosSel.toList(),
-            levelIds: sel.toList(),
+            _selectedProjects.toList(),
+            modelIds: _selectedModels.toList(),
+            levelIds: selection.toList(),
           );
-      if (mounted) setState(() => _propiedades = props);
+      if (mounted) setState(() => _properties = props);
     } catch (_) {
       /* filtro fino no disponible */
     } finally {
-      if (mounted) setState(() => _cargandoPropiedades = false);
+      if (mounted) setState(() => _loadingProperties = false);
     }
   }
 
-  Future<void> _elegirFechaHora() async {
-    final ahora = DateTime.now();
-    final fecha = await showDatePicker(
+  Future<void> _pickDateTime() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
       context: context,
-      initialDate: _fechaHora ?? ahora.add(const Duration(hours: 1)),
-      firstDate: ahora,
-      lastDate: ahora.add(const Duration(days: 365)),
+      initialDate: _scheduledAt ?? now.add(const Duration(hours: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
     );
-    if (fecha == null || !mounted) return;
-    final hora = await showTimePicker(
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(
-        _fechaHora ?? ahora.add(const Duration(hours: 1)),
+        _scheduledAt ?? now.add(const Duration(hours: 1)),
       ),
     );
-    if (hora == null) return;
+    if (time == null) return;
     setState(() {
-      _fechaHora = DateTime(
-        fecha.year,
-        fecha.month,
-        fecha.day,
-        hora.hour,
-        hora.minute,
+      _scheduledAt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
       );
     });
   }
 
-  String get _resumenDestino {
-    if (_proyectosSel.isEmpty) return 'Todos los clientes';
-    String nombres(
+  String get _targetSummary {
+    if (_selectedProjects.isEmpty) return 'Todos los clientes';
+    String names(
       List<CatalogoItem> items,
-      Set<int> sel, [
-      String pref = '',
+      Set<int> selection, [
+      String prefix = '',
     ]) => items
-        .where((e) => sel.contains(e.id))
-        .map((e) => '$pref${e.nombre}')
+        .where((e) => selection.contains(e.id))
+        .map((e) => '$prefix${e.nombre}')
         .join(', ');
     return [
-      nombres(_proyectos, _proyectosSel),
-      if (_modelosSel.isNotEmpty) 'Modelos: ${nombres(_modelos, _modelosSel)}',
-      if (_nivelesSel.isNotEmpty) 'Niveles: ${nombres(_niveles, _nivelesSel)}',
-      if (_propiedadesSel.isNotEmpty)
-        'Unidades: ${nombres(_propiedades, _propiedadesSel, 'U-')}',
+      names(_projects, _selectedProjects),
+      if (_selectedModels.isNotEmpty)
+        'Modelos: ${names(_models, _selectedModels)}',
+      if (_selectedLevels.isNotEmpty)
+        'Niveles: ${names(_levels, _selectedLevels)}',
+      if (_selectedProperties.isNotEmpty)
+        'Unidades: ${names(_properties, _selectedProperties, 'U-')}',
     ].join(' · ');
   }
 
-  Future<void> _enviar() async {
+  Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_canales.isEmpty) {
+    if (_channels.isEmpty) {
       _snack('Selecciona al menos un canal.');
       return;
     }
-    if (_programar && _fechaHora == null) {
+    if (_schedule && _scheduledAt == null) {
       _snack('Elige fecha y hora para programar.');
       return;
     }
 
-    final confirmar = await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(_programar ? 'Programar aviso' : 'Enviar aviso ahora'),
+        title: Text(_schedule ? 'Programar aviso' : 'Enviar aviso ahora'),
         content: Text(
-          'Destino: $_resumenDestino\n'
-          'Canales: ${_canales.join(', ')}'
-          '${_programar ? '\nEnvío: ${DateFormat('dd/MM/yyyy HH:mm').format(_fechaHora!)}' : ''}',
+          'Destino: $_targetSummary\n'
+          'Canales: ${_channels.join(', ')}'
+          '${_schedule ? '\nEnvío: ${DateFormat('dd/MM/yyyy HH:mm').format(_scheduledAt!)}' : ''}',
         ),
         actions: [
           TextButton(
@@ -348,50 +358,50 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_programar ? 'Programar' : 'Enviar'),
+            child: Text(_schedule ? 'Programar' : 'Enviar'),
           ),
         ],
       ),
     );
-    if (confirmar != true || !mounted) return;
+    if (confirmed != true || !mounted) return;
 
-    setState(() => _enviando = true);
+    setState(() => _sending = true);
     try {
       await ref
           .read(adminPortProvider)
           .createAnnouncement(
-            title: _titulo.text.trim(),
-            message: _mensaje.text.trim(),
-            type: _tipo,
-            category: _categoria,
-            channels: _canales.toList(),
-            projectIds: _proyectosSel.toList(),
-            modelIds: _modelosSel.toList(),
-            levelIds: _nivelesSel.toList(),
-            propertyIds: _propiedadesSel.toList(),
-            scheduledFor: _programar ? _fechaHora : null,
+            title: _title.text.trim(),
+            message: _message.text.trim(),
+            type: _type,
+            category: _category,
+            channels: _channels.toList(),
+            projectIds: _selectedProjects.toList(),
+            modelIds: _selectedModels.toList(),
+            levelIds: _selectedLevels.toList(),
+            propertyIds: _selectedProperties.toList(),
+            scheduledFor: _schedule ? _scheduledAt : null,
           );
       if (!mounted) return;
-      _snack(_programar ? 'Aviso programado.' : 'Aviso enviado.');
-      _titulo.clear();
-      _mensaje.clear();
+      _snack(_schedule ? 'Aviso programado.' : 'Aviso enviado.');
+      _title.clear();
+      _message.clear();
       setState(() {
-        _programar = false;
-        _fechaHora = null;
+        _schedule = false;
+        _scheduledAt = null;
       });
-      await _cargarAvisos();
+      await _loadAnnouncements();
     } catch (_) {
       _snack('No se pudo enviar el aviso. Intenta de nuevo.');
     } finally {
-      if (mounted) setState(() => _enviando = false);
+      if (mounted) setState(() => _sending = false);
     }
   }
 
-  Future<void> _cancelar(AvisoApp a) async {
+  Future<void> _cancel(AvisoApp a) async {
     try {
-      final okc = await ref.read(adminPortProvider).cancelAnnouncement(a.id);
-      _snack(okc ? 'Aviso cancelado.' : 'Ya no se puede cancelar.');
-      await _cargarAvisos();
+      final ok = await ref.read(adminPortProvider).cancelAnnouncement(a.id);
+      _snack(ok ? 'Aviso cancelado.' : 'Ya no se puede cancelar.');
+      await _loadAnnouncements();
     } catch (_) {
       _snack('No se pudo cancelar.');
     }
@@ -443,7 +453,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
             // el patron correcto para una pantalla con pestanas.
             Expanded(
               child: TabBarView(
-                children: [_tabNuevoAviso(t), _tabConfiguracion(t)],
+                children: [_newAnnouncementTab(t), _settingsTab(t)],
               ),
             ),
           ],
@@ -452,10 +462,10 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     );
   }
 
-  Widget _tabNuevoAviso(SozuTheme t) {
+  Widget _newAnnouncementTab(SozuTheme t) {
     final tone = t.color;
     return RefreshIndicator(
-      onRefresh: _cargarAvisos,
+      onRefresh: _loadAnnouncements,
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -478,7 +488,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                     // seis selectores de abajo van en filas de dos, y ahí manda
                     // `md` (lo mismo que usa `SAutocompleteField`).
                     STextField(
-                      controller: _titulo,
+                      controller: _title,
                       label: 'Título',
                       hint: 'Corte de agua programado',
                       maxLength: 120,
@@ -488,7 +498,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                     ),
                     SizedBox(height: t.space.sm),
                     STextField(
-                      controller: _mensaje,
+                      controller: _message,
                       label: 'Mensaje',
                       maxLines: 8,
                       maxLength: 1000,
@@ -501,20 +511,20 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                     // Tipo y Categoría describen el aviso, así que van con el
                     // título y el mensaje: debajo de los chips se leían como parte
                     // del grupo "Canales".
-                    _dosColumnas(
+                    _twoColumns(
                       t,
                       _SelectField(
                         label: 'Tipo',
-                        value: _tipo,
-                        opciones: _tipos,
-                        onChanged: (v) => setState(() => _tipo = v ?? _tipo),
+                        value: _type,
+                        options: _types,
+                        onChanged: (v) => setState(() => _type = v ?? _type),
                       ),
                       _SelectField(
                         label: 'Categoría',
-                        value: _categoria,
-                        opciones: _categorias,
+                        value: _category,
+                        options: _categories,
                         onChanged: (v) =>
-                            setState(() => _categoria = v ?? _categoria),
+                            setState(() => _category = v ?? _category),
                       ),
                     ),
                     SizedBox(height: t.space.md),
@@ -524,79 +534,81 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                       spacing: t.space.xs,
                       runSpacing: t.space.xxs,
                       children: [
-                        _canalChip(
+                        _channelChip(
                           'push',
                           'Push (app)',
                           Icons.notifications_active_outlined,
                         ),
-                        _canalChip('email', 'Correo', Icons.mail_outline),
-                        _canalChip('wa', 'WhatsApp', Icons.chat_outlined),
+                        _channelChip('email', 'Correo', Icons.mail_outline),
+                        _channelChip('wa', 'WhatsApp', Icons.chat_outlined),
                       ],
                     ),
                     SizedBox(height: t.space.md),
 
                     const SSectionLabel(text: 'Destinatarios'),
-                    _dosColumnas(
+                    _twoColumns(
                       t,
                       _MultiSelectField(
                         label: 'Proyectos',
-                        items: _proyectos,
-                        selected: _proyectosSel,
+                        items: _projects,
+                        selected: _selectedProjects,
                         placeholder: 'Todos los clientes',
-                        onChanged: _onProyectosChanged,
+                        onChanged: _onProjectsChanged,
                       ),
                       _MultiSelectField(
                         label: 'Modelos',
-                        items: _modelos,
-                        selected: _modelosSel,
-                        placeholder: _proyectosSel.isEmpty
+                        items: _models,
+                        selected: _selectedModels,
+                        placeholder: _selectedProjects.isEmpty
                             ? 'Primero elige proyecto'
-                            : _cargandoModelos
+                            : _loadingModels
                             ? 'Cargando…'
                             : 'Todos los modelos',
-                        enabled: _proyectosSel.isNotEmpty && !_cargandoModelos,
-                        onChanged: _onModelosChanged,
+                        enabled:
+                            _selectedProjects.isNotEmpty && !_loadingModels,
+                        onChanged: _onModelsChanged,
                       ),
                     ),
                     SizedBox(height: t.space.xs),
-                    _dosColumnas(
+                    _twoColumns(
                       t,
                       _MultiSelectField(
                         label: 'Niveles',
-                        items: _niveles,
-                        selected: _nivelesSel,
-                        placeholder: _proyectosSel.isEmpty
+                        items: _levels,
+                        selected: _selectedLevels,
+                        placeholder: _selectedProjects.isEmpty
                             ? 'Primero elige proyecto'
-                            : _cargandoNiveles
+                            : _loadingLevels
                             ? 'Cargando…'
-                            : _niveles.isEmpty
+                            : _levels.isEmpty
                             ? 'Niveles no disponibles'
                             : 'Todos los niveles',
-                        enabled: _proyectosSel.isNotEmpty && !_cargandoNiveles,
-                        onChanged: _onNivelesChanged,
+                        enabled:
+                            _selectedProjects.isNotEmpty && !_loadingLevels,
+                        onChanged: _onLevelsChanged,
                       ),
                       _MultiSelectField(
                         label: 'Propiedades',
-                        items: _propiedades,
-                        prefijo: 'U-',
-                        selected: _propiedadesSel,
-                        placeholder: _proyectosSel.isEmpty
+                        items: _properties,
+                        prefix: 'U-',
+                        selected: _selectedProperties,
+                        placeholder: _selectedProjects.isEmpty
                             ? 'Primero elige proyecto'
-                            : _cargandoPropiedades
+                            : _loadingProperties
                             ? 'Cargando…'
                             : 'Todas las propiedades',
                         enabled:
-                            _proyectosSel.isNotEmpty && !_cargandoPropiedades,
-                        onChanged: (sel) => setState(
-                          () => _propiedadesSel
+                            _selectedProjects.isNotEmpty && !_loadingProperties,
+                        onChanged: (selection) => setState(
+                          () => _selectedProperties
                             ..clear()
-                            ..addAll(sel),
+                            ..addAll(selection),
                         ),
                       ),
                     ),
                     SizedBox(height: t.space.xs),
                     Text(
-                      'Destino: $_resumenDestino',
+                      'Destino: $_targetSummary',
                       style: t.text.caption.copyWith(color: tone.fgMuted),
                     ),
                     SizedBox(height: t.space.md),
@@ -605,25 +617,25 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                     Row(
                       children: [
                         Switch(
-                          value: _programar,
-                          onChanged: (v) => setState(() => _programar = v),
+                          value: _schedule,
+                          onChanged: (v) => setState(() => _schedule = v),
                         ),
                         SizedBox(width: t.space.xxs),
                         Expanded(
                           child: Text(
-                            _programar
-                                ? (_fechaHora == null
+                            _schedule
+                                ? (_scheduledAt == null
                                       ? 'Elige fecha y hora'
                                       : DateFormat(
                                           'dd/MM/yyyy HH:mm',
-                                        ).format(_fechaHora!))
+                                        ).format(_scheduledAt!))
                                 : 'Enviar de inmediato',
                             style: t.text.body.copyWith(color: tone.fg),
                           ),
                         ),
-                        if (_programar)
+                        if (_schedule)
                           TextButton.icon(
-                            onPressed: _elegirFechaHora,
+                            onPressed: _pickDateTime,
                             icon: const Icon(Icons.event_outlined, size: 18),
                             label: const Text('Fecha y hora'),
                           ),
@@ -633,13 +645,13 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                     // Sin icono: la accion principal la dice el texto, y el
                     // `loading` del propio SButton sustituye al spinner a mano.
                     SButton(
-                      label: _programar ? 'Programar aviso' : 'Enviar ahora',
+                      label: _schedule ? 'Programar aviso' : 'Enviar ahora',
                       size: SButtonSize.lg,
-                      loading: _enviando,
-                      loadingLabel: _programar
+                      loading: _sending,
+                      loadingLabel: _schedule
                           ? 'Programando...'
                           : 'Enviando...',
-                      onPressed: _enviando ? null : _enviar,
+                      onPressed: _sending ? null : _submit,
                     ),
                   ],
                 ),
@@ -650,16 +662,16 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
               icon: Icons.history_outlined,
               text: 'Avisos recientes',
             ),
-            if (_cargandoAvisos)
+            if (_loadingAnnouncements)
               const SSkeleton(height: 80, radius: 16)
-            else if (_avisos.isEmpty)
+            else if (_announcements.isEmpty)
               const SEmptyState.card(
                 icon: Icons.campaign_outlined,
                 title: 'Aún no hay avisos',
               )
             else
-              for (final a in _avisos) ...[
-                _AvisoRow(a: a, onCancelar: () => _cancelar(a)),
+              for (final a in _announcements) ...[
+                _AnnouncementRow(a: a, onCancel: () => _cancel(a)),
                 SizedBox(height: t.space.sm),
               ],
           ],
@@ -668,7 +680,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     );
   }
 
-  Widget _tabConfiguracion(SozuTheme t) {
+  Widget _settingsTab(SozuTheme t) {
     final tone = t.color;
     return SingleChildScrollView(
       child: Column(
@@ -694,7 +706,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                   ),
                 ),
                 SizedBox(width: t.space.sm),
-                if (_guardandoAnimacion)
+                if (_savingBellAnimation)
                   const SizedBox(
                     width: _kSpinnerSize,
                     height: _kSpinnerSize,
@@ -702,7 +714,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                   )
                 else
                   DropdownButton<String>(
-                    value: _animacion,
+                    value: _bellAnimation,
                     underline: const SizedBox.shrink(),
                     items: [
                       for (final a in AnimacionCampana.values)
@@ -711,14 +723,14 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                           child: Text(a.etiqueta, style: t.text.label),
                         ),
                     ],
-                    onChanged: _guardarAnimacion,
+                    onChanged: _saveBellAnimation,
                   ),
               ],
             ),
           ),
           SizedBox(height: t.space.sm),
           // Vista previa en vivo de la animación seleccionada.
-          _DemoAnimacion(variante: AnimacionCampana.desde(_animacion)),
+          _AnimationPreview(variant: AnimacionCampana.desde(_bellAnimation)),
         ],
       ),
     );
@@ -726,14 +738,14 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
 
   /// Dos campos por fila; en teléfono se apilan. Mismo mecanismo que
   /// `ClientFilters`: lo decide `context.bp`, nunca `kIsWeb`.
-  Widget _dosColumnas(SozuTheme t, Widget izquierda, Widget derecha) {
+  Widget _twoColumns(SozuTheme t, Widget left, Widget right) {
     if (context.bp.isMobile) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          izquierda,
+          left,
           SizedBox(height: t.space.xs),
-          derecha,
+          right,
         ],
       );
     }
@@ -741,9 +753,9 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: izquierda),
+        Expanded(child: left),
         SizedBox(width: t.space.xs),
-        Expanded(child: derecha),
+        Expanded(child: right),
       ],
     );
   }
@@ -752,13 +764,13 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
   /// chip seleccionado en verde sobre verde (1.01:1 de contraste, ilegible en
   /// claro y en oscuro). La primitiva resuelve el par de roles y trae foco de
   /// teclado.
-  Widget _canalChip(String canal, String label, IconData icon) {
+  Widget _channelChip(String channel, String label, IconData icon) {
     return SChoiceChip(
       label: label,
       icon: icon,
-      selected: _canales.contains(canal),
-      onSelected: (activo) => setState(() {
-        activo ? _canales.add(canal) : _canales.remove(canal);
+      selected: _channels.contains(channel),
+      onSelected: (isSelected) => setState(() {
+        isSelected ? _channels.add(channel) : _channels.remove(channel);
       }),
     );
   }
@@ -768,18 +780,18 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
 /// que usa la campana real dentro de un lienzo, con la campana en la esquina
 /// superior derecha como destino. Se reproduce al cambiar de variante y con
 /// el botón de replay.
-class _DemoAnimacion extends StatefulWidget {
-  final AnimacionCampana variante;
+class _AnimationPreview extends StatefulWidget {
+  final AnimacionCampana variant;
 
-  const _DemoAnimacion({required this.variante});
+  const _AnimationPreview({required this.variant});
 
   @override
-  State<_DemoAnimacion> createState() => _DemoAnimacionState();
+  State<_AnimationPreview> createState() => _AnimationPreviewState();
 }
 
-class _DemoAnimacionState extends State<_DemoAnimacion>
+class _AnimationPreviewState extends State<_AnimationPreview>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _vuelo = AnimationController(
+  late final AnimationController _flight = AnimationController(
     vsync: this,
     duration: kDuracionAnimacion,
   );
@@ -787,23 +799,23 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _reproducir());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _play());
   }
 
   @override
-  void didUpdateWidget(covariant _DemoAnimacion oldWidget) {
+  void didUpdateWidget(covariant _AnimationPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.variante != widget.variante) _reproducir();
+    if (oldWidget.variant != widget.variant) _play();
   }
 
   @override
   void dispose() {
-    _vuelo.dispose();
+    _flight.dispose();
     super.dispose();
   }
 
-  void _reproducir() {
-    _vuelo
+  void _play() {
+    _flight
       ..reset()
       ..forward();
   }
@@ -820,7 +832,7 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
             children: [
               Expanded(
                 child: Text(
-                  'Vista previa · ${widget.variante.etiqueta}',
+                  'Vista previa · ${widget.variant.etiqueta}',
                   style: t.text.bodySmall.copyWith(
                     fontWeight: FontWeight.w600,
                     color: tone.fgMuted,
@@ -829,7 +841,7 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
               ),
               IconButton(
                 tooltip: 'Reproducir de nuevo',
-                onPressed: _reproducir,
+                onPressed: _play,
                 icon: Icon(Icons.replay, color: tone.primaryHover),
               ),
             ],
@@ -848,10 +860,10 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final w = constraints.maxWidth;
-                  final destino = Offset(w - 36, 30); // centro de la campana
-                  final centro = Offset(w / 2, 175);
+                  final target = Offset(w - 36, 30); // centro de la campana
+                  final center = Offset(w / 2, 175);
                   return AnimatedBuilder(
-                    animation: _vuelo,
+                    animation: _flight,
                     builder: (_, __) => Stack(
                       children: [
                         // Campana destino (portería durante el gol).
@@ -859,18 +871,18 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
                           right: 20,
                           top: 16,
                           child: CampanaDestino(
-                            variante: widget.variante,
-                            animando: _vuelo.isAnimating,
-                            v: _vuelo.value,
+                            variante: widget.variant,
+                            animando: _flight.isAnimating,
+                            v: _flight.value,
                             color: tone.fgMuted,
                           ),
                         ),
-                        if (_vuelo.isAnimating)
+                        if (_flight.isAnimating)
                           frameAnimacionLlegada(
-                            variante: widget.variante,
-                            v: _vuelo.value,
-                            centro: centro,
-                            destino: destino,
+                            variante: widget.variant,
+                            v: _flight.value,
+                            centro: center,
+                            destino: target,
                           ),
                       ],
                     ),
@@ -893,13 +905,13 @@ class _DemoAnimacionState extends State<_DemoAnimacion>
 class _SelectField extends StatefulWidget {
   final String label;
   final String value;
-  final List<String> opciones;
+  final List<String> options;
   final ValueChanged<String?> onChanged;
 
   const _SelectField({
     required this.label,
     required this.value,
-    required this.opciones,
+    required this.options,
     required this.onChanged,
   });
 
@@ -910,8 +922,8 @@ class _SelectField extends StatefulWidget {
 class _SelectFieldState extends State<_SelectField> {
   /// [STextField] es un campo de texto real, así que el valor visible vive en un
   /// controller.
-  late final TextEditingController _texto = TextEditingController(
-    text: _capitalizar(widget.value),
+  late final TextEditingController _controller = TextEditingController(
+    text: _capitalize(widget.value),
   );
 
   /// TRAMPA: el texto se sincroniza DESPUÉS del frame. Escribir en el controller
@@ -920,17 +932,17 @@ class _SelectFieldState extends State<_SelectField> {
   @override
   void didUpdateWidget(covariant _SelectField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_texto.text == _capitalizar(widget.value)) return;
+    if (_controller.text == _capitalize(widget.value)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final visible = _capitalizar(widget.value);
-      if (_texto.text != visible) _texto.text = visible;
+      final visible = _capitalize(widget.value);
+      if (_controller.text != visible) _controller.text = visible;
     });
   }
 
   @override
   void dispose() {
-    _texto.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -960,14 +972,14 @@ class _SelectFieldState extends State<_SelectField> {
             : null,
         onSelected: widget.onChanged,
         itemBuilder: (context) => [
-          for (final o in widget.opciones)
+          for (final o in widget.options)
             PopupMenuItem<String>(
               value: o,
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
-                      _capitalizar(o),
+                      _capitalize(o),
                       style: t.text.body.copyWith(
                         color: o == widget.value ? tone.primaryHover : tone.fg,
                         fontWeight: o == widget.value
@@ -990,12 +1002,12 @@ class _SelectFieldState extends State<_SelectField> {
         // abre. El gesto y el foco de teclado los da el `PopupMenuButton`.
         child: IgnorePointer(
           child: STextField(
-            controller: _texto,
+            controller: _controller,
             label: widget.label,
             readOnly: true,
             size: STextFieldSize.md,
             suffix: Icon(
-              _kSelectorUnicoIcon,
+              _kSingleSelectIcon,
               size: _kSelectorIconSize,
               color: tone.fgSubtle,
             ),
@@ -1014,7 +1026,7 @@ class _MultiSelectField extends StatefulWidget {
   final List<CatalogoItem> items;
   final Set<int> selected;
   final String placeholder;
-  final String prefijo;
+  final String prefix;
   final bool enabled;
   final ValueChanged<Set<int>> onChanged;
 
@@ -1024,7 +1036,7 @@ class _MultiSelectField extends StatefulWidget {
     required this.selected,
     required this.placeholder,
     required this.onChanged,
-    this.prefijo = '',
+    this.prefix = '',
     this.enabled = true,
   });
 
@@ -1033,8 +1045,8 @@ class _MultiSelectField extends StatefulWidget {
 }
 
 class _MultiSelectFieldState extends State<_MultiSelectField> {
-  late final TextEditingController _resumenCtrl = TextEditingController(
-    text: _resumen,
+  late final TextEditingController _summaryController = TextEditingController(
+    text: _summary,
   );
 
   /// No se compara contra `oldWidget`: la pantalla muta SIEMPRE el mismo `Set`,
@@ -1046,63 +1058,63 @@ class _MultiSelectFieldState extends State<_MultiSelectField> {
   @override
   void didUpdateWidget(covariant _MultiSelectField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_resumenCtrl.text == _resumen) return;
+    if (_summaryController.text == _summary) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _resumenCtrl.text != _resumen) {
-        _resumenCtrl.text = _resumen;
+      if (mounted && _summaryController.text != _summary) {
+        _summaryController.text = _summary;
       }
     });
   }
 
   @override
   void dispose() {
-    _resumenCtrl.dispose();
+    _summaryController.dispose();
     super.dispose();
   }
 
   /// Vacío sin selección: ahí lo que se ve es el `hint` del campo.
-  String get _resumen {
+  String get _summary {
     if (widget.selected.isEmpty) return '';
-    final nombres = widget.items
+    final names = widget.items
         .where((e) => widget.selected.contains(e.id))
-        .map((e) => '${widget.prefijo}${e.nombre}')
+        .map((e) => '${widget.prefix}${e.nombre}')
         .toList();
-    if (nombres.length <= _kResumenMaxNombres) return nombres.join(', ');
-    final visibles = nombres.take(_kResumenMaxNombres).join(', ');
-    return '$visibles +${nombres.length - _kResumenMaxNombres}';
+    if (names.length <= _kSummaryMaxNames) return names.join(', ');
+    final shown = names.take(_kSummaryMaxNames).join(', ');
+    return '$shown +${names.length - _kSummaryMaxNames}';
   }
 
-  Future<void> _abrir() async {
-    final resultado = await showDialog<Set<int>>(
+  Future<void> _openDialog() async {
+    final result = await showDialog<Set<int>>(
       context: context,
       builder: (ctx) => _MultiSelectDialog(
         label: widget.label,
         items: widget.items,
-        prefijo: widget.prefijo,
-        inicial: widget.selected,
+        prefix: widget.prefix,
+        initial: widget.selected,
       ),
     );
-    if (resultado != null) widget.onChanged(resultado);
+    if (result != null) widget.onChanged(result);
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.s;
-    final puedeAbrir = widget.enabled && widget.items.isNotEmpty;
+    final canOpen = widget.enabled && widget.items.isNotEmpty;
     return InkWell(
-      onTap: puedeAbrir ? _abrir : null,
+      onTap: canOpen ? _openDialog : null,
       borderRadius: t.radius.mdBorder,
       // Ver la nota de `_SelectField`: el campo no puede quedarse el toque.
       child: IgnorePointer(
         child: STextField(
-          controller: _resumenCtrl,
+          controller: _summaryController,
           label: widget.label,
           hint: widget.placeholder,
           enabled: widget.enabled,
           readOnly: true,
           size: STextFieldSize.md,
           suffix: Icon(
-            _kSelectorMultipleIcon,
+            _kMultiSelectIcon,
             size: _kSelectorIconSize,
             color: t.color.fgSubtle,
           ),
@@ -1115,14 +1127,14 @@ class _MultiSelectFieldState extends State<_MultiSelectField> {
 class _MultiSelectDialog extends StatefulWidget {
   final String label;
   final List<CatalogoItem> items;
-  final String prefijo;
-  final Set<int> inicial;
+  final String prefix;
+  final Set<int> initial;
 
   const _MultiSelectDialog({
     required this.label,
     required this.items,
-    required this.prefijo,
-    required this.inicial,
+    required this.prefix,
+    required this.initial,
   });
 
   @override
@@ -1130,19 +1142,19 @@ class _MultiSelectDialog extends StatefulWidget {
 }
 
 class _MultiSelectDialogState extends State<_MultiSelectDialog> {
-  late final Set<int> _sel = {...widget.inicial};
-  String _busqueda = '';
+  late final Set<int> _selection = {...widget.initial};
+  String _query = '';
 
   @override
   Widget build(BuildContext context) {
     final t = context.s;
     final tone = t.color;
-    final filtrados = _busqueda.trim().isEmpty
+    final filtered = _query.trim().isEmpty
         ? widget.items
         : widget.items
               .where(
                 (e) => e.nombre.toLowerCase().contains(
-                  _busqueda.trim().toLowerCase(),
+                  _query.trim().toLowerCase(),
                 ),
               )
               .toList();
@@ -1166,33 +1178,33 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
                 prefixIcon: Icon(Icons.search, size: 20),
                 isDense: true,
               ),
-              onChanged: (v) => setState(() => _busqueda = v),
+              onChanged: (v) => setState(() => _query = v),
             ),
             SizedBox(height: t.space.xxs),
             Row(
               children: [
                 Text(
-                  '${_sel.length} seleccionados',
+                  '${_selection.length} seleccionados',
                   style: t.text.caption.copyWith(color: tone.fgSubtle),
                 ),
                 const Spacer(),
                 // Opera sobre los resultados visibles (respeta la búsqueda).
                 TextButton(
-                  onPressed: filtrados.isEmpty
+                  onPressed: filtered.isEmpty
                       ? null
                       : () => setState(() {
-                          final todosMarcados = filtrados.every(
-                            (e) => _sel.contains(e.id),
+                          final allChecked = filtered.every(
+                            (e) => _selection.contains(e.id),
                           );
-                          if (todosMarcados) {
-                            _sel.removeAll(filtrados.map((e) => e.id));
+                          if (allChecked) {
+                            _selection.removeAll(filtered.map((e) => e.id));
                           } else {
-                            _sel.addAll(filtrados.map((e) => e.id));
+                            _selection.addAll(filtered.map((e) => e.id));
                           }
                         }),
                   child: Text(
-                    filtrados.isNotEmpty &&
-                            filtrados.every((e) => _sel.contains(e.id))
+                    filtered.isNotEmpty &&
+                            filtered.every((e) => _selection.contains(e.id))
                         ? 'Deseleccionar todos'
                         : 'Seleccionar todos',
                     style: t.text.caption.copyWith(fontWeight: FontWeight.w600),
@@ -1201,7 +1213,7 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
               ],
             ),
             Expanded(
-              child: filtrados.isEmpty
+              child: filtered.isEmpty
                   ? Center(
                       child: Text(
                         'Sin resultados',
@@ -1209,22 +1221,22 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
                       ),
                     )
                   : ListView.builder(
-                      itemCount: filtrados.length,
+                      itemCount: filtered.length,
                       itemBuilder: (ctx, i) {
-                        final item = filtrados[i];
+                        final item = filtered[i];
                         return CheckboxListTile(
                           dense: true,
                           controlAffinity: ListTileControlAffinity.leading,
                           contentPadding: EdgeInsets.zero,
                           title: Text(
-                            '${widget.prefijo}${item.nombre}',
+                            '${widget.prefix}${item.nombre}',
                             style: t.text.body,
                           ),
-                          value: _sel.contains(item.id),
+                          value: _selection.contains(item.id),
                           onChanged: (v) => setState(() {
                             v == true
-                                ? _sel.add(item.id)
-                                : _sel.remove(item.id);
+                                ? _selection.add(item.id)
+                                : _selection.remove(item.id);
                           }),
                         );
                       },
@@ -1248,9 +1260,9 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
             SButton.ghost(
               label: 'Limpiar',
               size: SButtonSize.sm,
-              onPressed: _sel.isEmpty
+              onPressed: _selection.isEmpty
                   ? null
-                  : () => setState(() => _sel.clear()),
+                  : () => setState(() => _selection.clear()),
             ),
             const Spacer(),
             SButton.secondary(
@@ -1264,7 +1276,7 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
               label: 'Aplicar',
               size: SButtonSize.sm,
               fullWidth: false,
-              onPressed: () => Navigator.pop(context, _sel),
+              onPressed: () => Navigator.pop(context, _selection),
             ),
           ],
         ),
@@ -1273,11 +1285,11 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
   }
 }
 
-class _AvisoRow extends StatelessWidget {
+class _AnnouncementRow extends StatelessWidget {
   final AvisoApp a;
-  final VoidCallback onCancelar;
+  final VoidCallback onCancel;
 
-  const _AvisoRow({required this.a, required this.onCancelar});
+  const _AnnouncementRow({required this.a, required this.onCancel});
 
   @override
   Widget build(BuildContext context) {
@@ -1289,7 +1301,7 @@ class _AvisoRow extends StatelessWidget {
       'cancelado' => ('Cancelado', SBadgeTone.neutral),
       _ => ('Error', SBadgeTone.negative),
     };
-    String fmtFecha(String? iso) {
+    String formatDate(String? iso) {
       final d = iso != null ? DateTime.tryParse(iso)?.toLocal() : null;
       return d != null ? DateFormat('dd/MM/yyyy HH:mm').format(d) : '-';
     }
@@ -1326,9 +1338,9 @@ class _AvisoRow extends StatelessWidget {
             [
               'Canales: ${a.canales.join(", ")}',
               if (a.estado == 'pendiente')
-                'Envío: ${fmtFecha(a.programadoPara)}'
+                'Envío: ${formatDate(a.programadoPara)}'
               else
-                'Creado: ${fmtFecha(a.fechaCreacion)}',
+                'Creado: ${formatDate(a.fechaCreacion)}',
               if (a.totalDestinatarios != null)
                 '${a.totalDestinatarios} destinatarios',
             ].join(' · '),
@@ -1338,7 +1350,7 @@ class _AvisoRow extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: onCancelar,
+                onPressed: onCancel,
                 child: Text(
                   'Cancelar envío',
                   style: t.text.button.copyWith(color: tone.danger),

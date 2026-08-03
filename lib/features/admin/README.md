@@ -43,7 +43,7 @@ layouts/     admin_layout.dart         AdminLayout + AdminScrollArea
 ## Funcionamiento
 
 - Selector: busca por nombre/correo o filtra por proyecto y unidad; al
-  elegir, `impersonation_provider` fija el `idPersona` y los providers del
+  elegir, `impersonation_provider` fija el `clientId` y los providers del
   cliente recargan con ese contexto. El target se limpia al cambiar de
   usuario o cerrar sesión.
 - Avisos: crear (inmediato o calendarizado, con destino por proyecto,

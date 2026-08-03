@@ -106,7 +106,7 @@ class AdminHeaderAction extends StatelessWidget {
     final color = isDanger
         ? t.color.danger
         : (isPrimary ? t.color.primaryHover : t.color.fgMuted);
-    final estilo = t.text.label.copyWith(color: color);
+    final textStyle = t.text.label.copyWith(color: color);
     // El hover cubre exactamente el control: `minimumSize` fija el alto y
     // `tapTargetSize.shrinkWrap` quita el relleno invisible que Material añade
     // alrededor y que hacía que el area pintada no coincidiera con la visible.
@@ -134,13 +134,13 @@ class AdminHeaderAction extends StatelessWidget {
           ? TextButton(
               onPressed: onPressed,
               style: style,
-              child: Text(label, style: estilo),
+              child: Text(label, style: textStyle),
             )
           : TextButton.icon(
               onPressed: onPressed,
               style: style,
               icon: Icon(icon, size: 18, color: color),
-              label: Text(label, style: estilo),
+              label: Text(label, style: textStyle),
             ),
     );
   }

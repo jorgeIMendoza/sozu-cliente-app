@@ -14,11 +14,17 @@ class ImpersonationController extends ChangeNotifier {
   StreamSubscription<AuthSession?>? _sub;
   String? _userId;
 
-  int? idPersona;
-  String? nombre;
+  int? clientId;
+  String? clientName;
   String? email;
 
-  bool get active => idPersona != null;
+  @Deprecated('Usar clientId')
+  int? get idPersona => clientId;
+
+  @Deprecated('Usar clientName')
+  String? get nombre => clientName;
+
+  bool get active => clientId != null;
 
   ImpersonationController(AuthPort port) {
     _userId = port.currentSession?.userId;
@@ -31,16 +37,16 @@ class ImpersonationController extends ChangeNotifier {
     });
   }
 
-  void select(int id, String nombreCliente, String? emailCliente) {
-    idPersona = id;
-    nombre = nombreCliente;
-    email = emailCliente;
+  void select(int id, String name, String? email) {
+    clientId = id;
+    clientName = name;
+    this.email = email;
     notifyListeners();
   }
 
   void clear() {
-    idPersona = null;
-    nombre = null;
+    clientId = null;
+    clientName = null;
     email = null;
     notifyListeners();
   }

@@ -13,7 +13,7 @@ const double kClientRowAvatarSize = 36;
 /// tocar. No lee providers ni navega - eso lo decide la pantalla. Así se puede
 /// montar en un test o en otra vista sin arrastrar Riverpod.
 class ClientRow extends StatelessWidget {
-  final AdminCliente cliente;
+  final AdminCliente client;
 
   /// El cliente que el admin está viendo ahora mismo (impersonado).
   final bool isSelected;
@@ -22,7 +22,7 @@ class ClientRow extends StatelessWidget {
 
   const ClientRow({
     super.key,
-    required this.cliente,
+    required this.client,
     required this.onTap,
     this.isSelected = false,
   });
@@ -49,7 +49,7 @@ class ClientRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _Avatar(nombre: cliente.nombre),
+              _Avatar(name: client.nombre),
               SizedBox(width: t.space.sm),
               Expanded(
                 child: Column(
@@ -57,15 +57,15 @@ class ClientRow extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      cliente.nombre,
+                      client.nombre,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: t.text.label.copyWith(color: c.fg),
                     ),
-                    if (cliente.email != null) ...[
+                    if (client.email != null) ...[
                       SizedBox(height: t.space.xxs),
                       Text(
-                        cliente.email!,
+                        client.email!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: t.text.caption.copyWith(color: c.fgMuted),
@@ -90,12 +90,12 @@ class ClientRow extends StatelessWidget {
 /// Iniciales sobre círculo teñido. Da anclaje visual a la lista sin pedir una
 /// foto que el backend no manda en este endpoint.
 class _Avatar extends StatelessWidget {
-  final String nombre;
+  final String name;
 
-  const _Avatar({required this.nombre});
+  const _Avatar({required this.name});
 
   String get _initials {
-    final parts = nombre.trim().split(RegExp(r'\s+'));
+    final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty || parts.first.isEmpty) return '?';
     if (parts.length == 1) return parts.first[0].toUpperCase();
     return (parts.first[0] + parts[1][0]).toUpperCase();

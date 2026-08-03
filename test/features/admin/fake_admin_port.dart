@@ -13,9 +13,9 @@ class FakeAdminPort implements AdminPort {
 
   /// Avisos "existentes"; [createAnnouncement] agrega y [cancelAnnouncement]
   /// marca cancelado.
-  final List<AvisoApp> avisos = [];
+  final List<AvisoApp> storedAnnouncements = [];
 
-  String animacion = 'gol';
+  String storedAnimation = 'gol';
   int _nextId = 1;
 
   void _throwIfFailing(String method) {
@@ -25,8 +25,8 @@ class FakeAdminPort implements AdminPort {
     if (f != null) throw f;
   }
 
-  static CatalogoItem _item(int id, String nombre) =>
-      CatalogoItem.fromJson({'id': id, 'nombre': nombre});
+  static CatalogoItem _item(int id, String name) =>
+      CatalogoItem.fromJson({'id': id, 'nombre': name});
 
   @override
   Future<AdminClientes> clients() async {
@@ -89,7 +89,7 @@ class FakeAdminPort implements AdminPort {
   @override
   Future<List<AvisoApp>> announcements() async {
     _throwIfFailing('announcements');
-    return List.of(avisos);
+    return List.of(storedAnnouncements);
   }
 
   @override
@@ -106,7 +106,7 @@ class FakeAdminPort implements AdminPort {
     DateTime? scheduledFor,
   }) async {
     _throwIfFailing('createAnnouncement');
-    final aviso = AvisoApp.fromJson({
+    final announcement = AvisoApp.fromJson({
       'id': _nextId++,
       'titulo': title,
       'mensaje': message,
@@ -119,30 +119,30 @@ class FakeAdminPort implements AdminPort {
       'programado_para': scheduledFor?.toUtc().toIso8601String(),
       'estado': scheduledFor != null ? 'pendiente' : 'enviado',
     });
-    avisos.add(aviso);
-    return aviso;
+    storedAnnouncements.add(announcement);
+    return announcement;
   }
 
   @override
   Future<bool> cancelAnnouncement(int announcementId) async {
     _throwIfFailing('cancelAnnouncement');
-    final i = avisos.indexWhere(
+    final i = storedAnnouncements.indexWhere(
       (a) => a.id == announcementId && a.estado == 'pendiente',
     );
     if (i < 0) return false;
-    avisos.removeAt(i);
+    storedAnnouncements.removeAt(i);
     return true;
   }
 
   @override
   Future<String> bellAnimation() async {
     _throwIfFailing('bellAnimation');
-    return animacion;
+    return storedAnimation;
   }
 
   @override
   Future<void> setBellAnimation(String animation) async {
     _throwIfFailing('setBellAnimation');
-    animacion = animation;
+    storedAnimation = animation;
   }
 }
