@@ -5,13 +5,13 @@ import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/core/push_service.dart';
-import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/documents/providers/documents_providers.dart';
 import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
 import 'package:sozu_cliente_app/features/client/providers/client_providers.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/providers/theme_provider.dart';
+import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 import 'package:sozu_cliente_app/features/auth/components/biometric_toggle_card.dart';
 import 'package:sozu_cliente_app/features/client/documents/components/expediente_card.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
@@ -723,14 +723,14 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
 
 /// Switch "Recibir notificaciones push": la preferencia vive en BD y el
 /// dispatch de push la respeta (los tokens NO se dan de baja al desactivar).
-class _PushPrefSwitch extends StatefulWidget {
+class _PushPrefSwitch extends ConsumerStatefulWidget {
   const _PushPrefSwitch();
 
   @override
-  State<_PushPrefSwitch> createState() => _PushPrefSwitchState();
+  ConsumerState<_PushPrefSwitch> createState() => _PushPrefSwitchState();
 }
 
-class _PushPrefSwitchState extends State<_PushPrefSwitch> {
+class _PushPrefSwitchState extends ConsumerState<_PushPrefSwitch> {
   bool _activo = true;
   bool _cargando = true;
   // false si pref_get falló (p. ej. backend sin la acción): switch visible
@@ -745,7 +745,7 @@ class _PushPrefSwitchState extends State<_PushPrefSwitch> {
 
   Future<void> _cargar() async {
     try {
-      final activo = await fetchPushPref();
+      final activo = await ref.read(pushPortProvider).enabled();
       if (!mounted) return;
       setState(() {
         _activo = activo;
@@ -764,7 +764,7 @@ class _PushPrefSwitchState extends State<_PushPrefSwitch> {
     final anterior = _activo;
     setState(() => _activo = valor); // optimista
     try {
-      await setPushPref(valor);
+      await ref.read(pushPortProvider).setEnabled(valor);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

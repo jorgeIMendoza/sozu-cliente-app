@@ -6,7 +6,9 @@ necesita del exterior**, nunca **como se consigue**.
 Cada puerto vive en la hoja de la feature que lo consume:
 
 - `lib/shared/api_error.dart` - errores comunes a todos los puertos.
-- `lib/shared/ports/` - puertos transversales (`PushPort`, `AppVersionPort`).
+- `lib/shared/ports/` - puertos transversales (`PushPort`, `AppVersionPort`), con
+  sus implementaciones en `lib/shared/adapters/` y sus providers (mas el
+  `authUserIdProvider` de la sesion) en `lib/shared/providers/`.
 - `lib/features/<f>/ports/` - el puerto de cada feature (`auth`, `admin`).
 - `lib/features/client/<area>/ports/` - la feature `client` se organiza por
   menu: `home`, `properties`, `products`, `documents`, `profile`.
@@ -27,8 +29,11 @@ Los puertos solo pueden importar `lib/data/models.dart` y
 
 ```bash
 grep -rn "supabase_flutter\|flutter_riverpod\|package:flutter/" \
-     lib/shared/ lib/features/*/ports/ lib/features/client/*/ports/
+     lib/shared/ports/ lib/features/*/ports/ lib/features/client/*/ports/
 ```
+
+Solo `ports/`: `lib/shared/adapters/` importa el SDK del backend a proposito y
+`lib/shared/providers/` importa riverpod, que es justo su trabajo.
 
 Debe salir vacio. Si un metodo parece necesitar Flutter, esta mal definido: lo
 que necesita son datos por parametro (bytes, base64, String), no un
@@ -47,9 +52,9 @@ sustantivo ya lo dice: `summary()`, no `fetchClienteResumen()`.
 
 ## Impersonacion: la lleva el puerto, no el metodo
 
-Un super admin puede ver el portal como un cliente. Hoy eso es un parametro
-`impersonate` en 27 de las 43 funciones de `data/api_client.dart`, y **cada sitio
-de llamada repite la misma linea**
+Un super admin puede ver el portal como un cliente. Antes eso era un parametro
+`impersonate` en 27 de las 43 funciones de la vieja capa de acceso a datos, y
+**cada sitio de llamada repetia la misma linea**
 (`impersonate: ref.read(impersonationProvider).idPersona`). Olvidarla no rompe
 nada visible: el admin ve datos vacios, o peor, escribe sobre su propio registro.
 
@@ -106,33 +111,21 @@ dejaria al usuario fuera.
 
 ## Deuda abierta (para el agente de adaptadores)
 
-1. **`ApiError` y `DocumentoInvalidoError` estan duplicados.** Los originales
-   siguen en `lib/data/api_client.dart` porque borrarlos rompe todo lo que los
-   importa. El adaptador debe usar los de `shared/api_error.dart` y, cuando ya
-   nadie importe `api_client.dart`, los de alli se **borran** (no se dejan como
-   alias: eso es como nacio la paleta bifurcada). `isNotClientError` NO se
-   duplico: tiene 0 usos en el repo, es codigo muerto y se borra con el resto.
-2. **`UserProfile` esta duplicado.** El original vive en
-   `lib/providers/auth_provider.dart` con los mismos campos y el mismo nombre a
-   proposito: cuando el adaptador aterrice, la migracion es cambiar el import y
-   borrar la clase del provider. Importar los dos archivos a la vez da error de
-   colision, y eso es intencional.
-3. **`WrongCurrentPasswordError` desaparece.** Lo cubre
+1. **`WrongCurrentPasswordError` desaparece.** Lo cubre
    `AuthPort.verifyPassword`, que lanza `AuthError(AuthFailure.invalidCredentials)`.
    Con eso `AuthController.mensajeErrorAcceso` puede irse a la UI.
-4. **`PortalTracking` no tiene puerto.** `lib/core/portal_tracking.dart` llama
+2. **`PortalTracking` no tiene puerto.** `lib/core/portal_tracking.dart` llama
    tres RPC (`register_portal_session`, `touch_portal_session`,
    `close_portal_session`) y no encaja en ninguno de los seis puertos. Necesita
    uno propio (`TrackingPort`) en una tanda posterior.
-5. **El canal Realtime no tiene puerto.** `lib/widgets/push_registrar.dart` se
+3. **El canal Realtime no tiene puerto.** `lib/widgets/push_registrar.dart` se
    suscribe a la tabla `notificaciones_cliente` (unico acceso directo a una tabla
    del repo). Alimenta la misma campana que los push, asi que su sitio natural es
    `PushPort` como `Stream`, pero queda fuera de esta tanda.
-6. **`cliente-expediente` se queda en `DocumentsPort`** (decidido, ya no es una
+4. **`cliente-expediente` se queda en `DocumentsPort`** (decidido, ya no es una
    discrepancia). Lo consumen `expediente_screen` Y `perfil_screen`, asi que
    cualquiera de los dos puertos deja a una pantalla pidiendo el otro. El criterio
    que decide: las dos superficies de documentos van juntas. `documents()` son los
    que la empresa le da al cliente y `identityFile()` los que el cliente sube;
    separarlas obligaria a `expediente_screen` a depender de un puerto entero por un
    solo metodo.
-7. **Nada consume todavia estos puertos.** Esta tanda es puramente aditiva.

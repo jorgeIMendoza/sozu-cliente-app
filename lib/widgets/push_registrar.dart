@@ -9,6 +9,7 @@ import 'package:sozu_cliente_app/core/push_service.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/router.dart';
+import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 
 /// Con sesión de un Cliente real:
 /// - Móvil: registra el dispositivo para push (FCM) y conecta sus handlers
@@ -35,7 +36,7 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
   Timer? _pollTimer;
 
   Future<void> _registrar() async {
-    await PushService.registrarDispositivo();
+    await PushService.registrarDispositivo(ref.read(pushPortProvider));
     if (_handlersListos || !mounted) return;
     _handlersListos = true;
     PushService.onForegroundMessage((_) {

@@ -4,7 +4,7 @@ import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/client/documents/adapters/documents_adapter.dart';
 import 'package:sozu_cliente_app/features/client/documents/ports/documents_port.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 
 /// Puerto de documentos. Se reconstruye al cambiar la sesion o el cliente
 /// impersonado, lo que invalida en cascada los providers de datos de la hoja.
@@ -23,5 +23,3 @@ final documentsProvider = FutureProvider<ClienteDocumentos>(
 final identityFileProvider = FutureProvider<ClienteExpediente>(
   (ref) => ref.watch(documentsPortProvider).identityFile(),
 );
-
-

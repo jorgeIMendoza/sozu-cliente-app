@@ -22,7 +22,7 @@ Qué no:
 
 - Nada de `supabase_flutter` fuera de `adapters/admin_adapter.dart`.
 - Nada de vendor en nombres: `AdminAdapter`, no `SupabaseAdminAdapter`.
-- Sin `import 'data/api_client.dart'` en ninguna parte de la feature.
+- Sin llamadas sueltas a edge functions: todo pasa por `AdminPort`.
 - Los DTOs (`AdminCliente`, `AvisoApp`...) no se mueven aquí: viven en
   `data/models.dart`, el contrato compartido con cero imports.
 - Biometría no aplica al admin: entra siempre con correo y contraseña

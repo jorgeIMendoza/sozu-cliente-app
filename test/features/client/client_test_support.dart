@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 
 /// Stub minimo de [AuthPort] para construir la impersonacion real: sin sesion
 /// y sin cambios. `noSuchMethod` cubre el resto del contrato, que estos tests

@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 
 /// "Version gate" de la app NATIVA (Android/iOS): aviso o forzado de
 /// actualización según lo que entregue la edge function `cliente-app-version`.
