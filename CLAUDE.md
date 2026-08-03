@@ -133,10 +133,13 @@ la oferta post-login y el switch de Perfil son el mismo mecanismo.
 `BiometricToggleCard` lo consume `screens/perfil_screen.dart` (legacy): es API
 pública de la feature, no un motivo para duplicarlo ni dejar un alias.
 
-**`features/admin/` está MIGRADA** (2ª feature, auditoría en 0). Detalle y deuda
+**`features/admin/` está CERRADA** (design system + hexagonal). Detalle y deuda
 pendiente en `lib/features/admin/README.md`.
 
 ```
+ports/admin_port.dart           AdminPort (12 métodos)
+adapters/admin_adapter.dart     AdminAdapter - único con supabase_flutter
+providers/admin_providers.dart · impersonation_provider.dart
 layouts/admin_layout.dart       AdminLayout + AdminScrollArea
 screens/select_client_screen.dart · announcements_screen.dart
 components/admin_header_bar.dart · client_filters.dart · client_row.dart
