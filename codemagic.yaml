@@ -63,10 +63,11 @@ workflows:
       - *env_setup
       - *build_stamp
       - *dashboard_keystore
-      - name: Dependencias y análisis
+      - name: Dependencias, análisis y tests
         script: |
           flutter pub get
           flutter analyze
+          flutter test
       - name: Build APK (pruebas en dispositivo)
         script: |
           flutter build apk --release \
@@ -99,10 +100,11 @@ workflows:
       - *env_setup
       - *build_stamp
       - *dashboard_keystore
-      - name: Dependencias y análisis
+      - name: Dependencias, análisis y tests
         script: |
           flutter pub get
           flutter analyze
+          flutter test
       - name: Build AAB (Google Play)
         script: |
           flutter build appbundle --release \
@@ -130,10 +132,11 @@ workflows:
     scripts:
       - *env_setup
       - *build_stamp
-      - name: Dependencias y análisis
+      - name: Dependencias, análisis y tests
         script: |
           flutter pub get
           flutter analyze
+          flutter test
       - name: Build IPA firmado
         script: |
           flutter build ipa --release \
@@ -160,10 +163,11 @@ workflows:
     scripts:
       - *env_setup
       - *build_stamp
-      - name: Dependencias y análisis
+      - name: Dependencias, análisis y tests
         script: |
           flutter pub get
           flutter analyze
+          flutter test
       - name: Build IPA firmado
         script: |
           flutter build ipa --release \
@@ -268,10 +272,11 @@ workflows:
       - *env_setup
       - *build_stamp
       - *dashboard_keystore
-      - name: Dependencias y análisis
+      - name: Dependencias, análisis y tests
         script: |
           flutter pub get
           flutter analyze
+          flutter test
       - name: Build AAB (Google Play)
         script: |
           flutter build appbundle --release \
@@ -310,10 +315,11 @@ workflows:
           echo "Release notes: $RELEASE_NOTES"
       - *env_setup
       - *build_stamp
-      - name: Dependencias y análisis
+      - name: Dependencias, análisis y tests
         script: |
           flutter pub get
           flutter analyze
+          flutter test
       - name: Build IPA firmado
         script: |
           flutter build ipa --release \
@@ -449,10 +455,11 @@ workflows:
     scripts:
       - *env_setup
       - *build_stamp
-      - name: Dependencias y análisis
+      - name: Dependencias, análisis y tests
         script: |
           flutter pub get
           flutter analyze
+          flutter test
       - name: Build web
         script: |
           flutter build web --release \
