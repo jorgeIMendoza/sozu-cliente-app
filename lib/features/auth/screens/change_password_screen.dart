@@ -81,7 +81,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     }
   }
 
-  Future<void> _cerrarSesion() async {
+  Future<void> _signOut() async {
     await ref.read(authProvider).signOut();
     if (mounted) context.go('/login');
   }
@@ -125,7 +125,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     hint: '••••••••',
                     autofillHints: const [AutofillHints.newPassword],
                     textInputAction: TextInputAction.next,
-                    validator: (v) => passwordValida(v ?? '')
+                    validator: (v) => isValidPassword(v ?? '')
                         ? null
                         : 'Cumple todas las reglas',
                   ),
@@ -171,7 +171,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             child: SButton.link(
               label: 'Cerrar sesión',
               icon: Icons.logout,
-              onPressed: _cerrarSesion,
+              onPressed: _signOut,
             ),
           ),
         ],

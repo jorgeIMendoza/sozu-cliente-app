@@ -12,11 +12,11 @@ import 'fake_auth_port.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const perfilCliente = UserProfile(
-    nombre: 'Cliente de Prueba',
+  const clientProfile = UserProfile(
+    displayName: 'Cliente de Prueba',
     email: 'cliente@sozu.com',
-    rolNombre: 'Cliente',
-    idPersona: 7,
+    roleName: 'Cliente',
+    personId: 7,
   );
 
   /// BiometricService lee secure storage desde `_init` (en tests
@@ -46,20 +46,20 @@ void main() {
   });
 
   test('signIn correcto: sesión viva y perfil cargado', () async {
-    final port = FakeAuthPort(profileRow: perfilCliente);
+    final port = FakeAuthPort(profileRow: clientProfile);
     final controller = await makeController(port);
 
     await controller.signIn('cliente@sozu.com', 'secreta123');
     await pumpEventQueue();
 
     expect(controller.session?.userId, 'user-de-prueba');
-    expect(controller.profile?.rolNombre, 'Cliente');
-    expect(controller.isCliente, isTrue);
+    expect(controller.profile?.roleName, 'Cliente');
+    expect(controller.isClient, isTrue);
     expect(controller.locked, isFalse);
   });
 
   test('signIn con contraseña equivocada lanza AuthError traducible', () async {
-    final port = FakeAuthPort(profileRow: perfilCliente);
+    final port = FakeAuthPort(profileRow: clientProfile);
     final controller = await makeController(port);
 
     Object? error;
@@ -71,30 +71,30 @@ void main() {
 
     expect(error, isA<AuthError>());
     expect(
-      AuthController.mensajeErrorAcceso(error!),
+      AuthController.signInErrorMessage(error!),
       'Correo o contrasena incorrectos.',
     );
     expect(controller.session, isNull);
   });
 
-  test('mensajeErrorAcceso distingue límite de intentos y red caída', () {
+  test('signInErrorMessage distingue límite de intentos y red caída', () {
     expect(
-      AuthController.mensajeErrorAcceso(AuthError(AuthFailure.tooManyAttempts)),
+      AuthController.signInErrorMessage(AuthError(AuthFailure.tooManyAttempts)),
       'Demasiados intentos. Espera un minuto y vuelve a probar.',
     );
     expect(
-      AuthController.mensajeErrorAcceso(AuthError(AuthFailure.network)),
+      AuthController.signInErrorMessage(AuthError(AuthFailure.network)),
       'No pudimos conectar. Revisa tu conexion e intenta de nuevo.',
     );
     expect(
-      AuthController.mensajeErrorAcceso(
+      AuthController.signInErrorMessage(
         AuthError(AuthFailure.emailNotConfirmed),
       ),
       'Tu correo aun no esta confirmado. Revisa tu bandeja.',
     );
     // Sin AuthError no hubo respuesta del servidor: fue la red.
     expect(
-      AuthController.mensajeErrorAcceso(Exception('boom')),
+      AuthController.signInErrorMessage(Exception('boom')),
       'No pudimos conectar. Revisa tu conexion e intenta de nuevo.',
     );
   });
@@ -102,7 +102,7 @@ void main() {
   test(
     'changePassword con actual equivocada: Wrong... y NO cambia nada',
     () async {
-      final port = FakeAuthPort(profileRow: perfilCliente);
+      final port = FakeAuthPort(profileRow: clientProfile);
       final controller = await makeController(port);
       await controller.signIn('cliente@sozu.com', 'secreta123');
 
@@ -118,7 +118,7 @@ void main() {
   test(
     'changePassword sin red: propaga AuthError, no acusa contraseña mala',
     () async {
-      final port = FakeAuthPort(profileRow: perfilCliente);
+      final port = FakeAuthPort(profileRow: clientProfile);
       final controller = await makeController(port);
       await controller.signIn('cliente@sozu.com', 'secreta123');
 
@@ -140,7 +140,7 @@ void main() {
   test(
     'changePassword feliz: verifica, cambia y limpia el flag, en orden',
     () async {
-      final port = FakeAuthPort(profileRow: perfilCliente);
+      final port = FakeAuthPort(profileRow: clientProfile);
       final controller = await makeController(port);
       await controller.signIn('cliente@sozu.com', 'secreta123');
       port.log.clear();
@@ -160,7 +160,7 @@ void main() {
   );
 
   test('cierre de sesión emitido por el puerto limpia el perfil', () async {
-    final port = FakeAuthPort(profileRow: perfilCliente);
+    final port = FakeAuthPort(profileRow: clientProfile);
     final controller = await makeController(port);
     await controller.signIn('cliente@sozu.com', 'secreta123');
     await pumpEventQueue();
@@ -174,7 +174,7 @@ void main() {
   });
 
   test('signOut revoca en el servidor vía el puerto', () async {
-    final port = FakeAuthPort(profileRow: perfilCliente);
+    final port = FakeAuthPort(profileRow: clientProfile);
     final controller = await makeController(port);
     await controller.signIn('cliente@sozu.com', 'secreta123');
     await pumpEventQueue();

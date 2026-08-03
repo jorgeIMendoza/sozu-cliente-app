@@ -78,16 +78,16 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   /// El botón se ofrece con que el usuario haya activado la biometría, aunque el
   /// token guardado ya no sirva: en ese caso el intento falla y pide contraseña,
   /// pero el botón sigue ahí. Que desaparezca se lee como que se rompió.
-  Future<bool> _isBiometricEnabled() => BiometricService.instance.habilitada();
+  Future<bool> _isBiometricEnabled() => BiometricService.instance.isEnabled();
 
   /// true si el prompt automático puede llegar a entrar de verdad: con el candado
   /// puesto basta que esté habilitada (la sesión sigue viva, no se necesita
   /// token); sin sesión hace falta además el refresh token guardado.
   Future<bool> _canAutoStartBiometricLogin() {
     if (ref.read(authProvider).locked) {
-      return BiometricService.instance.habilitada();
+      return BiometricService.instance.isEnabled();
     }
-    return BiometricService.instance.disponibleParaLogin();
+    return BiometricService.instance.canSignIn();
   }
 
   /// Muestra el botón si la biometría está activada y, si además puede entrar,
@@ -161,7 +161,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       auth.authFlowInProgress = false;
       if (!mounted) return;
       setState(() {
-        _formError = AuthController.mensajeErrorAcceso(e);
+        _formError = AuthController.signInErrorMessage(e);
         _isSubmitting = false;
       });
       return;
@@ -171,8 +171,8 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       final profile = await auth.refreshProfile();
       // Acceso administrador: por permiso del rol, no por el nombre del rol.
       final isAdminAccess =
-          _isAdminMode && (profile?.administrarAppClientes ?? false);
-      if (profile?.rolNombre != 'Cliente' && !isAdminAccess) {
+          _isAdminMode && (profile?.canManageClientApp ?? false);
+      if (profile?.roleName != 'Cliente' && !isAdminAccess) {
         // Rol no permitido en este acceso (incluye admin sin modo admin):
         // mensaje genérico para no revelar cuentas existentes.
         await auth.signOut();
@@ -190,13 +190,13 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       if (isAdminAccess) {
         final userId = auth.session?.userId;
         if (userId != null) {
-          await BiometricService.instance.deshabilitarSiEsDe(userId);
+          await BiometricService.instance.disableIfOwnedBy(userId);
         }
       }
       // Con contraseña temporal pendiente NO se ofrece la biometría: enrolar
       // ahí ataría la huella a una credencial que el usuario esta por cambiar.
       // La oferta la hace ChangePasswordScreen al terminar el cambio.
-      if (profile!.debeCambiarPassword) {
+      if (profile!.requiresPasswordChange) {
         auth.authFlowInProgress = false;
         if (!mounted) return;
         context.go('/change-password');
@@ -254,10 +254,10 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     // Con candado la sesión nunca se cerró: solo se desbloquea. El login con
     // token guardado es el fallback cuando la sesión local ya no existe.
     final result = auth.locked
-        ? (await auth.unlockConBiometria()
+        ? (await auth.unlockWithBiometrics()
               ? BiometricLoginResult.success
               : BiometricLoginResult.cancelled)
-        : await BiometricService.instance.loginBiometrico();
+        : await BiometricService.instance.signIn();
     if (result != BiometricLoginResult.success) {
       auth.authFlowInProgress = false;
       // El botón se queda mientras la biometría siga activada: un token
@@ -285,11 +285,11 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     }
     try {
       final profile = await auth.refreshProfile();
-      if (profile?.rolNombre != 'Cliente') {
+      if (profile?.roleName != 'Cliente') {
         // Enrolamiento viejo de una cuenta no-cliente: se apaga aquí. Dejarlo
         // activo daría acceso a la consola de administración con solo la huella
         // del teléfono.
-        await BiometricService.instance.deshabilitar();
+        await BiometricService.instance.disable();
         await auth.signOut();
         auth.authFlowInProgress = false;
         if (!mounted) return;
@@ -304,7 +304,9 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       }
       auth.authFlowInProgress = false;
       if (!mounted) return;
-      context.go(profile!.debeCambiarPassword ? '/change-password' : '/inicio');
+      context.go(
+        profile!.requiresPasswordChange ? '/change-password' : '/inicio',
+      );
     } catch (_) {
       await auth.signOut();
       auth.authFlowInProgress = false;

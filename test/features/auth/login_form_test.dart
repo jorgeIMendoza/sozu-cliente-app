@@ -187,7 +187,7 @@ void main() {
   const biometricLabel = 'Entrar con huella o rostro';
 
   /// Hace que secure storage responda como si la biometría estuviera activada y
-  /// con refresh token guardado, que es lo único que `disponibleParaLogin()`
+  /// con refresh token guardado, que es lo único que `canSignIn()`
   /// consulta. Las claves son las de `BiometricService` (privadas allá).
   void mockBiometricsEnabled({
     required bool enabled,
@@ -230,7 +230,7 @@ void main() {
   /// fire-and-forget.
   ///
   /// Responder `false` en vez de un error reproduce el caso real de cancelar el
-  /// prompt: `autenticar()` devuelve false y el boton queda como reintento.
+  /// prompt: `authenticate()` devuelve false y el boton queda como reintento.
   _PromptCounter mockBiometricPromptAlwaysRejected() {
     final counter = _PromptCounter();
     const channel = MethodChannel('plugins.flutter.io/local_auth');
@@ -273,7 +273,7 @@ void main() {
     mockBiometricsEnabled(enabled: true);
     mockBiometricPromptAlwaysRejected();
     await pumpLoginForm(tester);
-    // El botón aparece tras los awaits de `disponibleParaLogin()`, no en el
+    // El botón aparece tras los awaits de `canSignIn()`, no en el
     // primer frame. `pumpAndSettle` NO sirve: el prompt automático deja el botón
     // en estado `loading` y ese spinner no termina nunca.
     for (var i = 0; i < 5; i++) {
@@ -287,7 +287,7 @@ void main() {
     tester,
   ) async {
     // El caso real: el refresh token guardado se invalido. Antes la visibilidad
-    // del boton dependia de `disponibleParaLogin()` (activada Y con token), asi
+    // del boton dependia de `canSignIn()` (activada Y con token), asi
     // que el boton desaparecia y se leia como que la biometria se rompio. Ahora
     // basta que el usuario la haya activado.
     mockBiometricsEnabled(enabled: true, withToken: false);

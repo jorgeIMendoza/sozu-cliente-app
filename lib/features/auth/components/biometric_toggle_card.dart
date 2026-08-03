@@ -25,37 +25,37 @@ class BiometricToggleCard extends ConsumerStatefulWidget {
 }
 
 class _BiometricToggleCardState extends ConsumerState<BiometricToggleCard> {
-  bool _soportado = false;
-  bool _habilitada = false;
-  bool _ocupado = false;
+  bool _isSupported = false;
+  bool _isEnabled = false;
+  bool _isBusy = false;
 
   @override
   void initState() {
     super.initState();
-    _cargar();
+    _load();
   }
 
-  Future<void> _cargar() async {
+  Future<void> _load() async {
     final bio = BiometricService.instance;
-    final soportado = await bio.soportado();
-    final habilitada = soportado && await bio.habilitada();
+    final isSupported = await bio.isSupported();
+    final isEnabled = isSupported && await bio.isEnabled();
     if (!mounted) return;
     setState(() {
-      _soportado = soportado;
-      _habilitada = habilitada;
+      _isSupported = isSupported;
+      _isEnabled = isEnabled;
     });
   }
 
-  Future<void> _toggle(bool activar) async {
-    if (_ocupado) return;
-    setState(() => _ocupado = true);
+  Future<void> _toggle(bool enable) async {
+    if (_isBusy) return;
+    setState(() => _isBusy = true);
     final bio = BiometricService.instance;
-    if (activar) {
-      final ok = await bio.habilitar();
+    if (enable) {
+      final ok = await bio.enable();
       if (!mounted) return;
       setState(() {
-        _habilitada = ok;
-        _ocupado = false;
+        _isEnabled = ok;
+        _isBusy = false;
       });
       if (!ok) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -63,11 +63,11 @@ class _BiometricToggleCardState extends ConsumerState<BiometricToggleCard> {
         );
       }
     } else {
-      await bio.deshabilitar();
+      await bio.disable();
       if (!mounted) return;
       setState(() {
-        _habilitada = false;
-        _ocupado = false;
+        _isEnabled = false;
+        _isBusy = false;
       });
     }
   }
@@ -77,8 +77,8 @@ class _BiometricToggleCardState extends ConsumerState<BiometricToggleCard> {
     // Solo clientes: la biometría guarda el refresh token de la sesión ACTUAL, y
     // la de un administrador puede impersonar a cualquier cliente. La
     // impersonación queda cubierta sola porque NO cambia la sesión de Supabase:
-    // el perfil sigue siendo el del administrador, así que `isCliente` es false.
-    if (!_soportado || !ref.watch(authProvider).isCliente) {
+    // el perfil sigue siendo el del administrador, así que `isClient` es false.
+    if (!_isSupported || !ref.watch(authProvider).isClient) {
       return const SizedBox.shrink();
     }
     final t = context.s;
@@ -109,7 +109,7 @@ class _BiometricToggleCardState extends ConsumerState<BiometricToggleCard> {
                 ),
                 SizedBox(height: t.space.xxs),
                 Text(
-                  _habilitada
+                  _isEnabled
                       ? 'Entras con tu huella o rostro'
                       : 'Usa tu huella o rostro para entrar',
                   style: t.text.caption.copyWith(color: tone.fgMuted),
@@ -118,9 +118,9 @@ class _BiometricToggleCardState extends ConsumerState<BiometricToggleCard> {
             ),
           ),
           Switch(
-            value: _habilitada,
+            value: _isEnabled,
             activeTrackColor: tone.primary,
-            onChanged: _ocupado ? null : _toggle,
+            onChanged: _isBusy ? null : _toggle,
           ),
         ],
       ),

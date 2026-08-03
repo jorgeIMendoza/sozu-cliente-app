@@ -21,24 +21,34 @@ class AuthSession {
 
 /// Perfil del usuario autenticado: identidad, rol y permisos.
 class UserProfile {
-  final String? nombre;
+  final String? displayName;
   final String? email;
-  final String? rolNombre;
-  final int? idPersona;
-  final bool debeCambiarPassword;
+  final String? roleName;
+  final int? personId;
+
+  /// Flag de contrasena temporal (`debe_cambiar_password`): fuerza el cambio
+  /// antes de entrar. Distinto de `AuthController.mustChangePassword`, que es
+  /// la lectura de este campo con default.
+  final bool requiresPasswordChange;
 
   /// Permiso `roles.administrar_app_clientes`: habilita el acceso administrador
   /// del app (selector de clientes, avisos, configuracion).
-  final bool administrarAppClientes;
+  final bool canManageClientApp;
 
   const UserProfile({
-    this.nombre,
+    this.displayName,
     this.email,
-    this.rolNombre,
-    this.idPersona,
-    this.debeCambiarPassword = false,
-    this.administrarAppClientes = false,
+    this.roleName,
+    this.personId,
+    this.requiresPasswordChange = false,
+    this.canManageClientApp = false,
   });
+
+  @Deprecated('Usar displayName')
+  String? get nombre => displayName;
+
+  @Deprecated('Usar roleName')
+  String? get rolNombre => roleName;
 }
 
 /// Sesion, perfil y contrasenas. No cubre el candado biometrico ni el cierre por

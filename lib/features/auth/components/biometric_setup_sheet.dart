@@ -21,7 +21,7 @@ Future<void> offerBiometricSetup(
   BuildContext context,
   AuthController auth,
 ) async {
-  if (!await auth.debeOfrecerBiometria()) return;
+  if (!await auth.shouldOfferBiometrics()) return;
   if (!context.mounted) return;
 
   final t = context.s;
@@ -75,10 +75,10 @@ Future<void> offerBiometricSetup(
   );
 
   if (shouldEnable != true) {
-    BiometricService.instance.ofertaRechazada = true;
+    BiometricService.instance.offerDeclined = true;
     return;
   }
-  final ok = await BiometricService.instance.habilitar();
+  final ok = await BiometricService.instance.enable();
   if (!ok && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

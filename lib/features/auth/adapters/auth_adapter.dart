@@ -26,15 +26,17 @@ class AuthAdapter implements AuthPort {
       final rows = data is List ? data : [data];
       if (rows.isEmpty || rows.first == null) return null;
       final row = Map<String, dynamic>.from(rows.first as Map);
+      // Mapper key-del-backend -> campo del dominio: las keys son del RPC y se
+      // quedan en espanol; si el backend cambia una, se toca esta linea.
       return UserProfile(
-        nombre: row['nombre'] as String?,
+        displayName: row['nombre'] as String?,
         email: row['email'] as String?,
-        rolNombre: row['rol_nombre'] as String?,
-        idPersona: row['id_persona'] is int
+        roleName: row['rol_nombre'] as String?,
+        personId: row['id_persona'] is int
             ? row['id_persona'] as int
             : int.tryParse('${row['id_persona']}'),
-        debeCambiarPassword: row['debe_cambiar_password'] == true,
-        administrarAppClientes: row['administrar_app_clientes'] == true,
+        requiresPasswordChange: row['debe_cambiar_password'] == true,
+        canManageClientApp: row['administrar_app_clientes'] == true,
       );
     } catch (_) {
       return null;

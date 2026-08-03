@@ -82,9 +82,9 @@ class _InactivityWatcherState extends ConsumerState<InactivityWatcher>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
-    final ultima = _lastActivity;
-    if (ultima == null || !_hasUsableSession) return;
-    final elapsed = DateTime.now().difference(ultima);
+    final lastActivity = _lastActivity;
+    if (lastActivity == null || !_hasUsableSession) return;
+    final elapsed = DateTime.now().difference(lastActivity);
     if (elapsed >= _currentTimeout) {
       _logout();
     } else {

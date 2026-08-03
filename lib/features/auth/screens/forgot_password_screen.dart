@@ -30,7 +30,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  void _volverALogin() {
+  void _backToLogin() {
     if (context.canPop()) {
       context.pop();
     } else {
@@ -116,7 +116,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           icon: Icons.arrow_back,
           // Navega a otra pantalla: se anuncia como enlace, no como botón.
           isNavigation: true,
-          onPressed: _volverALogin,
+          onPressed: _backToLogin,
         ),
       ),
     ];
@@ -168,7 +168,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         label: 'Volver al inicio de sesión',
         size: SButtonSize.lg,
         icon: Icons.arrow_back,
-        onPressed: _volverALogin,
+        onPressed: _backToLogin,
       ),
     ];
   }

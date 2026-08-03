@@ -40,7 +40,7 @@ class FakeAuthPort implements AuthPort {
     _changes.add(session);
   }
 
-  AuthSession _nuevaSesion() => AuthSession(
+  AuthSession _newSession() => AuthSession(
     userId: 'user-de-prueba',
     email: email,
     lastSignInAt: DateTime.utc(2026, 7, 31, 12),
@@ -71,7 +71,7 @@ class FakeAuthPort implements AuthPort {
       throw AuthError(AuthFailure.invalidCredentials);
     }
     validRefreshToken = 'rotado-$validRefreshToken';
-    final s = _nuevaSesion();
+    final s = _newSession();
     emitSession(s);
     return s;
   }
@@ -93,7 +93,7 @@ class FakeAuthPort implements AuthPort {
       throw AuthError(AuthFailure.sessionRevoked);
     }
     validRefreshToken = 'rotado-$validRefreshToken';
-    final s = _nuevaSesion();
+    final s = _newSession();
     emitSession(s);
     return s;
   }
@@ -123,12 +123,12 @@ class FakeAuthPort implements AuthPort {
     profileRow = profileRow == null
         ? null
         : UserProfile(
-            nombre: profileRow!.nombre,
+            displayName: profileRow!.displayName,
             email: profileRow!.email,
-            rolNombre: profileRow!.rolNombre,
-            idPersona: profileRow!.idPersona,
-            debeCambiarPassword: false,
-            administrarAppClientes: profileRow!.administrarAppClientes,
+            roleName: profileRow!.roleName,
+            personId: profileRow!.personId,
+            requiresPasswordChange: false,
+            canManageClientApp: profileRow!.canManageClientApp,
           );
   }
 

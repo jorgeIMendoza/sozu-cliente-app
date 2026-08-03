@@ -22,7 +22,7 @@ class AuthController extends ChangeNotifier {
   /// Al construirse inyecta el puerto en [BiometricService]: el singleton no
   /// puede leer providers, y así el doble de un test lo alcanza sin más wiring.
   AuthController(this._port) {
-    BiometricService.instance.usarPuerto(_port);
+    BiometricService.instance.usePort(_port);
     _init();
   }
 
@@ -50,19 +50,22 @@ class AuthController extends ChangeNotifier {
   String? _profileForUserId;
 
   bool get isLoading => !_authReady || !_profileReady;
-  bool get mustChangePassword => profile?.debeCambiarPassword ?? false;
-  bool get isCliente => profile?.rolNombre == 'Cliente';
+  bool get mustChangePassword => profile?.requiresPasswordChange ?? false;
+  bool get isClient => profile?.roleName == 'Cliente';
+
+  @Deprecated('Usar isClient')
+  bool get isCliente => isClient;
 
   /// Acceso administrador del app: por permiso del rol (no por nombre).
-  bool get isSuperAdmin => profile?.administrarAppClientes ?? false;
+  bool get isSuperAdmin => profile?.canManageClientApp ?? false;
 
   Future<void> _init() async {
     session = _port.currentSession;
     // Arranque en frío con candado activo: la app abre bloqueada (login con
     // prompt biométrico) aunque la sesión siga viva por debajo.
     if (session != null &&
-        await BiometricService.instance.habilitada() &&
-        await BiometricService.instance.bloqueada()) {
+        await BiometricService.instance.isEnabled() &&
+        await BiometricService.instance.isLocked()) {
       locked = true;
     }
     _authReady = true;
@@ -79,7 +82,7 @@ class AuthController extends ChangeNotifier {
       // biométrico está habilitado hay que re-guardar el token nuevo o el
       // guardado queda invalidado.
       if (next != null) {
-        unawaited(BiometricService.instance.persistirSesion(next));
+        unawaited(BiometricService.instance.persistSession(next));
       }
       if (next == null) {
         profile = null;
@@ -120,7 +123,7 @@ class AuthController extends ChangeNotifier {
   /// Antes todo caía en "Correo o contrasena incorrectos", incluido el límite
   /// de intentos y la red caída: el usuario reintentaba con la contraseña
   /// correcta y volvía a fallar sin saber por qué.
-  static String mensajeErrorAcceso(Object e) {
+  static String signInErrorMessage(Object e) {
     // Sin AuthError no hubo respuesta del servidor: fue la red.
     final reason = e is AuthError ? e.reason : AuthFailure.network;
     return switch (reason) {
@@ -135,28 +138,28 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> signIn(String email, String password) async {
-    final nueva = await _port.signIn(email: email, password: password);
+    final newSession = await _port.signIn(email: email, password: password);
     // Entrar por contraseña también levanta el candado biométrico.
     locked = false;
-    await BiometricService.instance.desmarcarBloqueada();
+    await BiometricService.instance.unlock();
     // Si la biometría ya está habilitada, refresca el token guardado con el
     // de esta sesión (además del listener, para no depender de su orden).
-    await BiometricService.instance.persistirSesion(nueva);
+    await BiometricService.instance.persistSession(newSession);
     await refreshProfile();
   }
 
   /// Hook para el login: ofrecer activar biometría tras un login por
   /// contraseña (solo móvil soportado, aún no habilitada y sin "Ahora no"
   /// previo en esta ejecución).
-  Future<bool> debeOfrecerBiometria() async {
+  Future<bool> shouldOfferBiometrics() async {
     final bio = BiometricService.instance;
-    if (bio.ofertaRechazada) return false;
+    if (bio.offerDeclined) return false;
     // SOLO clientes. La biometría es un candado local sobre un refresh token
     // guardado, y la sesión de un administrador puede impersonar a cualquier
     // cliente: no se deja detrás de la huella enrolada en un teléfono.
-    if (!isCliente) return false;
-    if (!await bio.soportado()) return false;
-    return !await bio.habilitada();
+    if (!isClient) return false;
+    if (!await bio.isSupported()) return false;
+    return !await bio.isEnabled();
   }
 
   Future<void> resetPassword(String email) async {
@@ -205,10 +208,10 @@ class AuthController extends ChangeNotifier {
   /// BLOQUEA (candado persistido): la sesión sigue viva por debajo y la
   /// huella/rostro (o la contraseña) la desbloquea.
   Future<void> lockOrSignOut() async {
-    if (session != null && await BiometricService.instance.habilitada()) {
+    if (session != null && await BiometricService.instance.isEnabled()) {
       PushService.olvidarSesion();
       await PortalTracking.cerrar();
-      await BiometricService.instance.marcarBloqueada();
+      await BiometricService.instance.lock();
       locked = true;
       profile = null;
       _profileForUserId = null;
@@ -220,10 +223,10 @@ class AuthController extends ChangeNotifier {
 
   /// Desbloqueo con huella/rostro: la sesión nunca se cerró, solo se
   /// re-valida la identidad y se recarga el perfil.
-  Future<bool> unlockConBiometria() async {
+  Future<bool> unlockWithBiometrics() async {
     if (!locked || session == null) return false;
-    if (!await BiometricService.instance.autenticar()) return false;
-    await BiometricService.instance.desmarcarBloqueada();
+    if (!await BiometricService.instance.authenticate()) return false;
+    await BiometricService.instance.unlock();
     locked = false;
     notifyListeners();
     return true;
