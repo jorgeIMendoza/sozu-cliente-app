@@ -42,5 +42,10 @@ linter:
     # `dynamic.metodo()` no lo verifica nadie. Hay 95 `dynamic` en models.dart.
     - avoid_dynamic_calls
 
+    # Los puentes @Deprecated (providers viejos en espanol -> nuevos en ingles,
+    # features/client) deben marcar CADA uso pendiente: ese conteo es la lista
+    # de trabajo de la fase 2 y la feature no se cierra hasta que sea 0.
+    - deprecated_member_use_from_same_package
+
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
