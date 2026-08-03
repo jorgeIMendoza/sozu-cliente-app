@@ -7,7 +7,7 @@ import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/admin/screens/announcements_screen.dart';
 import 'package:sozu_cliente_app/screens/adquisicion_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.dart';

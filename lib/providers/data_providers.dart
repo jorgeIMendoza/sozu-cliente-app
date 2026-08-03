@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
-import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 
 /// Providers de datos (equivalente a los hooks react-query del app RN).
 /// FutureProvider cachea hasta invalidar; refresh = ref.invalidate(provider).
@@ -115,27 +115,6 @@ final estadoCuentaProvider = FutureProvider.family<EstadoCuenta, int>((
   final imp = ref.watch(impersonationProvider).idPersona;
   return fetchEstadoCuenta(idCuenta, impersonate: imp);
 });
-
-/// Clientes para el selector de impersonación (no depende del target).
-final adminClientesProvider = FutureProvider<AdminClientes>(
-  (ref) => fetchAdminClientes(),
-);
-
-/// Proyectos SOZU para el filtro "Ver como" del selector de impersonación
-/// (mismo catálogo que los avisos: proyectos activos comercializados).
-final adminProyectosProvider = FutureProvider<List<CatalogoItem>>(
-  (ref) => fetchAvisosProyectos(),
-);
-
-/// Dueños/copropietarios de una unidad (proyecto + número de propiedad) para
-/// el filtro "Ver como". Key = record (idProyecto, numero).
-final adminPropietariosProvider = FutureProvider.autoDispose
-    .family<List<AdminCliente>, ({int idProyecto, String numero})>(
-      (ref, q) => fetchAdminPropietarios(
-        idProyecto: q.idProyecto,
-        numeroPropiedad: q.numero,
-      ),
-    );
 
 /// Invalida todos los datos del cliente (p.ej. al cerrar sesión). Recibe el
 /// `WidgetRef` de la pantalla que dispara el cierre de sesión.

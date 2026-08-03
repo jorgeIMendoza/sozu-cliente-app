@@ -11,7 +11,7 @@ import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/widgets/expediente_card.dart'
     show expedienteEstatusStyle;
 import 'package:sozu_cliente_app/widgets/perfil_sheets.dart'

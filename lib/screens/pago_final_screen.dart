@@ -10,7 +10,7 @@ import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -716,10 +716,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
                   const SizedBox(height: 6),
                   const Wrap(
                     children: [
-                      SBadge(
-                        label: 'Aliado SOZU',
-                        tone: SBadgeTone.positive,
-                      ),
+                      SBadge(label: 'Aliado SOZU', tone: SBadgeTone.positive),
                     ],
                   ),
                 ],

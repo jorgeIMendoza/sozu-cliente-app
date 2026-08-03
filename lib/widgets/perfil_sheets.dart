@@ -10,7 +10,7 @@ import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/features/auth/components/password_rules.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart'

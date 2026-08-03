@@ -6,8 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/admin/providers/admin_providers.dart';
+import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 // Import directo mientras el export de la primitiva no está en ui/ui.dart.
 import 'package:sozu_cliente_app/features/admin/components/admin_header_bar.dart';

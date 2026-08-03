@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/features/admin/providers/admin_providers.dart';
 import 'package:sozu_cliente_app/widgets/animacion_llegada.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/features/admin/components/admin_header_bar.dart';
@@ -107,7 +107,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
 
   Future<void> _cargarAnimacion() async {
     try {
-      final anim = await fetchAnimacionCampana();
+      final anim = await ref.read(adminPortProvider).bellAnimation();
       if (mounted) setState(() => _animacion = anim);
     } catch (_) {
       /* queda el default */
@@ -122,7 +122,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
       _guardandoAnimacion = true;
     });
     try {
-      await setAnimacionCampana(valor);
+      await ref.read(adminPortProvider).setBellAnimation(valor);
       _snack('Animación actualizada para todos los clientes.');
     } catch (_) {
       if (mounted) setState(() => _animacion = previa);
@@ -141,7 +141,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
 
   Future<void> _cargarCatalogos() async {
     try {
-      final proyectos = await fetchAvisosProyectos();
+      final proyectos = await ref.read(adminPortProvider).projectCatalog();
       if (!mounted) return;
       setState(() => _proyectos = proyectos);
     } catch (_) {
@@ -152,7 +152,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
   Future<void> _cargarAvisos() async {
     setState(() => _cargandoAvisos = true);
     try {
-      final avisos = await fetchAvisosApp();
+      final avisos = await ref.read(adminPortProvider).announcements();
       if (!mounted) return;
       setState(() {
         _avisos = avisos;
@@ -184,12 +184,13 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
       _cargandoPropiedades = true;
     });
     try {
+      final port = ref.read(adminPortProvider);
       final res = await Future.wait([
-        fetchAvisosModelos(sel.toList()),
+        port.modelCatalog(sel.toList()),
         // Tolerante: si el backend aún no expone "niveles" no debe tumbar
         // la carga de modelos/propiedades.
-        fetchAvisosNiveles(sel.toList()).catchError((_) => <CatalogoItem>[]),
-        fetchAvisosPropiedades(sel.toList()),
+        port.levelCatalog(sel.toList()).catchError((_) => <CatalogoItem>[]),
+        port.propertyCatalog(sel.toList()),
       ]);
       if (!mounted) return;
       setState(() {
@@ -224,15 +225,12 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
       _cargandoPropiedades = true;
     });
     try {
+      final port = ref.read(adminPortProvider);
       final res = await Future.wait([
-        fetchAvisosNiveles(
-          _proyectosSel.toList(),
-          idsModelos: sel.toList(),
-        ).catchError((_) => <CatalogoItem>[]),
-        fetchAvisosPropiedades(
-          _proyectosSel.toList(),
-          idsModelos: sel.toList(),
-        ),
+        port
+            .levelCatalog(_proyectosSel.toList(), modelIds: sel.toList())
+            .catchError((_) => <CatalogoItem>[]),
+        port.propertyCatalog(_proyectosSel.toList(), modelIds: sel.toList()),
       ]);
       if (!mounted) return;
       setState(() {
@@ -262,11 +260,13 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
       _cargandoPropiedades = true;
     });
     try {
-      final props = await fetchAvisosPropiedades(
-        _proyectosSel.toList(),
-        idsModelos: _modelosSel.toList(),
-        idsNiveles: sel.toList(),
-      );
+      final props = await ref
+          .read(adminPortProvider)
+          .propertyCatalog(
+            _proyectosSel.toList(),
+            modelIds: _modelosSel.toList(),
+            levelIds: sel.toList(),
+          );
       if (mounted) setState(() => _propiedades = props);
     } catch (_) {
       /* filtro fino no disponible */
@@ -357,18 +357,20 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
 
     setState(() => _enviando = true);
     try {
-      await crearAvisoApp(
-        titulo: _titulo.text.trim(),
-        mensaje: _mensaje.text.trim(),
-        tipo: _tipo,
-        categoria: _categoria,
-        canales: _canales.toList(),
-        idsProyectos: _proyectosSel.toList(),
-        idsModelos: _modelosSel.toList(),
-        idsNiveles: _nivelesSel.toList(),
-        idsPropiedades: _propiedadesSel.toList(),
-        programadoPara: _programar ? _fechaHora : null,
-      );
+      await ref
+          .read(adminPortProvider)
+          .createAnnouncement(
+            title: _titulo.text.trim(),
+            message: _mensaje.text.trim(),
+            type: _tipo,
+            category: _categoria,
+            channels: _canales.toList(),
+            projectIds: _proyectosSel.toList(),
+            modelIds: _modelosSel.toList(),
+            levelIds: _nivelesSel.toList(),
+            propertyIds: _propiedadesSel.toList(),
+            scheduledFor: _programar ? _fechaHora : null,
+          );
       if (!mounted) return;
       _snack(_programar ? 'Aviso programado.' : 'Aviso enviado.');
       _titulo.clear();
@@ -387,7 +389,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
 
   Future<void> _cancelar(AvisoApp a) async {
     try {
-      final okc = await cancelarAvisoApp(a.id);
+      final okc = await ref.read(adminPortProvider).cancelAnnouncement(a.id);
       _snack(okc ? 'Aviso cancelado.' : 'Ya no se puede cancelar.');
       await _cargarAvisos();
     } catch (_) {

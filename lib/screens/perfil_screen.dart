@@ -8,7 +8,7 @@ import 'package:sozu_cliente_app/core/push_service.dart';
 import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/providers/theme_provider.dart';
 import 'package:sozu_cliente_app/features/auth/components/biometric_toggle_card.dart';
 import 'package:sozu_cliente_app/widgets/expediente_card.dart';
