@@ -31,11 +31,15 @@ providers/
   auth_provider.dart        AuthController · authProvider · authPortProvider
 ```
 
-Tambien de la feature: `screens/change_password_voluntary_screen.dart` (el cambio
-VOLUNTARIO, desde Perfil; el forzado es `change_password_screen.dart`),
-`components/password_rules.dart` (la politica de contrasena, consumida ademas por
-`perfil_sheets`) y `components/inactivity_watcher.dart` (cierre por inactividad,
+Tambien de la feature: `components/password_rules.dart` (la POLITICA de
+contrasena) y `components/inactivity_watcher.dart` (cierre por inactividad,
 montado en `main.dart`).
+
+El cambio VOLUNTARIO de contrasena NO tiene pantalla aqui a proposito: es la
+modal de Perfil (`_CambiarPasswordSheet` en `widgets/perfil_sheets.dart`), que
+llama al servicio de auth (`changePassword`) y valida con `password_rules`. Lo
+visual vive donde se usa; auth es dueno de la politica y del servicio. Hubo una
+pantalla duplicada (/cambiar-password) y se elimino.
 
 ### Toda la biometría vive aquí
 

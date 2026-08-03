@@ -235,7 +235,7 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
   portal_*, level_map. La carpeta admin/ salio a features/admin/components/.
 - screens/: LEGACY, pendiente de migrar a features/ - inicio, adquisicion,
   patrimonio, documentos, perfil, pagos, estado_cuenta, notificaciones,
-  cambiar_password, propiedad_detalle, seleccionar_cliente, forgot,
+  propiedad_detalle, seleccionar_cliente, forgot,
   change_password_forced
 
 ## Sesión

@@ -10,7 +10,6 @@ import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/admin/screens/announcements_screen.dart';
 import 'package:sozu_cliente_app/screens/adquisicion_screen.dart';
-import 'package:sozu_cliente_app/features/auth/screens/change_password_voluntary_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.dart';
 import 'package:sozu_cliente_app/screens/documentos_screen.dart';
 import 'package:sozu_cliente_app/screens/estado_cuenta_screen.dart';
@@ -74,8 +73,7 @@ CustomTransitionPage<void> _slidePage(
 /// Navegación (espejo de Expo Router del app RN):
 /// - Guards: sin sesión → /login; contraseña temporal → /change-password.
 /// - Shell con 5 tabs: Inicio · Adquisición · Patrimonio · Documentos · Perfil.
-/// - Secundarias: pagos, estado-cuenta, pagar, notificaciones,
-///   cambiar-password, propiedad/:id.
+/// - Secundarias: pagos, estado-cuenta, pagar, notificaciones, propiedad/:id.
 final routerProvider = Provider<GoRouter>((ref) {
   // read (NO watch) para ambos: Listenable.merge ya re-evalúa el redirect en
   // cada notify; watch reconstruiría el GoRouter completo en cada cambio de
@@ -251,14 +249,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/expediente',
             pageBuilder: (context, state) =>
                 _slidePage(context, state, const ExpedienteScreen()),
-          ),
-          GoRoute(
-            path: '/cambiar-password',
-            pageBuilder: (context, state) => _slidePage(
-              context,
-              state,
-              const ChangePasswordVoluntaryScreen(),
-            ),
           ),
           GoRoute(
             path: '/productos',

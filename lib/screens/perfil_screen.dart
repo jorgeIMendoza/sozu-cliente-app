@@ -167,9 +167,10 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
         PerfilSectionRow(
           title: 'Seguridad',
           description: 'Acceso y contraseña',
-          onTap: () => portal
-              ? showCambiarPasswordDialog(context)
-              : context.push('/cambiar-password'),
+          // La modal sirve en los dos formatos (_showPerfilModal adapta: sheet
+          // en movil, dialogo en web). La pantalla /cambiar-password era su
+          // duplicado y se elimino.
+          onTap: () => showCambiarPasswordDialog(context),
         ),
     ];
 
