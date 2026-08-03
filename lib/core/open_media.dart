@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:sozu_cliente_app/screens/doc_viewer_screen.dart';
+import 'package:sozu_cliente_app/features/client/documents/screens/doc_viewer_screen.dart';
 
 /// Abre un documento/imagen en el visor in-app (pantalla dentro de la app,
 /// sin salir al navegador). Reemplaza a `openDoc` en los call sites de la UI.

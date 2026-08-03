@@ -12,7 +12,7 @@ import 'package:sozu_cliente_app/providers/data_providers.dart';
 final propertiesPortProvider = Provider<PropertiesPort>((ref) {
   ref.watch(authUserIdProvider);
   final imp = ref.watch(impersonationProvider);
-  return PropertiesAdapter(impersonate: imp.idPersona);
+  return PropertiesAdapter(impersonate: imp.clientId);
 });
 
 /// Propiedades del cliente, con sus productos y mantenimiento.
@@ -35,19 +35,3 @@ final accountStatementProvider = FutureProvider.family<EstadoCuenta, int>(
   (ref, idCuenta) =>
       ref.watch(propertiesPortProvider).accountStatement(idCuenta),
 );
-
-@Deprecated('Usar propertiesProvider (features/client/properties/providers/).')
-final clientePropiedadesProvider = propertiesProvider;
-
-@Deprecated(
-  'Usar propertyDetailProvider (features/client/properties/providers/).',
-)
-final propiedadDetalleProvider = propertyDetailProvider;
-
-@Deprecated('Usar paymentsProvider (features/client/properties/providers/).')
-final clientePagosProvider = paymentsProvider;
-
-@Deprecated(
-  'Usar accountStatementProvider (features/client/properties/providers/).',
-)
-final estadoCuentaProvider = accountStatementProvider;

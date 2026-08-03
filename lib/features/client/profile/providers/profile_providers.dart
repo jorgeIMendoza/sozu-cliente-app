@@ -11,13 +11,10 @@ import 'package:sozu_cliente_app/providers/data_providers.dart';
 final profilePortProvider = Provider<ProfilePort>((ref) {
   ref.watch(authUserIdProvider);
   final imp = ref.watch(impersonationProvider);
-  return ProfileAdapter(impersonate: imp.idPersona);
+  return ProfileAdapter(impersonate: imp.clientId);
 });
 
 /// Perfil completo del cliente.
 final profileProvider = FutureProvider<ClientePerfil>(
   (ref) => ref.watch(profilePortProvider).profile(),
 );
-
-@Deprecated('Usar profileProvider (features/client/profile/providers/).')
-final clientePerfilProvider = profileProvider;

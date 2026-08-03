@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/admin/providers/admin_providers.dart';
-import 'package:sozu_cliente_app/widgets/animacion_llegada.dart';
+import 'package:sozu_cliente_app/features/client/home/components/animacion_llegada.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/features/admin/components/admin_header_bar.dart';
 import 'package:sozu_cliente_app/features/admin/layouts/admin_layout.dart';

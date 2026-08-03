@@ -12,7 +12,7 @@ import 'package:sozu_cliente_app/providers/data_providers.dart';
 final homePortProvider = Provider<HomePort>((ref) {
   ref.watch(authUserIdProvider);
   final imp = ref.watch(impersonationProvider);
-  return HomeAdapter(impersonate: imp.idPersona);
+  return HomeAdapter(impersonate: imp.clientId);
 });
 
 /// Resumen del tablero de inicio: financiero, actividad y pendientes.
@@ -31,11 +31,5 @@ final notificationsProvider = FutureProvider<ClienteNotificaciones>(
   (ref) => ref.watch(homePortProvider).notifications(),
 );
 
-@Deprecated('Usar summaryProvider (features/client/home/providers/).')
-final clienteResumenProvider = summaryProvider;
 
-@Deprecated('Usar menuProvider (features/client/home/providers/).')
-final clienteMenuProvider = menuProvider;
 
-@Deprecated('Usar notificationsProvider (features/client/home/providers/).')
-final clienteNotificacionesProvider = notificationsProvider;

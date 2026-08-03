@@ -39,7 +39,7 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
     if (_handlersListos || !mounted) return;
     _handlersListos = true;
     PushService.onForegroundMessage((_) {
-      ref.invalidate(clienteNotificacionesProvider);
+      ref.invalidate(notificationsProvider);
     });
     await PushService.onNotificationTap((_) {
       // push (no go): apila sobre la pantalla actual para que exista
@@ -69,7 +69,7 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
         ),
         callback: (payload) {
           debugPrint('[realtime] notificación nueva: ${payload.newRecord}');
-          if (mounted) ref.invalidate(clienteNotificacionesProvider);
+          if (mounted) ref.invalidate(notificationsProvider);
         },
       );
       canal.subscribe((status, error) {
@@ -93,7 +93,7 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
   void _sincronizarPolling({required bool activo}) {
     if (activo && _pollTimer == null) {
       _pollTimer = Timer.periodic(_pollIntervalo, (_) {
-        if (mounted) ref.invalidate(clienteNotificacionesProvider);
+        if (mounted) ref.invalidate(notificationsProvider);
       });
     } else if (!activo && _pollTimer != null) {
       _pollTimer!.cancel();
@@ -111,7 +111,7 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    final esClienteConSesion = auth.session != null && auth.isCliente;
+    final esClienteConSesion = auth.session != null && auth.isClient;
     final email = (auth.profile?.email ?? auth.session?.email)
         ?.trim()
         .toLowerCase();

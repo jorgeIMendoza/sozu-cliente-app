@@ -9,26 +9,26 @@ import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/admin/screens/announcements_screen.dart';
-import 'package:sozu_cliente_app/screens/adquisicion_screen.dart';
+import 'package:sozu_cliente_app/features/client/properties/screens/adquisicion_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.dart';
-import 'package:sozu_cliente_app/screens/documentos_screen.dart';
-import 'package:sozu_cliente_app/screens/estado_cuenta_screen.dart';
-import 'package:sozu_cliente_app/screens/expediente_screen.dart';
+import 'package:sozu_cliente_app/features/client/documents/screens/documentos_screen.dart';
+import 'package:sozu_cliente_app/features/client/properties/screens/estado_cuenta_screen.dart';
+import 'package:sozu_cliente_app/features/client/documents/screens/expediente_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/forgot_password_screen.dart';
-import 'package:sozu_cliente_app/screens/inicio_screen.dart';
+import 'package:sozu_cliente_app/features/client/home/screens/inicio_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/login_screen.dart';
-import 'package:sozu_cliente_app/screens/notificaciones_screen.dart';
-import 'package:sozu_cliente_app/screens/pagar_screen.dart';
-import 'package:sozu_cliente_app/screens/pagos_screen.dart';
-import 'package:sozu_cliente_app/screens/patrimonio_screen.dart';
-import 'package:sozu_cliente_app/screens/perfil_screen.dart';
-import 'package:sozu_cliente_app/screens/producto_detalle_screen.dart';
-import 'package:sozu_cliente_app/screens/productos_screen.dart';
-import 'package:sozu_cliente_app/screens/propiedad_detalle_screen.dart';
+import 'package:sozu_cliente_app/features/client/home/screens/notificaciones_screen.dart';
+import 'package:sozu_cliente_app/features/client/properties/screens/pagar_screen.dart';
+import 'package:sozu_cliente_app/features/client/properties/screens/pagos_screen.dart';
+import 'package:sozu_cliente_app/features/client/properties/screens/patrimonio_screen.dart';
+import 'package:sozu_cliente_app/features/client/profile/screens/perfil_screen.dart';
+import 'package:sozu_cliente_app/features/client/products/screens/producto_detalle_screen.dart';
+import 'package:sozu_cliente_app/features/client/products/screens/productos_screen.dart';
+import 'package:sozu_cliente_app/features/client/properties/screens/propiedad_detalle_screen.dart';
 import 'package:sozu_cliente_app/features/admin/screens/select_client_screen.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
-import 'package:sozu_cliente_app/widgets/notificaciones_fx.dart';
-import 'package:sozu_cliente_app/widgets/portal_shell.dart';
+import 'package:sozu_cliente_app/features/client/home/components/notificaciones_fx.dart';
+import 'package:sozu_cliente_app/features/client/layouts/portal_shell.dart';
 
 /// Página secundaria con la transición del design system
 /// ([sozuPageTransition]: fade + escala en escritorio, fade + deslizamiento en
@@ -362,7 +362,7 @@ class _TabsShell extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final imp = ref.watch(impersonationProvider);
     final banner = auth.isSuperAdmin && imp.active
-        ? _ImpersonationBanner(nombre: imp.nombre ?? 'Cliente')
+        ? _ImpersonationBanner(nombre: imp.clientName ?? 'Cliente')
         : null;
 
     if (isDesktop(context)) {
@@ -497,7 +497,7 @@ class _ClienteBottomNav extends ConsumerWidget {
     // Menú completo del portal (misma resolución/orden/permisos que el sidebar,
     // vía cliente-menu con degradación). Los primeros ítems como tabs; el resto
     // tras "Más" (…) para que TODOS sean alcanzables aunque no quepan.
-    final menu = clienteMenuTabs(ref.watch(clienteMenuProvider).valueOrNull);
+    final menu = clienteMenuTabs(ref.watch(menuProvider).valueOrNull);
     const maxTabs = 4; // 4 tabs + "Más" cuando hay más de 5 ítems
     final hasOverflow = menu.length > 5;
     final tabs = hasOverflow ? menu.take(maxTabs).toList() : menu;
@@ -628,7 +628,7 @@ class _ImpersonationBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tone = context.s.color;
     final admin = ref.watch(authProvider).profile;
-    final adminNombre = admin?.nombre ?? admin?.email ?? '';
+    final adminNombre = admin?.displayName ?? admin?.email ?? '';
     return Material(
       color: tone.primarySoft,
       child: SafeArea(

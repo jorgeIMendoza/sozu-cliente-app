@@ -18,12 +18,6 @@ class ImpersonationController extends ChangeNotifier {
   String? clientName;
   String? email;
 
-  @Deprecated('Usar clientId')
-  int? get idPersona => clientId;
-
-  @Deprecated('Usar clientName')
-  String? get nombre => clientName;
-
   bool get active => clientId != null;
 
   ImpersonationController(AuthPort port) {

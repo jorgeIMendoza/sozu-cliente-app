@@ -43,12 +43,6 @@ class UserProfile {
     this.requiresPasswordChange = false,
     this.canManageClientApp = false,
   });
-
-  @Deprecated('Usar displayName')
-  String? get nombre => displayName;
-
-  @Deprecated('Usar roleName')
-  String? get rolNombre => roleName;
 }
 
 /// Sesion, perfil y contrasenas. No cubre el candado biometrico ni el cierre por

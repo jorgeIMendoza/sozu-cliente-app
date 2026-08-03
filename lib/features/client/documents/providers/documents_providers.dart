@@ -11,7 +11,7 @@ import 'package:sozu_cliente_app/providers/data_providers.dart';
 final documentsPortProvider = Provider<DocumentsPort>((ref) {
   ref.watch(authUserIdProvider);
   final imp = ref.watch(impersonationProvider);
-  return DocumentsAdapter(impersonate: imp.idPersona);
+  return DocumentsAdapter(impersonate: imp.clientId);
 });
 
 /// Documentos y facturas del cliente.
@@ -24,8 +24,4 @@ final identityFileProvider = FutureProvider<ClienteExpediente>(
   (ref) => ref.watch(documentsPortProvider).identityFile(),
 );
 
-@Deprecated('Usar documentsProvider (features/client/documents/providers/).')
-final clienteDocumentosProvider = documentsProvider;
 
-@Deprecated('Usar identityFileProvider (features/client/documents/providers/).')
-final clienteExpedienteProvider = identityFileProvider;

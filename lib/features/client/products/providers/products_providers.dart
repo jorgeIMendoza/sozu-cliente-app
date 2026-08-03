@@ -11,7 +11,7 @@ import 'package:sozu_cliente_app/providers/data_providers.dart';
 final productsPortProvider = Provider<ProductsPort>((ref) {
   ref.watch(authUserIdProvider);
   final imp = ref.watch(impersonationProvider);
-  return ProductsAdapter(impersonate: imp.idPersona);
+  return ProductsAdapter(impersonate: imp.clientId);
 });
 
 /// Productos adicionales agrupados por propiedad.
@@ -19,5 +19,3 @@ final productsProvider = FutureProvider<ClienteProductos>(
   (ref) => ref.watch(productsPortProvider).products(),
 );
 
-@Deprecated('Usar productsProvider (features/client/products/providers/).')
-final clienteProductosProvider = productsProvider;

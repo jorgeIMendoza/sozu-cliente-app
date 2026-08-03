@@ -53,9 +53,6 @@ class AuthController extends ChangeNotifier {
   bool get mustChangePassword => profile?.requiresPasswordChange ?? false;
   bool get isClient => profile?.roleName == 'Cliente';
 
-  @Deprecated('Usar isClient')
-  bool get isCliente => isClient;
-
   /// Acceso administrador del app: por permiso del rol (no por nombre).
   bool get isSuperAdmin => profile?.canManageClientApp ?? false;
 

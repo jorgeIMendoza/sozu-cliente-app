@@ -22,9 +22,6 @@ final passwordRules = <PasswordRule>[
 
 bool isValidPassword(String v) => passwordRules.every((r) => r.test(v));
 
-@Deprecated('Usar isValidPassword')
-bool passwordValida(String v) => isValidPassword(v);
-
 /// Checklist en vivo de las reglas.
 class PasswordRulesChecklist extends StatelessWidget {
   final String value;
