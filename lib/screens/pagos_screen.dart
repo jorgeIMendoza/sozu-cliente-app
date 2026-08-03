@@ -5,10 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
-import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
 import 'package:sozu_cliente_app/widgets/payment_method_badge.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/widgets/recibo_pago_sheet.dart';
@@ -128,8 +126,8 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   Widget build(BuildContext context) {
     final tone = context.s.color;
     final portal = isPortalMode(context);
-    final pagos = ref.watch(clientePagosProvider);
-    final props = ref.watch(clientePropiedadesProvider);
+    final pagos = ref.watch(paymentsProvider);
+    final props = ref.watch(propertiesProvider);
 
     return Scaffold(
       // Modo portal: el shell (sidebar + topbar) ya pinta el título de
@@ -166,9 +164,9 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
             ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(clientePagosProvider);
+          ref.invalidate(paymentsProvider);
           try {
-            await ref.read(clientePagosProvider.future);
+            await ref.read(paymentsProvider.future);
           } catch (_) {}
         },
         child: pagos.when(
@@ -192,7 +190,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
             children: [
               SErrorState(
                 title: 'No pudimos cargar tus pagos',
-                onRetry: () => ref.invalidate(clientePagosProvider),
+                onRetry: () => ref.invalidate(paymentsProvider),
               ),
             ],
           ),
@@ -431,14 +429,14 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
     // Método de pago final elegido (badge informativo, espejo del portal):
     // lee el detalle ya cacheado con valueOrNull - sin loading propio; si aún
     // no hay datos (o el backend no lo expone) simplemente no se muestra.
-    final cards = ref.watch(clientePropiedadesProvider).valueOrNull;
+    final cards = ref.watch(propertiesProvider).valueOrNull;
     final cuentaId = [
       ...?cards?.enAdquisicion,
       ...?cards?.patrimonioActivo,
     ].where((c) => c.nombre == propiedad).firstOrNull?.id;
     final det = cuentaId == null
         ? null
-        : ref.watch(propiedadDetalleProvider(cuentaId)).valueOrNull;
+        : ref.watch(propertyDetailProvider(cuentaId)).valueOrNull;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
@@ -747,7 +745,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   /// Card de la propiedad (estatus/avance/monto) si cliente-propiedades ya
   /// está en caché; no dispara fetching nuevo.
   PropiedadCard? _cardDe(String numero) {
-    final props = ref.watch(clientePropiedadesProvider).valueOrNull;
+    final props = ref.watch(propertiesProvider).valueOrNull;
     for (final c in [...?props?.enAdquisicion, ...?props?.patrimonioActivo]) {
       if (c.nombre == numero) return c;
     }
@@ -764,8 +762,9 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
     if (_generandoPortal != null) return;
     setState(() => _generandoPortal = a.idPago);
     try {
-      final imp = ref.read(impersonationProvider).idPersona;
-      final url = await fetchReciboPagoUrl(a.idPago, impersonate: imp);
+      final url = await ref
+          .read(propertiesPortProvider)
+          .paymentReceiptUrl(a.idPago);
       if (!mounted) return;
       if (url == null) {
         _snack('No pudimos generar el recibo. Intenta de nuevo.');
@@ -1013,7 +1012,7 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
     final card = _cardDe(propiedad);
     final det = card == null
         ? null
-        : ref.watch(propiedadDetalleProvider(card.id)).valueOrNull;
+        : ref.watch(propertyDetailProvider(card.id)).valueOrNull;
     final conMantenimiento = mantenimiento.isNotEmpty;
 
     final izquierda = Column(
@@ -1920,8 +1919,9 @@ class _ProximoRowState extends ConsumerState<_ProximoRow> {
     if (_generando != null) return;
     setState(() => _generando = a.idPago);
     try {
-      final imp = ref.read(impersonationProvider).idPersona;
-      final url = await fetchReciboPagoUrl(a.idPago, impersonate: imp);
+      final url = await ref
+          .read(propertiesPortProvider)
+          .paymentReceiptUrl(a.idPago);
       if (!mounted) return;
       if (url == null) {
         _snack('No pudimos generar el recibo. Intenta de nuevo.');
@@ -2174,8 +2174,9 @@ class _HistorialRowState extends ConsumerState<_HistorialRow> {
     if (_generando) return;
     setState(() => _generando = true);
     try {
-      final imp = ref.read(impersonationProvider).idPersona;
-      final url = await fetchReciboPagoUrl(h.id, impersonate: imp);
+      final url = await ref
+          .read(propertiesPortProvider)
+          .paymentReceiptUrl(h.id);
       if (!mounted) return;
       if (url == null) {
         _snack('No pudimos generar el recibo. Intenta de nuevo.');

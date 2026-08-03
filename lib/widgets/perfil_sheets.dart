@@ -6,11 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
-import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
 import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/features/auth/components/password_rules.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart'
@@ -274,16 +272,17 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
       final ocupacion = _normalizarOcupacion(
         _ocupacionOtro ? _ocupacionOtroCtrl.text : _ocupacion,
       );
-      await updatePerfilPersonal(
-        nombreLegal: _nombre.text.trim(),
-        rfc: _rfc.text.trim().toUpperCase(),
-        curp: _curp.text.trim().toUpperCase(),
-        clavePaisTelefono: _clavePais,
-        telefono: _tel.text.trim(),
-        ocupacion: ocupacion,
-        impersonate: ref.read(impersonationProvider).idPersona,
-      );
-      ref.invalidate(clientePerfilProvider);
+      await ref
+          .read(profilePortProvider)
+          .updatePersonalData(
+            legalName: _nombre.text.trim(),
+            rfc: _rfc.text.trim().toUpperCase(),
+            curp: _curp.text.trim().toUpperCase(),
+            phoneCountryCode: _clavePais,
+            phone: _tel.text.trim(),
+            occupation: ocupacion,
+          );
+      ref.invalidate(profileProvider);
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
@@ -470,9 +469,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
 
   Future<void> _loadCatalogos() async {
     try {
-      final c = await fetchPerfilCatalogos(
-        impersonate: ref.read(impersonationProvider).idPersona,
-      );
+      final c = await ref.read(profilePortProvider).catalogs();
       if (mounted) setState(() => _catalogos = c);
     } catch (_) {
       if (mounted) setState(() => _loadError = true);
@@ -512,17 +509,18 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
     if (!mounted) return;
     setState(() => _busy = true);
     try {
-      await updatePerfilFiscal(
-        regimen: _regimen,
-        usoCfdi: _usoCfdi,
-        codigoPostal: _cp.text.trim(),
-        calle: _calle.text.trim(),
-        numExt: _numExt.text.trim(),
-        numInt: _numInt.text.trim(),
-        colonia: _colonia.text.trim(),
-        impersonate: ref.read(impersonationProvider).idPersona,
-      );
-      ref.invalidate(clientePerfilProvider);
+      await ref
+          .read(profilePortProvider)
+          .updateTaxData(
+            regime: _regimen,
+            cfdiUse: _usoCfdi,
+            postalCode: _cp.text.trim(),
+            street: _calle.text.trim(),
+            exteriorNumber: _numExt.text.trim(),
+            interiorNumber: _numInt.text.trim(),
+            neighborhood: _colonia.text.trim(),
+          );
+      ref.invalidate(profileProvider);
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
@@ -728,9 +726,7 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
 
   Future<void> _loadCatalogos() async {
     try {
-      final c = await fetchPerfilCatalogos(
-        impersonate: ref.read(impersonationProvider).idPersona,
-      );
+      final c = await ref.read(profilePortProvider).catalogs();
       if (mounted) setState(() => _catalogos = c);
     } catch (_) {
       if (mounted) setState(() => _loadError = true);
@@ -789,13 +785,9 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
   /// Alta de un banco nuevo al catálogo (espejo de "Agregar «q»" del portal).
   Future<String?> _agregarBanco(String nombre) async {
     try {
-      final b = await agregarBancoCatalogo(
-        nombre,
-        impersonate: ref.read(impersonationProvider).idPersona,
-      );
-      final c = await fetchPerfilCatalogos(
-        impersonate: ref.read(impersonationProvider).idPersona,
-      );
+      final port = ref.read(profilePortProvider);
+      final b = await port.addBankToCatalog(nombre);
+      final c = await port.catalogs();
       if (!mounted) return null;
       setState(() => _catalogos = c);
       return '${b.id}';
@@ -820,33 +812,32 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
       final ct = _evidenciaNombre != null
           ? _contentType(_evidenciaNombre!)
           : null;
+      final port = ref.read(profilePortProvider);
       if (_isEdit) {
-        await updateCuentaBancaria(
-          id: widget.cuenta!.id,
-          idBanco: _idBanco!,
-          numeroCuenta: _numeroCuenta.text.trim(),
-          cuentaClabe: clabe.isEmpty ? null : clabe,
-          cuentaSwift: swift.isEmpty ? null : swift,
-          titular: _titular.text.trim(),
-          evidenciaBase64: b64,
-          evidenciaNombre: _evidenciaNombre,
-          evidenciaContentType: ct,
-          impersonate: ref.read(impersonationProvider).idPersona,
+        await port.updateBankAccount(
+          accountId: widget.cuenta!.id,
+          bankId: _idBanco!,
+          accountNumber: _numeroCuenta.text.trim(),
+          clabe: clabe.isEmpty ? null : clabe,
+          swift: swift.isEmpty ? null : swift,
+          holder: _titular.text.trim(),
+          evidenceBase64: b64,
+          evidenceFileName: _evidenciaNombre,
+          evidenceContentType: ct,
         );
       } else {
-        await addCuentaBancaria(
-          idBanco: _idBanco!,
-          numeroCuenta: _numeroCuenta.text.trim(),
-          cuentaClabe: clabe.isEmpty ? null : clabe,
-          cuentaSwift: swift.isEmpty ? null : swift,
-          titular: _titular.text.trim(),
-          evidenciaBase64: b64,
-          evidenciaNombre: _evidenciaNombre,
-          evidenciaContentType: ct,
-          impersonate: ref.read(impersonationProvider).idPersona,
+        await port.addBankAccount(
+          bankId: _idBanco!,
+          accountNumber: _numeroCuenta.text.trim(),
+          clabe: clabe.isEmpty ? null : clabe,
+          swift: swift.isEmpty ? null : swift,
+          holder: _titular.text.trim(),
+          evidenceBase64: b64,
+          evidenceFileName: _evidenciaNombre,
+          evidenceContentType: ct,
         );
       }
-      ref.invalidate(clientePerfilProvider);
+      ref.invalidate(profileProvider);
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
@@ -871,10 +862,7 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
   @override
   Widget build(BuildContext context) {
     final tone = context.s.color;
-    final nombreLegal = ref
-        .watch(clientePerfilProvider)
-        .valueOrNull
-        ?.nombreLegal;
+    final nombreLegal = ref.watch(profileProvider).valueOrNull?.nombreLegal;
     return _SheetShell(
       icon: Icons.credit_card_outlined,
       title: _isEdit ? 'Editar cuenta bancaria' : 'Nueva cuenta bancaria',
@@ -1245,7 +1233,7 @@ class _CambiarPasswordSheetState extends ConsumerState<_CambiarPasswordSheet> {
 
 /// Abre el sheet/diálogo de gestión de la foto de perfil (espejo del modal
 /// "Foto de perfil" de ClientePerfil.tsx): subir/cambiar y, si ya hay foto,
-/// eliminar. Usa `avatarUpload`/`avatarDelete` (bucket `avatar` +
+/// eliminar. Usa `uploadAvatar`/`deleteAvatar` (bucket `avatar` +
 /// usuarios.foto_perfil_url) e invalida el perfil al terminar.
 Future<void> showAvatarSheet(BuildContext context, ClientePerfil p) =>
     _showPerfilModal<void>(context, _AvatarSheet(perfil: p));
@@ -1295,12 +1283,10 @@ class _AvatarSheetState extends ConsumerState<_AvatarSheet> {
     if (!mounted) return;
     setState(() => _busy = true);
     try {
-      await avatarUpload(
-        base64: base64Encode(bytes),
-        mime: _mimeFor(file.name),
-        impersonate: ref.read(impersonationProvider).idPersona,
-      );
-      ref.invalidate(clientePerfilProvider);
+      await ref
+          .read(profilePortProvider)
+          .uploadAvatar(base64: base64Encode(bytes), mime: _mimeFor(file.name));
+      ref.invalidate(profileProvider);
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
@@ -1348,10 +1334,8 @@ class _AvatarSheetState extends ConsumerState<_AvatarSheet> {
     if (ok != true || !mounted) return;
     setState(() => _busy = true);
     try {
-      await avatarDelete(
-        impersonate: ref.read(impersonationProvider).idPersona,
-      );
-      ref.invalidate(clientePerfilProvider);
+      await ref.read(profilePortProvider).deleteAvatar();
+      ref.invalidate(profileProvider);
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);

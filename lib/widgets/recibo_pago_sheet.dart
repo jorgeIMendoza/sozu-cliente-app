@@ -5,10 +5,9 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/open_media.dart';
-import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
+import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Datos que el recibo in-app necesita, desacoplados del modelo de origen para
@@ -183,8 +182,9 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
     if (_generando) return;
     setState(() => _generando = true);
     try {
-      final imp = ref.read(impersonationProvider).idPersona;
-      final url = await fetchReciboPagoUrl(p.id, impersonate: imp);
+      final url = await ref
+          .read(propertiesPortProvider)
+          .paymentReceiptUrl(p.id);
       if (!mounted) return;
       if (url == null) {
         _snack('No pudimos generar el recibo. Intenta de nuevo.');
@@ -206,7 +206,7 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
     final p = widget.data;
 
     // Etiqueta de propiedad "Proyecto · U-###" si el proyecto está en caché.
-    final props = ref.read(clientePropiedadesProvider).valueOrNull;
+    final props = ref.read(propertiesProvider).valueOrNull;
     String? proyecto;
     for (final c in [...?props?.enAdquisicion, ...?props?.patrimonioActivo]) {
       if (c.nombre == p.propiedad) {
@@ -258,14 +258,14 @@ class _ReciboPagoSheetState extends ConsumerState<ReciboPagoSheet> {
     // Datos ricos del recibo (espejo del PaymentReceiptModal del portal). El
     // nombre del cliente y el proyecto se leen de la caché con valueOrNull: si
     // aún no están, cada fila degrada (se oculta) sin bloquear el recibo.
-    final perfil = ref.watch(clientePerfilProvider).valueOrNull;
+    final perfil = ref.watch(profileProvider).valueOrNull;
     final cliente = (perfil?.nombreLegal.trim().isNotEmpty ?? false)
         ? perfil!.nombreLegal
         : null;
     final rfc = (p.rfc?.trim().isNotEmpty ?? false)
         ? p.rfc
         : ((perfil?.rfc?.trim().isNotEmpty ?? false) ? perfil!.rfc : null);
-    final props = ref.watch(clientePropiedadesProvider).valueOrNull;
+    final props = ref.watch(propertiesProvider).valueOrNull;
     String? proyecto;
     for (final c in [...?props?.enAdquisicion, ...?props?.patrimonioActivo]) {
       if (c.nombre == p.propiedad) {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/widgets/animacion_llegada.dart';
 
 /// GlobalKey del destino de notificaciones en la barra inferior flotante

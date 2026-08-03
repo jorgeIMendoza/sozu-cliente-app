@@ -8,10 +8,10 @@ import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
-import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/client/documents/providers/documents_providers.dart';
+import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
+import 'package:sozu_cliente_app/shared/api_error.dart';
 import 'package:sozu_cliente_app/widgets/expediente_card.dart'
     show expedienteEstatusStyle;
 import 'package:sozu_cliente_app/widgets/perfil_sheets.dart'
@@ -114,16 +114,16 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
 
     setState(() => _subiendo = slot.key);
     try {
-      final imp = ref.read(impersonationProvider).idPersona;
-      final res = await subirDocumentoExpediente(
-        tipoId: slot.tipoId,
-        nombreArchivo: file.name,
-        archivoBase64: base64Encode(bytes),
-        contentType: _contentType(file.name),
-        impersonate: imp,
-      );
-      ref.invalidate(clienteExpedienteProvider);
-      ref.invalidate(clienteDocumentosProvider);
+      final res = await ref
+          .read(documentsPortProvider)
+          .uploadIdentityDocument(
+            typeId: slot.tipoId,
+            fileName: file.name,
+            fileBase64: base64Encode(bytes),
+            contentType: _contentType(file.name),
+          );
+      ref.invalidate(identityFileProvider);
+      ref.invalidate(documentsProvider);
       if (!mounted) return;
       // El backend extrae los datos del documento (CSF, CURP o Acta) y los
       // devuelve para confirmarlos en el perfil (espejo de ConfirmDataModal
@@ -243,11 +243,11 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
     // Modo portal (web ≥1024): mismo contenido centrado tipo card grande del
     // portal, pero con la card y tipografía del portal y fondo del shell.
     final portal = isPortalMode(context);
-    final exp = ref.watch(clienteExpedienteProvider);
+    final exp = ref.watch(identityFileProvider);
     // Cuentas bancarias del perfil: alimentan la fila estructurada "Cuenta
     // bancaria" (bajo los documentos financieros), espejo del portal.
     final cuentas =
-        ref.watch(clientePerfilProvider).valueOrNull?.cuentasBancarias ??
+        ref.watch(profileProvider).valueOrNull?.cuentasBancarias ??
         const <CuentaBancariaPerfil>[];
 
     final cardBody = Column(
@@ -334,7 +334,7 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
       ),
       error: (_, __) => SErrorState(
         title: 'No pudimos cargar tu expediente',
-        onRetry: () => ref.invalidate(clienteExpedienteProvider),
+        onRetry: () => ref.invalidate(identityFileProvider),
       ),
       data: (data) {
         if (data.slots.isEmpty) {
@@ -973,7 +973,7 @@ class _ConfirmarDatosFiscalesState
     super.initState();
     // Prefill con lo detectado; si un campo vino vacío, se conserva lo que ya
     // existe en el perfil para no borrarlo.
-    final p = ref.read(clientePerfilProvider).valueOrNull;
+    final p = ref.read(profileProvider).valueOrNull;
     final d = widget.datos;
     _rfc = TextEditingController(text: d.rfc ?? p?.rfc ?? '');
     _curp = TextEditingController(text: d.curp ?? p?.curp ?? '');
@@ -991,9 +991,7 @@ class _ConfirmarDatosFiscalesState
 
   Future<void> _loadCatalogos() async {
     try {
-      final c = await fetchPerfilCatalogos(
-        impersonate: ref.read(impersonationProvider).idPersona,
-      );
+      final c = await ref.read(profilePortProvider).catalogs();
       if (mounted) setState(() => _catalogos = c);
     } catch (_) {
       // Sin catálogo, el régimen se guarda tal cual (texto/código detectado).
@@ -1035,31 +1033,29 @@ class _ConfirmarDatosFiscalesState
   Future<void> _guardar() async {
     setState(() => _busy = true);
     try {
-      final p = ref.read(clientePerfilProvider).valueOrNull;
-      final imp = ref.read(impersonationProvider).idPersona;
+      final p = ref.read(profileProvider).valueOrNull;
+      final port = ref.read(profilePortProvider);
       final nombre = _nombre.text.trim();
       final rfc = _rfc.text.trim();
       final curp = _curp.text.trim();
-      await updatePerfilPersonal(
-        nombreLegal: nombre.isNotEmpty ? nombre : (p?.nombreLegal ?? ''),
+      await port.updatePersonalData(
+        legalName: nombre.isNotEmpty ? nombre : (p?.nombreLegal ?? ''),
         rfc: rfc.isEmpty ? p?.rfc : rfc,
         curp: curp.isEmpty ? p?.curp : curp,
-        clavePaisTelefono: p?.clavePaisTelefono,
-        telefono: p?.telefono,
-        ocupacion: p?.ocupacion,
-        impersonate: imp,
+        phoneCountryCode: p?.clavePaisTelefono,
+        phone: p?.telefono,
+        occupation: p?.ocupacion,
       );
-      await updatePerfilFiscal(
-        regimen: _resolverRegimen(_regimen.text) ?? p?.regimen,
-        usoCfdi: p?.usoCfdi,
-        codigoPostal: _cp.text.trim(),
-        calle: _calle.text.trim(),
-        numExt: _numExt.text.trim(),
-        numInt: _numInt.text.trim(),
-        colonia: _colonia.text.trim(),
-        impersonate: imp,
+      await port.updateTaxData(
+        regime: _resolverRegimen(_regimen.text) ?? p?.regimen,
+        cfdiUse: p?.usoCfdi,
+        postalCode: _cp.text.trim(),
+        street: _calle.text.trim(),
+        exteriorNumber: _numExt.text.trim(),
+        interiorNumber: _numInt.text.trim(),
+        neighborhood: _colonia.text.trim(),
       );
-      ref.invalidate(clientePerfilProvider);
+      ref.invalidate(profileProvider);
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
@@ -1152,7 +1148,7 @@ class _ConfirmarDatosIdentidadState
   @override
   void initState() {
     super.initState();
-    final p = ref.read(clientePerfilProvider).valueOrNull;
+    final p = ref.read(profileProvider).valueOrNull;
     final c = widget.curp;
     final a = widget.acta;
     _curp = TextEditingController(text: c?.curp ?? a?.curp ?? p?.curp ?? '');
@@ -1179,21 +1175,21 @@ class _ConfirmarDatosIdentidadState
   Future<void> _guardar() async {
     setState(() => _busy = true);
     try {
-      final p = ref.read(clientePerfilProvider).valueOrNull;
-      final imp = ref.read(impersonationProvider).idPersona;
+      final p = ref.read(profileProvider).valueOrNull;
       final nombre = _nombre.text.trim();
       final curp = _curp.text.trim();
       // Solo CURP y nombre se guardan en el perfil (personaCol del portal).
-      await updatePerfilPersonal(
-        nombreLegal: nombre.isNotEmpty ? nombre : (p?.nombreLegal ?? ''),
-        rfc: p?.rfc,
-        curp: curp.isEmpty ? p?.curp : curp,
-        clavePaisTelefono: p?.clavePaisTelefono,
-        telefono: p?.telefono,
-        ocupacion: p?.ocupacion,
-        impersonate: imp,
-      );
-      ref.invalidate(clientePerfilProvider);
+      await ref
+          .read(profilePortProvider)
+          .updatePersonalData(
+            legalName: nombre.isNotEmpty ? nombre : (p?.nombreLegal ?? ''),
+            rfc: p?.rfc,
+            curp: curp.isEmpty ? p?.curp : curp,
+            phoneCountryCode: p?.clavePaisTelefono,
+            phone: p?.telefono,
+            occupation: p?.ocupacion,
+          );
+      ref.invalidate(profileProvider);
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);

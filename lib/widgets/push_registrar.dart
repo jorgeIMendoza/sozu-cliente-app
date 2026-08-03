@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sozu_cliente_app/core/portal_tracking.dart';
 import 'package:sozu_cliente_app/core/push_service.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/router.dart';
 
 /// Con sesión de un Cliente real:

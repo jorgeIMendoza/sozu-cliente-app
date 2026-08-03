@@ -7,10 +7,9 @@ import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
-import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
+import 'package:sozu_cliente_app/shared/api_error.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -114,9 +113,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
   }
 
   void _cargarBancos() {
-    _bancosFuture ??= fetchBancosConvenio(
-      impersonate: ref.read(impersonationProvider).idPersona,
-    );
+    _bancosFuture ??= ref.read(propertiesPortProvider).mortgageBanks();
   }
 
   double get _monto =>
@@ -152,13 +149,14 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
     if (banco == null) return;
     setState(() => _guardando = true);
     try {
-      await setPagoFinal(
-        widget.cuentaId,
-        'CREDITO_HIPOTECARIO',
-        idBanco: banco.id,
-        impersonate: ref.read(impersonationProvider).idPersona,
-      );
-      ref.invalidate(propiedadDetalleProvider(widget.cuentaId));
+      await ref
+          .read(propertiesPortProvider)
+          .setFinalPaymentMethod(
+            accountId: widget.cuentaId,
+            method: 'CREDITO_HIPOTECARIO',
+            bankId: banco.id,
+          );
+      ref.invalidate(propertyDetailProvider(widget.cuentaId));
       if (!mounted) return;
       setState(() {
         _paso = _Paso.precalificacion;
@@ -177,14 +175,15 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
     if (banco == null || !_montoValido) return;
     setState(() => _enviando = true);
     try {
-      final solicitud = await crearSolicitudCredito(
-        idCuenta: widget.cuentaId,
-        idBanco: banco.id,
-        montoCredito: _monto,
-        plazoMeses: _plazoAnios * 12,
-        impersonate: ref.read(impersonationProvider).idPersona,
-      );
-      ref.invalidate(propiedadDetalleProvider(widget.cuentaId));
+      final solicitud = await ref
+          .read(propertiesPortProvider)
+          .createMortgageApplication(
+            accountId: widget.cuentaId,
+            bankId: banco.id,
+            creditAmount: _monto,
+            termMonths: _plazoAnios * 12,
+          );
+      ref.invalidate(propertyDetailProvider(widget.cuentaId));
       if (!mounted) return;
       setState(() {
         _solicitud = solicitud ?? _solicitud;
@@ -220,14 +219,14 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
   Future<void> _guardar() async {
     setState(() => _guardando = true);
     try {
-      final imp = ref.read(impersonationProvider).idPersona;
-      await setPagoFinal(
-        widget.cuentaId,
-        _metodo!,
-        idBanco: _metodo == 'CREDITO_HIPOTECARIO' ? _idBanco : null,
-        impersonate: imp,
-      );
-      ref.invalidate(propiedadDetalleProvider(widget.cuentaId));
+      await ref
+          .read(propertiesPortProvider)
+          .setFinalPaymentMethod(
+            accountId: widget.cuentaId,
+            method: _metodo!,
+            bankId: _metodo == 'CREDITO_HIPOTECARIO' ? _idBanco : null,
+          );
+      ref.invalidate(propertyDetailProvider(widget.cuentaId));
       if (!mounted) return;
       if (_metodo == 'RECURSOS_PROPIOS') {
         // Directo a las instrucciones de transferencia STP.

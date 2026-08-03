@@ -4,9 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
-import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -31,8 +30,7 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
   void initState() {
     super.initState();
     final id = int.tryParse(widget.referencia ?? '') ?? 0;
-    final imp = ref.read(impersonationProvider).idPersona;
-    _datos = fetchDatosPago(id, impersonate: imp);
+    _datos = ref.read(propertiesPortProvider).paymentDetails(id);
   }
 
   Future<void> _copiar(String value, String label) async {
@@ -73,9 +71,8 @@ class _PagarScreenState extends ConsumerState<PagarScreen> {
                 title: 'No pudimos cargar los datos de pago',
                 onRetry: () => setState(() {
                   final id = int.tryParse(widget.referencia ?? '') ?? 0;
-                  final imp = ref.read(impersonationProvider).idPersona;
                   // ignore: unused_result
-                  _datos = fetchDatosPago(id, impersonate: imp);
+                  _datos = ref.read(propertiesPortProvider).paymentDetails(id);
                 }),
               ),
             ],

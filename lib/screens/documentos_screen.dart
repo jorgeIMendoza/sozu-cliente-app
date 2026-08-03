@@ -10,7 +10,7 @@ import 'package:sozu_cliente_app/core/open_document.dart';
 import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/features/client/documents/providers/documents_providers.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/portal_top_bar.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';

@@ -9,7 +9,7 @@ import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
 import 'package:sozu_cliente_app/widgets/building_diagram.dart';
 import 'package:sozu_cliente_app/widgets/copropietarios_section.dart';
 import 'package:sozu_cliente_app/widgets/credito_hipotecario_drawer.dart';

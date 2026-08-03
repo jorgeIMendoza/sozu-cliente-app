@@ -57,11 +57,17 @@ trabaja para el portal cliente; su `src/components/portal/` es legacy.
 - `lib/ui/` NO puede importar `supabase_flutter`, `flutter_riverpod` ni `data/`.
   Un componente que necesita datos los recibe por parámetro. Esta es la
   frontera UI ↔ lógica de negocio.
-- **NADA DE ALIAS NI MAPEOS.** Un token tiene UN nombre y ese nombre se usa en
-  toda la app. `SozuColors`, `SozuTone`, `core/theme.dart`, `core/brand.dart` y
-  `core/typography.dart` fueron ELIMINADOS (no deprecados: borrados). Si se
-  renombra un token, se renombra en todos los usos en el mismo commit - una capa
-  de compatibilidad "temporal" es cómo nació la paleta bifurcada.
+- **NADA DE ALIAS NI MAPEOS SILENCIOSOS.** Un token tiene UN nombre y ese nombre
+  se usa en toda la app. `SozuColors`, `SozuTone`, `core/theme.dart` fueron
+  ELIMINADOS (no deprecados: borrados). Si un renombre cabe en un commit, se hace
+  en todos los usos en el mismo commit - una capa de compatibilidad muda es cómo
+  nació la paleta bifurcada.
+- **Puente `@Deprecated`, la ÚNICA excepción permitida:** cuando el renombre
+  cruza tandas, el nombre viejo sobrevive como referencia `@Deprecated('Usar X')`
+  que apunta al nuevo. Es distinto de un alias porque el analyzer marca cada uso:
+  el legacy queda visible y medible. Condiciones: el nuevo es el canónico, nada
+  nuevo usa el viejo, y **una feature NO se cierra con usos deprecados dentro**
+  (la auditoría los cuenta como legacy); al llegar a 0 usos, el puente se borra.
 - **ÚNICO pendiente de homogeneizar:** `core/portal_theme.dart` (`PortalColors`,
   `isPortalMode()`, `kPortalRadius*`, `kPortalFontFallback` que ya no hace nada).
   749 referencias, ~137 dentro de expresiones `const`: pasar a `context.s.color`

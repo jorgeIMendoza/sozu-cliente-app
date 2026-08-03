@@ -4,9 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
-import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -33,7 +32,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
   Widget build(BuildContext context) {
     final tone = context.s.color;
     final portal = isPortalMode(context);
-    final notif = ref.watch(clienteNotificacionesProvider);
+    final notif = ref.watch(notificationsProvider);
     final noLeidas = notif.valueOrNull?.noLeidas ?? 0;
 
     return Scaffold(
@@ -66,9 +65,9 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
             ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(clienteNotificacionesProvider);
+          ref.invalidate(notificationsProvider);
           try {
-            await ref.read(clienteNotificacionesProvider.future);
+            await ref.read(notificationsProvider.future);
           } catch (_) {}
         },
         child: notif.when(
@@ -92,7 +91,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
             children: [
               SErrorState(
                 title: 'No pudimos cargar tus notificaciones',
-                onRetry: () => ref.invalidate(clienteNotificacionesProvider),
+                onRetry: () => ref.invalidate(notificationsProvider),
               ),
             ],
           ),
@@ -841,21 +840,30 @@ Future<void> marcarNotificacion(
   String? action,
   int? id,
 }) async {
+  final port = ref.read(homePortProvider);
   try {
-    await fetchClienteNotificaciones(action: action, id: id);
+    switch (action) {
+      case 'marcar_leida':
+        await port.markNotificationRead(id!);
+      case 'marcar_todas':
+        await port.markAllNotificationsRead();
+      case 'descartar':
+        await port.dismissNotification(id!);
+      default:
+        break; // sin acción: solo refrescar
+    }
   } catch (_) {}
-  ref.invalidate(clienteNotificacionesProvider);
+  ref.invalidate(notificationsProvider);
 }
 
 /// Marca una notificación como NO leída (revierte el "leído") y refresca el
-/// provider para actualizar el conteo. Análoga a [marcarNotificacion]; usa el
-/// método dedicado del ApiClient ([notifMarcarNoLeida]). Espejo de
-/// `useMarkAsUnread` del portal.
+/// provider para actualizar el conteo. Análoga a [marcarNotificacion]; espejo
+/// de `useMarkAsUnread` del portal.
 Future<void> marcarNoLeidaNotificacion(WidgetRef ref, int id) async {
   try {
-    await notifMarcarNoLeida(id);
+    await ref.read(homePortProvider).markNotificationUnread(id);
   } catch (_) {}
-  ref.invalidate(clienteNotificacionesProvider);
+  ref.invalidate(notificationsProvider);
 }
 
 /// Alterna el estado leída ↔ no-leída de una notificación: si está leída la

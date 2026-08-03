@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
+import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/portal_property_card.dart';
 import 'package:sozu_cliente_app/widgets/portal_top_bar.dart';

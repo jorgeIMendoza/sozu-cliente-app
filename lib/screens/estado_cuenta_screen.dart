@@ -6,10 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
-import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/providers/data_providers.dart';
-import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/widgets/recibo_pago_sheet.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
@@ -61,8 +59,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   Future<void> _descargarPdf(int cuentaId) async {
     setState(() => _descargando = true);
     try {
-      final imp = ref.read(impersonationProvider).idPersona;
-      final url = await fetchEstadoCuentaPdfUrl(cuentaId, impersonate: imp);
+      final url = await ref
+          .read(propertiesPortProvider)
+          .accountStatementPdfUrl(cuentaId);
       if (!mounted) return;
       if (url == null) {
         _snack('No pudimos generar el PDF. Intenta de nuevo.');
@@ -81,7 +80,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final props = ref.watch(clientePropiedadesProvider);
+    final props = ref.watch(propertiesProvider);
 
     return props.when(
       loading: () => _scaffold(context, const _LoadingList(), null),
@@ -92,7 +91,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
           children: [
             SErrorState(
               title: 'No pudimos cargar tus propiedades',
-              onRetry: () => ref.invalidate(clientePropiedadesProvider),
+              onRetry: () => ref.invalidate(propertiesProvider),
             ),
           ],
         ),
@@ -293,7 +292,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
   // ── Detalle ────────────────────────────────────────────────────────────────
   Widget _detalle(PropiedadCard c) {
     final tone = context.s.color;
-    final edo = ref.watch(estadoCuentaProvider(c.id));
+    final edo = ref.watch(accountStatementProvider(c.id));
     return edo.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (_, __) => ListView(
@@ -301,7 +300,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         children: [
           SErrorState(
             title: 'No pudimos cargar el estado de cuenta',
-            onRetry: () => ref.invalidate(estadoCuentaProvider(c.id)),
+            onRetry: () => ref.invalidate(accountStatementProvider(c.id)),
           ),
         ],
       ),
@@ -959,8 +958,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     // No existe: pedir al backend que lo genere.
     setState(() => _generandoRecibo = app.idPago);
     try {
-      final imp = ref.read(impersonationProvider).idPersona;
-      final url = await fetchReciboPagoUrl(app.idPago, impersonate: imp);
+      final url = await ref
+          .read(propertiesPortProvider)
+          .paymentReceiptUrl(app.idPago);
       if (!mounted) return;
       if (url == null) {
         _snack('No pudimos generar el recibo. Intenta de nuevo.');
@@ -1025,8 +1025,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     // No existe: pedir al backend que lo genere.
     setState(() => _generandoRecibo = p.id);
     try {
-      final imp = ref.read(impersonationProvider).idPersona;
-      final url = await fetchReciboPagoUrl(p.id, impersonate: imp);
+      final url = await ref
+          .read(propertiesPortProvider)
+          .paymentReceiptUrl(p.id);
       if (!mounted) return;
       if (url == null) {
         _snack('No pudimos generar el recibo. Intenta de nuevo.');
@@ -1446,8 +1447,9 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
     if (_generandoRecibo != null) return;
     setState(() => _generandoRecibo = pagoId);
     try {
-      final imp = ref.read(impersonationProvider).idPersona;
-      final url = await fetchReciboPagoUrl(pagoId, impersonate: imp);
+      final url = await ref
+          .read(propertiesPortProvider)
+          .paymentReceiptUrl(pagoId);
       if (!mounted) return;
       if (url == null) {
         _snack('No pudimos generar el recibo. Intenta de nuevo.');
@@ -1665,7 +1667,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
 
   // ── Detalle (header + 2 columnas) ─────────────────────────────────────────
   Widget _portalDetalle(PropiedadCard c, {required bool multi}) {
-    final edo = ref.watch(estadoCuentaProvider(c.id));
+    final edo = ref.watch(accountStatementProvider(c.id));
     return edo.when(
       loading: () => const Center(
         child: CircularProgressIndicator(color: PortalColors.primary),
@@ -1675,7 +1677,7 @@ class _EstadoCuentaScreenState extends ConsumerState<EstadoCuentaScreen> {
         children: [
           SErrorState(
             title: 'No pudimos cargar el estado de cuenta',
-            onRetry: () => ref.invalidate(estadoCuentaProvider(c.id)),
+            onRetry: () => ref.invalidate(accountStatementProvider(c.id)),
           ),
         ],
       ),
