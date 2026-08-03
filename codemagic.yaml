@@ -29,6 +29,26 @@ definitions:
     name: Timestamp de versión (hora México, estilo sozu-admin)
     script: |
       echo "BUILD_TIMESTAMP=$(TZ=America/Mexico_City date +%y%m%d.%H%M)" >> $CM_ENV
+  # Google Play exige un versionCode mayor en cada subida, y pubspec.yaml lo
+  # tiene fijo en 1.0.0+1: todo build sale como versionCode 1 y la segunda
+  # publicación falla con "Version code 1 has already been used". Se calcula a
+  # partir del mayor que ya exista en Play (incluye lo subido a mano).
+  play_build_number: &play_build_number
+    name: Calcular versionCode
+    script: |
+      PKG="${ANDROID_PACKAGE_NAME:-com.sozu.clientes_app}"
+      LATEST=$(google-play get-latest-build-number \
+        --package-name "$PKG" \
+        --credentials "@env:GCLOUD_SERVICE_ACCOUNT_CREDENTIALS" 2>/dev/null || true)
+      # Sin historial legible (app nueva, o la cuenta no puede consultarlo):
+      # el contador de builds de Codemagic siempre crece, así que sirve de piso.
+      case "$LATEST" in
+        ''|*[!0-9]*) LATEST="${PROJECT_BUILD_NUMBER:-0}" ;;
+      esac
+      NEXT=$((LATEST + 1))
+      echo "ANDROID_BUILD_NUMBER=$NEXT" >> $CM_ENV
+      echo "Último versionCode en Play: $LATEST — se publicará como: $NEXT"
+
   # Keystore subido desde el dashboard (variables cifradas del grupo
   # android_signing_custom). Reconstruye el .jks y exporta las CM_KEYSTORE_*
   # que lee build.gradle.kts. Si sigue en PENDIENTE, aborta con mensaje claro.
@@ -97,9 +117,27 @@ workflows:
         <<: *supabase_env
       flutter: stable
     scripts:
+      - name: Validar credenciales de Google Play
+        script: |
+          # Fallar aquí ahorra ~10 min de build: sin este JSON la publicación
+          # revienta al final con "Expecting value: line 1 column 1 (char 0)",
+          # que es json.loads() sobre una cadena vacía.
+          if [ -z "${GCLOUD_SERVICE_ACCOUNT_CREDENTIALS:-}" ]; then
+            echo "ERROR: falta GCLOUD_SERVICE_ACCOUNT_CREDENTIALS."
+            echo "Es el JSON del service account de Play Console y debe estar en el"
+            echo "grupo 'android_signing_custom' de esta app en Codemagic."
+            echo "Se puede subir desde el dashboard: Deploy App -> Credenciales Android."
+            exit 1
+          fi
+          echo "$GCLOUD_SERVICE_ACCOUNT_CREDENTIALS" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Service account:', d['client_email'])" || {
+            echo "ERROR: GCLOUD_SERVICE_ACCOUNT_CREDENTIALS no contiene un JSON valido."
+            echo "Debe ser el archivo completo, desde la primera llave hasta la ultima, sin base64."
+            exit 1
+          }
       - *env_setup
       - *build_stamp
       - *dashboard_keystore
+      - *play_build_number
       - name: Dependencias, análisis y tests
         script: |
           flutter pub get
@@ -108,6 +146,7 @@ workflows:
       - name: Build AAB (Google Play)
         script: |
           flutter build appbundle --release \
+            --build-number=$ANDROID_BUILD_NUMBER \
             --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP
     artifacts:
       - build/app/outputs/bundle/release/*.aab
@@ -234,6 +273,23 @@ workflows:
             exit 1
           fi
           echo "Release notes: $RELEASE_NOTES"
+      - name: Validar credenciales de Google Play
+        script: |
+          # Fallar aquí ahorra ~10 min de build: sin este JSON la publicación
+          # revienta al final con "Expecting value: line 1 column 1 (char 0)",
+          # que es json.loads() sobre una cadena vacía.
+          if [ -z "${GCLOUD_SERVICE_ACCOUNT_CREDENTIALS:-}" ]; then
+            echo "ERROR: falta GCLOUD_SERVICE_ACCOUNT_CREDENTIALS."
+            echo "Es el JSON del service account de Play Console y debe estar en el"
+            echo "grupo 'android_signing_custom' de esta app en Codemagic."
+            echo "Se puede subir desde el dashboard: Deploy App -> Credenciales Android."
+            exit 1
+          fi
+          echo "$GCLOUD_SERVICE_ACCOUNT_CREDENTIALS" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Service account:', d['client_email'])" || {
+            echo "ERROR: GCLOUD_SERVICE_ACCOUNT_CREDENTIALS no contiene un JSON valido."
+            echo "Debe ser el archivo completo, desde la primera llave hasta la ultima, sin base64."
+            exit 1
+          }
       - name: Promover internal → production
         script: |
           google-play tracks promote-release \
@@ -269,9 +325,27 @@ workflows:
             exit 1
           fi
           echo "Release notes: $RELEASE_NOTES"
+      - name: Validar credenciales de Google Play
+        script: |
+          # Fallar aquí ahorra ~10 min de build: sin este JSON la publicación
+          # revienta al final con "Expecting value: line 1 column 1 (char 0)",
+          # que es json.loads() sobre una cadena vacía.
+          if [ -z "${GCLOUD_SERVICE_ACCOUNT_CREDENTIALS:-}" ]; then
+            echo "ERROR: falta GCLOUD_SERVICE_ACCOUNT_CREDENTIALS."
+            echo "Es el JSON del service account de Play Console y debe estar en el"
+            echo "grupo 'android_signing_custom' de esta app en Codemagic."
+            echo "Se puede subir desde el dashboard: Deploy App -> Credenciales Android."
+            exit 1
+          fi
+          echo "$GCLOUD_SERVICE_ACCOUNT_CREDENTIALS" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Service account:', d['client_email'])" || {
+            echo "ERROR: GCLOUD_SERVICE_ACCOUNT_CREDENTIALS no contiene un JSON valido."
+            echo "Debe ser el archivo completo, desde la primera llave hasta la ultima, sin base64."
+            exit 1
+          }
       - *env_setup
       - *build_stamp
       - *dashboard_keystore
+      - *play_build_number
       - name: Dependencias, análisis y tests
         script: |
           flutter pub get
@@ -280,6 +354,7 @@ workflows:
       - name: Build AAB (Google Play)
         script: |
           flutter build appbundle --release \
+            --build-number=$ANDROID_BUILD_NUMBER \
             --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
             --dart-define=APP_ENV=prod
     artifacts:

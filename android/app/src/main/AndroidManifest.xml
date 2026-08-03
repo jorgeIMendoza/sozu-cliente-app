@@ -10,7 +10,7 @@
     <!-- Login biométrico (huella / rostro) con local_auth. -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <application
-        android:label="SOZU Clientes"
+        android:label="Sozu clientes"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
