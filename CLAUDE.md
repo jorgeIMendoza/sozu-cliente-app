@@ -21,6 +21,11 @@ de prueba: Chrome).
   `_buildTimestampDefault` (PowerShell: `Get-Date -Format "yyMMdd.HHmm"`) o
   compilar con `--dart-define=BUILD_TIMESTAMP=...`.
 
+## Rama de trabajo
+`dev-eddy` es la unica rama de trabajo. De ahi salen los PR hacia `dev`. NO se
+reescribe el historial: los mensajes de commit son la documentacion de por que
+cada decision se tomo, y esto va a produccion.
+
 ## Ejecuciones manuales (SQL / deploys de Edge Functions)
 - PROHIBIDO ejecutar SQL o `supabase functions deploy` directo desde aquí.
 - Todo cambio de BD/deploy va primero a un `.md` en `Ejecuciones_manuales/`
