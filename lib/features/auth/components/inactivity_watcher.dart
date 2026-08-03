@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 
 /// Cierra la sesión automáticamente tras un rato sin actividad del usuario
 /// (toques, scroll, movimiento del puntero). Envuelve toda la app; solo actúa

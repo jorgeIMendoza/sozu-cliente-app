@@ -2,20 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:sozu_cliente_app/providers/auth_provider.dart';
-import 'package:sozu_cliente_app/widgets/password_rules.dart';
+import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/features/auth/components/password_rules.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
-/// Cambio voluntario de contraseña: exige la contraseña ACTUAL.
-class CambiarPasswordScreen extends ConsumerStatefulWidget {
-  const CambiarPasswordScreen({super.key});
+/// Cambio VOLUNTARIO de contraseña (desde Perfil): exige la contraseña actual.
+/// Su par es [ChangePasswordScreen], el cambio FORZADO de la temporal, que no
+/// la exige porque el usuario acaba de escribirla en el login.
+class ChangePasswordVoluntaryScreen extends ConsumerStatefulWidget {
+  const ChangePasswordVoluntaryScreen({super.key});
 
   @override
-  ConsumerState<CambiarPasswordScreen> createState() =>
-      _CambiarPasswordScreenState();
+  ConsumerState<ChangePasswordVoluntaryScreen> createState() =>
+      _ChangePasswordVoluntaryScreenState();
 }
 
-class _CambiarPasswordScreenState extends ConsumerState<CambiarPasswordScreen> {
+class _ChangePasswordVoluntaryScreenState
+    extends ConsumerState<ChangePasswordVoluntaryScreen> {
   final _formKey = GlobalKey<FormState>();
   final _current = TextEditingController();
   final _pwd = TextEditingController();

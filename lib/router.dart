@@ -5,12 +5,12 @@ import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
-import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/admin/screens/announcements_screen.dart';
 import 'package:sozu_cliente_app/screens/adquisicion_screen.dart';
-import 'package:sozu_cliente_app/screens/cambiar_password_screen.dart';
+import 'package:sozu_cliente_app/features/auth/screens/change_password_voluntary_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.dart';
 import 'package:sozu_cliente_app/screens/documentos_screen.dart';
 import 'package:sozu_cliente_app/screens/estado_cuenta_screen.dart';
@@ -254,8 +254,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/cambiar-password',
-            pageBuilder: (context, state) =>
-                _slidePage(context, state, const CambiarPasswordScreen()),
+            pageBuilder: (context, state) => _slidePage(
+              context,
+              state,
+              const ChangePasswordVoluntaryScreen(),
+            ),
           ),
           GoRoute(
             path: '/productos',

@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
-import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
 
 import 'fake_auth_port.dart';

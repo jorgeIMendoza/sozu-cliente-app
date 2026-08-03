@@ -228,9 +228,10 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
 - core/: format, secure_session_storage, open_document, version, push_service,
   portal_tracking, portal_theme (legacy). La biometría salió a `features/auth/`.
 - data/: models (DTOs de las 7 functions), api_client (invoke + ApiError)
-- providers/: auth (sesión+perfil+password flows), data (FutureProviders), theme
+- providers/: data (FutureProviders), impersonation, theme. El de auth vive en
+  `features/auth/providers/`.
 - router.dart: guards + shell 5 tabs + secundarias
-- widgets/: theme_mode_button, inactivity_watcher,
+- widgets/: theme_mode_button,
   portal_*, level_map. La carpeta admin/ salio a features/admin/components/.
 - screens/: LEGACY, pendiente de migrar a features/ - inicio, adquisicion,
   patrimonio, documentos, perfil, pagos, estado_cuenta, notificaciones,
@@ -239,7 +240,8 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
 
 ## Sesión
 - Cierre por inactividad: **5 min en teléfono, 15 min en escritorio**
-  (`widgets/inactivity_watcher.dart`). El criterio es el FORMATO de pantalla, no
+  (`features/auth/components/inactivity_watcher.dart`). El criterio es el FORMATO
+  de pantalla, no
   `kIsWeb`: web en el navegador del celular usa el plazo corto.
 - Selector de tema claro/oscuro/sistema: `widgets/theme_mode_button.dart`.
 

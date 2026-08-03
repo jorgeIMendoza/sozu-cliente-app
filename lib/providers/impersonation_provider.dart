@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
-import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 
 /// Cliente impersonado por un super administrador (solo web).
 /// Estado in-memory: al recargar la página el guard regresa al selector.

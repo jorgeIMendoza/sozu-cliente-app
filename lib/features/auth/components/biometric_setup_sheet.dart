@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/features/auth/services/biometric_service.dart';
-import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Ofrece activar el desbloqueo con huella/rostro y lo activa si el usuario

@@ -8,11 +8,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/api_client.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/providers/data_providers.dart';
 import 'package:sozu_cliente_app/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/widgets/network_image.dart';
-import 'package:sozu_cliente_app/widgets/password_rules.dart';
+import 'package:sozu_cliente_app/features/auth/components/password_rules.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart'
     show showPortalDialog;
 import 'package:sozu_cliente_app/ui/ui.dart';

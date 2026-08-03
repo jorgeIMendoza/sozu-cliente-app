@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:sozu_cliente_app/providers/auth_provider.dart';
-import 'package:sozu_cliente_app/widgets/password_rules.dart';
+import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/features/auth/components/password_rules.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_brand_image.dart';
 import 'package:sozu_cliente_app/features/auth/components/biometric_setup_sheet.dart';

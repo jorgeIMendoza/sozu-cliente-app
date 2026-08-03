@@ -23,7 +23,19 @@ components/
   login_form.dart           el formulario completo del login
 services/
   biometric_service.dart    BiometricService · BiometricLoginResult
+ports/
+  auth_port.dart            AuthPort · AuthSession · UserProfile · (contrato)
+adapters/
+  auth_adapter.dart         AuthAdapter - unico archivo que importa supabase_flutter
+providers/
+  auth_provider.dart        AuthController · authProvider · authPortProvider
 ```
+
+Tambien de la feature: `screens/change_password_voluntary_screen.dart` (el cambio
+VOLUNTARIO, desde Perfil; el forzado es `change_password_screen.dart`),
+`components/password_rules.dart` (la politica de contrasena, consumida ademas por
+`perfil_sheets`) y `components/inactivity_watcher.dart` (cierre por inactividad,
+montado en `main.dart`).
 
 ### Toda la biometría vive aquí
 
@@ -34,7 +46,7 @@ están juntas. Antes el servicio vivía en `lib/core/` y la card de Perfil en
 
 | Pieza | Dónde | Quién la usa |
 |---|---|---|
-| `BiometricService` (singleton) · `BiometricLoginResult` | `services/` | `login_form` · `biometric_setup_sheet` · `biometric_toggle_card` · `providers/auth_provider.dart` |
+| `BiometricService` (singleton) · `BiometricLoginResult` | `services/` | `login_form` · `biometric_setup_sheet` · `biometric_toggle_card` · `providers/auth_provider.dart` (de la feature) |
 | `offerBiometricSetup()` - el bottom sheet que la ofrece | `components/` | `login_form` · `change_password_screen` |
 | `BiometricToggleCard` - la card de Perfil | `components/` | `screens/perfil_screen.dart` (legacy, fuera de la feature) |
 
