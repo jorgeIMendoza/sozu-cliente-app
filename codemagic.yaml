@@ -49,6 +49,24 @@ definitions:
       echo "ANDROID_BUILD_NUMBER=$NEXT" >> $CM_ENV
       echo "Último versionCode en Play: $LATEST — se publicará como: $NEXT"
 
+  # Aviso por WhatsApp al terminar (exito o fallo). El telefono lo inyecta el
+  # dashboard como WA_PHONE al lanzar el build; sin el, el paso no hace nada.
+  # Va en publishing.scripts para que corra tambien cuando el build falla.
+  wa_notify: &wa_notify
+    name: Avisar por WhatsApp
+    script: |
+      if [ -z "${WA_PHONE:-}" ]; then
+        echo "Sin WA_PHONE: no hay a quien avisar (el dashboard lo inyecta al lanzar)."
+        exit 0
+      fi
+      if [ "${CM_BUILD_STEP_STATUS:-success}" = "success" ]; then
+        RESULTADO="termino bien"
+      else
+        RESULTADO="FALLO"
+      fi
+      MENSAJE="Build de $CM_PROJECT_NAME ($CM_BRANCH) $RESULTADO: $FCI_WORKFLOW_ID. Ver: https://codemagic.io/app/$FCI_PROJECT_ID/build/$FCI_BUILD_ID"
+      curl -s -X POST "https://automatizacion-n8n.fbqqbe.easypanel.host/webhook/manda_notificacion"         -H "apikey: 80FA62E3FD0C-4477-8B31-8A2CD6AF7B57"         -H "Content-Type: application/json"         -d "$(jq -n --arg tel "+521$WA_PHONE" --arg msg "$MENSAJE"               '{tipo:"wa", telefono:$tel, mensajeWA:$msg, instanciaWA:"Pruebas de todo"}')"         && echo "Aviso enviado a $WA_PHONE"
+
   # Keystore subido desde el dashboard (variables cifradas del grupo
   # android_signing_custom). Reconstruye el .jks y exporta las CM_KEYSTORE_*
   # que lee build.gradle.kts. Si sigue en PENDIENTE, aborta con mensaje claro.
@@ -106,6 +124,10 @@ workflows:
   # Construye el .aab Y lo publica en Google Play (track internal).
   # Requiere el service account de Play Console configurado en Codemagic
   # (env var GCLOUD_SERVICE_ACCOUNT_CREDENTIALS); sin él, el build falla.
+    publishing:
+      scripts:
+        - *wa_notify
+
   android-publish:
     name: Android → Play Store (internal)
     max_build_duration: 45
@@ -151,6 +173,8 @@ workflows:
     artifacts:
       - build/app/outputs/bundle/release/*.aab
     publishing:
+      scripts:
+        - *wa_notify
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
@@ -186,6 +210,10 @@ workflows:
     # Solo construye. El envío a TestFlight vive en `ios-publish`.
 
   # Construye el .ipa Y lo envía a TestFlight.
+    publishing:
+      scripts:
+        - *wa_notify
+
   ios-publish:
     name: iOS → TestFlight
     max_build_duration: 60
@@ -216,6 +244,8 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
+      scripts:
+        - *wa_notify
       app_store_connect:
         auth: integration
         submit_to_testflight: true
@@ -253,6 +283,10 @@ workflows:
   # Requiere RELEASE_NOTES (trazabilidad; Play Console toma las notas del
   # release - editarlas ahí si se requiere ajustar) y el service account
   # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS configurado en Codemagic.
+    publishing:
+      scripts:
+        - *wa_notify
+
   android-production:
     name: Android → Play Store (producción)
     max_build_duration: 15
@@ -307,6 +341,10 @@ workflows:
 
   # Construye el .aab y lo sube directo al track `production` de Google Play.
   # Play lo manda a revisión automáticamente.
+    publishing:
+      scripts:
+        - *wa_notify
+
   android-store:
     name: Android → Play Store (directo)
     max_build_duration: 45
@@ -360,6 +398,8 @@ workflows:
     artifacts:
       - build/app/outputs/bundle/release/*.aab
     publishing:
+      scripts:
+        - *wa_notify
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: production
@@ -422,6 +462,9 @@ workflows:
             app-store-connect builds submit-to-app-store "$BUILD_ID" \
               --release-type AFTER_APPROVAL \
               --whats-new "$RELEASE_NOTES"
+        # Al final, para que el aviso refleje el resultado de la publicación
+        # y no solo el de la compilación.
+        - *wa_notify
 
   # Sincroniza la lista de testers del dashboard con el grupo externo de
   # TestFlight "SOZU Testers" (lo crea si no existe). Lo dispara el dashboard
