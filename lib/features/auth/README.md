@@ -1,8 +1,8 @@
 # Feature `auth`
 
-Acceso a la app: login, recuperación y cambio de contraseña, biometría,
-modo administrador y cierre de sesión por inactividad. Es la puerta de
-entrada de todos los actores (cliente y super admin).
+Acceso a la app: login, recuperación y cambio de contraseña, biometría y
+cierre de sesión por inactividad. Es la puerta de entrada de todos los
+actores (cliente, comprador interno y administrador de la app).
 
 ## Reglas
 
@@ -48,9 +48,16 @@ layouts/     auth_layout.dart
   perfil, candado biométrico y `authFlowInProgress`; el router y las
   pantallas reaccionan con `ref.watch(authProvider)`.
 - La biometría guarda el refresh token en Keystore atado al `userId`
-  enrolado y es SOLO para clientes; el acceso administrador siempre pide
-  correo y contraseña. La pastilla de admin (long-press de 1.5 s sobre el
-  sello de versión) oculta el botón de huella.
+  enrolado y es SOLO para usuarios del portal; el acceso administrador
+  siempre pide correo y contraseña (`shouldOfferBiometrics` exige
+  `hasPortalAccess`, y `disableIfOwnedBy` apaga un enrolamiento viejo de una
+  cuenta no-cliente al entrar).
+- **Quién entra y a dónde sale del PERFIL, no de la plataforma ni de un
+  gesto.** `PortalAccess.allows` (rol Cliente o comprador activo) decide el
+  acceso; `canManageClientApp` manda al selector de clientes. Mismo flujo en
+  web y en móvil. Los dos interruptores manuales que existían (Ctrl+Shift+A y
+  el long-press del sello de versión) se BORRARON al conceder el acceso por
+  rol: dejaban a móvil y escritorio con caminos distintos.
 - El cambio forzado de contraseña (temporal) es pantalla de esta feature;
   al terminar ofrece activar la biometría.
 - Inactividad: 5 min en teléfono, 15 en escritorio, decidido por formato
