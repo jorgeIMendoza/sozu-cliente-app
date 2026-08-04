@@ -7,6 +7,7 @@ import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/core/push_service.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/documents/providers/documents_providers.dart';
+import 'package:sozu_cliente_app/features/client/profile/components/theme_selector.dart';
 import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
 import 'package:sozu_cliente_app/features/client/providers/client_providers.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
@@ -583,6 +584,12 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
               ),
 
             // ── Preferencias propias del app ────────────────────────────────
+            // Apariencia solo en la vista móvil/angosta: el portal web ancho va
+            // fijo a claro (ver el candado en main.dart), asi que aqui el
+            // control seria inerte.
+            _sectionLabel(tone, 'Apariencia'),
+            const SCard(child: ThemeSelector()),
+
             _sectionLabel(tone, 'Notificaciones'),
             SCard(
               child: Column(
@@ -872,4 +879,3 @@ class _PerfilAvatar extends StatelessWidget {
     );
   }
 }
-

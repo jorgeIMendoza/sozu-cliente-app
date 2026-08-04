@@ -947,9 +947,9 @@ class _SelectFieldState extends State<_SelectField> {
   Widget build(BuildContext context) {
     final t = context.s;
     final tone = t.color;
-    // Los parámetros del menú son los de `ThemeModeButton`, incluidas sus dos
-    // trampas: sin `clipBehavior` y sin `menuPadding` los items se pintan
-    // cuadrados sobre las esquinas del `shape`.
+    // Dos trampas del PopupMenuButton de Material: sin `clipBehavior` y sin
+    // `menuPadding` los items se pintan cuadrados sobre las esquinas del
+    // `shape`.
     return LayoutBuilder(
       builder: (context, constraints) => PopupMenuButton<String>(
         initialValue: widget.value,

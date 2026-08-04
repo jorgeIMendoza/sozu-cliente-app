@@ -32,6 +32,26 @@ cada decision se tomo, y esto va a produccion.
   (gitignored; patrón de admin-sozu/sozu-admin: secciones fechadas + comandos
   exactos). Jorge lo ejecuta a mano y reporta.
 
+## Quien entra al Portal del Cliente
+Dos caminos, no uno (`features/auth/services/portal_access.dart`):
+**rol Cliente (`roles.id` 23) O comprador activo** (`compradores.activo`, que
+llega como `es_comprador` en el RPC del perfil). El rol dice para que se
+contrato a la persona, no si compro: hay 8 internos (agentes, etc.) que son
+clientes de SOZU.
+
+⚠️ **El gate esta DUPLICADO y los dos lados se cambian juntos.** El de verdad es
+`_shared/cliente.ts` -> `authClient()` en `sozu-edge-functions`: si el frontend
+deja pasar y el backend no, el usuario entra y recibe **403 en cada pantalla**.
+`PortalAccess.allows` es el espejo del gate del backend, y `test/features/auth/
+portal_access_test.dart` fija el contrato.
+
+`isBuyer` es aditivo: sin `es_comprador` en el RPC se lee `false` y el acceso
+queda como antes (solo rol 23), asi que frontend y backend no necesitan
+despliegue simultaneo. El orden seguro es backend primero.
+
+El acceso administrador es OTRA COSA: va por `canManageClientApp`
+(`roles.apps.administrar` incluye `clientes`), no por aqui.
+
 ## Reglas de SEGURIDAD (innegociables - mismas que el app RN)
 - SOLO Supabase ANON KEY (pública) + JWT del usuario logueado.
 - NUNCA service_role ni credenciales de BD en el código.
@@ -137,6 +157,7 @@ screens/forgot_password_screen.dart · change_password_screen.dart
 components/auth_brand_image.dart · auth_header.dart · auth_alert.dart
 components/biometric_setup_sheet.dart · biometric_toggle_card.dart · login_form.dart
 services/biometric_service.dart BiometricService · BiometricLoginResult
+services/portal_access.dart     PortalAccess.allows (quien entra al portal)
 ```
 
 Toda la biometría (huella / Face ID) vive en `auth`: es autenticación. El servicio,
@@ -207,6 +228,13 @@ Equivalencias con Cursor/VS Code:
 El IDE usa el Dart Analysis Server, que lee el **mismo** `analysis_options.yaml`;
 por eso `flutter analyze` y el panel de Problems dan idéntico resultado.
 
+`check.sh` y el CI corren `flutter analyze --no-fatal-infos`: **errores y warnings
+son fatales, los infos no**. Hoy hay ~800 infos y todos son la deuda conocida de
+`PortalColors` deprecado; con infos fatales el check salía siempre rojo y se
+aprendía a ignorarlo. `check.sh` imprime el conteo para que una subida se note.
+Al cerrar `PortalColors` hay que quitar el flag en los tres sitios (`check.sh`,
+`.github/workflows/deploy-web-firebase.yml`, `codemagic.yaml`).
+
 ⚠️ **El repo NO está formateado con el formatter actual** (Dart 3.7 cambió a
 "tall style"). Por eso `check.sh` formatea solo los archivos modificados: un
 `dart format .` reescribe medio archivo ajeno. Cuando se haga, que sea un commit
@@ -238,26 +266,47 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
   SSkeleton · SEmptyState · SErrorState · SSectionLabel · SPressable · SStagger ·
   SSearchField · SAutocompleteField · SLogo · SWebSelectable.
   `widgets/common.dart` fue ELIMINADO: sus 8 widgets viven aquí.
-- features/: código nuevo, por feature. Hoy: `auth/` (cerrada), `admin/` (en curso).
+- features/: TODO el código de producto, por feature. `auth/` (cerrada),
+  `admin/` (cerrada), `client/` (documents, home, layouts, products, profile,
+  properties, providers).
 - core/: format, secure_session_storage, open_document, version, push_service,
   portal_tracking, portal_theme (legacy). La biometría salió a `features/auth/`.
-- data/: models (DTOs de las 7 functions), api_client (invoke + ApiError)
-- providers/: data (FutureProviders), impersonation, theme. El de auth vive en
-  `features/auth/providers/`.
+- data/: models (DTOs de las 7 functions)
+- shared/: ports + adapters + providers que consumen 2+ features, api_error
 - router.dart: guards + shell 5 tabs + secundarias
-- widgets/: theme_mode_button,
-  portal_*, level_map. La carpeta admin/ salio a features/admin/components/.
-- screens/: LEGACY, pendiente de migrar a features/ - inicio, adquisicion,
-  patrimonio, documentos, perfil, pagos, estado_cuenta, notificaciones,
-  propiedad_detalle, seleccionar_cliente, forgot,
-  change_password_forced
+- widgets/: LEGACY - portal_widgets, fx, network_image, preview_banner,
+  push_registrar, version_gate, whatsapp_icon. La carpeta admin/ salio a
+  features/admin/components/.
+- `lib/screens/` y `lib/providers/` YA NO EXISTEN: sus pantallas viven en
+  `features/client/*/screens/` y sus providers en la feature que los usa.
 
 ## Sesión
 - Cierre por inactividad: **5 min en teléfono, 15 min en escritorio**
   (`features/auth/components/inactivity_watcher.dart`). El criterio es el FORMATO
   de pantalla, no
   `kIsWeb`: web en el navegador del celular usa el plazo corto.
-- Selector de tema claro/oscuro/sistema: `widgets/theme_mode_button.dart`.
+
+## Tema: claro/oscuro SÍ, pero el portal ancho va con candado a claro
+El selector vive en Perfil (`features/client/profile/components/theme_selector.dart`)
+y la preferencia se persiste en `shared/providers/theme_provider.dart`
+(`shared_preferences`; no es dato sensible).
+
+`main.dart` pasa el `themeMode` del provider Y envuelve el árbol en
+**`PortalLightLock`**, que fuerza claro cuando `isPortalMode(context)` es true
+(web con ancho ≥ `kPortalBreakpoint`). Motivo: el portal pinta con el shim
+`PortalColors`, cuyas constantes son claras y no dependen del tema, así que en
+oscuro solo cambiaría lo ya migrado a `context.s` y sale texto claro sobre
+fondo claro. En móvil/angosto las pantallas sí leen los roles, así que ahí el
+selector manda de verdad.
+
+El candado usa `isPortalMode` **a propósito aunque esté deprecado**: tiene que
+decidir con el mismo criterio que las 22 pantallas que ramifican por él
+(incluido su `kIsWeb`). Si discrepan, salen temas mezclados. Migra cuando ellas
+migren a `context.bp`.
+
+Al terminar `PortalColors -> context.s.color`, borrar `PortalLightLock` y el
+oscuro queda global. Tests: `test/theme_mode_test.dart`; la rama del portal solo
+se verifica con `flutter test --platform chrome` (en la VM `kIsWeb` es false).
 
 ## Correr
 **Guía completa del flujo diario: `tool/README.md`** (web, móvil inalámbrico, las

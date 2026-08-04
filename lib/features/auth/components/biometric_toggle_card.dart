@@ -77,8 +77,9 @@ class _BiometricToggleCardState extends ConsumerState<BiometricToggleCard> {
     // Solo clientes: la biometría guarda el refresh token de la sesión ACTUAL, y
     // la de un administrador puede impersonar a cualquier cliente. La
     // impersonación queda cubierta sola porque NO cambia la sesión de Supabase:
-    // el perfil sigue siendo el del administrador, así que `isClient` es false.
-    if (!_isSupported || !ref.watch(authProvider).isClient) {
+    // el perfil sigue siendo el del administrador, así que `hasPortalAccess` es
+    // false.
+    if (!_isSupported || !ref.watch(authProvider).hasPortalAccess) {
       return const SizedBox.shrink();
     }
     final t = context.s;

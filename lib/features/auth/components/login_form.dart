@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/features/auth/services/biometric_service.dart';
+import 'package:sozu_cliente_app/features/auth/services/portal_access.dart';
 import 'package:sozu_cliente_app/features/auth/components/biometric_setup_sheet.dart';
 import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';
@@ -20,8 +21,8 @@ import 'package:url_launcher/url_launcher.dart';
 /// Formulario de acceso: correo + contraseña, biometría, modo administrador y la
 /// navegación posterior al login. Concentra el estado y la lógica del acceso.
 ///
-/// Tras autenticar valida el rol Cliente (perfil vía RPC); si no es cliente,
-/// cierra sesión.
+/// Tras autenticar valida el acceso al portal con el perfil (vía RPC): rol
+/// Cliente o comprador activo ([PortalAccess]). Si no lo tiene, cierra sesión.
 ///
 /// El modo administrador (impersonación de clientes) se alterna por dos vías,
 /// ambas vía [_toggleAdminMode]: long-press de 1.5 s sobre el sello de versión
@@ -169,12 +170,14 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
     try {
       final profile = await auth.refreshProfile();
-      // Acceso administrador: por permiso del rol, no por el nombre del rol.
-      final isAdminAccess =
-          _isAdminMode && (profile?.canManageClientApp ?? false);
-      if (!AuthController.isClientRole(profile) && !isAdminAccess) {
-        // Rol no permitido en este acceso (incluye admin sin modo admin):
-        // mensaje genérico para no revelar cuentas existentes.
+      // Acceso administrador: por el permiso del rol (roles.apps.administrar
+      // incluye "clientes" => canManageClientApp). NO requiere el modo admin
+      // manual (Ctrl+Alt+A): cualquier rol que administre la app entra directo
+      // al selector de clientes. El toggle _isAdminMode ya solo afecta la UI.
+      final isAdminAccess = profile?.canManageClientApp ?? false;
+      if (!PortalAccess.allows(profile) && !isAdminAccess) {
+        // Ni usuario del portal (rol Cliente o comprador) ni administrador de
+        // la app: mensaje genérico para no revelar cuentas existentes.
         await auth.signOut();
         auth.authFlowInProgress = false;
         if (!mounted) return;
@@ -285,7 +288,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     }
     try {
       final profile = await auth.refreshProfile();
-      if (!AuthController.isClientRole(profile)) {
+      if (!PortalAccess.allows(profile)) {
         // Enrolamiento viejo de una cuenta no-cliente: se apaga aquí. Dejarlo
         // activo daría acceso a la consola de administración con solo la huella
         // del teléfono.

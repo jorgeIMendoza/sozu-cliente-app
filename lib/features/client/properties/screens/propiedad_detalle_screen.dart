@@ -351,7 +351,7 @@ class _PropiedadDetalleScreenState
 
   /// Contenido de la pestaña activa en modo MÓVIL (mismo mapeo canónico de las
   /// 4 pestañas que `_portalTabContent`, pero con las variantes móviles de cada
-  /// sección — sin `portal: true`).
+  /// sección: sin `portal: true`).
   Widget _mobileTabContent(
     BuildContext context,
     SozuColorRoles tone,

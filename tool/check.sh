@@ -73,7 +73,27 @@ fi
 # 3. Analizador (== panel de Problems del IDE)
 # ---------------------------------------------------------------------------
 step "flutter analyze"
-if flutter analyze; then ok "sin issues"; else fail "analyze encontro issues"; fi
+# --no-fatal-infos: lo mismo que corre el CI (deploy-web-firebase.yml y
+# codemagic.yaml). Los ~800 infos son la deuda conocida de PortalColors
+# deprecado; con infos fatales esto salia SIEMPRE rojo y se aprendia a ignorar.
+# Errores y warnings siguen siendo fatales. El conteo de infos se imprime para
+# que una subida se note.
+ANALYZE_OUT="$(mktemp)"
+if flutter analyze --no-fatal-infos >"$ANALYZE_OUT" 2>&1; then
+  # `^ *info` y no ' info • ': solo las lineas de info van indentadas, las de
+  # error y warning arrancan en la columna 0. Un patron con espacio inicial las
+  # pierde en silencio.
+  INFOS="$(grep -cE '^ *info • ' "$ANALYZE_OUT" || true)"
+  if [ "$INFOS" -gt 0 ]; then
+    ok "sin errores ni warnings ($INFOS infos: deuda PortalColors)"
+  else
+    ok "sin issues"
+  fi
+else
+  cat "$ANALYZE_OUT"
+  fail "analyze encontro errores o warnings"
+fi
+rm -f "$ANALYZE_OUT"
 
 # ---------------------------------------------------------------------------
 # 4. Tests
