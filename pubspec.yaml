@@ -49,17 +49,18 @@ dev_dependencies:
   # y las siluetas blancas del ícono de notificación (ic_stat_sozu).
   image: ^4.5.4
 
-# Config de flutter_launcher_icons. Fuente: el ícono SOZU de la web (cuadro
-# negro con el pin blanco). NO se generan íconos web aquí (web ya está bien).
+# Config de flutter_launcher_icons. Ícono del launcher = wordmark "sozu" negro
+# sobre blanco, igual que el ícono de la ficha de Play Store. Fuente compuesta
+# por tool/gen_wordmark_icons (assets/sozu-logo-black.png centrado sobre blanco).
 flutter_launcher_icons:
-  image_path: "web/icons/Icon-512.png"
+  image_path: "assets/icon/ic_launcher_store.png"
   android: "ic_launcher"
   ios: true
   remove_alpha_ios: true
-  # Adaptive icon (Android 8+): fondo negro de marca + pin blanco recortado
-  # sobre transparente (generado por tool/gen_icons.dart) para que el launcher
-  # muestre el pin de SOZU, no el logo de Flutter.
-  adaptive_icon_background: "#000000"
+  # Adaptive icon (Android 8+): fondo BLANCO de marca + wordmark negro recortado
+  # sobre transparente, centrado en la safe zone, para que el launcher muestre
+  # el "sozu" de SOZU (no el logo de Flutter ni el pin).
+  adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/icon/ic_launcher_foreground.png"
 
 flutter:
