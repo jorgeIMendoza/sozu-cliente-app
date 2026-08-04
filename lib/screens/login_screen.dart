@@ -113,7 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
         return;
       }
-      if (perfil?.rolNombre != 'Cliente') {
+      if (!AuthController.esRolCliente(perfil)) {
         // Rol no permitido en este acceso (incluye admin sin modo admin):
         // mensaje genérico para no revelar cuentas existentes.
         await auth.signOut();
@@ -264,7 +264,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
     try {
       final perfil = await auth.refreshProfile();
-      if (perfil?.rolNombre != 'Cliente') {
+      if (!AuthController.esRolCliente(perfil)) {
         await auth.signOut();
         auth.loginEnCurso = false;
         if (!mounted) return;
