@@ -169,9 +169,11 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
     try {
       final profile = await auth.refreshProfile();
-      // Acceso administrador: por permiso del rol, no por el nombre del rol.
-      final isAdminAccess =
-          _isAdminMode && (profile?.canManageClientApp ?? false);
+      // Acceso administrador: por el permiso del rol (roles.apps.administrar
+      // incluye "clientes" => canManageClientApp). NO requiere el modo admin
+      // manual (Ctrl+Alt+A): cualquier rol que administre la app entra directo
+      // al selector de clientes. El toggle _isAdminMode ya solo afecta la UI.
+      final isAdminAccess = profile?.canManageClientApp ?? false;
       if (!AuthController.isClientRole(profile) && !isAdminAccess) {
         // Rol no permitido en este acceso (incluye admin sin modo admin):
         // mensaje genérico para no revelar cuentas existentes.
