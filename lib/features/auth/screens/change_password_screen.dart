@@ -7,12 +7,12 @@ import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/auth/components/password_rules.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_brand_image.dart';
-import 'package:sozu_cliente_app/features/auth/components/biometric_setup_sheet.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
 import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Cambio OBLIGATORIO de contraseña temporal (debe_cambiar_password=true).
+/// Al terminar cierra la sesión y devuelve al login con el aviso de éxito.
 class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
 
@@ -56,26 +56,27 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     });
     final auth = ref.read(authProvider);
     // El candado tiene que ponerse ANTES de updatePassword: en cuanto el perfil
-    // deja de exigir el cambio, el redirect abandona esta ruta y se llevaría el
-    // sheet de biometría a medias.
+    // deja de exigir el cambio, el redirect abandona esta ruta y el cierre de
+    // sesión quedaría a medias.
     auth.authFlowInProgress = true;
     try {
       await auth.updatePassword(_pwd.text);
       // Pide guardar la contrasena nueva. Sin esto el gestor se queda con la
       // temporal, que ya no sirve para entrar.
       TextInput.finishAutofillContext();
-      // Recién ahora se ofrece la huella: la credencial ya es la definitiva.
-      // Aplica igual a cliente y a administrador.
-      if (mounted) await offerBiometricSetup(context, auth);
+      // Se CIERRA la sesión a propósito: la contraseña temporal la conoce quien
+      // la mandó por correo, así que la sesión que abrió con ella no se hereda.
+      // El usuario vuelve a entrar con la definitiva y ahí (login_form) recibe
+      // la oferta de biometría, ya atada a la credencial buena.
+      await auth.signOut();
+      ref.read(passwordChangedProvider.notifier).state = true;
       auth.authFlowInProgress = false;
-      // Se conserva la sesión a propósito: no hay signOut tras el cambio.
-      // A /inicio para los dos: el router manda al administrador a
-      // /seleccionar-cliente por su permiso de rol.
-      if (mounted) context.go('/inicio');
-    } catch (_) {
+      if (mounted) context.go('/login');
+    } catch (e) {
       auth.authFlowInProgress = false;
+      if (!mounted) return;
       setState(() {
-        _formError = 'No pudimos actualizar la contraseña. Intenta de nuevo.';
+        _formError = AuthController.changePasswordErrorMessage(e);
         _submitting = false;
       });
     }

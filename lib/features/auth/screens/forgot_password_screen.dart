@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_brand_image.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
 import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
@@ -23,6 +24,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _email = TextEditingController();
   bool _submitting = false;
   bool _sent = false;
+  String? _formError;
 
   @override
   void dispose() {
@@ -40,11 +42,24 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _formError = null;
+    });
     try {
       await ref.read(authProvider).resetPassword(_email.text);
-    } catch (_) {
-      // mismo mensaje neutro: no filtrar existencia de cuentas
+    } catch (e) {
+      // Solo llegan fallos REALES (red o servidor): el backend responde éxito
+      // genérico exista o no la cuenta, así que mostrarlos no filtra nada.
+      // Tragarlos era peor que el riesgo que evitaban: un SMTP caído se veía
+      // idéntico a un envío exitoso y el usuario esperaba un correo que nunca
+      // salió.
+      if (!mounted) return;
+      setState(() {
+        _formError = AuthController.resetPasswordErrorMessage(e);
+        _submitting = false;
+      });
+      return;
     }
     if (mounted) {
       setState(() {
@@ -80,6 +95,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_formError != null) ...[
+              AuthAlert(
+                kind: AuthAlertKind.error,
+                icon: Icons.error_outline,
+                message: _formError!,
+              ),
+              SizedBox(height: t.space.md),
+            ],
             STextField(
               controller: _email,
               label: 'Correo electrónico',
@@ -135,7 +158,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       SizedBox(height: t.space.sm),
       const AuthSubtitle(
         'Si existe una cuenta activa con ese correo, te enviamos un enlace '
-        'para restablecer tu contraseña.',
+        'para confirmar tu identidad.',
       ),
       SizedBox(height: t.space.md),
       Container(
@@ -155,8 +178,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             Expanded(
               child: Text(
                 'Abre el enlace desde tu bandeja de entrada (revisa también la '
-                'carpeta de spam) para verificar tu identidad y definir una '
-                'nueva contraseña. El enlace es de un solo uso.',
+                'carpeta de spam). Al confirmarlo recibirás un segundo correo '
+                'con tu contraseña temporal: entra con ella y la app te pedirá '
+                'definir la definitiva. El enlace es de un solo uso.',
                 style: t.text.body.copyWith(color: c.infoFg, height: 1.35),
               ),
             ),

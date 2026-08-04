@@ -98,6 +98,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     ref.read(inactivityLogoutProvider.notifier).state = false;
+    ref.read(passwordChangedProvider.notifier).state = false;
     setState(() {
       _isSubmitting = true;
       _formError = null;
@@ -149,7 +150,8 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       }
       // Con contraseña temporal pendiente NO se ofrece la biometría: enrolar
       // ahí ataría la huella a una credencial que el usuario esta por cambiar.
-      // La oferta la hace ChangePasswordScreen al terminar el cambio.
+      // El cambio cierra la sesión, así que la oferta llega en el login
+      // siguiente, ya con la contraseña definitiva.
       if (profile!.requiresPasswordChange) {
         auth.authFlowInProgress = false;
         if (!mounted) return;
@@ -199,6 +201,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   Future<void> _signInWithBiometrics({bool silentOnFailure = false}) async {
     if (_isBiometricRunning || _isSubmitting) return;
     ref.read(inactivityLogoutProvider.notifier).state = false;
+    ref.read(passwordChangedProvider.notifier).state = false;
     setState(() {
       _isBiometricRunning = true;
       _formError = null;
@@ -291,6 +294,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   Widget build(BuildContext context) {
     final t = context.s;
     final loggedOutByInactivity = ref.watch(inactivityLogoutProvider);
+    final passwordJustChanged = ref.watch(passwordChangedProvider);
     final isSplit = context.bp.isDesktop;
 
     // No quitar: sin AutofillGroup, `autofillHints` en los campos no alcanza y
@@ -307,6 +311,17 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             const AuthSubtitle('Entra a tu portal para seguir tu inversión.'),
 
             SizedBox(height: t.space.lg),
+
+            if (passwordJustChanged) ...[
+              const AuthAlert(
+                kind: AuthAlertKind.success,
+                icon: Icons.check_circle_outline,
+                message:
+                    'Contraseña actualizada. Inicia sesión de nuevo con tu '
+                    'nueva contraseña para entrar.',
+              ),
+              SizedBox(height: t.space.md),
+            ],
 
             if (loggedOutByInactivity) ...[
               const AuthAlert(
