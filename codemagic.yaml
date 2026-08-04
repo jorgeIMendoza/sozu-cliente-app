@@ -47,7 +47,7 @@ definitions:
       esac
       NEXT=$((LATEST + 1))
       echo "ANDROID_BUILD_NUMBER=$NEXT" >> $CM_ENV
-      echo "Último versionCode en Play: $LATEST — se publicará como: $NEXT"
+      echo "Último versionCode en Play: $LATEST · se publicará como: $NEXT"
 
   # Aviso por WhatsApp al terminar (exito o fallo). El telefono lo inyecta el
   # dashboard como WA_PHONE al lanzar el build; sin el, el paso no hace nada.
@@ -120,14 +120,13 @@ workflows:
       - build/app/outputs/flutter-apk/*.apk
       - build/app/outputs/bundle/release/*.aab
     # Solo construye. La publicación a Google Play vive en `android-publish`.
-
-  # Construye el .aab Y lo publica en Google Play (track internal).
-  # Requiere el service account de Play Console configurado en Codemagic
-  # (env var GCLOUD_SERVICE_ACCOUNT_CREDENTIALS); sin él, el build falla.
     publishing:
       scripts:
         - *wa_notify
 
+  # Construye el .aab Y lo publica en Google Play (track internal).
+  # Requiere el service account de Play Console configurado en Codemagic
+  # (env var GCLOUD_SERVICE_ACCOUNT_CREDENTIALS); sin él, el build falla.
   android-publish:
     name: Android → Play Store (internal)
     max_build_duration: 45
@@ -208,12 +207,11 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
     # Solo construye. El envío a TestFlight vive en `ios-publish`.
-
-  # Construye el .ipa Y lo envía a TestFlight.
     publishing:
       scripts:
         - *wa_notify
 
+  # Construye el .ipa Y lo envía a TestFlight.
   ios-publish:
     name: iOS → TestFlight
     max_build_duration: 60
@@ -279,14 +277,14 @@ workflows:
             --release-type AFTER_APPROVAL \
             --whats-new "$RELEASE_NOTES"
 
-  # Promueve el release del track internal a production en Google Play.
-  # Requiere RELEASE_NOTES (trazabilidad; Play Console toma las notas del
-  # release - editarlas ahí si se requiere ajustar) y el service account
-  # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS configurado en Codemagic.
     publishing:
       scripts:
         - *wa_notify
 
+  # Promueve el release del track internal a production en Google Play.
+  # Requiere RELEASE_NOTES (trazabilidad; Play Console toma las notas del
+  # release - editarlas ahí si se requiere ajustar) y el service account
+  # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS configurado en Codemagic.
   android-production:
     name: Android → Play Store (producción)
     max_build_duration: 15
@@ -331,6 +329,9 @@ workflows:
             --source-track internal \
             --target-track production \
             --credentials "@env:GCLOUD_SERVICE_ACCOUNT_CREDENTIALS"
+    publishing:
+      scripts:
+        - *wa_notify
 
   # ---------------------------------------------------------------------------
   # Flujo SIMPLE (un solo clic): construye y publica DIRECTO a la tienda, sin
@@ -341,10 +342,6 @@ workflows:
 
   # Construye el .aab y lo sube directo al track `production` de Google Play.
   # Play lo manda a revisión automáticamente.
-    publishing:
-      scripts:
-        - *wa_notify
-
   android-store:
     name: Android → Play Store (directo)
     max_build_duration: 45
