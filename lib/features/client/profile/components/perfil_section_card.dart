@@ -1,0 +1,556 @@
+import 'package:flutter/material.dart';
+
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
+
+/// Acción de una tarjeta de sección del perfil.
+class PerfilCardAction {
+  final String label;
+  final VoidCallback onTap;
+
+  /// secondary = outline; primary = verde sólido; danger = rojo claro.
+  final PerfilActionStyle style;
+  final IconData? icon;
+
+  const PerfilCardAction({
+    required this.label,
+    required this.onTap,
+    this.style = PerfilActionStyle.primary,
+    this.icon,
+  });
+}
+
+enum PerfilActionStyle { primary, secondary, danger }
+
+/// Fila label → valor ("Sin dato" en cursiva si viene vacío).
+class PerfilInfoRow extends StatelessWidget {
+  final String label;
+  final String? value;
+  final bool mono;
+  final bool isLast;
+  final String? note;
+
+  const PerfilInfoRow({
+    super.key,
+    required this.label,
+    required this.value,
+    this.mono = false,
+    this.isLast = false,
+    this.note,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.s.color;
+    final hasValue = value != null && value!.trim().isNotEmpty;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : Border(
+                bottom: BorderSide(color: tone.border.withValues(alpha: 0.6)),
+              ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: tone.fgMuted,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  hasValue ? value! : 'Sin dato',
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    fontStyle: hasValue ? FontStyle.normal : FontStyle.italic,
+                    fontFamily: hasValue && mono ? 'monospace' : null,
+                    color: hasValue ? tone.fg : tone.fgSubtle,
+                  ),
+                ),
+                if (note != null)
+                  Text(
+                    note!,
+                    style: TextStyle(fontSize: 10.5, color: tone.fgSubtle),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tarjeta de sección: header con icono + semáforo, filas y CTAs.
+class PerfilSectionCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String statusLabel;
+  final bool statusOk;
+  final List<Widget> rows;
+  final List<PerfilCardAction> actions;
+
+  const PerfilSectionCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.statusLabel,
+    required this.statusOk,
+    required this.rows,
+    required this.actions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isPortalMode(context)) return _buildPortal(context);
+    final tone = context.s.color;
+    final statusColor = statusOk ? tone.positive : tone.fgSubtle;
+    return SCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: tone.primarySoft,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 18, color: tone.primaryHover),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: tone.fg,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 12, color: tone.fgSubtle),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: statusOk ? tone.positive : tone.border,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    statusLabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...rows,
+          const SizedBox(height: 14),
+          for (var i = 0; i < actions.length; i++) ...[
+            if (i > 0) const SizedBox(height: 7),
+            _actionButton(context, actions[i]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Variante portal: tipografía del portal y CTAs full-width.
+  Widget _buildPortal(BuildContext context) {
+    return SCard(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: PortalColors.primarySoft10,
+                  borderRadius: BorderRadius.circular(kPortalRadiusSm),
+                ),
+                child: Icon(icon, size: 17, color: PortalColors.primary),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: portalText(size: 15, weight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: portalText(
+                        size: 12,
+                        color: PortalColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: statusOk
+                            ? PortalColors.primary
+                            : const Color(0xFFD1D5DB),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      statusLabel,
+                      style: portalText(
+                        size: 11,
+                        weight: FontWeight.w600,
+                        color: statusOk
+                            ? PortalColors.primary
+                            : PortalColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...rows,
+          const SizedBox(height: 14),
+          for (var i = 0; i < actions.length; i++) ...[
+            if (i > 0) const SizedBox(height: 7),
+            PortalBlockButton(
+              label: actions[i].label,
+              icon: actions[i].icon,
+              onPressed: actions[i].onTap,
+              style: switch (actions[i].style) {
+                PerfilActionStyle.primary => PortalBlockButtonStyle.primary,
+                PerfilActionStyle.secondary => PortalBlockButtonStyle.secondary,
+                PerfilActionStyle.danger => PortalBlockButtonStyle.danger,
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton(BuildContext context, PerfilCardAction a) {
+    final tone = context.s.color;
+    switch (a.style) {
+      case PerfilActionStyle.primary:
+        return FilledButton(
+          onPressed: a.onTap,
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(44),
+            textStyle: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          child: Text(a.label),
+        );
+      case PerfilActionStyle.secondary:
+        return OutlinedButton(
+          onPressed: a.onTap,
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(44),
+            foregroundColor: tone.fg,
+            side: BorderSide(color: tone.border),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          child: Text(a.label),
+        );
+      case PerfilActionStyle.danger:
+        return OutlinedButton.icon(
+          onPressed: a.onTap,
+          icon: a.icon != null
+              ? Icon(a.icon, size: 15, color: tone.danger)
+              : const SizedBox.shrink(),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(44),
+            foregroundColor: tone.danger,
+            backgroundColor: tone.danger.withValues(alpha: 0.05),
+            side: BorderSide(color: tone.danger.withValues(alpha: 0.3)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          label: Text(a.label),
+        );
+    }
+  }
+}
+
+/// Estado del chip de una fila "Secciones de tu perfil".
+enum PerfilPillEstado { completo, enProceso, pendiente }
+
+/// Fila de "Secciones de tu perfil": nombre, descripción, chip de estatus
+/// opcional y chevron. En modo portal usa la paleta del portal; en móvil,
+/// colores theme-aware.
+class PerfilSectionRow extends StatelessWidget {
+  final String title;
+  final String description;
+
+  /// null = sin chip (p. ej. "Seguridad").
+  final PerfilPillEstado? estado;
+  final VoidCallback onTap;
+
+  const PerfilSectionRow({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.onTap,
+    this.estado,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final portal = isPortalMode(context);
+    final tone = context.s.color;
+
+    final Color bg = portal ? PortalColors.surface : tone.surface;
+    final Color border = portal ? const Color(0xFFECEEF0) : tone.border;
+    final Color titleColor = portal ? const Color(0xFF171A1D) : tone.fg;
+    final Color descColor = portal ? const Color(0xFF9AA3AD) : tone.fgSubtle;
+
+    final Widget titleWidget = Text(
+      title,
+      style: portal
+          ? portalText(size: 13.5, weight: FontWeight.w700, color: titleColor)
+          : TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: titleColor,
+            ),
+    );
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(portal ? kPortalRadiusMd : 12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(portal ? kPortalRadiusMd : 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          decoration: BoxDecoration(
+            border: Border.all(color: border),
+            borderRadius: BorderRadius.circular(portal ? kPortalRadiusMd : 12),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        titleWidget,
+                        if (estado != null) _pill(portal, tone, estado!),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: portal
+                          ? portalText(
+                              size: 11.5,
+                              weight: FontWeight.w500,
+                              color: descColor,
+                            )
+                          : TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: descColor,
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: portal ? const Color(0xFF9AA3AD) : tone.fgSubtle,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pill(bool portal, SozuColorRoles tone, PerfilPillEstado e) {
+    final (String label, Color fg, Color bg) = switch (e) {
+      PerfilPillEstado.completo => (
+        'Completado',
+        portal ? PortalColors.primary : tone.primaryHover,
+        portal ? const Color(0xFFE8F5EE) : tone.primarySoft,
+      ),
+      PerfilPillEstado.enProceso => (
+        'En proceso',
+        portal ? const Color(0xFFB5730A) : SozuAmber.strong,
+        portal ? const Color(0xFFFBEFD9) : tone.warningSoft,
+      ),
+      PerfilPillEstado.pendiente => (
+        'Pendiente',
+        portal ? const Color(0xFF6B7280) : tone.fgMuted,
+        portal ? const Color(0xFFF2F4F5) : tone.surfaceAlt,
+      ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: fg),
+      ),
+    );
+  }
+}
+
+/// Banner ámbar "Perfil casi completo / Completa tu perfil" con CTA.
+class PerfilBannerCompletar extends StatelessWidget {
+  final int perfilCompletado;
+  final VoidCallback onCompletar;
+
+  const PerfilBannerCompletar({
+    super.key,
+    required this.perfilCompletado,
+    required this.onCompletar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.s.color;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: tone.warningSoft,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: SozuAmber.base.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(Icons.error_outline, size: 15, color: SozuAmber.strong),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  perfilCompletado < 50
+                      ? 'Completa tu perfil para continuar'
+                      : 'Perfil casi completo',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: SozuAmber.strong,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Sube tus documentos y llena tus datos personales y fiscales.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: SozuAmber.strong.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          OutlinedButton(
+            onPressed: onCompletar,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: SozuAmber.strong,
+              side: BorderSide(color: SozuAmber.base.withValues(alpha: 0.5)),
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            child: const Text('Completar'),
+          ),
+        ],
+      ),
+    );
+  }
+}

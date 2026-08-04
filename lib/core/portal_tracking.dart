@@ -5,8 +5,10 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'ua/ua_stub.dart' if (dart.library.js_interop) 'ua/ua_web.dart';
-import 'version.dart';
+// ignore: always_use_package_imports -- import condicional: la resolucion por plataforma exige ruta relativa.
+import 'user_agent/user_agent_stub.dart'
+    if (dart.library.js_interop) 'user_agent/user_agent_web.dart';
+import 'package:sozu_cliente_app/core/version.dart';
 
 /// Mediciones de uso ("Uso por portal" en Alta Dirección): registra la sesión
 /// del cliente en portal_sesiones (portal `clientes`) vía los mismos RPCs
@@ -51,7 +53,9 @@ class PortalTracking {
     if (id == null) return;
     try {
       await _sb.rpc('touch_portal_session', params: {'p_session_id': id});
-    } catch (_) {/* siguiente heartbeat reintenta */}
+    } catch (_) {
+      /* siguiente heartbeat reintenta */
+    }
   }
 
   /// Cierra la sesión de medición. Llamar ANTES de signOut (necesita JWT).
@@ -63,7 +67,9 @@ class PortalTracking {
     if (id == null) return;
     try {
       await _sb.rpc('close_portal_session', params: {'p_session_id': id});
-    } catch (_) {/* la sesión expira sola por inactividad */}
+    } catch (_) {
+      /* la sesión expira sola por inactividad */
+    }
   }
 
   /// UA para clasificar en las donas: real en web; sintético (pero con los
@@ -85,7 +91,9 @@ class PortalTracking {
             '${i.systemVersion.replaceAll('.', '_')} like Mac OS X) '
             'Mobile SozuClienteApp/$appVersionBase (${i.utsname.machine})';
       }
-    } catch (_) {/* fallback genérico */}
+    } catch (_) {
+      /* fallback genérico */
+    }
     return 'SozuClienteApp/$appVersionBase Mobile';
   }
 }

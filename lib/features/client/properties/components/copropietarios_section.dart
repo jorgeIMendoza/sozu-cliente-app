@@ -1,0 +1,174 @@
+import 'package:flutter/material.dart';
+
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
+
+/// Sección "Copropietarios" del detalle de propiedad, con el porcentaje de cada
+/// uno. Con un único dueño devuelve un widget vacío.
+class CopropietariosSection extends StatelessWidget {
+  final List<Copropietario> copropietarios;
+
+  /// true en modo portal web (≥1024): el label uppercase va DENTRO de la card;
+  /// en móvil va fuera, como encabezado de sección.
+  final bool portal;
+
+  const CopropietariosSection({
+    super.key,
+    required this.copropietarios,
+    this.portal = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (copropietarios.length < 2) return const SizedBox.shrink();
+    final tone = context.s.color;
+    if (portal) {
+      return SCard(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.group_outlined,
+                  size: 14,
+                  color: PortalColors.mutedForeground,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SSectionLabel(
+                    text: 'Copropietarios · ${copropietarios.length}',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            for (var i = 0; i < copropietarios.length; i++) ...[
+              if (i > 0) const Divider(height: 24, color: PortalColors.border),
+              if (i == 0) const SizedBox(height: 12),
+              _CopropietarioRow(c: copropietarios[i]),
+            ],
+          ],
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SSectionLabel.heading(
+          icon: Icons.group_outlined,
+          text: 'Copropietarios · ${copropietarios.length}',
+        ),
+        SCard(
+          child: Column(
+            children: [
+              for (var i = 0; i < copropietarios.length; i++) ...[
+                if (i > 0) Divider(height: 24, color: tone.border),
+                _CopropietarioRow(c: copropietarios[i]),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CopropietarioRow extends StatelessWidget {
+  final Copropietario c;
+
+  const _CopropietarioRow({required this.c});
+
+  /// Iniciales del nombre (primeras letras de las dos primeras palabras),
+  /// mismo criterio que el backend (`iniciales` de _shared/cliente.ts).
+  String get _iniciales {
+    final parts = c.nombre
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    final ini =
+        (parts.isNotEmpty ? parts[0][0] : '') +
+        (parts.length > 1 ? parts[1][0] : '');
+    return ini.isEmpty ? '?' : ini.toUpperCase();
+  }
+
+  /// Porcentaje sin ceros de sobra: 50 → "50%", 33.33 → "33.33%".
+  String get _porcentaje {
+    var s = c.porcentaje.toStringAsFixed(2);
+    s = s.replaceFirst(RegExp(r'\.?0+$'), '');
+    return '$s%';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.s.color;
+    final email = c.email;
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: tone.primarySoft,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            _iniciales,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: SozuBrand.green600,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                c.nombre,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: tone.fg,
+                ),
+              ),
+              if (email != null && email.trim().isNotEmpty)
+                Text(
+                  email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: tone.fgMuted),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              _porcentaje,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: tone.fg,
+              ),
+            ),
+            Text(
+              'copropiedad',
+              style: TextStyle(fontSize: 10, color: tone.fgSubtle),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}

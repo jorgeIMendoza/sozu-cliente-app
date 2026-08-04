@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../core/version.dart';
-import '../data/models.dart';
-import '../providers/data_providers.dart';
+import 'package:sozu_cliente_app/core/version.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 
 /// "Version gate" de la app NATIVA (Android/iOS): aviso o forzado de
 /// actualización según lo que entregue la edge function `cliente-app-version`.
@@ -32,13 +32,13 @@ class VersionGate extends ConsumerWidget {
     if (info == null) return child; // loading o error => sin gate
 
     final min = info.minVersion;
-    final mustForce = info.forceUpdate ||
+    final mustForce =
+        info.forceUpdate ||
         (min != null && compareSemver(appVersionBase, min) < 0);
     if (mustForce) return _ForcedUpdateScreen(info: info);
 
     final latest = info.latestVersion;
-    final suggest =
-        latest != null && compareSemver(appVersionBase, latest) < 0;
+    final suggest = latest != null && compareSemver(appVersionBase, latest) < 0;
     if (suggest) return _SoftUpdateBanner(info: info, child: child);
 
     return child;
