@@ -220,7 +220,7 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
   late final _rfc = TextEditingController(text: widget.perfil.rfc ?? '');
   late final _curp = TextEditingController(text: widget.perfil.curp ?? '');
   late final _tel = TextEditingController(text: widget.perfil.telefono ?? '');
-  late String _clavePais = widget.perfil.clavePaisTelefono ?? '+52';
+  late String _clavePais = _ladaValida(widget.perfil.clavePaisTelefono);
   // Ocupación: valor del catálogo, o modo "Otro" con texto libre.
   late String? _ocupacion = _esOcupacionOtro(widget.perfil.ocupacion)
       ? null
@@ -240,6 +240,25 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
     ('+54', '🇦🇷'),
     ('+56', '🇨🇱'),
   ];
+
+  /// ISO del pais a lada, para los registros que guardaron "MX" en vez de "+52".
+  static const _isoALada = <String, String>{
+    'MX': '+52',
+    'US': '+1',
+    'ES': '+34',
+    'CO': '+57',
+    'AR': '+54',
+    'CL': '+56',
+  };
+
+  /// El valor del desplegable SIEMPRE tiene que existir en `_claves`: si no,
+  /// Flutter revienta con "There should be exactly one item with
+  /// DropdownButton's value". El backend devuelve ISO en algunos registros.
+  static String _ladaValida(String? guardado) {
+    if (guardado == null || guardado.isEmpty) return '+52';
+    if (_claves.any((c) => c.$1 == guardado)) return guardado;
+    return _isoALada[guardado.toUpperCase()] ?? '+52';
+  }
 
   @override
   void dispose() {
