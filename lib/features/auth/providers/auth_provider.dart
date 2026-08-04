@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sozu_cliente_app/core/portal_tracking.dart';
@@ -51,7 +52,23 @@ class AuthController extends ChangeNotifier {
 
   bool get isLoading => !_authReady || !_profileReady;
   bool get mustChangePassword => profile?.requiresPasswordChange ?? false;
-  bool get isClient => profile?.roleName == 'Cliente';
+
+  /// Id del rol de usuario final (Cliente), configurable por ambiente vía el
+  /// env `CLIENTE_ROL_ID` (dev/prod distintos). Si no está definido, el gate
+  /// cae al nombre "Cliente" (transición) para no romper el acceso.
+  static final int? clientRoleId = dotenv.isInitialized
+      ? int.tryParse(dotenv.env['CLIENTE_ROL_ID'] ?? '')
+      : null;
+
+  /// ¿El perfil es un usuario final de la app (rol Cliente)? Por `roleId`; con
+  /// fallback al nombre normalizado si `CLIENTE_ROL_ID` no está configurado.
+  static bool isClientRole(UserProfile? p) {
+    if (p == null) return false;
+    if (clientRoleId != null) return p.roleId == clientRoleId;
+    return (p.roleName ?? '').trim().toLowerCase() == 'cliente';
+  }
+
+  bool get isClient => isClientRole(profile);
 
   /// Acceso administrador del app: por permiso del rol (no por nombre).
   bool get isSuperAdmin => profile?.canManageClientApp ?? false;

@@ -32,6 +32,9 @@ class AuthAdapter implements AuthPort {
         displayName: row['nombre'] as String?,
         email: row['email'] as String?,
         roleName: row['rol_nombre'] as String?,
+        roleId: row['rol_id'] is int
+            ? row['rol_id'] as int
+            : int.tryParse('${row['rol_id']}'),
         personId: row['id_persona'] is int
             ? row['id_persona'] as int
             : int.tryParse('${row['id_persona']}'),

@@ -24,6 +24,10 @@ class UserProfile {
   final String? displayName;
   final String? email;
   final String? roleName;
+
+  /// Id del rol (`roles.id`). Gate del acceso de cliente: se compara contra
+  /// [AuthController.clientRoleId] (estable, no depende del nombre del rol).
+  final int? roleId;
   final int? personId;
 
   /// Flag de contrasena temporal (`debe_cambiar_password`): fuerza el cambio
@@ -39,6 +43,7 @@ class UserProfile {
     this.displayName,
     this.email,
     this.roleName,
+    this.roleId,
     this.personId,
     this.requiresPasswordChange = false,
     this.canManageClientApp = false,

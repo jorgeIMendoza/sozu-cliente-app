@@ -172,7 +172,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       // Acceso administrador: por permiso del rol, no por el nombre del rol.
       final isAdminAccess =
           _isAdminMode && (profile?.canManageClientApp ?? false);
-      if (profile?.roleName != 'Cliente' && !isAdminAccess) {
+      if (!AuthController.isClientRole(profile) && !isAdminAccess) {
         // Rol no permitido en este acceso (incluye admin sin modo admin):
         // mensaje genérico para no revelar cuentas existentes.
         await auth.signOut();
@@ -285,7 +285,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     }
     try {
       final profile = await auth.refreshProfile();
-      if (profile?.roleName != 'Cliente') {
+      if (!AuthController.isClientRole(profile)) {
         // Enrolamiento viejo de una cuenta no-cliente: se apaga aquí. Dejarlo
         // activo daría acceso a la consola de administración con solo la huella
         // del teléfono.
