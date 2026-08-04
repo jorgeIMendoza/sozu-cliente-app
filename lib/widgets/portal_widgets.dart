@@ -31,25 +31,8 @@ TextStyle portalText({
     letterSpacing: letterSpacing,
     height: height,
     fontFamily: mono ? 'monospace' : null,
-    fontFamilyFallback: mono ? null : kPortalFontFallback,
     fontFeatures: tabular ? const [FontFeature.tabularFigures()] : null,
   );
-}
-
-/// Expone el estado hover para replicar los `hover:` de Tailwind.
-///
-/// Ya no detecta nada por su cuenta: delega en [SHoverBuilder], que dentro de un
-/// [SPressable] reusa el hover de la superficie en lugar de montar un
-/// `MouseRegion` paralelo. Existe SOLO para no tocar de golpe los sitios de uso
-/// que todavía la nombran; su API pública se conserva idéntica.
-@Deprecated('Usar SPressable de lib/ui/primitives/.')
-class PortalHoverBuilder extends StatelessWidget {
-  final Widget Function(BuildContext context, bool hovered) builder;
-
-  const PortalHoverBuilder({super.key, required this.builder});
-
-  @override
-  Widget build(BuildContext context) => SHoverBuilder(builder: builder);
 }
 
 /// Card del portal: blanca, radio 24 (`rounded-2xl`), borde 1px #E5E7EB,
@@ -122,7 +105,7 @@ class PortalPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) {
         final Color bg = active ? PortalColors.primary : PortalColors.surface;
         final Color fg = active ? Colors.white : PortalColors.mutedForeground;
@@ -229,7 +212,7 @@ class PortalIconBtn extends StatelessWidget {
     final enabled = onTap != null && !loading;
     return Tooltip(
       message: tooltip,
-      child: PortalHoverBuilder(
+      child: SHoverBuilder(
         builder: (context, hovered) {
           final Color fg = !enabled
               ? PortalColors.mutedForeground.withValues(alpha: .25)
@@ -287,7 +270,7 @@ class PortalPrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null && !loading;
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) {
         return GestureDetector(
           onTap: enabled ? onPressed : null,
@@ -363,7 +346,7 @@ class PortalOutlineButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) {
         return GestureDetector(
           onTap: onPressed,
@@ -446,7 +429,7 @@ class PortalInfoRow extends StatelessWidget {
         ),
         if (onCopy != null) ...[
           const SizedBox(width: 6),
-          PortalHoverBuilder(
+          SHoverBuilder(
             builder: (context, hovered) => GestureDetector(
               onTap: onCopy,
               behavior: HitTestBehavior.opaque,
@@ -588,7 +571,7 @@ class PortalDashedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) => GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -909,7 +892,7 @@ class PortalBlockButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PortalHoverBuilder(
+    return SHoverBuilder(
       builder: (context, hovered) {
         final (Color bg, Color fg, Color? border) = switch (style) {
           PortalBlockButtonStyle.primary => (
@@ -1030,65 +1013,6 @@ Color portalPropiedadDotColor(String? etapaActiva) {
   }
 }
 
-/// Expone hover y "pressed" para replicar `hover:` + `active:scale` del portal.
-///
-/// Ya no implementa la detección: delega en [SPressable.detector], que es la
-/// misma máquina de estados que usa la superficie interactiva del design system.
-/// Existe SOLO para no tocar de golpe los sitios de uso que todavía la nombran;
-/// su API pública se conserva idéntica.
-///
-/// Al migrar un sitio de uso NO se traduce uno a uno: el patrón viejo
-/// (`builder` + `GestureDetector` propio dentro) es justo el que deja la fila
-/// inalcanzable con teclado. Lo que corresponde es
-/// `SPressable(onTap: ..., hoverLift: true, child: ...)` y borrar de la card el
-/// `transform` de press y el `boxShadow` de hover, que ahora los pone la
-/// primitiva.
-@Deprecated('Usar SPressable de lib/ui/primitives/.')
-class PortalPressable extends StatelessWidget {
-  final Widget Function(BuildContext context, bool hovered, bool pressed)
-  builder;
-
-  const PortalPressable({super.key, required this.builder});
-
-  @override
-  Widget build(BuildContext context) => SPressable.detector(builder: builder);
-}
-
-/// Bloque de carga del portal.
-///
-/// Ya no implementa el pulso de opacidad: delega en [SSkeleton], el placeholder
-/// global del design system, así que el portal y el móvil vuelven a cargar con la
-/// misma animación. Existe SOLO para no tocar de golpe los sitios de uso que
-/// todavía la nombran; su API pública se conserva idéntica (`width`, `height`,
-/// `radius`, `circle`). Al migrar un archivo, cambiar `PortalSkeletonBox(...)`
-/// por `SSkeleton(...)`.
-@Deprecated('Usar SSkeleton de lib/ui/primitives/.')
-class PortalSkeletonBox extends StatelessWidget {
-  final double? width;
-  final double? height;
-  final double radius;
-  final bool circle;
-
-  const PortalSkeletonBox({
-    super.key,
-    this.width,
-    this.height,
-    this.radius = 8,
-    this.circle = false,
-  });
-
-  @override
-  Widget build(BuildContext context) => SSkeleton(
-    width: width,
-    // La API vieja acepta `height: null` (medir por el padre), que en la nueva no
-    // existe: un placeholder sin alto propio colapsa a cero dentro de una Column.
-    // Cae al alto por defecto del design system.
-    height: height ?? SSkeleton.defaultHeight,
-    shape: circle ? SSkeletonShape.circle : SSkeletonShape.box,
-    radius: radius,
-  );
-}
-
 /// Skeleton de una card de listado del portal (imagen 120×100 + títulos +
 /// métricas + footer): réplica de los SkeletonCard/CardSkeleton de
 /// ClientePatrimonio y ClienteEnAdquisicion.
@@ -1107,7 +1031,7 @@ class PortalCardSkeleton extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
-                PortalSkeletonBox(width: 120, height: 100, radius: 12),
+                SSkeleton(width: 120, height: 100, radius: 12),
                 SizedBox(width: 16),
                 Expanded(
                   child: Column(
@@ -1115,19 +1039,19 @@ class PortalCardSkeleton extends StatelessWidget {
                     children: [
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: PortalSkeletonBox(width: 170, height: 14),
+                        child: SSkeleton(width: 170, height: 14),
                       ),
                       SizedBox(height: 8),
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: PortalSkeletonBox(width: 110, height: 11),
+                        child: SSkeleton(width: 110, height: 11),
                       ),
                       SizedBox(height: 18),
                       Row(
                         children: [
-                          Expanded(child: PortalSkeletonBox(height: 32)),
+                          Expanded(child: SSkeleton(height: 32)),
                           SizedBox(width: 12),
-                          Expanded(child: PortalSkeletonBox(height: 32)),
+                          Expanded(child: SSkeleton(height: 32)),
                         ],
                       ),
                     ],
@@ -1143,9 +1067,9 @@ class PortalCardSkeleton extends StatelessWidget {
             ),
             child: Row(
               children: const [
-                PortalSkeletonBox(width: 84, height: 20, radius: 999),
+                SSkeleton(width: 84, height: 20, radius: 999),
                 SizedBox(width: 12),
-                PortalSkeletonBox(width: 120, height: 12),
+                SSkeleton(width: 120, height: 12),
               ],
             ),
           ),
@@ -1169,12 +1093,12 @@ class PortalKpiSkeleton extends StatelessWidget {
         children: const [
           Align(
             alignment: Alignment.centerLeft,
-            child: PortalSkeletonBox(width: 90, height: 10),
+            child: SSkeleton(width: 90, height: 10),
           ),
           SizedBox(height: 12),
           Align(
             alignment: Alignment.centerLeft,
-            child: PortalSkeletonBox(width: 120, height: 22),
+            child: SSkeleton(width: 120, height: 22),
           ),
         ],
       ),

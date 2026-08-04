@@ -5,8 +5,6 @@ import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 import 'package:sozu_cliente_app/ui/theme/theme_data.dart';
 import 'package:sozu_cliente_app/ui/tokens/color_roles.dart';
 import 'package:sozu_cliente_app/ui/tokens/radii.dart';
-import 'package:sozu_cliente_app/widgets/portal_widgets.dart'
-    show PortalSkeletonBox;
 
 /// Contrato de [SSkeleton].
 ///
@@ -284,57 +282,6 @@ void main() {
       await pump(tester, const SSkeleton(width: 120, height: 100, radius: 12));
 
       expect(decorationAt(tester).borderRadius, BorderRadius.circular(12));
-    });
-  });
-
-  group('delegación del legacy del portal', () {
-    testWidgets('PortalSkeletonBox conserva medidas y forma', (tester) async {
-      await pump(
-        tester,
-        const PortalSkeletonBox(width: 120, height: 100, radius: 12),
-      );
-
-      expect(
-        tester.getSize(find.byType(PortalSkeletonBox)),
-        const Size(120, 100),
-      );
-      expect(decorationAt(tester).borderRadius, BorderRadius.circular(12));
-    });
-
-    testWidgets('PortalSkeletonBox(circle: true) delega en la forma círculo', (
-      tester,
-    ) async {
-      await pump(
-        tester,
-        const PortalSkeletonBox(width: 36, height: 36, circle: true),
-      );
-
-      expect(decorationAt(tester).shape, BoxShape.circle);
-      expect(
-        tester.getSize(find.byType(PortalSkeletonBox)),
-        const Size(36, 36),
-      );
-    });
-
-    testWidgets('PortalSkeletonBox usa el mismo shimmer que SSkeleton', (
-      tester,
-    ) async {
-      await pump(
-        tester,
-        const Column(
-          children: [
-            SSkeleton(width: 100, height: 20),
-            PortalSkeletonBox(width: 100, height: 20),
-          ],
-        ),
-      );
-
-      // El punto de todo el ejercicio: móvil y portal cargan igual: mismos
-      // colores, mismos stops y el mismo punto del barrido.
-      expect(
-        decorationAt(tester, 0).gradient,
-        decorationAt(tester, 1).gradient,
-      );
     });
   });
 

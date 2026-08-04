@@ -8,7 +8,6 @@ import 'package:sozu_cliente_app/ui/theme/theme_data.dart';
 import 'package:sozu_cliente_app/ui/tokens/color_roles.dart';
 import 'package:sozu_cliente_app/ui/tokens/elevation.dart';
 import 'package:sozu_cliente_app/ui/tokens/motion.dart';
-import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 
 /// Monta el widget con los tokens del design system resueltos.
 ///
@@ -410,13 +409,13 @@ void main() {
     });
   });
 
-  group('legacy que delega', () {
-    testWidgets('PortalPressable conserva hover y press', (tester) async {
+  group('SPressable.detector', () {
+    testWidgets('expone hover y press al builder', (tester) async {
       bool? hovered;
       bool? pressed;
       await pump(
         tester,
-        PortalPressable(
+        SPressable.detector(
           builder: (context, h, p) {
             hovered = h;
             pressed = p;
@@ -433,7 +432,7 @@ void main() {
       expect(hovered, isFalse);
       expect(pressed, isFalse);
 
-      final target = find.byType(PortalPressable);
+      final target = find.byType(SPressable);
       final gesture = await hover(tester, on: target);
       await tester.pump();
       expect(hovered, isTrue);
@@ -446,46 +445,6 @@ void main() {
       await tester.pump();
       expect(pressed, isFalse);
       expect(hovered, isTrue);
-    });
-
-    testWidgets('PortalHoverBuilder conserva el hover', (tester) async {
-      bool? hovered;
-      await pump(
-        tester,
-        PortalHoverBuilder(
-          builder: (context, h) {
-            hovered = h;
-            return const SizedBox(height: 56, width: 320);
-          },
-        ),
-      );
-      expect(hovered, isFalse);
-
-      await hover(tester, on: find.byType(PortalHoverBuilder));
-      await tester.pumpAndSettle();
-      expect(hovered, isTrue);
-    });
-
-    testWidgets('los dos legacy delegan en las primitivas nuevas', (
-      tester,
-    ) async {
-      await pump(
-        tester,
-        Column(
-          children: [
-            PortalPressable(
-              builder: (context, h, p) => const SizedBox(height: 20),
-            ),
-            PortalHoverBuilder(
-              builder: (context, h) => const SizedBox(height: 20),
-            ),
-          ],
-        ),
-      );
-
-      // No hay dos implementaciones de hover en la app: los legacy son cáscaras.
-      expect(find.byType(SHoverBuilder), findsOneWidget);
-      expect(find.byType(SPressable), findsNWidgets(2));
     });
   });
 }

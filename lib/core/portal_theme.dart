@@ -125,19 +125,6 @@ const double kPortalRadiusCard = 24; // rounded-2xl
 // Tipografía
 // ---------------------------------------------------------------------------
 
-/// DEPRECADO y sin efecto: lista vacía.
-///
-/// Pedía fuentes del sistema (`-apple-system`, `Segoe UI`) como fallback, pero
-/// ninguno de sus 19 usos fija `fontFamily`, así que todos heredaban `Inter` del
-/// `ThemeData` y el fallback nunca se consultaba. Además en web CanvasKit
-/// rasteriza el texto él mismo y solo reconoce las familias declaradas en
-/// `pubspec.yaml`: pedir `Segoe UI` ahí es código muerto por diseño.
-///
-/// Se deja como lista vacía en vez de borrarse para no tocar 19 archivos en el
-/// mismo commit que los tokens. Efecto visual: ninguno.
-@Deprecated('Sin efecto. Borrar el parámetro fontFamilyFallback en la llamada.')
-const List<String> kPortalFontFallback = <String>[];
-
 // ---------------------------------------------------------------------------
 // Helper de modo
 // ---------------------------------------------------------------------------
