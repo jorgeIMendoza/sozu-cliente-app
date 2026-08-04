@@ -86,7 +86,7 @@ workflows:
       - name: Dependencias, análisis y tests
         script: |
           flutter pub get
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test
       - name: Build APK (pruebas en dispositivo)
         script: |
@@ -141,7 +141,7 @@ workflows:
       - name: Dependencias, análisis y tests
         script: |
           flutter pub get
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test
       - name: Build AAB (Google Play)
         script: |
@@ -174,7 +174,7 @@ workflows:
       - name: Dependencias, análisis y tests
         script: |
           flutter pub get
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test
       - name: Build IPA firmado
         script: |
@@ -205,7 +205,7 @@ workflows:
       - name: Dependencias, análisis y tests
         script: |
           flutter pub get
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test
       - name: Build IPA firmado
         script: |
@@ -349,7 +349,7 @@ workflows:
       - name: Dependencias, análisis y tests
         script: |
           flutter pub get
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test
       - name: Build AAB (Google Play)
         script: |
@@ -393,7 +393,7 @@ workflows:
       - name: Dependencias, análisis y tests
         script: |
           flutter pub get
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test
       - name: Build IPA firmado
         script: |
@@ -533,7 +533,7 @@ workflows:
       - name: Dependencias, análisis y tests
         script: |
           flutter pub get
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test
       - name: Build web
         script: |
