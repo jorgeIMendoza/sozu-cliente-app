@@ -80,7 +80,10 @@ step "flutter analyze"
 # que una subida se note.
 ANALYZE_OUT="$(mktemp)"
 if flutter analyze --no-fatal-infos >"$ANALYZE_OUT" 2>&1; then
-  INFOS="$(grep -c ' info • ' "$ANALYZE_OUT" || true)"
+  # `^ *info` y no ' info • ': solo las lineas de info van indentadas, las de
+  # error y warning arrancan en la columna 0. Un patron con espacio inicial las
+  # pierde en silencio.
+  INFOS="$(grep -cE '^ *info • ' "$ANALYZE_OUT" || true)"
   if [ "$INFOS" -gt 0 ]; then
     ok "sin errores ni warnings ($INFOS infos: deuda PortalColors)"
   else
