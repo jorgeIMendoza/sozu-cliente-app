@@ -1,0 +1,650 @@
+import 'package:flutter/material.dart';
+
+import 'package:sozu_cliente_app/core/format.dart';
+import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
+
+/// Cronograma de pagos del detalle de propiedad: tarjeta colapsable con la
+/// tabla CONCEPTO | MONTO | ESTATUS y filas expandibles con los pagos
+/// aplicados a cada concepto y su CEP.
+class CronogramaPagos extends StatefulWidget {
+  final List<EsquemaPagoItem> esquemaPago;
+
+  /// true en modo portal web (≥1024): la card va sin el margen superior de la
+  /// vista móvil y el título usa el label de sección del design system.
+  final bool portal;
+
+  const CronogramaPagos({
+    super.key,
+    required this.esquemaPago,
+    this.portal = false,
+  });
+
+  @override
+  State<CronogramaPagos> createState() => _CronogramaPagosState();
+}
+
+/// Estatus visual de una fila (pagado por
+/// pago_completado, parcial si hay abonos, pendiente en otro caso).
+enum _EstadoFila { pagado, parcial, pendiente }
+
+/// Filas visibles antes del "Ver N más".
+const _limiteFilas = 5;
+
+/// Ancho mínimo para el layout de tabla con columnas.
+const _anchoTabla = 520.0;
+
+/// Columna ESTATUS. Tiene que caber el chip más largo ("Pendiente") sin
+/// recortarlo: con menos, el `SBadge` desborda su celda.
+const _anchoEstatus = 112.0;
+
+class _CronogramaPagosState extends State<CronogramaPagos> {
+  bool _seccionAbierta = true;
+  bool _verTodos = false;
+  final Set<int> _filasAbiertas = {};
+
+  _EstadoFila _estado(EsquemaPagoItem e) {
+    if (e.pagoCompletado) return _EstadoFila.pagado;
+    if (e.pagado > 0.01) return _EstadoFila.parcial;
+    return _EstadoFila.pendiente;
+  }
+
+  /// Rango de la etapa del plan de pagos por concepto (mayor = más arriba):
+  /// escrituración > parcialidad > enganche > apartado. Es el criterio
+  /// principal de orden y el respaldo cuando el backend no manda `orden`.
+  int _rangoConcepto(EsquemaPagoItem e) {
+    final c = e.concepto.toLowerCase();
+    if (c.contains('escritur') || c.contains('contra')) return 500;
+    if (c.contains('parcialidad') || c.contains('mensualidad')) return 300;
+    if (c.contains('enganche')) return 200;
+    if (c.contains('apartado')) return 100;
+    return 250; // concepto desconocido: entre enganche y parcialidad.
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.s.color;
+
+    // Orden por etapa del plan de pagos, DESCENDENTE por concepto (como el
+    // "deal"): Pago a escrituración/contraentrega arriba, luego parcialidades
+    // (la de número mayor primero), enganche y apartado hasta abajo.
+    // Se prioriza el rango por concepto para garantizar esa jerarquía; dentro
+    // de un mismo concepto se usa `orden` del backend descendente (parcialidad
+    // mayor arriba) y, como último desempate, la fecha más reciente.
+    final filas = [...widget.esquemaPago]
+      ..sort((a, b) {
+        final ra = _rangoConcepto(a);
+        final rb = _rangoConcepto(b);
+        if (ra != rb) return rb.compareTo(ra);
+        final oa = a.orden ?? -1;
+        final ob = b.orden ?? -1;
+        if (oa != ob) return ob.compareTo(oa);
+        return (b.fechaPago ?? '').compareTo(a.fechaPago ?? '');
+      });
+    final pagados = filas.where((e) => e.pagoCompletado).length;
+    final visibles = _verTodos ? filas : filas.take(_limiteFilas).toList();
+
+    final contenido = LayoutBuilder(
+      builder: (context, constraints) {
+        final ancha = constraints.maxWidth >= _anchoTabla;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _encabezado(tone, filas.length, pagados),
+            if (_seccionAbierta) ...[
+              const SizedBox(height: 12),
+              if (filas.isEmpty)
+                _vacio(tone)
+              else ...[
+                if (ancha) _encabezadoTabla(tone),
+                for (final e in visibles) _fila(tone, e, ancha),
+                if (filas.length > _limiteFilas)
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => setState(() => _verTodos = !_verTodos),
+                      icon: Icon(
+                        _verTodos ? Icons.expand_less : Icons.expand_more,
+                        size: 18,
+                        color: tone.primaryHover,
+                      ),
+                      label: Text(
+                        _verTodos
+                            ? 'Mostrar menos'
+                            : 'Ver ${filas.length - _limiteFilas} más',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: tone.primaryHover,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ],
+          ],
+        );
+      },
+    );
+
+    if (widget.portal) {
+      return SCard(padding: const EdgeInsets.all(20), child: contenido);
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: SCard(child: contenido),
+    );
+  }
+
+  /// Encabezado de la tarjeta: título + contador "N/M pagados" + chevron.
+  /// Tocarlo colapsa/expande toda la sección.
+  Widget _encabezado(SozuColorRoles tone, int total, int pagados) {
+    return InkWell(
+      onTap: () => setState(() => _seccionAbierta = !_seccionAbierta),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_month_outlined,
+              size: 16,
+              color: widget.portal
+                  ? PortalColors.mutedForeground
+                  : SozuBrand.green600,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: widget.portal
+                  ? const Align(
+                      alignment: Alignment.centerLeft,
+                      child: SSectionLabel(text: 'Cronograma de pagos'),
+                    )
+                  : Text(
+                      'CRONOGRAMA DE PAGOS',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: tone.fgMuted,
+                      ),
+                    ),
+            ),
+            if (total > 0) ...[
+              Text(
+                '$pagados/$total pagados',
+                style: TextStyle(fontSize: 12, color: tone.fgSubtle),
+              ),
+              const SizedBox(width: 4),
+            ],
+            // El chevron recorre media vuelta: es la única cosa de la fila que
+            // de verdad se desplaza, así que va con `emphasized`. Su frenado
+            // largo es lo que hace que la punta se sienta con masa en lugar de
+            // girar como la aguja de un reloj de pared.
+            AnimatedRotation(
+              turns: _seccionAbierta ? 0.5 : 0,
+              duration: context.s.motion.normal,
+              curve: context.s.motion.emphasized,
+              child: Icon(Icons.expand_more, size: 20, color: tone.fgSubtle),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _vacio(SozuColorRoles tone) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.calendar_today_outlined, size: 32, color: tone.fgSubtle),
+            const SizedBox(height: 8),
+            Text(
+              'Sin plan de pagos',
+              style: TextStyle(fontSize: 14, color: tone.fgMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Fila de encabezado de la tabla (solo layout ancho).
+  Widget _encabezadoTabla(SozuColorRoles tone) {
+    final estilo = TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.8,
+      color: tone.fgSubtle,
+    );
+    return Container(
+      padding: const EdgeInsets.only(left: 8, right: 8, bottom: 6),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: tone.border)),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: Text('CONCEPTO', style: estilo)),
+          SizedBox(
+            width: 150,
+            child: Text('MONTO', textAlign: TextAlign.right, style: estilo),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: _anchoEstatus,
+            child: Text('ESTATUS', textAlign: TextAlign.right, style: estilo),
+          ),
+          const SizedBox(width: 28),
+        ],
+      ),
+    );
+  }
+
+  /// Fila de un concepto del plan; expandible cuando tiene pagos aplicados.
+  Widget _fila(SozuColorRoles tone, EsquemaPagoItem e, bool ancha) {
+    final estado = _estado(e);
+    final abierta = _filasAbiertas.contains(e.id);
+    final expandible = e.aplicaciones.isNotEmpty;
+
+    // Las filas no pagadas van resaltadas en ámbar claro.
+    final resaltada = estado != _EstadoFila.pagado;
+
+    final contenido = ancha
+        ? _filaAncha(tone, e, estado, expandible, abierta)
+        : _filaAngosta(tone, e, estado, expandible, abierta);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: resaltada
+          ? BoxDecoration(
+              color: tone.warningSoft.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: SozuAmber.base.withValues(alpha: 0.25)),
+            )
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Toda la fila alterna el desglose (además del chevron).
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: expandible ? () => _alternarFila(e.id) : null,
+            child: contenido,
+          ),
+          if (expandible && abierta) _pagosAplicados(tone, e),
+        ],
+      ),
+    );
+  }
+
+  void _alternarFila(int id) => setState(() {
+    _filasAbiertas.contains(id)
+        ? _filasAbiertas.remove(id)
+        : _filasAbiertas.add(id);
+  });
+
+  /// Layout ancho: columnas CONCEPTO | MONTO | ESTATUS | chevron.
+  Widget _filaAncha(
+    SozuColorRoles tone,
+    EsquemaPagoItem e,
+    _EstadoFila estado,
+    bool expandible,
+    bool abierta,
+  ) {
+    return Row(
+      children: [
+        Expanded(child: _concepto(tone, e, estado, conIcono: false)),
+        SizedBox(
+          width: 150,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _monto(tone, e, estado, derecha: true),
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: _anchoEstatus,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _chipEstado(estado),
+          ),
+        ),
+        SizedBox(width: 28, child: expandible ? _chevron(tone, abierta) : null),
+      ],
+    );
+  }
+
+  /// Layout angosto: el monto va debajo del concepto (sin overflow).
+  Widget _filaAngosta(
+    SozuColorRoles tone,
+    EsquemaPagoItem e,
+    _EstadoFila estado,
+    bool expandible,
+    bool abierta,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _iconoEstado(tone, estado),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _concepto(tone, e, estado, conIcono: true),
+              const SizedBox(height: 6),
+              _monto(tone, e, estado, derecha: false),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _chipEstado(estado),
+            if (expandible) ...[
+              const SizedBox(height: 6),
+              _chevron(tone, abierta),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Nombre del concepto + badge "N pagos" + fecha.
+  Widget _concepto(
+    SozuColorRoles tone,
+    EsquemaPagoItem e,
+    _EstadoFila estado, {
+    required bool conIcono,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              e.concepto,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: tone.fg,
+              ),
+            ),
+            if (e.aplicaciones.length > 1)
+              _badgePagos(tone, e.aplicaciones.length),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          _fechaCorta(e.fechaPago),
+          style: TextStyle(fontSize: 11, color: tone.fgMuted),
+        ),
+      ],
+    );
+  }
+
+  /// Badge "N pagos" (concepto compuesto por varias dispersiones).
+  Widget _badgePagos(SozuColorRoles tone, int n) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: tone.primarySoft,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.layers_outlined, size: 11, color: tone.primaryHover),
+          const SizedBox(width: 3),
+          Text(
+            '$n pagos',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: tone.primaryHover,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Monto según estatus: parcial muestra abonado, "de $total" y
+  /// "Faltan $saldo"; pagado muestra lo aplicado (o lo planeado).
+  Widget _monto(
+    SozuColorRoles tone,
+    EsquemaPagoItem e,
+    _EstadoFila estado, {
+    required bool derecha,
+  }) {
+    final alineacion = derecha
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
+    final estiloMonto = TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w700,
+      color: tone.fg,
+    );
+    if (estado == _EstadoFila.parcial) {
+      return Column(
+        crossAxisAlignment: alineacion,
+        children: [
+          Text(formatMXN(e.pagado), style: estiloMonto),
+          Text(
+            'de ${formatMXN(e.monto)}',
+            style: TextStyle(fontSize: 11, color: tone.fgSubtle),
+          ),
+          Text(
+            'Faltan ${formatMXN(e.saldo)}',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: tone.danger,
+            ),
+          ),
+        ],
+      );
+    }
+    final monto = estado == _EstadoFila.pagado && e.pagado > 0.01
+        ? e.pagado
+        : e.monto;
+    return Text(formatMXN(monto), style: estiloMonto);
+  }
+
+  Widget _chipEstado(_EstadoFila estado) {
+    return switch (estado) {
+      _EstadoFila.pagado => const SBadge(
+        label: 'Pagado',
+        tone: SBadgeTone.positive,
+      ),
+      _EstadoFila.parcial => const SBadge(
+        label: 'Parcial',
+        tone: SBadgeTone.pending,
+      ),
+      _EstadoFila.pendiente => const SBadge(
+        label: 'Pendiente',
+        tone: SBadgeTone.pending,
+      ),
+    };
+  }
+
+  Widget _iconoEstado(SozuColorRoles tone, _EstadoFila estado) {
+    final (icono, bg, fg) = switch (estado) {
+      _EstadoFila.pagado => (
+        Icons.check_circle_outline,
+        tone.primarySoft,
+        tone.primaryHover,
+      ),
+      _EstadoFila.parcial => (
+        Icons.layers_outlined,
+        tone.warningSoft,
+        SozuAmber.strong,
+      ),
+      _EstadoFila.pendiente => (
+        Icons.calendar_today_outlined,
+        tone.warningSoft,
+        SozuAmber.strong,
+      ),
+    };
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: Icon(icono, size: 15, color: fg),
+    );
+  }
+
+  Widget _chevron(SozuColorRoles tone, bool abierta) {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(color: tone.surfaceAlt, shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: Icon(
+        abierta ? Icons.expand_less : Icons.expand_more,
+        size: 16,
+        color: tone.fgSubtle,
+      ),
+    );
+  }
+
+  /// Desglose "N PAGOS APLICADOS A `<CONCEPTO>`" de una fila expandida.
+  Widget _pagosAplicados(SozuColorRoles tone, EsquemaPagoItem e) {
+    final apps = [...e.aplicaciones]
+      ..sort((a, b) => (a.fecha ?? '').compareTo(b.fecha ?? ''));
+    final n = apps.length;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$n ${n == 1 ? 'PAGO APLICADO' : 'PAGOS APLICADOS'} '
+            'A ${e.concepto.toUpperCase()}',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8,
+              color: tone.fgSubtle,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final a in apps) _pagoAplicado(tone, a),
+        ],
+      ),
+    );
+  }
+
+  /// Sub-fila de un pago aplicado: método · monto, fecha · clave de rastreo,
+  /// y botón para ver el CEP (o el comprobante si no hay CEP), igual que el
+  /// portal (cepUrl ?? evidenceUrl → visor de documento).
+  Widget _pagoAplicado(SozuColorRoles tone, AplicacionPago a) {
+    final esCep = (a.urlCep ?? '').isNotEmpty;
+    final url = esCep
+        ? a.urlCep
+        : ((a.urlRecibo ?? '').isNotEmpty ? a.urlRecibo : null);
+    final clave = (a.claveRastreo ?? '').trim();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(left: 10, top: 2, bottom: 2),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: SozuBrand.green500.withValues(alpha: 0.3),
+            width: 2,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${a.metodo ?? 'Pago'} · ${formatMXN(a.monto)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: tone.fg,
+                  ),
+                ),
+                Text(
+                  '${_fechaCorta(a.fecha)}'
+                  '${clave.isNotEmpty ? ' · Clave $clave' : ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: tone.fgMuted),
+                ),
+              ],
+            ),
+          ),
+          if (url != null) ...[
+            const SizedBox(width: 8),
+            Tooltip(
+              message: esCep ? 'Ver CEP electrónico' : 'Ver comprobante',
+              child: InkWell(
+                onTap: () => openMedia(
+                  context,
+                  url,
+                  titulo: esCep ? 'CEP' : 'Comprobante',
+                ),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: tone.surfaceAlt,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.receipt_long_outlined,
+                    size: 16,
+                    color: tone.primaryHover,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Fecha corta estilo portal: "20 may 2026" ──
+
+const _mesesCortos = [
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
+];
+
+String _fechaCorta(String? iso) {
+  if (iso == null || iso.isEmpty) return '-';
+  final d = DateTime.tryParse(iso);
+  if (d == null) return '-';
+  return '${d.day} ${_mesesCortos[d.month - 1]} ${d.year}';
+}

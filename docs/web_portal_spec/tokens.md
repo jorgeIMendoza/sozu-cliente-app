@@ -1,4 +1,4 @@
-# Design tokens — Portal del Cliente (web React)
+# Design tokens - Portal del Cliente (web React)
 
 > Fuente de verdad: `admin-sozu/sozu-admin` (verificado idéntico a `origin/dev` el 2026-07-17).
 > El layout raíz del portal cliente lleva la clase **`.inmob-portal`**
@@ -7,6 +7,13 @@
 > **los tokens efectivos son los del bloque `.inmob-portal` de `src/index.css` (líneas 584-646)**,
 > no los de `:root`. Donde `.inmob-portal` no define una variable (p.ej. `--border-soft`),
 > aplica el valor de `:root`.
+
+> **Divergencia deliberada (2026-07-28):** el verde primario de la app Flutter
+> ya no se toma de esta tabla. Se unificó en `lib/core/brand.dart`
+> (`SozuBrand.green = #239F71`, hsl 158 64% 38%) para que el login, el tema
+> móvil y el modo portal compartan un solo verde en web, Android e iOS. La
+> diferencia con `#239F6D` es imperceptible; si el CSS del admin cambia de
+> verde, sincronizar `brand.dart`, no las clases de color sueltas.
 
 ## 1. Paleta (valores efectivos dentro del portal cliente)
 
@@ -30,7 +37,7 @@
 | inmob-green-light / sidebar-accent | index.css:623/639 | `156 64% 93%` | #E2F9EF | Verde claro de marca (definido; el estado activo real usa primary al 6%) |
 | inmob-text-muted | `--inmob-text-muted` (index.css:642) | `220 9% 64%` | #9BA1AB | Texto terciario en utilidades inmob |
 
-### 1.1 Colores derivados por opacidad (muy usados — Tailwind `color/NN`)
+### 1.1 Colores derivados por opacidad (muy usados - Tailwind `color/NN`)
 
 El portal casi nunca usa tonos sólidos claros: usa el color base con alpha sobre blanco.
 Equivalentes ya "aplanados" sobre `#FFFFFF`:
@@ -51,8 +58,8 @@ Equivalentes ya "aplanados" sobre `#FFFFFF`:
 | `bg-muted/30` | rgba(243,244,246,.30) | #FBFCFC | Fondo del selector "Ver como", header de popover |
 | `bg-muted/20` | rgba(243,244,246,.20) | #FCFDFD | Header de card Movimientos, hover de fila de tabla |
 | `bg-muted/10` | rgba(243,244,246,.10) | #FDFEFE | Fondo de thead y de fila expandida |
-| `text-muted-foreground/70` | rgba(107,114,128,.70) | — | Placeholder e icono del buscador |
-| `text-muted-foreground/40` | rgba(107,114,128,.40) | — | Versión de la app en footer del sidebar |
+| `text-muted-foreground/70` | rgba(107,114,128,.70) | - | Placeholder e icono del buscador |
+| `text-muted-foreground/40` | rgba(107,114,128,.40) | - | Versión de la app en footer del sidebar |
 
 ## 2. Tipografía
 
@@ -101,7 +108,7 @@ En la práctica `font-display` ≈ `font-sans` (misma fuente del SO: SF en macOS
 
 ## 4. Sombras
 
-Las cards del estado de cuenta **no llevan sombra** — solo `border 1px #E5E7EB` sobre fondo #F9FAFB.
+Las cards del estado de cuenta **no llevan sombra** - solo `border 1px #E5E7EB` sobre fondo #F9FAFB.
 
 | Uso | Valor exacto | Fuente |
 |---|---|---|

@@ -4,10 +4,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
-import '../data/api_client.dart';
-import '../firebase_options.dart';
+import 'package:sozu_cliente_app/firebase_options.dart';
+import 'package:sozu_cliente_app/shared/ports/push_port.dart';
 
-/// Push (FCM) — solo móvil. Web queda fuera: ahí vive la campana in-app.
+/// Push (FCM) - solo móvil. Web queda fuera: ahí vive la campana in-app.
 ///
 /// Tolerante a falta de configuración: si `firebase_options.dart` sigue siendo
 /// el placeholder (o Firebase falla por cualquier motivo), el servicio queda
@@ -60,7 +60,8 @@ class PushService {
 
   /// Pide permiso, obtiene el token FCM y lo registra en el backend.
   /// Llamar cuando hay sesión de un Cliente real (no admin, no web).
-  static Future<void> registrarDispositivo() async {
+  /// El puerto llega por parámetro: esta clase es estática y no lee providers.
+  static Future<void> registrarDispositivo(PushPort push) async {
     if (_tokenRegistrado) return;
     if (!await _ensureFirebase()) return;
     try {
@@ -76,7 +77,7 @@ class PushService {
         estado.value = 'Error: FCM no entregó token';
         return;
       }
-      await registrarPushToken(token, _plataforma());
+      await push.registerToken(token: token, platform: _plataforma());
       _ultimoToken = token;
       _tokenRegistrado = true;
       estado.value = sinPermiso
@@ -85,9 +86,11 @@ class PushService {
 
       fcm.onTokenRefresh.listen((nuevo) async {
         try {
-          await registrarPushToken(nuevo, _plataforma());
+          await push.registerToken(token: nuevo, platform: _plataforma());
           _ultimoToken = nuevo;
-        } catch (_) {/* reintenta en el próximo arranque */}
+        } catch (_) {
+          /* reintenta en el próximo arranque */
+        }
       });
     } catch (e) {
       estado.value = 'Error al registrar: $e';
@@ -106,13 +109,15 @@ class PushService {
 
   /// Baja explícita del token (no se usa en el logout; disponible para un
   /// futuro ajuste "dejar de recibir en este dispositivo").
-  static Future<void> desactivarDispositivo() async {
+  static Future<void> desactivarDispositivo(PushPort push) async {
     final token = _ultimoToken;
     _tokenRegistrado = false;
     if (token == null) return;
     try {
-      await eliminarPushToken(token);
-    } catch (_) {/* best-effort */}
+      await push.unregisterToken(token);
+    } catch (_) {
+      /* best-effort */
+    }
   }
 
   /// Mensajes con la app abierta (FCM no muestra notificación del sistema

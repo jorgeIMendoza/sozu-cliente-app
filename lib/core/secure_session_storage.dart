@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Almacenamiento de la sesión de Supabase en secure storage
 /// (Keychain iOS / Keystore Android; en web cae a storage cifrado del
-/// navegador — limitación de plataforma).
+/// navegador - limitación de plataforma).
 ///
 /// supabase_flutter usa SharedPreferences por defecto: NO cumple la regla de
 /// seguridad SOZU (tokens SIEMPRE en secure storage). Este adapter la cumple.

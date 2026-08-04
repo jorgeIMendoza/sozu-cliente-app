@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../core/portal_tracking.dart';
-import '../core/push_service.dart';
-import '../providers/auth_provider.dart';
-import '../providers/data_providers.dart';
-import '../router.dart';
+import 'package:sozu_cliente_app/core/portal_tracking.dart';
+import 'package:sozu_cliente_app/core/push_service.dart';
+import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
+import 'package:sozu_cliente_app/router.dart';
+import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 
 /// Con sesión de un Cliente real:
 /// - Móvil: registra el dispositivo para push (FCM) y conecta sus handlers
@@ -35,11 +36,11 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
   Timer? _pollTimer;
 
   Future<void> _registrar() async {
-    await PushService.registrarDispositivo();
+    await PushService.registrarDispositivo(ref.read(pushPortProvider));
     if (_handlersListos || !mounted) return;
     _handlersListos = true;
     PushService.onForegroundMessage((_) {
-      ref.invalidate(clienteNotificacionesProvider);
+      ref.invalidate(notificationsProvider);
     });
     await PushService.onNotificationTap((_) {
       // push (no go): apila sobre la pantalla actual para que exista
@@ -69,12 +70,14 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
         ),
         callback: (payload) {
           debugPrint('[realtime] notificación nueva: ${payload.newRecord}');
-          if (mounted) ref.invalidate(clienteNotificacionesProvider);
+          if (mounted) ref.invalidate(notificationsProvider);
         },
       );
       canal.subscribe((status, error) {
-        debugPrint('[realtime] canal notificaciones: $status'
-            '${error != null ? ' · $error' : ''} (email=$email)');
+        debugPrint(
+          '[realtime] canal notificaciones: $status'
+          '${error != null ? ' · $error' : ''} (email=$email)',
+        );
       });
       _canalNotif = canal;
       _emailSuscrito = email;
@@ -91,7 +94,7 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
   void _sincronizarPolling({required bool activo}) {
     if (activo && _pollTimer == null) {
       _pollTimer = Timer.periodic(_pollIntervalo, (_) {
-        if (mounted) ref.invalidate(clienteNotificacionesProvider);
+        if (mounted) ref.invalidate(notificationsProvider);
       });
     } else if (!activo && _pollTimer != null) {
       _pollTimer!.cancel();
@@ -109,8 +112,8 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    final esClienteConSesion = auth.session != null && auth.isCliente;
-    final email = (auth.profile?.email ?? auth.session?.user.email)
+    final esClienteConSesion = auth.session != null && auth.isClient;
+    final email = (auth.profile?.email ?? auth.session?.email)
         ?.trim()
         .toLowerCase();
     WidgetsBinding.instance.addPostFrameCallback((_) {

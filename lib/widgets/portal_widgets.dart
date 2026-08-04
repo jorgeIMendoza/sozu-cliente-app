@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../core/portal_theme.dart';
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+// Import directo del archivo y no del barrel `ui/ui.dart`: el export vive en ese
+// barrel, pero este archivo solo necesita las primitivas.
+import 'package:sozu_cliente_app/ui/primitives/s_pressable.dart';
+import 'package:sozu_cliente_app/ui/primitives/s_skeleton.dart';
+import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 
 /// Widgets base del "modo portal" web (réplica del Portal del Cliente de
 /// sozu-admin). Reutilizables entre pantallas: cards, pills de filtro, chips
@@ -32,26 +37,19 @@ TextStyle portalText({
 }
 
 /// Expone el estado hover para replicar los `hover:` de Tailwind.
-class PortalHoverBuilder extends StatefulWidget {
+///
+/// Ya no detecta nada por su cuenta: delega en [SHoverBuilder], que dentro de un
+/// [SPressable] reusa el hover de la superficie en lugar de montar un
+/// `MouseRegion` paralelo. Existe SOLO para no tocar de golpe los sitios de uso
+/// que todavía la nombran; su API pública se conserva idéntica.
+@Deprecated('Usar SPressable de lib/ui/primitives/.')
+class PortalHoverBuilder extends StatelessWidget {
   final Widget Function(BuildContext context, bool hovered) builder;
 
   const PortalHoverBuilder({super.key, required this.builder});
 
   @override
-  State<PortalHoverBuilder> createState() => _PortalHoverBuilderState();
-}
-
-class _PortalHoverBuilderState extends State<PortalHoverBuilder> {
-  bool _hover = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: widget.builder(context, _hover),
-    );
-  }
+  Widget build(BuildContext context) => SHoverBuilder(builder: builder);
 }
 
 /// Card del portal: blanca, radio 24 (`rounded-2xl`), borde 1px #E5E7EB,
@@ -137,7 +135,11 @@ class PortalPill extends StatelessWidget {
           onTap: onTap,
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
+            duration: context.s.motion.fast,
+            // La pastilla no se mueve ni cambia de tamaño: solo fondo, texto y
+            // borde. `standard` sale acelerada y frena, que es lo que hace que
+            // el color parezca responder al puntero y no parpadear.
+            curve: context.s.motion.standard,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: bg,
@@ -291,7 +293,12 @@ class PortalPrimaryButton extends StatelessWidget {
           onTap: enabled ? onPressed : null,
           behavior: HitTestBehavior.opaque,
           child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 120),
+            duration: context.s.motion.fast,
+            // `standard` y no `enter`/`exit`: el botón no aparece ni se va, se
+            // atenúa a 0.6 y vuelve. Es un cambio de estado bidireccional en el
+            // sitio, y una curva de entrada aplicada también al regreso haría
+            // que atenuar y recuperar se sintieran distintos sin motivo.
+            curve: context.s.motion.standard,
             opacity: loading ? 0.6 : 1,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -515,7 +522,11 @@ class PortalPageHeader extends StatelessWidget {
       children: [
         Text(
           title,
-          style: portalText(size: 26, weight: FontWeight.w700, letterSpacing: -0.65),
+          style: portalText(
+            size: 26,
+            weight: FontWeight.w700,
+            letterSpacing: -0.65,
+          ),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 4),
@@ -569,7 +580,11 @@ class PortalDashedButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const PortalDashedButton({super.key, required this.label, required this.onTap});
+  const PortalDashedButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -583,7 +598,9 @@ class PortalDashedButton extends StatelessWidget {
             kPortalRadiusLg,
           ),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
+            duration: context.s.motion.fast,
+            // Solo se tiñe el fondo dentro del marco punteado, que es fijo.
+            curve: context.s.motion.standard,
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
               color: hovered ? PortalColors.primarySoft6 : Colors.transparent,
@@ -633,7 +650,10 @@ class PortalEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: const _DashedRRectPainter(PortalColors.border, kPortalRadiusCard),
+      painter: const _DashedRRectPainter(
+        PortalColors.border,
+        kPortalRadiusCard,
+      ),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(40),
@@ -661,7 +681,10 @@ class PortalEmptyState extends StatelessWidget {
               child: Text(
                 message,
                 textAlign: TextAlign.center,
-                style: portalText(size: 13, color: PortalColors.mutedForeground),
+                style: portalText(
+                  size: 13,
+                  color: PortalColors.mutedForeground,
+                ),
               ),
             ),
           ],
@@ -742,9 +765,10 @@ class PortalCardGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, c) {
-        final cols = ((c.maxWidth + gap) / (minItemWidth + gap))
-            .floor()
-            .clamp(1, maxCols);
+        final cols = ((c.maxWidth + gap) / (minItemWidth + gap)).floor().clamp(
+          1,
+          maxCols,
+        );
         final itemW = (c.maxWidth - gap * (cols - 1)) / cols;
         return Wrap(
           spacing: gap,
@@ -908,7 +932,9 @@ class PortalBlockButton extends StatelessWidget {
           onTap: onPressed,
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
+            duration: context.s.motion.fast,
+            // Fondo y borde del hover, con la caja quieta.
+            curve: context.s.motion.standard,
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
               color: bg,
@@ -924,7 +950,11 @@ class PortalBlockButton extends StatelessWidget {
                 ],
                 Text(
                   label,
-                  style: portalText(size: 13, weight: FontWeight.w700, color: fg),
+                  style: portalText(
+                    size: 13,
+                    weight: FontWeight.w700,
+                    color: fg,
+                  ),
                 ),
               ],
             ),
@@ -955,14 +985,14 @@ const List<String> _kPortalMesesCortos = [
   'dic',
 ];
 
-/// Fecha corta es-MX como el portal: "15 jul 2026" ('—' si no parsea).
+/// Fecha corta es-MX como el portal: "15 jul 2026" ('-' si no parsea).
 String portalShortDate(String? fecha) {
   final d = DateTime.tryParse(fecha ?? '');
-  if (d == null) return '—';
+  if (d == null) return '-';
   return '${d.day} ${_kPortalMesesCortos[d.month - 1]} ${d.year}';
 }
 
-/// Colores (fondo, texto) del chip de estatus de propiedad — statusStyles del
+/// Colores (fondo, texto) del chip de estatus de propiedad - statusStyles del
 /// portal (statusTone): vencido/demanda en rojo (destructive), pendiente en
 /// ámbar (warning), resto en verde (primary).
 (Color, Color) portalEstatusStyle(String estatus) {
@@ -980,7 +1010,7 @@ String portalShortDate(String? fecha) {
   return (PortalColors.primarySoft15, PortalColors.primary);
 }
 
-/// Color del punto de estatus de la card de propiedad — getPropertyStatus del
+/// Color del punto de estatus de la card de propiedad - getPropertyStatus del
 /// portal (4 estados por etapa activa): `pago_final` en ámbar; preventa,
 /// escrituración, entrega, post-entrega (éxito) y default en verde primario.
 /// La paleta del portal no tiene un token `success` distinto, así que éxito
@@ -1001,43 +1031,39 @@ Color portalPropiedadDotColor(String? etapaActiva) {
 }
 
 /// Expone hover y "pressed" para replicar `hover:` + `active:scale` del portal.
-/// Aditivo: no reemplaza a [PortalHoverBuilder] (que sigue usándose donde no
-/// hace falta el estado de presión).
-class PortalPressable extends StatefulWidget {
+///
+/// Ya no implementa la detección: delega en [SPressable.detector], que es la
+/// misma máquina de estados que usa la superficie interactiva del design system.
+/// Existe SOLO para no tocar de golpe los sitios de uso que todavía la nombran;
+/// su API pública se conserva idéntica.
+///
+/// Al migrar un sitio de uso NO se traduce uno a uno: el patrón viejo
+/// (`builder` + `GestureDetector` propio dentro) es justo el que deja la fila
+/// inalcanzable con teclado. Lo que corresponde es
+/// `SPressable(onTap: ..., hoverLift: true, child: ...)` y borrar de la card el
+/// `transform` de press y el `boxShadow` de hover, que ahora los pone la
+/// primitiva.
+@Deprecated('Usar SPressable de lib/ui/primitives/.')
+class PortalPressable extends StatelessWidget {
   final Widget Function(BuildContext context, bool hovered, bool pressed)
-      builder;
+  builder;
 
   const PortalPressable({super.key, required this.builder});
 
   @override
-  State<PortalPressable> createState() => _PortalPressableState();
+  Widget build(BuildContext context) => SPressable.detector(builder: builder);
 }
 
-class _PortalPressableState extends State<PortalPressable> {
-  bool _hover = false;
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() {
-        _hover = false;
-        _pressed = false;
-      }),
-      child: Listener(
-        onPointerDown: (_) => setState(() => _pressed = true),
-        onPointerUp: (_) => setState(() => _pressed = false),
-        onPointerCancel: (_) => setState(() => _pressed = false),
-        child: widget.builder(context, _hover, _pressed),
-      ),
-    );
-  }
-}
-
-/// Bloque de carga del portal con pulso de opacidad (equivalente a
-/// `animate-pulse` de Tailwind): caja `bg-muted` que late entre 45% y 100%.
-class PortalSkeletonBox extends StatefulWidget {
+/// Bloque de carga del portal.
+///
+/// Ya no implementa el pulso de opacidad: delega en [SSkeleton], el placeholder
+/// global del design system, así que el portal y el móvil vuelven a cargar con la
+/// misma animación. Existe SOLO para no tocar de golpe los sitios de uso que
+/// todavía la nombran; su API pública se conserva idéntica (`width`, `height`,
+/// `radius`, `circle`). Al migrar un archivo, cambiar `PortalSkeletonBox(...)`
+/// por `SSkeleton(...)`.
+@Deprecated('Usar SSkeleton de lib/ui/primitives/.')
+class PortalSkeletonBox extends StatelessWidget {
   final double? width;
   final double? height;
   final double radius;
@@ -1052,40 +1078,15 @@ class PortalSkeletonBox extends StatefulWidget {
   });
 
   @override
-  State<PortalSkeletonBox> createState() => _PortalSkeletonBoxState();
-}
-
-class _PortalSkeletonBoxState extends State<PortalSkeletonBox>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1000),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: Tween<double>(begin: 0.45, end: 1).animate(
-        CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-      ),
-      child: Container(
-        width: widget.width,
-        height: widget.height,
-        decoration: BoxDecoration(
-          color: PortalColors.muted,
-          shape: widget.circle ? BoxShape.circle : BoxShape.rectangle,
-          borderRadius:
-              widget.circle ? null : BorderRadius.circular(widget.radius),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => SSkeleton(
+    width: width,
+    // La API vieja acepta `height: null` (medir por el padre), que en la nueva no
+    // existe: un placeholder sin alto propio colapsa a cero dentro de una Column.
+    // Cae al alto por defecto del design system.
+    height: height ?? SSkeleton.defaultHeight,
+    shape: circle ? SSkeletonShape.circle : SSkeletonShape.box,
+    radius: radius,
+  );
 }
 
 /// Skeleton de una card de listado del portal (imagen 120×100 + títulos +
@@ -1233,15 +1234,11 @@ class PortalSearchField extends StatelessWidget {
 /// Barra de progreso del portal (`h-2 bg-muted` + relleno verde): pista
 /// #F3F4F6 y relleno primary, redonda; [height] 8px por defecto.
 class PortalProgressBar extends StatelessWidget {
-  /// 0–100.
+  /// 0-100.
   final double percent;
   final double height;
 
-  const PortalProgressBar({
-    super.key,
-    required this.percent,
-    this.height = 8,
-  });
+  const PortalProgressBar({super.key, required this.percent, this.height = 8});
 
   @override
   Widget build(BuildContext context) {
@@ -1265,7 +1262,10 @@ class PortalProgressBar extends StatelessWidget {
 /// portal): "Pagado", "Entregado" y "En curso" en verde (primary/success),
 /// "Pendiente" en ámbar (warning). [small] = variante compacta del card resumen
 /// / tabs.
-PortalStatusChip portalProductoStatusChip(String estatus, {bool small = false}) {
+PortalStatusChip portalProductoStatusChip(
+  String estatus, {
+  bool small = false,
+}) {
   final e = estatus.toLowerCase();
   final (Color bg, Color fg, String label) = e.contains('pagado')
       ? (PortalColors.primarySoft15, PortalColors.primary, estatus)
@@ -1281,4 +1281,3 @@ PortalStatusChip portalProductoStatusChip(String estatus, {bool small = false}) 
     foreground: fg,
   );
 }
-

@@ -1,5 +1,5 @@
 name: sozu_cliente_app
-description: "SOZU — Portal del Cliente (Flutter multiplataforma)"
+description: "SOZU - Portal del Cliente (Flutter multiplataforma)"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -8,6 +8,10 @@ environment:
 
 dependencies:
   flutter:
+    sdk: flutter
+  # Solo web (import condicional en core/url_strategy.dart): quita el # de las
+  # URLs. Va del SDK, no añade peso a los builds de Android/iOS.
+  flutter_web_plugins:
     sdk: flutter
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.8.0
@@ -45,12 +49,10 @@ dev_dependencies:
   # y las siluetas blancas del ícono de notificación (ic_stat_sozu).
   image: ^4.5.4
 
-# Config de flutter_launcher_icons. Fuente: el ícono SOZU de la web (cuadro
-# negro con el pin blanco). NO se generan íconos web aquí (web ya está bien).
+# Config de flutter_launcher_icons. Ícono del launcher = wordmark "sozu" negro
+# sobre blanco, igual que el ícono de la ficha de Play Store. Fuente compuesta
+# por tool/gen_wordmark_icons (assets/sozu-logo-black.png centrado sobre blanco).
 flutter_launcher_icons:
-  # Ícono del launcher = wordmark "sozu" negro sobre blanco, igual que el ícono
-  # de la ficha de Play Store (cuadro blanco con "sozu"). Fuente compuesta por
-  # tool/gen_wordmark_icons (assets/sozu-logo-black.png centrado sobre blanco).
   image_path: "assets/icon/ic_launcher_store.png"
   android: "ic_launcher"
   ios: true
@@ -64,10 +66,47 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   assets:
-    # NOTA: no usar un archivo con punto inicial (.env) como asset — Flutter lo
+    # NOTA: no usar un archivo con punto inicial (.env) como asset - Flutter lo
     # excluye del AssetManifest en el build web release y dotenv falla (pantalla
     # blanca). Se usa assets/env (sin punto). El archivo está gitignored.
     - assets/env
     # Logo SOZU (negro) usado en el login/recuperar contraseña. Copia exacta del
     # asset del portal admin (src/assets/sozu-logo-black.png).
     - assets/sozu-logo-black.png
+    # Imagen del panel de marca del login (columna izquierda en desktop).
+    # 1403x1403; se recorta con BoxFit.cover.
+    - assets/images/bg-sozu.jpg
+
+  # Inter: tipografía de interfaz de la app entera (ver lib/core/theme.dart).
+  # Se eligió por ser lo más cercano al `system-ui` del navegador (Segoe UI en
+  # Windows, SF Pro en macOS/iOS, Roboto en Android) manteniendo el MISMO
+  # render en las tres plataformas - en web no se puede usar `system-ui` real
+  # porque CanvasKit rasteriza el texto él mismo y solo ve fuentes empaquetadas.
+  #
+  # Los .ttf están subseteados a latin + latin-ext + puntuación/símbolos
+  # (pyftsubset): 57 KB por peso en vez de 410 KB. Si hace falta otro alfabeto,
+  # regenerar ampliando el rango de unicodes, no sustituir por el TTF completo.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-ExtraBold.ttf
+          weight: 800
+    # Poppins: geométrica redondeada, solo para títulos y botones (ver
+    # lib/core/typography.dart). No se usa en texto corrido: a 12-13 px rinde
+    # peor que Inter. Solo se empaquetan los 3 pesos usados (16 KB c/u).
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Poppins-ExtraBold.ttf
+          weight: 800

@@ -5,20 +5,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'core/secure_session_storage.dart';
-import 'core/theme.dart';
-import 'providers/theme_provider.dart';
-import 'router.dart';
-import 'widgets/inactivity_watcher.dart';
-import 'widgets/preview_banner.dart';
-import 'widgets/push_registrar.dart';
-import 'widgets/version_gate.dart';
+import 'package:sozu_cliente_app/core/secure_session_storage.dart';
+import 'package:sozu_cliente_app/core/url_strategy.dart';
+import 'package:sozu_cliente_app/providers/theme_provider.dart';
+import 'package:sozu_cliente_app/router.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
+import 'package:sozu_cliente_app/features/auth/components/inactivity_watcher.dart';
+import 'package:sozu_cliente_app/widgets/preview_banner.dart';
+import 'package:sozu_cliente_app/widgets/push_registrar.dart';
+import 'package:sozu_cliente_app/widgets/version_gate.dart';
 
-/// SOZU — Portal del Cliente (Flutter).
+/// SOZU - Portal del Cliente (Flutter).
 /// Seguridad: SOLO anon key + JWT; sesión en secure storage; todo dato
 /// sensible vía Edge Functions (ver CLAUDE.md).
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // URLs limpias en web (/login, no /#/login). No-op en móvil.
+  usarUrlSinHash();
 
   // Edge-to-edge (Android 15 / SDK 35): dibuja detrás de las barras del
   // sistema y las transparenta para que se vean sobre la UI de SOZU. Flutter
@@ -69,16 +72,23 @@ class SozuApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'SOZU — Portal del Cliente',
+      title: 'SOZU - Portal del Cliente',
       debugShowCheckedModeBanner: false,
       theme: sozuLightTheme(),
       darkTheme: sozuDarkTheme(),
       themeMode: themeMode,
       routerConfig: router,
-      builder: (context, child) => VersionGate(
-        child: InactivityWatcher(
-          child: PushRegistrar(
-            child: PreviewBanner(child: child ?? const SizedBox.shrink()),
+      // SozuAdaptiveTokens resuelve la densidad del design system según el ancho
+      // disponible y reinyecta los tokens. Va lo más arriba posible: el
+      // ThemeData se construye sin saber cuánto mide la ventana, así que sin
+      // esto `context.s` siempre devolvería la densidad `comfortable`. Por eso
+      // envuelve a `VersionGate` y no al revés.
+      builder: (context, child) => SozuAdaptiveTokens(
+        child: VersionGate(
+          child: InactivityWatcher(
+            child: PushRegistrar(
+              child: PreviewBanner(child: child ?? const SizedBox.shrink()),
+            ),
           ),
         ),
       ),

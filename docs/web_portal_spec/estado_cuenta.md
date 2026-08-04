@@ -1,4 +1,4 @@
-# Spec — Pantalla "Estado de cuenta"
+# Spec - Pantalla "Estado de cuenta"
 
 > Fuentes: `src/pages/admin/portal-cliente/ClienteEstadoCuenta.tsx` (página) y
 > `src/components/admin/portal-cliente/AccountStatementView.tsx` (vista principal).
@@ -14,7 +14,7 @@
 
 ## A. Selector de propiedad (ClienteEstadoCuenta.tsx:129-198)
 
-- Header: `pt-6 pb-4` — H1 **"Estado de cuenta"** (`font-display font-bold text-[22px]
+- Header: `pt-6 pb-4` - H1 **"Estado de cuenta"** (`font-display font-bold text-[22px]
   md:text-[26px] tracking-tight`) + subtítulo **"Selecciona una propiedad."**
   (`text-[13px] text-muted-foreground mt-1`).
 - Buscador: input `h-10 pl-9 pr-4 rounded-xl border border-border bg-card text-sm`,
@@ -36,9 +36,9 @@
 ## B. Header con propiedad seleccionada (ClienteEstadoCuenta.tsx:85-111)
 
 - `px-5 md:px-0 pt-6 pb-4`, fila con gap 12px:
-  - H1 **"Estado de cuenta"** — `font-display font-bold text-[22px] md:text-[26px]
+  - H1 **"Estado de cuenta"** - `font-display font-bold text-[22px] md:text-[26px]
     tracking-tight text-foreground`.
-  - Subtítulo debajo: **"{projectName} - U-{unitNumber}"** — `text-[12px] text-muted-foreground truncate`.
+  - Subtítulo debajo: **"{projectName} - U-{unitNumber}"** - `text-[12px] text-muted-foreground truncate`.
   - Botón a la derecha (línea 95-109): **"Descargar PDF"**
     - `flex gap-2 px-3.5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs
       font-semibold shadow-sm` → fondo #239F6D, texto blanco 12px w600, radio 16px,
@@ -87,14 +87,14 @@
 
 ---
 
-## E. Card "Movimientos" — tabla desktop (líneas 467-561)
+## E. Card "Movimientos" - tabla desktop (líneas 467-561)
 
 `bg-card rounded-2xl border overflow-hidden`.
 
 ### Header (469-472)
 `flex justify-between px-5 py-3 border-b border-border bg-muted/20`:
-- Título **"Movimientos"** — `font-display font-semibold text-sm`.
-- Contador **"{n} registros"** (singular "1 registro") — `text-[11px] text-muted-foreground`.
+- Título **"Movimientos"** - `font-display font-semibold text-sm`.
+- Contador **"{n} registros"** (singular "1 registro") - `text-[11px] text-muted-foreground`.
 
 ### Tabla (479-554)
 - Filas ordenadas por fecha **descendente**. Scroll horizontal si no cabe (`overflow-x-auto`).
@@ -111,18 +111,18 @@
 
 - **Filas** (495-537): `border-b border-border` (última sin borde), hover `bg-muted/20`,
   transición de color.
-  - **FECHA**: `px-5 py-3 text-[12px] text-muted-foreground` — formato es-MX
+  - **FECHA**: `px-5 py-3 text-[12px] text-muted-foreground` - formato es-MX
     "d MMM yyyy" (p.ej. "15 jul 2026") vía `toLocaleDateString("es-MX", {day:"numeric",
     month:"short", year:"numeric"})`.
   - **CONCEPTO**: `px-3 py-3 text-[13px] font-medium text-foreground`. Si el concepto tiene
-    **más de 1 pago aplicado**, badge junto al texto: icono Layers 12px + **"{n} pagos"** —
+    **más de 1 pago aplicado**, badge junto al texto: icono Layers 12px + **"{n} pagos"** -
     `text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary` (#E9F5F0/#239F6D).
   - **MONTO** (`MontoCell`, líneas 94-106): alineado a la derecha, `tabular-nums`.
     - Pagado/pendiente: `$X.XX` `font-semibold` 13px (pagado muestra lo aplicado, pendiente el plan).
     - **Parcial** (columna apilada, alineada a la derecha, leading-tight):
-      1. Monto aplicado — `text-[13px] font-semibold text-foreground`
-      2. **"de $TOTAL"** — `text-[10px] text-muted-foreground`
-      3. **"Faltan $X"** — `text-[10px] font-medium text-warning` (#F59E0B)
+      1. Monto aplicado - `text-[13px] font-semibold text-foreground`
+      2. **"de $TOTAL"** - `text-[10px] text-muted-foreground`
+      3. **"Faltan $X"** - `text-[10px] font-medium text-warning` (#F59E0B)
   - **ESTATUS** (508-515): chip `inline-flex gap-1 text-[11px] font-semibold px-2.5 py-1
     rounded-full` con icono 12px:
     - **"Pagado"**: `bg-success/10 text-success` (#E9F5F0 / #239F6D) + icono CheckCircle2.
@@ -130,30 +130,30 @@
   - **COMPROBANTE** (516-536): centro, hasta 3 icon-buttons (`IconBtn`: `p-1.5 rounded-lg`,
     habilitado `text-muted-foreground hover:bg-muted hover:text-primary`, deshabilitado
     `text-muted-foreground/25 cursor-not-allowed`), iconos 16px:
-    1. **FileText** — "Ver recibo" (modal de recibo in-app). Deshabilitado si no está pagado
+    1. **FileText** - "Ver recibo" (modal de recibo in-app). Deshabilitado si no está pagado
        (tooltip "Pago pendiente").
-    2. **Eye** — "Generar recibo PDF": POST a `generar-recibo-pago` con `{pagoId}`; muestra
+    2. **Eye** - "Generar recibo PDF": POST a `generar-recibo-pago` con `{pagoId}`; muestra
        Loader2 girando mientras genera; abre visor PDF. Deshabilitado sin pagoId o no pagado.
-    3. **Receipt** — abre `cepUrl` (tooltip "CEP electrónico") o `evidenceUrl`
+    3. **Receipt** - abre `cepUrl` (tooltip "CEP electrónico") o `evidenceUrl`
        ("Comprobante de pago") en el visor; deshabilitado si no hay ("Sin comprobante").
     - Si la fila tiene **varios pagos**: en lugar de los 3 botones hay UN toggle
       ChevronDown/ChevronUp ("Ver pagos aplicados").
 
 ### Fila expandida de pagos aplicados (538-549)
 - `<tr>` extra `bg-muted/10`, celda colSpan=5 `px-5 py-2`:
-  - Caption: **"{n} pagos aplicados a {concepto}"** — `text-[10px] uppercase tracking-wider
+  - Caption: **"{n} pagos aplicados a {concepto}"** - `text-[10px] uppercase tracking-wider
     text-muted-foreground`.
   - Sub-filas (`AppRow`, 332-356): `py-2 pl-3 border-l-2 border-primary/20` (regla verde al 20%):
-    - Línea 1: `{método} · $monto` — `text-[11px] font-medium` (monto tabular).
-    - Línea 2: `{fecha} · Clave {trackingKey}` — `text-[10px] text-muted-foreground`.
+    - Línea 1: `{método} · $monto` - `text-[11px] font-medium` (monto tabular).
+    - Línea 2: `{fecha} · Clave {trackingKey}` - `text-[10px] text-muted-foreground`.
     - Botones Eye + Receipt (mismos estilos IconBtn).
 
 ### Footer de la card (557-559)
-**"Estado de cuenta generado automáticamente por SOZU."** —
+**"Estado de cuenta generado automáticamente por SOZU."** -
 `text-[10px] text-muted-foreground text-center py-3 border-t border-border`.
 
 ### Estado vacío (473-476)
-"Sin movimientos con ese filtro" — `p-8 text-center text-sm text-muted-foreground`.
+"Sin movimientos con ese filtro" - `p-8 text-center text-sm text-muted-foreground`.
 
 ### Móvil (mobileMovementsBlock, 564-620)
 Sin tabla: título "Movimientos" + contador fuera de card; grupos por mes en cards
@@ -165,7 +165,7 @@ estatus 10px (verde/ámbar), mismos 3 icon-buttons o toggle.
 
 ---
 
-## F. Card resumen (summaryBlock, líneas 382-431) — columna derecha, 300px
+## F. Card resumen (summaryBlock, líneas 382-431) - columna derecha, 300px
 
 `bg-card rounded-2xl border p-5 space-y-4`. Secciones separadas con `border-t border-border pt-3`.
 
@@ -189,9 +189,9 @@ de la propiedad (línea 276-279): warning → `bg-warning/15 text-warning` (p.ej
 | **"Saldo Pendiente"** | `font-semibold text-sm tabular-nums` foreground |
 
 Si hay próxima cuota (primer installment no pagado; 413-419), sub-bloque `pt-2 border-t`:
-- **"Próxima Parcialidad"** — `text-[10px] muted`
-- Monto — `text-sm font-semibold tabular-nums`
-- **"Vence {fecha}"** — `text-[11px] muted`
+- **"Próxima Parcialidad"** - `text-[10px] muted`
+- Monto - `text-sm font-semibold tabular-nums`
+- **"Vence {fecha}"** - `text-[11px] muted`
 
 ### 4. Progreso (421-429)
 - Fila `text-[11px] mb-1.5`: **"Progreso"** (muted) ↔ **"{n}%"** (`font-semibold tabular-nums`).
@@ -214,7 +214,7 @@ Solo si hay plan de pagos. `bg-card rounded-2xl border overflow-hidden`.
   3. **"Referencia"** (muted) → `font-mono font-semibold text-xs`.
 - **Nota de seguridad** (458-461): `border-t border-border pt-3`, fila `gap-2` con icono
   **Shield 14px text-primary** + texto
-  **"CLABE vinculada exclusivamente a tu propiedad y RFC."** —
+  **"CLABE vinculada exclusivamente a tu propiedad y RFC."** -
   `text-[10px] text-muted-foreground leading-relaxed`.
 
 ---
