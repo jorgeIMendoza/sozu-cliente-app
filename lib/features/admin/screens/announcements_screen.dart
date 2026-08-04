@@ -8,7 +8,6 @@ import 'package:sozu_cliente_app/features/client/home/components/animacion_llega
 import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/features/admin/components/admin_header_bar.dart';
 import 'package:sozu_cliente_app/features/admin/layouts/admin_layout.dart';
-import 'package:sozu_cliente_app/widgets/theme_mode_button.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Lado del spinner que sustituye al icono mientras se envía o se guarda.
@@ -430,8 +429,6 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
             AdminHeaderBar(
               title: 'Enviar avisos',
               actions: [
-                const ThemeModeButton(),
-                SizedBox(width: t.space.xxs),
                 AdminHeaderAction(
                   label: 'Volver',
                   icon: Icons.arrow_back,

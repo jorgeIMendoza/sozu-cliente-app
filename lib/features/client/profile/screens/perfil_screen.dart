@@ -10,7 +10,6 @@ import 'package:sozu_cliente_app/features/client/documents/providers/documents_p
 import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
 import 'package:sozu_cliente_app/features/client/providers/client_providers.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
-import 'package:sozu_cliente_app/providers/theme_provider.dart';
 import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 import 'package:sozu_cliente_app/features/auth/components/biometric_toggle_card.dart';
 import 'package:sozu_cliente_app/features/client/documents/components/expediente_card.dart';
@@ -330,26 +329,6 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Apariencia',
-                  style: portalText(size: 13, weight: FontWeight.w600),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'El portal web siempre se muestra en tema claro; esta '
-                  'preferencia aplica a la app móvil.',
-                  style: portalText(
-                    size: 11,
-                    color: PortalColors.mutedForeground,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _ThemeSelector(tone: tone),
-                Container(
-                  margin: const EdgeInsets.symmetric(vertical: 16),
-                  height: 1,
-                  color: PortalColors.border,
-                ),
                 Row(
                   children: [
                     const Icon(
@@ -604,9 +583,6 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
               ),
 
             // ── Preferencias propias del app ────────────────────────────────
-            _sectionLabel(tone, 'Apariencia'),
-            SCard(child: _ThemeSelector(tone: tone)),
-
             _sectionLabel(tone, 'Notificaciones'),
             SCard(
               child: Column(
@@ -897,66 +873,3 @@ class _PerfilAvatar extends StatelessWidget {
   }
 }
 
-class _ThemeSelector extends ConsumerWidget {
-  final SozuColorRoles tone;
-
-  const _ThemeSelector({required this.tone});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = ref.watch(themeProvider);
-    final opciones = [
-      (ThemeMode.light, 'Claro', Icons.wb_sunny_outlined),
-      (ThemeMode.dark, 'Oscuro', Icons.nightlight_outlined),
-      (ThemeMode.system, 'Auto', Icons.smartphone_outlined),
-    ];
-    return Row(
-      children: [
-        for (final (mode, label, icon) in opciones) ...[
-          Expanded(
-            child: GestureDetector(
-              onTap: () => theme.setMode(mode),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: theme.mode == mode
-                      ? tone.primarySoft
-                      : tone.surfaceAlt,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: theme.mode == mode
-                        ? SozuBrand.green500
-                        : tone.border,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      icon,
-                      size: 20,
-                      color: theme.mode == mode
-                          ? SozuBrand.green600
-                          : tone.fgSubtle,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: theme.mode == mode
-                            ? tone.primaryHover
-                            : tone.fgMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          if (mode != ThemeMode.system) const SizedBox(width: 8),
-        ],
-      ],
-    );
-  }
-}

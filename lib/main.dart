@@ -7,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:sozu_cliente_app/core/secure_session_storage.dart';
 import 'package:sozu_cliente_app/core/url_strategy.dart';
-import 'package:sozu_cliente_app/providers/theme_provider.dart';
 import 'package:sozu_cliente_app/router.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/features/auth/components/inactivity_watcher.dart';
@@ -68,15 +67,18 @@ class SozuApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeProvider).mode;
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
       title: 'SOZU - Portal del Cliente',
       debugShowCheckedModeBanner: false,
       theme: sozuLightTheme(),
-      darkTheme: sozuDarkTheme(),
-      themeMode: themeMode,
+      // Tema OSCURO deshabilitado a propósito: la UI aún usa el shim
+      // `PortalColors` (fijo a claro) en la mayoría de pantallas, así que el
+      // modo oscuro se veía roto/parcial. Se fuerza claro hasta terminar la
+      // migración PortalColors -> context.s.color. El selector de tema se quitó
+      // de Ajustes para no confundir.
+      themeMode: ThemeMode.light,
       routerConfig: router,
       // SozuAdaptiveTokens resuelve la densidad del design system según el ancho
       // disponible y reinyecta los tokens. Va lo más arriba posible: el
