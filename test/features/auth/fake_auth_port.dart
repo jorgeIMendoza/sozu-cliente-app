@@ -107,6 +107,8 @@ class FakeAuthPort implements AuthPort {
   @override
   Future<void> sendPasswordReset(String email) async {
     log.add('sendPasswordReset');
+    final failure = _consumeFailure();
+    if (failure != null) throw AuthError(failure);
   }
 
   @override

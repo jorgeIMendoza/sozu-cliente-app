@@ -90,7 +90,9 @@ abstract interface class AuthPort {
   /// Cierra la sesion revocandola en el servidor.
   Future<void> signOut();
 
-  /// Envia el correo de restablecimiento de contrasena.
+  /// Envia el correo de restablecimiento de contrasena. Lanza [AuthError] solo
+  /// ante fallo real (red o servidor): que la cuenta no exista NO es error, el
+  /// backend responde igual para no revelar que correos estan registrados.
   Future<void> sendPasswordReset(String email);
 
   /// Cambia la contrasena del usuario autenticado. Lanza [AuthError].

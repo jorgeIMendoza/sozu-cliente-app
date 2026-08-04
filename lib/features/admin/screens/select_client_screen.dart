@@ -15,8 +15,12 @@ import 'package:sozu_cliente_app/features/admin/layouts/admin_layout.dart';
 import 'package:sozu_cliente_app/features/admin/components/client_row.dart';
 import 'package:sozu_cliente_app/features/admin/components/client_filters.dart';
 
-/// Selector de cliente para super administradores (solo web).
-/// El admin elige un cliente y navega el portal viendo sus datos.
+/// Selector de cliente para administradores de la app. El admin elige un
+/// cliente y navega el portal viendo sus datos.
+///
+/// Sirve en web Y en móvil: es el destino post-login de cualquier rol con
+/// `canManageClientApp`, sin importar la plataforma. Los filtros se apilan en
+/// pantalla angosta (`ClientFilters`).
 ///
 /// Al filtrar por Proyecto + Unidad (número de propiedad) se muestran SOLO los
 /// dueños de esa unidad: "Copropietarios (N)", o "Dueño de la propiedad" si es

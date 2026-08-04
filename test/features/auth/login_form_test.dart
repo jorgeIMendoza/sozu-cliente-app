@@ -9,21 +9,21 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 
 import 'fake_auth_port.dart';
 
-/// Lo que fija este archivo es el **acceso al modo administrador desde el
-/// teléfono**: hasta que existió el long-press del sello de versión, el único
-/// camino era Ctrl+Shift+A, un atajo cuyo handler ni se instala en Android/iOS.
+/// El acceso administrador NO se activa desde esta pantalla: lo da el permiso
+/// del rol (`canManageClientApp`) y el destino post-login sale del perfil, igual
+/// en web y en móvil.
 ///
-/// El gesto no es una frontera de seguridad (el permiso real lo da el backend
-/// con `administrar_app_clientes`), así que lo que hay que proteger con tests no
-/// es el secreto: es que **no se dispare por accidente** y que el sello siga
-/// pareciendo texto.
+/// Hubo dos interruptores manuales, Ctrl+Shift+A y un long-press de 1.5 s sobre
+/// el sello de versión. Los dos murieron al conceder el acceso por rol. Lo que
+/// este archivo protege ahora es que **no vuelvan**: el sello es texto inerte y
+/// sostenerlo no enciende nada.
 void main() {
-  /// Umbral del gesto en `login_form.dart` (`_kAdminHoldDuration`, privado).
-  const holdDuration = Duration(milliseconds: 1500);
-
-  /// El umbral con un margen: sostener EXACTAMENTE el deadline es una carrera.
+  /// Con margen sobre el umbral que tenía el gesto viejo (1.5 s): si alguien lo
+  /// reintroduce con el mismo threshold, el test lo caza.
   const holdWithMargin = Duration(milliseconds: 1600);
 
+  /// Etiqueta de la pastilla que pintaba el modo admin. Ya no existe; se
+  /// conserva como sonda: si reaparece, el gesto volvió.
   const badgeLabel = 'Acceso administrador';
 
   /// Único andamio de entorno que el formulario exige: **el canal de
@@ -76,9 +76,8 @@ void main() {
 
   Finder versionStamp() => find.text(appVersionLabel);
 
-  /// Sostiene el sello el tiempo pedido. `tester.longPress` NO sirve: presiona
-  /// `kLongPressTimeout` (500 ms), un tercio del umbral de este gesto, así que
-  /// pasaría por un toque largo cualquiera.
+  /// Sostiene el sello. `tester.longPress` presiona `kLongPressTimeout` (500 ms),
+  /// un tercio del umbral que tenía el gesto viejo, así que no probaría nada.
   Future<void> holdVersionStamp(
     WidgetTester tester, {
     Duration duration = holdWithMargin,
@@ -89,49 +88,23 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('el long-press del sello de versión enciende el modo admin', (
-    tester,
-  ) async {
-    await pumpLoginForm(tester);
-    expect(find.text(badgeLabel), findsNothing);
-
-    await holdVersionStamp(tester);
-
-    expect(
-      find.text(badgeLabel),
-      findsOneWidget,
-      reason: 'la pastilla es el único indicio de que el gesto surtió efecto',
-    );
-  });
-
-  testWidgets('un segundo long-press lo apaga (es interruptor, no botón)', (
-    tester,
-  ) async {
+  testWidgets('sostener el sello de versión NO activa nada', (tester) async {
     await pumpLoginForm(tester);
 
     await holdVersionStamp(tester);
-    expect(find.text(badgeLabel), findsOneWidget);
-
-    await holdVersionStamp(tester);
-    expect(find.text(badgeLabel), findsNothing);
-  });
-
-  testWidgets('un toque simple NO enciende el modo admin', (tester) async {
-    await pumpLoginForm(tester);
-
-    await tester.tap(versionStamp());
-    // El umbral completo y de sobra: si el gesto se disparara tarde, aquí se
-    // vería.
-    await tester.pump(holdDuration * 2);
+    await tester.pump();
 
     expect(
       find.text(badgeLabel),
       findsNothing,
-      reason: 'el pie del login se toca sin querer; 1.5 s es lo que lo evita',
+      reason:
+          'el acceso admin lo da el rol; si vuelve un interruptor manual aquí, '
+          'el flujo de web y móvil se separa otra vez',
     );
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('el sello sigue siendo texto: ni botón ni superficie pulsable', (
+  testWidgets('el sello es texto: ni botón ni superficie pulsable', (
     tester,
   ) async {
     await pumpLoginForm(tester);
@@ -152,9 +125,8 @@ void main() {
       findsNothing,
     );
 
-    // Nada de ripple, hover ni cursor de mano: si el sello se ve pulsable, se
-    // toca por accidente. Por eso el gesto va en un RawGestureDetector y no en
-    // SPressable / InkWell.
+    // Nada de ripple, hover ni cursor de mano: es el pie de la pantalla, no un
+    // control.
     expect(
       find.ancestor(of: stamp, matching: find.byType(InkWell)),
       findsNothing,
@@ -172,12 +144,6 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(LoginForm), findsOneWidget);
-
-    // El gesto también tiene que servir en el ancho más angosto que se soporta:
-    // es justo donde vive el usuario que no tiene teclado.
-    await holdVersionStamp(tester);
-    expect(find.text(badgeLabel), findsOneWidget);
-    expect(tester.takeException(), isNull);
   });
 
   // -------------------------------------------------------------------------
@@ -302,13 +268,13 @@ void main() {
     expect(prompts.value, 0);
   });
 
-  testWidgets('la pastilla de admin esconde el botón de huella', (
+  testWidgets('el botón de huella NO se esconde por sostener el sello', (
     tester,
   ) async {
-    // La pastilla puesta significa que quien entra NO es cliente, y la
-    // biometria es solo para clientes. Es la unica senal disponible antes de
-    // autenticar: el token guardado es opaco y el rol se sabe con el perfil ya
-    // cargado.
+    // Antes el modo admin manual lo ocultaba, porque la biometría es solo para
+    // usuarios del portal y la pastilla era la única señal antes de autenticar.
+    // Ya no hace falta: solo se enrola quien tiene acceso al portal, y un
+    // enrolamiento viejo de una cuenta no-cliente se apaga al entrar.
     mockBiometricsEnabled(enabled: true);
     final prompts = mockBiometricPromptAlwaysRejected();
     await pumpLoginForm(tester);
@@ -319,37 +285,14 @@ void main() {
     // El prompt automatico del montaje, el unico que debe existir.
     expect(prompts.value, 1);
 
-    await holdVersionStamp(tester); // pone la pastilla
+    await holdVersionStamp(tester);
     for (var i = 0; i < 5; i++) {
       await tester.pump();
     }
 
-    expect(find.text(badgeLabel), findsOneWidget);
-    expect(find.text(biometricLabel), findsNothing);
-    expect(
-      prompts.value,
-      1,
-      reason: 'poner la pastilla de admin no debe pedir la huella',
-    );
-  });
-
-  testWidgets('quitar la pastilla devuelve el botón de huella', (tester) async {
-    mockBiometricsEnabled(enabled: true);
-    mockBiometricPromptAlwaysRejected();
-    await pumpLoginForm(tester);
-    for (var i = 0; i < 5; i++) {
-      await tester.pump();
-    }
-
-    await holdVersionStamp(tester); // pone
-    await tester.pump();
-    expect(find.text(biometricLabel), findsNothing);
-
-    await holdVersionStamp(tester); // quita
-    await tester.pump();
-
-    expect(find.text(badgeLabel), findsNothing);
     expect(find.text(biometricLabel), findsOneWidget);
+    expect(find.text(badgeLabel), findsNothing);
+    expect(prompts.value, 1, reason: 'sostener el sello no pide la huella');
   });
 }
 
