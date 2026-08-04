@@ -14,7 +14,6 @@ import 'package:sozu_cliente_app/features/admin/components/admin_header_bar.dart
 import 'package:sozu_cliente_app/features/admin/layouts/admin_layout.dart';
 import 'package:sozu_cliente_app/features/admin/components/client_row.dart';
 import 'package:sozu_cliente_app/features/admin/components/client_filters.dart';
-import 'package:sozu_cliente_app/widgets/theme_mode_button.dart';
 
 /// Selector de cliente para super administradores (solo web).
 /// El admin elige un cliente y navega el portal viendo sus datos.
@@ -118,8 +117,6 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
                 'Acceso administrador · '
                 '${auth.profile?.displayName ?? auth.profile?.email ?? ''}',
             actions: [
-              const ThemeModeButton(),
-              SizedBox(width: t.space.xxs),
               AdminHeaderAction(
                 label: 'Enviar avisos',
                 icon: Icons.campaign_outlined,
