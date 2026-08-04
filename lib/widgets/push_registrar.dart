@@ -112,7 +112,7 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    final esClienteConSesion = auth.session != null && auth.isClient;
+    final esClienteConSesion = auth.session != null && auth.hasPortalAccess;
     final email = (auth.profile?.email ?? auth.session?.email)
         ?.trim()
         .toLowerCase();

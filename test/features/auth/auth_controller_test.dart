@@ -54,7 +54,7 @@ void main() {
 
     expect(controller.session?.userId, 'user-de-prueba');
     expect(controller.profile?.roleName, 'Cliente');
-    expect(controller.isClient, isTrue);
+    expect(controller.hasPortalAccess, isTrue);
     expect(controller.locked, isFalse);
   });
 

@@ -180,11 +180,6 @@ void main() {
       expect(PortalColors.mutedSoft20, PortalColors.mutedSoft30);
     });
 
-    test('kPortalFontFallback quedo sin efecto', () {
-      // 19 llamadas lo siguen pasando; una lista vacia no altera el render.
-      expect(kPortalFontFallback, isEmpty);
-    });
-
     test('las medidas de layout reenvian a los breakpoints nuevos', () {
       expect(kPortalBreakpoint, kSozuDesktopMin);
       expect(kTwoColBreakpoint, kSozuTabletMin);

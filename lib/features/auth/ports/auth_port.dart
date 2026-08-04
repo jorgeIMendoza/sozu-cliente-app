@@ -25,9 +25,17 @@ class UserProfile {
   final String? email;
   final String? roleName;
 
-  /// Id del rol (`roles.id`). Gate del acceso de cliente: se compara contra
-  /// [AuthController.clientRoleId] (estable, no depende del nombre del rol).
+  /// Id del rol (`roles.id`). Uno de los dos caminos que abre el portal: lo
+  /// compara `PortalAccess.allows` (estable, no depende del nombre del rol).
   final int? roleId;
+
+  /// ¿Tiene una compra activa (`compradores.activo`)? El otro camino al portal:
+  /// un interno puede ser cliente y su rol no lo dice.
+  ///
+  /// `false` mientras el RPC no devuelva `es_comprador`, y ahí el acceso queda
+  /// como antes (solo rol Cliente): el campo es aditivo a propósito para no
+  /// exigir un despliegue simultáneo con el backend.
+  final bool isBuyer;
   final int? personId;
 
   /// Flag de contrasena temporal (`debe_cambiar_password`): fuerza el cambio
@@ -44,6 +52,7 @@ class UserProfile {
     this.email,
     this.roleName,
     this.roleId,
+    this.isBuyer = false,
     this.personId,
     this.requiresPasswordChange = false,
     this.canManageClientApp = false,

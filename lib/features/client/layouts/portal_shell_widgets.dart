@@ -47,7 +47,6 @@ class PortalAvatarCircle extends StatelessWidget {
           fontSize: size <= 32 ? 11 : 12,
           fontWeight: FontWeight.w600,
           color: Colors.white,
-          fontFamilyFallback: kPortalFontFallback,
         ),
       ),
     );
@@ -152,7 +151,6 @@ class _PortalTopBarSearchState extends ConsumerState<PortalTopBarSearch> {
             style: const TextStyle(
               fontSize: 13,
               color: PortalColors.foreground,
-              fontFamilyFallback: kPortalFontFallback,
             ),
             decoration: InputDecoration(
               isDense: true,
@@ -162,7 +160,6 @@ class _PortalTopBarSearchState extends ConsumerState<PortalTopBarSearch> {
               hintStyle: TextStyle(
                 fontSize: 13,
                 color: PortalColors.mutedForeground.withValues(alpha: .7),
-                fontFamilyFallback: kPortalFontFallback,
               ),
               prefixIcon: Icon(
                 Icons.search,
@@ -253,7 +250,6 @@ class _PortalTopBarSearchState extends ConsumerState<PortalTopBarSearch> {
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
                                   color: PortalColors.foreground,
-                                  fontFamilyFallback: kPortalFontFallback,
                                 ),
                               ),
                             ),
@@ -263,7 +259,6 @@ class _PortalTopBarSearchState extends ConsumerState<PortalTopBarSearch> {
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: PortalColors.mutedForeground,
-                                fontFamilyFallback: kPortalFontFallback,
                               ),
                             ),
                           ],
@@ -278,7 +273,6 @@ class _PortalTopBarSearchState extends ConsumerState<PortalTopBarSearch> {
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: PortalColors.foreground,
-                            fontFamilyFallback: kPortalFontFallback,
                           ),
                         ),
                       ),
@@ -291,7 +285,6 @@ class _PortalTopBarSearchState extends ConsumerState<PortalTopBarSearch> {
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: PortalColors.foreground,
-                            fontFamilyFallback: kPortalFontFallback,
                           ),
                         ),
                       ),
@@ -485,7 +478,6 @@ class _PortalTopBarAvatarMenuState
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: PortalColors.foreground,
-                                    fontFamilyFallback: kPortalFontFallback,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -495,7 +487,6 @@ class _PortalTopBarAvatarMenuState
                                   style: const TextStyle(
                                     fontSize: 11,
                                     color: PortalColors.mutedForeground,
-                                    fontFamilyFallback: kPortalFontFallback,
                                   ),
                                 ),
                                 if (telefono.isNotEmpty) ...[
@@ -515,8 +506,6 @@ class _PortalTopBarAvatarMenuState
                                           style: const TextStyle(
                                             fontSize: 11,
                                             color: PortalColors.mutedForeground,
-                                            fontFamilyFallback:
-                                                kPortalFontFallback,
                                           ),
                                         ),
                                       ),
@@ -624,7 +613,6 @@ class _AvatarMenuItemState extends State<_AvatarMenuItem> {
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 color: fg,
-                fontFamilyFallback: kPortalFontFallback,
               ),
             ),
           ],

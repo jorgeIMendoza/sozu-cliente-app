@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sozu_cliente_app/core/portal_tracking.dart';
@@ -9,6 +8,7 @@ import 'package:sozu_cliente_app/core/push_service.dart';
 import 'package:sozu_cliente_app/features/auth/adapters/auth_adapter.dart';
 import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
 import 'package:sozu_cliente_app/features/auth/services/biometric_service.dart';
+import 'package:sozu_cliente_app/features/auth/services/portal_access.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
 
 /// Estado de sesión/JWT + perfil (espejo de src/providers/AuthProvider.tsx).
@@ -53,25 +53,7 @@ class AuthController extends ChangeNotifier {
   bool get isLoading => !_authReady || !_profileReady;
   bool get mustChangePassword => profile?.requiresPasswordChange ?? false;
 
-  /// Id del rol de usuario final (Cliente) = `roles.id` 23 en producción. Fijo
-  /// en código (esta app solo se compila contra el proyecto de producción), sin
-  /// configuración. El env `CLIENTE_ROL_ID` lo sobreescribe si algún día hace
-  /// falta otro ambiente.
-  static const int _defaultClientRoleId = 23;
-  static final int clientRoleId = (dotenv.isInitialized
-          ? int.tryParse(dotenv.env['CLIENTE_ROL_ID'] ?? '')
-          : null) ??
-      _defaultClientRoleId;
-
-  /// ¿El perfil es un usuario final de la app (rol Cliente)? Por `roleId`; con
-  /// fallback al nombre normalizado si el backend aún no devolviera `rol_id`.
-  static bool isClientRole(UserProfile? p) {
-    if (p == null) return false;
-    if (p.roleId != null) return p.roleId == clientRoleId;
-    return (p.roleName ?? '').trim().toLowerCase() == 'cliente';
-  }
-
-  bool get isClient => isClientRole(profile);
+  bool get hasPortalAccess => PortalAccess.allows(profile);
 
   /// Acceso administrador del app: por permiso del rol (no por nombre).
   bool get isSuperAdmin => profile?.canManageClientApp ?? false;
@@ -171,10 +153,10 @@ class AuthController extends ChangeNotifier {
   Future<bool> shouldOfferBiometrics() async {
     final bio = BiometricService.instance;
     if (bio.offerDeclined) return false;
-    // SOLO clientes. La biometría es un candado local sobre un refresh token
-    // guardado, y la sesión de un administrador puede impersonar a cualquier
-    // cliente: no se deja detrás de la huella enrolada en un teléfono.
-    if (!isClient) return false;
+    // SOLO usuarios del portal. La biometría es un candado local sobre un
+    // refresh token guardado, y la sesión de un administrador puede impersonar a
+    // cualquier cliente: no se deja detrás de la huella enrolada en un teléfono.
+    if (!hasPortalAccess) return false;
     if (!await bio.isSupported()) return false;
     return !await bio.isEnabled();
   }
