@@ -137,6 +137,7 @@ screens/forgot_password_screen.dart · change_password_screen.dart
 components/auth_brand_image.dart · auth_header.dart · auth_alert.dart
 components/biometric_setup_sheet.dart · biometric_toggle_card.dart · login_form.dart
 services/biometric_service.dart BiometricService · BiometricLoginResult
+services/client_role.dart       ClientRole.id · ClientRole.matches (gate rol Cliente)
 ```
 
 Toda la biometría (huella / Face ID) vive en `auth`: es autenticación. El servicio,
@@ -207,6 +208,13 @@ Equivalencias con Cursor/VS Code:
 El IDE usa el Dart Analysis Server, que lee el **mismo** `analysis_options.yaml`;
 por eso `flutter analyze` y el panel de Problems dan idéntico resultado.
 
+`check.sh` y el CI corren `flutter analyze --no-fatal-infos`: **errores y warnings
+son fatales, los infos no**. Hoy hay ~800 infos y todos son la deuda conocida de
+`PortalColors` deprecado; con infos fatales el check salía siempre rojo y se
+aprendía a ignorarlo. `check.sh` imprime el conteo para que una subida se note.
+Al cerrar `PortalColors` hay que quitar el flag en los tres sitios (`check.sh`,
+`.github/workflows/deploy-web-firebase.yml`, `codemagic.yaml`).
+
 ⚠️ **El repo NO está formateado con el formatter actual** (Dart 3.7 cambió a
 "tall style"). Por eso `check.sh` formatea solo los archivos modificados: un
 `dart format .` reescribe medio archivo ajeno. Cuando se haga, que sea un commit
@@ -238,26 +246,35 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
   SSkeleton · SEmptyState · SErrorState · SSectionLabel · SPressable · SStagger ·
   SSearchField · SAutocompleteField · SLogo · SWebSelectable.
   `widgets/common.dart` fue ELIMINADO: sus 8 widgets viven aquí.
-- features/: código nuevo, por feature. Hoy: `auth/` (cerrada), `admin/` (en curso).
+- features/: TODO el código de producto, por feature. `auth/` (cerrada),
+  `admin/` (cerrada), `client/` (documents, home, layouts, products, profile,
+  properties, providers).
 - core/: format, secure_session_storage, open_document, version, push_service,
   portal_tracking, portal_theme (legacy). La biometría salió a `features/auth/`.
-- data/: models (DTOs de las 7 functions), api_client (invoke + ApiError)
-- providers/: data (FutureProviders), impersonation, theme. El de auth vive en
-  `features/auth/providers/`.
+- data/: models (DTOs de las 7 functions)
+- shared/: ports + adapters + providers que consumen 2+ features, api_error
 - router.dart: guards + shell 5 tabs + secundarias
-- widgets/: theme_mode_button,
-  portal_*, level_map. La carpeta admin/ salio a features/admin/components/.
-- screens/: LEGACY, pendiente de migrar a features/ - inicio, adquisicion,
-  patrimonio, documentos, perfil, pagos, estado_cuenta, notificaciones,
-  propiedad_detalle, seleccionar_cliente, forgot,
-  change_password_forced
+- widgets/: LEGACY - portal_widgets, fx, network_image, preview_banner,
+  push_registrar, version_gate, whatsapp_icon. La carpeta admin/ salio a
+  features/admin/components/.
+- `lib/screens/` y `lib/providers/` YA NO EXISTEN: sus pantallas viven en
+  `features/client/*/screens/` y sus providers en la feature que los usa.
 
 ## Sesión
 - Cierre por inactividad: **5 min en teléfono, 15 min en escritorio**
   (`features/auth/components/inactivity_watcher.dart`). El criterio es el FORMATO
   de pantalla, no
   `kIsWeb`: web en el navegador del celular usa el plazo corto.
-- Selector de tema claro/oscuro/sistema: `widgets/theme_mode_button.dart`.
+
+## Tema: la app va FORZADA A CLARO
+`main.dart` fija `themeMode: ThemeMode.light`. El modo oscuro se veía roto
+porque la mayoría de las pantallas siguen sobre el shim `PortalColors` (fijo a
+claro). El selector de tema y su preferencia persistida se BORRARON
+(`widgets/theme_mode_button.dart` + `providers/theme_provider.dart`); para
+recuperarlos, `git show e90c9cd^:lib/widgets/theme_mode_button.dart`.
+`sozuDarkTheme()` sigue vivo en el design system y con tests: la paleta oscura
+no es lo roto, el consumo por `PortalColors` sí. Reactivar el selector es la
+recompensa de terminar `PortalColors -> context.s.color`, no antes.
 
 ## Correr
 **Guía completa del flujo diario: `tool/README.md`** (web, móvil inalámbrico, las
