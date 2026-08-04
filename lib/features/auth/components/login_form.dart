@@ -1,8 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,20 +15,15 @@ import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Formulario de acceso: correo + contraseña, biometría, modo administrador y la
-/// navegación posterior al login. Concentra el estado y la lógica del acceso.
+/// Formulario de acceso: correo + contraseña, biometría y la navegación
+/// posterior al login. Concentra el estado y la lógica del acceso.
 ///
 /// Tras autenticar valida el acceso al portal con el perfil (vía RPC): rol
 /// Cliente o comprador activo ([PortalAccess]). Si no lo tiene, cierra sesión.
 ///
-/// El modo administrador (impersonación de clientes) se alterna por dos vías,
-/// ambas vía [_toggleAdminMode]: long-press de 1.5 s sobre el sello de versión
-/// ([_VersionStamp], todas las plataformas) y Ctrl+Shift+A / Ctrl+Alt+A (solo
-/// web, ver [_onKeyEvent]).
-///
-/// El gesto NO es una frontera de seguridad: solo pinta la pastilla y cambia el
-/// destino post-login. La autorización real la da el backend
-/// (`administrar_app_clientes` en el perfil).
+/// El destino sale del PERFIL, no de un gesto ni de la plataforma: con
+/// `canManageClientApp` va al selector de clientes, si no al portal. Mismo flujo
+/// en web y en móvil.
 class LoginForm extends ConsumerStatefulWidget {
   const LoginForm({super.key});
 
@@ -46,21 +38,17 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
   bool _isSubmitting = false;
   String? _formError;
-  bool _isAdminMode = false;
   bool _isBiometricAvailable = false;
   bool _isBiometricRunning = false;
 
   @override
   void initState() {
     super.initState();
-    // Handler global del teclado: no depende de que algún widget tenga el foco.
-    if (kIsWeb) HardwareKeyboard.instance.addHandler(_onKeyEvent);
     _prepareBiometrics();
   }
 
   @override
   void dispose() {
-    if (kIsWeb) HardwareKeyboard.instance.removeHandler(_onKeyEvent);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -70,11 +58,13 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   // Biometría
   // -------------------------------------------------------------------------
 
-  /// La pastilla de administrador puesta significa que quien entra NO es un
-  /// cliente, y la biometría es solo para clientes: se esconde el botón. Es la
-  /// única señal disponible antes de autenticar, porque el token guardado es
-  /// opaco y el rol solo se sabe con el perfil ya cargado.
-  bool get _showBiometricButton => _isBiometricAvailable && !_isAdminMode;
+  /// El botón depende solo de que haya un enrolamiento en este dispositivo.
+  ///
+  /// No hace falta esconderlo para administradores: solo se enrola quien tiene
+  /// acceso al portal ([AuthController.shouldOfferBiometrics]), y un
+  /// enrolamiento viejo de una cuenta no-cliente se apaga al entrar
+  /// (`disableIfOwnedBy`).
+  bool get _showBiometricButton => _isBiometricAvailable;
 
   /// El botón se ofrece con que el usuario haya activado la biometría, aunque el
   /// token guardado ya no sirva: en ese caso el intento falla y pide contraseña,
@@ -102,50 +92,13 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   }
 
   // -------------------------------------------------------------------------
-  // Modo administrador (atajo de teclado + long-press del sello de versión)
-  // -------------------------------------------------------------------------
-
-  /// Único punto que enciende y apaga el modo administrador: lo comparten el
-  /// atajo de teclado y el long-press del sello de versión.
-  ///
-  /// No dispara la huella: el administrador entra siempre con correo y
-  /// contraseña (ver [_signInWithBiometrics]).
-  void _toggleAdminMode() {
-    if (!mounted) return;
-    setState(() => _isAdminMode = !_isAdminMode);
-    if (_isHapticPlatform) HapticFeedback.mediumImpact();
-  }
-
-  /// Solo Android/iOS: en web y escritorio no hay vibración que dar.
-  bool get _isHapticPlatform =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS);
-
-  /// Alterna el modo administrador con Ctrl+Shift+A o Ctrl+Alt+A (solo web).
-  ///
-  /// Debe ir en `HardwareKeyboard` (global), NO en un `Focus`: con nada
-  /// enfocado el atajo se pierde. Ctrl+Alt+A existe porque Chrome/Edge se
-  /// reservan Ctrl+Shift+A y la página no puede cancelarlo.
-  bool _onKeyEvent(KeyEvent event) {
-    if (event is! KeyDownEvent) return false;
-    final keyboard = HardwareKeyboard.instance;
-    final isKeyA =
-        event.logicalKey == LogicalKeyboardKey.keyA ||
-        event.physicalKey == PhysicalKeyboardKey.keyA;
-    if (!isKeyA || !keyboard.isControlPressed) return false;
-    if (!keyboard.isShiftPressed && !keyboard.isAltPressed) return false;
-    _toggleAdminMode();
-    return true; // consumido: no llega al campo de texto enfocado
-  }
-
-  // -------------------------------------------------------------------------
   // Acceso con contraseña
   // -------------------------------------------------------------------------
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     ref.read(inactivityLogoutProvider.notifier).state = false;
+    ref.read(passwordChangedProvider.notifier).state = false;
     setState(() {
       _isSubmitting = true;
       _formError = null;
@@ -171,9 +124,8 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     try {
       final profile = await auth.refreshProfile();
       // Acceso administrador: por el permiso del rol (roles.apps.administrar
-      // incluye "clientes" => canManageClientApp). NO requiere el modo admin
-      // manual (Ctrl+Alt+A): cualquier rol que administre la app entra directo
-      // al selector de clientes. El toggle _isAdminMode ya solo afecta la UI.
+      // incluye "clientes" => canManageClientApp). Cualquier rol que administre
+      // la app entra directo al selector de clientes, igual en web y en móvil.
       final isAdminAccess = profile?.canManageClientApp ?? false;
       if (!PortalAccess.allows(profile) && !isAdminAccess) {
         // Ni usuario del portal (rol Cliente o comprador) ni administrador de
@@ -198,7 +150,8 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       }
       // Con contraseña temporal pendiente NO se ofrece la biometría: enrolar
       // ahí ataría la huella a una credencial que el usuario esta por cambiar.
-      // La oferta la hace ChangePasswordScreen al terminar el cambio.
+      // El cambio cierra la sesión, así que la oferta llega en el login
+      // siguiente, ya con la contraseña definitiva.
       if (profile!.requiresPasswordChange) {
         auth.authFlowInProgress = false;
         if (!mounted) return;
@@ -248,6 +201,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   Future<void> _signInWithBiometrics({bool silentOnFailure = false}) async {
     if (_isBiometricRunning || _isSubmitting) return;
     ref.read(inactivityLogoutProvider.notifier).state = false;
+    ref.read(passwordChangedProvider.notifier).state = false;
     setState(() {
       _isBiometricRunning = true;
       _formError = null;
@@ -340,6 +294,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   Widget build(BuildContext context) {
     final t = context.s;
     final loggedOutByInactivity = ref.watch(inactivityLogoutProvider);
+    final passwordJustChanged = ref.watch(passwordChangedProvider);
     final isSplit = context.bp.isDesktop;
 
     // No quitar: sin AutofillGroup, `autofillHints` en los campos no alcanza y
@@ -355,12 +310,18 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             SizedBox(height: t.space.xs),
             const AuthSubtitle('Entra a tu portal para seguir tu inversión.'),
 
-            if (_isAdminMode) ...[
-              SizedBox(height: t.space.sm),
-              const _AdminModeBadge(),
-            ],
-
             SizedBox(height: t.space.lg),
+
+            if (passwordJustChanged) ...[
+              const AuthAlert(
+                kind: AuthAlertKind.success,
+                icon: Icons.check_circle_outline,
+                message:
+                    'Contraseña actualizada. Inicia sesión de nuevo con tu '
+                    'nueva contraseña para entrar.',
+              ),
+              SizedBox(height: t.space.md),
+            ],
 
             if (loggedOutByInactivity) ...[
               const AuthAlert(
@@ -447,7 +408,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             _RegistrationLine(onTap: _openPropertyRegistration),
 
             SizedBox(height: t.space.lg),
-            _VersionStamp(onHold: _toggleAdminMode),
+            const _VersionStamp(),
           ],
         ),
       ),
@@ -467,81 +428,21 @@ class _ForgotPasswordLink extends StatelessWidget {
   );
 }
 
-/// Cuánto hay que sostener el sello de versión para alternar el modo
-/// administrador. Umbral de gesto, no de animación: no sale de
-/// `context.s.motion`.
-const Duration _kAdminHoldDuration = Duration(milliseconds: 1500);
-
-/// Sello de versión del pie. A la vista, texto inerte; sostenido
-/// [_kAdminHoldDuration], el interruptor del modo administrador.
+/// Sello de versión del pie: texto inerte.
 ///
-/// No cambiar por `GestureDetector` (su `onLongPress` fija 500 ms y no se puede
-/// subir) ni por `SPressable` (pinta hover, ripple y cursor de mano, y el sello
-/// no debe verse pulsable).
+/// Sostenerlo encendía el modo administrador. Ese gesto murió: el acceso admin
+/// lo da el permiso del rol, no un toque secreto.
 class _VersionStamp extends StatelessWidget {
-  const _VersionStamp({required this.onHold});
-
-  final VoidCallback onHold;
+  const _VersionStamp();
 
   @override
   Widget build(BuildContext context) {
     final t = context.s;
-    return RawGestureDetector(
-      gestures: {
-        LongPressGestureRecognizer:
-            GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
-              () => LongPressGestureRecognizer(
-                duration: _kAdminHoldDuration,
-                debugOwner: this,
-              ),
-              (recognizer) => recognizer.onLongPress = onHold,
-            ),
-      },
-      child: Text(
-        appVersionLabel,
-        textAlign: TextAlign.center,
-        style: t.text.overline.copyWith(
-          color: t.color.fgSubtle.withValues(alpha: 0.6),
-        ),
-      ),
-    );
-  }
-}
-
-/// Pastilla de "Acceso administrador": único indicio visual de que el modo
-/// admin quedó encendido.
-class _AdminModeBadge extends StatelessWidget {
-  const _AdminModeBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.s;
-    return Align(
-      alignment: kAuthAlignment,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: t.space.sm,
-          vertical: t.space.xxs + 2,
-        ),
-        decoration: BoxDecoration(
-          color: t.color.fg,
-          borderRadius: t.radius.mdBorder,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.admin_panel_settings_outlined,
-              size: 14,
-              color: t.color.surface,
-            ),
-            SizedBox(width: t.space.xxs + 2),
-            Text(
-              'Acceso administrador',
-              style: t.text.overline.copyWith(color: t.color.surface),
-            ),
-          ],
-        ),
+    return Text(
+      appVersionLabel,
+      textAlign: TextAlign.center,
+      style: t.text.overline.copyWith(
+        color: t.color.fgSubtle.withValues(alpha: 0.6),
       ),
     );
   }

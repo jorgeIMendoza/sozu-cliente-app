@@ -109,9 +109,29 @@ class AuthAdapter implements AuthPort {
   @override
   Future<void> signOut() => _sb.auth.signOut();
 
+  /// Nombre de la Edge Function de restablecimiento. NO se usa el `/recover`
+  /// nativo de GoTrue: el correo transaccional del proyecto sale por Postmark
+  /// desde esta función, y GoTrue no tiene SMTP configurado (su envío se pierde
+  /// sin dejar rastro ni en Postmark ni en `auth.users.recovery_sent_at`).
+  static const _resetFunction = 'reset-user-password';
+
   @override
-  Future<void> sendPasswordReset(String email) =>
-      _sb.auth.resetPasswordForEmail(email.trim());
+  Future<void> sendPasswordReset(String email) async {
+    try {
+      await _sb.functions.invoke(
+        _resetFunction,
+        body: {'email': email.trim().toLowerCase()},
+      );
+    } on FunctionException catch (e) {
+      // La función responde 200 genérico exista o no la cuenta (anti-
+      // enumeración): un status de error aquí es fallo real de servidor.
+      throw AuthError(
+        e.status == 429 ? AuthFailure.tooManyAttempts : AuthFailure.unknown,
+      );
+    } catch (_) {
+      throw AuthError(AuthFailure.network);
+    }
+  }
 
   @override
   Future<void> updatePassword(String newPassword) async {

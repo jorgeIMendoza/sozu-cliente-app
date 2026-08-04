@@ -99,6 +99,52 @@ void main() {
     );
   });
 
+  test('resetPassword propaga el fallo real: no se traga nada', () async {
+    final port = FakeAuthPort();
+    final controller = await makeController(port);
+    port.nextFailure = AuthFailure.network;
+
+    await expectLater(
+      controller.resetPassword('cliente@sozu.com'),
+      throwsA(isA<AuthError>()),
+    );
+    expect(port.log, contains('sendPasswordReset'));
+  });
+
+  test('resetPasswordErrorMessage distingue red y límite de solicitudes', () {
+    expect(
+      AuthController.resetPasswordErrorMessage(
+        AuthError(AuthFailure.tooManyAttempts),
+      ),
+      'Demasiadas solicitudes. Espera unos minutos y vuelve a intentar.',
+    );
+    expect(
+      AuthController.resetPasswordErrorMessage(AuthError(AuthFailure.network)),
+      'No pudimos conectar. Revisa tu conexion e intenta de nuevo.',
+    );
+    expect(
+      AuthController.resetPasswordErrorMessage(AuthError(AuthFailure.unknown)),
+      'No pudimos enviar el correo. Intenta de nuevo o escribe a soporte.',
+    );
+  });
+
+  test('changePasswordErrorMessage distingue la contraseña actual', () {
+    expect(
+      AuthController.changePasswordErrorMessage(WrongCurrentPasswordError()),
+      'Tu contrasena actual no es correcta.',
+    );
+    expect(
+      AuthController.changePasswordErrorMessage(
+        AuthError(AuthFailure.sessionRevoked),
+      ),
+      'Tu sesion expiro. Vuelve a iniciar sesion e intenta de nuevo.',
+    );
+    expect(
+      AuthController.changePasswordErrorMessage(AuthError(AuthFailure.network)),
+      'No pudimos conectar. Revisa tu conexion e intenta de nuevo.',
+    );
+  });
+
   test(
     'changePassword con actual equivocada: Wrong... y NO cambia nada',
     () async {

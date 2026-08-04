@@ -37,8 +37,8 @@ class AuthController extends ChangeNotifier {
   /// que el estado de sesión ya cambió; el router no debe sacar al usuario de
   /// ella. Cubre dos casos: el login validando el rol (un signOut por rol
   /// inválido borraría el mensaje de error al desmontar) y el cambio de
-  /// contraseña ofreciendo la biometría (el perfil ya no exige el cambio, así
-  /// que el redirect se llevaría el sheet a medias).
+  /// contraseña cerrando la sesión (el perfil ya no exige el cambio, así que el
+  /// redirect abandonaría la ruta con el cierre a medias).
   bool authFlowInProgress = false;
 
   /// Candado biométrico: la sesión del backend sigue viva (nunca se revocó)
@@ -133,6 +133,38 @@ class AuthController extends ChangeNotifier {
       AuthFailure.network =>
         'No pudimos conectar. Revisa tu conexion e intenta de nuevo.',
       _ => 'Correo o contrasena incorrectos.',
+    };
+  }
+
+  /// Mensaje para un fallo de [resetPassword]. Solo cubre fallos REALES: que la
+  /// cuenta no exista no llega aquí, el backend responde éxito genérico.
+  static String resetPasswordErrorMessage(Object e) {
+    final reason = e is AuthError ? e.reason : AuthFailure.network;
+    return switch (reason) {
+      AuthFailure.tooManyAttempts =>
+        'Demasiadas solicitudes. Espera unos minutos y vuelve a intentar.',
+      AuthFailure.network =>
+        'No pudimos conectar. Revisa tu conexion e intenta de nuevo.',
+      _ => 'No pudimos enviar el correo. Intenta de nuevo o escribe a soporte.',
+    };
+  }
+
+  /// Mensaje para un fallo de [updatePassword] o [changePassword].
+  static String changePasswordErrorMessage(Object e) {
+    if (e is WrongCurrentPasswordError) {
+      return 'Tu contrasena actual no es correcta.';
+    }
+    final reason = e is AuthError ? e.reason : AuthFailure.network;
+    return switch (reason) {
+      AuthFailure.tooManyAttempts =>
+        'Demasiados intentos. Espera un minuto y vuelve a probar.',
+      AuthFailure.network =>
+        'No pudimos conectar. Revisa tu conexion e intenta de nuevo.',
+      AuthFailure.sessionRevoked =>
+        'Tu sesion expiro. Vuelve a iniciar sesion e intenta de nuevo.',
+      _ =>
+        'No pudimos actualizar la contrasena. Revisa que cumpla los '
+            'requisitos e intenta de nuevo.',
     };
   }
 
@@ -250,3 +282,8 @@ final authProvider = ChangeNotifierProvider<AuthController>((ref) {
 /// Se enciende cuando InactivityWatcher cierra la sesión por inactividad;
 /// el login lo lee para explicar el cierre y lo apaga al reintentar.
 final inactivityLogoutProvider = StateProvider<bool>((ref) => false);
+
+/// Se enciende al terminar el cambio de contraseña temporal, que cierra la
+/// sesión a propósito; el login lo lee para confirmar el cambio y lo apaga al
+/// reintentar. Mismo mecanismo que [inactivityLogoutProvider].
+final passwordChangedProvider = StateProvider<bool>((ref) => false);
