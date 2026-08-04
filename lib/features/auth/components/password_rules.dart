@@ -30,7 +30,8 @@ class PasswordRulesChecklist extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = context.s.color;
+    final t = context.s;
+    final tone = t.color;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -47,8 +48,7 @@ class PasswordRulesChecklist extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   r.label,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: t.text.caption.copyWith(
                     color: r.test(value) ? tone.positive : tone.fgSubtle,
                   ),
                 ),
