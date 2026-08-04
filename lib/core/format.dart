@@ -4,7 +4,11 @@ import 'package:intl/intl.dart';
 /// - Moneda MXN con separador de miles y 2 decimales: $9,324,282.24
 /// - Fecha DD/MM/YYYY.
 
-final _mxn = NumberFormat.currency(locale: 'en_US', symbol: r'$', decimalDigits: 2);
+final _mxn = NumberFormat.currency(
+  locale: 'en_US',
+  symbol: r'$',
+  decimalDigits: 2,
+);
 
 /// 9324282.24 -> "$9,324,282.24"
 String formatMXN(num? amount) {
@@ -21,27 +25,37 @@ String formatMXNCompact(num? amount) {
   return '\$${n.toStringAsFixed(0)}';
 }
 
-/// Date/ISO string -> "DD/MM/YYYY". Null/inválida -> "—".
+/// Date/ISO string -> "DD/MM/YYYY". Null/inválida -> "-".
 String formatDate(Object? input) {
-  if (input == null) return '—';
+  if (input == null) return '-';
   DateTime? d;
   if (input is DateTime) {
     d = input;
   } else if (input is String && input.isNotEmpty) {
     d = DateTime.tryParse(input);
   }
-  if (d == null) return '—';
+  if (d == null) return '-';
   return DateFormat('dd/MM/yyyy').format(d);
 }
 
 /// Meses cortos en español (formato es-MX del portal).
 const _mesesCortoEs = <String>[
-  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
 ];
 
 /// Date/ISO string -> "11 feb 2026" (formato es-MX del portal: día a 2 dígitos,
-/// mes corto en minúsculas, año). Null/inválida -> "—".
+/// mes corto en minúsculas, año). Null/inválida -> "-".
 String formatDateEsMX(Object? input) {
   DateTime? d;
   if (input is DateTime) {
@@ -49,7 +63,7 @@ String formatDateEsMX(Object? input) {
   } else if (input is String && input.isNotEmpty) {
     d = DateTime.tryParse(input);
   }
-  if (d == null) return '—';
+  if (d == null) return '-';
   final dd = d.day.toString().padLeft(2, '0');
   return '$dd ${_mesesCortoEs[d.month - 1]} ${d.year}';
 }

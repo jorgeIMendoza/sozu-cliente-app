@@ -9,7 +9,7 @@ const Color kWhatsAppGreen = Color(0xFF25D366);
 /// [CustomPaint] a partir del MISMO path SVG que usa el portal
 /// (`AdvisorCard.tsx`, simple-icons). El proyecto no tiene `flutter_svg`, así
 /// que un parser mínimo de path (abajo) lo convierte a [Path] y se pinta con
-/// [color] sobre cualquier fondo — nítido a 18-20 px.
+/// [color] sobre cualquier fondo - nítido a 18-20 px.
 ///
 /// Uso: blanco sobre el fondo verde de un botón, o [kWhatsAppGreen] si va
 /// suelto.
@@ -87,8 +87,7 @@ Path _parseSvgPath(String d) {
   String cmd = '';
   String lastCmd = '';
 
-  bool isCmd(String t) =>
-      t.length == 1 && 'MmLlHhVvCcSsQqTtAaZz'.contains(t);
+  bool isCmd(String t) => t.length == 1 && 'MmLlHhVvCcSsQqTtAaZz'.contains(t);
   double n() => double.parse(toks[i++]);
 
   while (i < toks.length) {

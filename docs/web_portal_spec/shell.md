@@ -2,7 +2,7 @@
 
 > Fuentes: `src/components/admin/portal-cliente/PortalClienteLayout.tsx`, `Sidebar.tsx`,
 > `TopBar.tsx`, `PortalSearchInput.tsx`, `ClienteImpersonationSelector.tsx`,
-> `src/components/ui/SozuLogo.tsx`, `src/lib/portal-cliente/portal-nav-data.ts`.
+> `src/components/ui/SLogo.tsx`, `src/lib/portal-cliente/portal-nav-data.ts`.
 > Colores hex resueltos en `tokens.md`. Todo verificado igual a `origin/dev`.
 
 ## Estructura general (PortalClienteLayout.tsx:91-207)
@@ -31,10 +31,10 @@ Contenedor (`Sidebar`, línea 135):
 
 ### 1. Brand (líneas 43-48)
 - Contenedor: `px-5 py-4` (20/16px), `border-b border-border-soft` (1px #E9EEF4), columna con `gap-1` (4px).
-- Logo SOZU: `<SozuLogo className="h-6" />` — **24px de alto**, ancho auto por aspect-ratio
+- Logo SOZU: `<SLogo className="h-6" />` - **24px de alto**, ancho auto por aspect-ratio
   `932/268` (≈ 83px). Es una máscara CSS del PNG del logo pintada con `--foreground`
-  (#14161A, casi negro) — ver SozuLogo.tsx. En Flutter: asset del logo teñido de #14161A.
-- Subtítulo: texto exacto **"Portal del cliente"** renderizado en mayúsculas —
+  (#14161A, casi negro) - ver SLogo.tsx. En Flutter: asset del logo teñido de #14161A.
+- Subtítulo: texto exacto **"Portal del cliente"** renderizado en mayúsculas -
   `text-[10px] font-semibold tracking-[0.18em] uppercase text-gray-500`
   → 10px, w600, letter-spacing 1.8px, color #6B7280 (gray-500 Tailwind).
 
@@ -78,16 +78,16 @@ Contenedor (`Sidebar`, línea 135):
     máx 22 chars con "…"; PortalClienteLayout.tsx:20-24).
   - Rol debajo: `text-[11px] text-muted-foreground` (p.ej. "Cliente").
   - ChevronRight 16px a la derecha, visible solo en hover.
-- **Acciones** — dos variantes según `isClient` (rol "Cliente" vs admin impersonando):
+- **Acciones** - dos variantes según `isClient` (rol "Cliente" vs admin impersonando):
   - **Cliente final** (líneas 97-104): un solo botón centrado
     `py-1.5 rounded-md text-[12px] text-destructive hover:bg-destructive/10` con icono
     LogOut 16px + texto **"Cerrar sesión"** (rojo #EF4444, hover fondo #FDECEC).
   - **Admin (solo impersonación)** (líneas 105-124): dos botones lado a lado (`flex gap-2`,
     cada uno `flex-1`): **"Regresar"** (ArrowLeft, `text-muted-foreground`,
-    hover `text-foreground bg-muted/60`; navega a /admin — solo si `canReturnToAdmin`) y
+    hover `text-foreground bg-muted/60`; navega a /admin - solo si `canReturnToAdmin`) y
     **"Cerrar sesión"** (idéntico al de cliente). Mismo tamaño `text-[12px] py-1.5`.
 - **Versión** (línea 127): `text-[10px] text-muted-foreground/40 font-mono text-center`
-  — número de versión de la app (APP_VERSION), gris muy tenue, monospace, centrado.
+  - número de versión de la app (APP_VERSION), gris muy tenue, monospace, centrado.
 
 ## TopBar de escritorio (TopBar.tsx:46-103)
 
@@ -108,7 +108,7 @@ Orden de elementos (izquierda → derecha):
   atajos "Mi expediente" si el query contiene "doc/exped" y "Historial de pagos" si contiene
   "pago/historial".
 
-### 2. Selector de impersonación "Ver como" (ClienteImpersonationSelector.tsx:174-314) — **SOLO ADMIN**
+### 2. Selector de impersonación "Ver como" (ClienteImpersonationSelector.tsx:174-314) - **SOLO ADMIN**
 - Se auto-oculta si `profile.puede_impersonar !== true` (línea 24, 171). **El cliente final NUNCA lo ve.**
 - Contenedor: `flex items-center gap-1.5 rounded-xl border border-border-soft bg-muted/30
   pl-2.5 pr-1.5 h-9` → pastilla de 36px de alto, radio 16px, fondo #FBFCFC, borde #E9EEF4.
@@ -148,8 +148,8 @@ Sticky, `bg-card border-b border-border`, tres franjas:
 | Elemento | Cliente final | Admin impersonando |
 |---|---|---|
 | Sidebar completa + nav | ✔ | ✔ |
-| Footer: "Cerrar sesión" solo | ✔ | — |
-| Footer: "Regresar" + "Cerrar sesión" | — | ✔ |
+| Footer: "Cerrar sesión" solo | ✔ | - |
+| Footer: "Regresar" + "Cerrar sesión" | - | ✔ |
 | Buscador global | ✔ | ✔ |
 | Selector "Ver como" | ✖ (oculto por `puede_impersonar`) | ✔ |
 | Campana + avatar/popover | ✔ | ✔ |

@@ -9,5 +9,7 @@
 /// `core/portal_tracking.dart`.
 library;
 
+// ignore: always_use_package_imports -- export condicional: la
+// resolucion por plataforma exige ruta relativa.
 export 'file_download_stub.dart'
     if (dart.library.js_interop) 'file_download_web.dart';
