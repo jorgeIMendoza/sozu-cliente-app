@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -21,17 +22,23 @@ class UserProfile {
   final String? nombre;
   final String? email;
   final String? rolNombre;
+
+  /// Id del rol (roles.id). Gate del acceso de cliente: se compara contra
+  /// [AuthController.clienteRolId] (estable, no depende del nombre del rol).
+  final int? rolId;
   final int? idPersona;
   final bool debeCambiarPassword;
 
-  /// roles.administrar_app_clientes: habilita el acceso administrador del app
-  /// (selector de clientes, envío de avisos, configuración).
+  /// roles.administrar_app_clientes (derivado de roles.apps.administrar en el
+  /// backend): habilita el acceso administrador del app (selector de clientes,
+  /// envío de avisos, configuración).
   final bool administrarAppClientes;
 
   const UserProfile({
     this.nombre,
     this.email,
     this.rolNombre,
+    this.rolId,
     this.idPersona,
     this.debeCambiarPassword = false,
     this.administrarAppClientes = false,
@@ -61,7 +68,23 @@ class AuthController extends ChangeNotifier {
 
   bool get isLoading => !_authReady || !_profileReady;
   bool get mustChangePassword => profile?.debeCambiarPassword ?? false;
-  bool get isCliente => profile?.rolNombre == 'Cliente';
+
+  /// Id del rol de usuario final (Cliente), configurable por ambiente vía el
+  /// env CLIENTE_ROL_ID (dev/prod distintos). Si no está definido, el gate cae
+  /// al nombre "Cliente" (transición) para no romper el acceso.
+  static final int? clienteRolId =
+      int.tryParse(dotenv.env['CLIENTE_ROL_ID'] ?? '');
+
+  /// ¿El perfil es un usuario final de la app (rol Cliente)? Por rol_id; con
+  /// fallback al nombre si CLIENTE_ROL_ID no está configurado.
+  static bool esRolCliente(UserProfile? p) {
+    if (p == null) return false;
+    if (clienteRolId != null) return p.rolId == clienteRolId;
+    // Fallback por nombre (sin env): normalizado, igual que el backend (normRol).
+    return (p.rolNombre ?? '').trim().toLowerCase() == 'cliente';
+  }
+
+  bool get isCliente => esRolCliente(profile);
 
   /// Acceso administrador del app: por permiso del rol (no por nombre).
   bool get isSuperAdmin => profile?.administrarAppClientes ?? false;
@@ -134,6 +157,9 @@ class AuthController extends ChangeNotifier {
         nombre: row['nombre'] as String?,
         email: row['email'] as String?,
         rolNombre: row['rol_nombre'] as String?,
+        rolId: row['rol_id'] is int
+            ? row['rol_id'] as int
+            : int.tryParse('${row['rol_id']}'),
         idPersona: row['id_persona'] is int
             ? row['id_persona'] as int
             : int.tryParse('${row['id_persona']}'),
