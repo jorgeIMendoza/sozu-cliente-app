@@ -266,15 +266,27 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
   de pantalla, no
   `kIsWeb`: web en el navegador del celular usa el plazo corto.
 
-## Tema: la app va FORZADA A CLARO
-`main.dart` fija `themeMode: ThemeMode.light`. El modo oscuro se veía roto
-porque la mayoría de las pantallas siguen sobre el shim `PortalColors` (fijo a
-claro). El selector de tema y su preferencia persistida se BORRARON
-(`widgets/theme_mode_button.dart` + `providers/theme_provider.dart`); para
-recuperarlos, `git show e90c9cd^:lib/widgets/theme_mode_button.dart`.
-`sozuDarkTheme()` sigue vivo en el design system y con tests: la paleta oscura
-no es lo roto, el consumo por `PortalColors` sí. Reactivar el selector es la
-recompensa de terminar `PortalColors -> context.s.color`, no antes.
+## Tema: claro/oscuro SÍ, pero el portal ancho va con candado a claro
+El selector vive en Perfil (`features/client/profile/components/theme_selector.dart`)
+y la preferencia se persiste en `shared/providers/theme_provider.dart`
+(`shared_preferences`; no es dato sensible).
+
+`main.dart` pasa el `themeMode` del provider Y envuelve el árbol en
+**`PortalLightLock`**, que fuerza claro cuando `isPortalMode(context)` es true
+(web con ancho ≥ `kPortalBreakpoint`). Motivo: el portal pinta con el shim
+`PortalColors`, cuyas constantes son claras y no dependen del tema, así que en
+oscuro solo cambiaría lo ya migrado a `context.s` y sale texto claro sobre
+fondo claro. En móvil/angosto las pantallas sí leen los roles, así que ahí el
+selector manda de verdad.
+
+El candado usa `isPortalMode` **a propósito aunque esté deprecado**: tiene que
+decidir con el mismo criterio que las 22 pantallas que ramifican por él
+(incluido su `kIsWeb`). Si discrepan, salen temas mezclados. Migra cuando ellas
+migren a `context.bp`.
+
+Al terminar `PortalColors -> context.s.color`, borrar `PortalLightLock` y el
+oscuro queda global. Tests: `test/theme_mode_test.dart`; la rama del portal solo
+se verifica con `flutter test --platform chrome` (en la VM `kIsWeb` es false).
 
 ## Correr
 **Guía completa del flujo diario: `tool/README.md`** (web, móvil inalámbrico, las

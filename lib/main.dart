@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/core/secure_session_storage.dart';
 import 'package:sozu_cliente_app/core/url_strategy.dart';
+import 'package:sozu_cliente_app/shared/providers/theme_provider.dart';
 import 'package:sozu_cliente_app/router.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/features/auth/components/inactivity_watcher.dart';
@@ -68,17 +70,14 @@ class SozuApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final themeMode = ref.watch(themeProvider).mode;
 
     return MaterialApp.router(
       title: 'SOZU - Portal del Cliente',
       debugShowCheckedModeBanner: false,
       theme: sozuLightTheme(),
-      // Tema OSCURO deshabilitado a propósito: la UI aún usa el shim
-      // `PortalColors` (fijo a claro) en la mayoría de pantallas, así que el
-      // modo oscuro se veía roto/parcial. Se fuerza claro hasta terminar la
-      // migración PortalColors -> context.s.color. El selector de tema se quitó
-      // de Ajustes para no confundir.
-      themeMode: ThemeMode.light,
+      darkTheme: sozuDarkTheme(),
+      themeMode: themeMode,
       routerConfig: router,
       // SozuAdaptiveTokens resuelve la densidad del design system según el ancho
       // disponible y reinyecta los tokens. Va lo más arriba posible: el
@@ -86,14 +85,41 @@ class SozuApp extends ConsumerWidget {
       // esto `context.s` siempre devolvería la densidad `comfortable`. Por eso
       // envuelve a `VersionGate` y no al revés.
       builder: (context, child) => SozuAdaptiveTokens(
-        child: VersionGate(
-          child: InactivityWatcher(
-            child: PushRegistrar(
-              child: PreviewBanner(child: child ?? const SizedBox.shrink()),
+        child: PortalLightLock(
+          child: VersionGate(
+            child: InactivityWatcher(
+              child: PushRegistrar(
+                child: PreviewBanner(child: child ?? const SizedBox.shrink()),
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+/// Fuerza tema claro en el portal web ancho, donde el oscuro NO está listo.
+///
+/// El portal pinta con el shim `PortalColors`, cuyas constantes son claras y no
+/// dependen del tema. En oscuro solo cambiaría lo ya migrado a `context.s`, y el
+/// resultado es texto claro sobre fondos claros. En móvil/angosto no pasa: esas
+/// pantallas ya leen los roles de color, así que ahí el selector sí manda.
+///
+/// El candado usa `isPortalMode` a propósito, aunque esté deprecado: tiene que
+/// decidir con el MISMO criterio que las 22 pantallas que ramifican por él
+/// (incluido su `kIsWeb`, que deja fuera a una tablet Android ancha). Si el
+/// candado y las pantallas discrepan, salen temas mezclados. Migra cuando ellas
+/// migren a `context.bp`, no antes.
+class PortalLightLock extends StatelessWidget {
+  final Widget child;
+
+  const PortalLightLock({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    // ignore: deprecated_member_use_from_same_package
+    if (!isPortalMode(context)) return child;
+    return Theme(data: sozuLightTheme(), child: child);
   }
 }
