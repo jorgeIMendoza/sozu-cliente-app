@@ -313,17 +313,6 @@ class _PropiedadDetalleScreenState
                   ),
                 ),
 
-                // Copropietarios (solo si la cuenta tiene más de un
-                // propietario; el widget se oculta solo en caso contrario).
-                CopropietariosSection(copropietarios: d.copropietarios),
-
-                // Ubicación del proyecto (solo si tiene coordenadas)
-                if (d.ubicacion != null)
-                  _UbicacionSection(
-                    ubicacion: d.ubicacion!,
-                    proyecto: d.proyecto,
-                  ),
-
                 // Productos adicionales
                 if (d.productos.isNotEmpty) ...[
                   SSectionLabel.heading(
@@ -343,41 +332,102 @@ class _PropiedadDetalleScreenState
                   saldoPendiente: d.saldoPendienteEfectivo,
                 ),
 
-                // Cronograma de pagos (tarjeta colapsable estilo portal
-                // del cliente, con pagos aplicados y CEP por concepto).
-                KeyedSubtree(
-                  key: _cronoKey,
-                  child: CronogramaPagos(esquemaPago: d.esquemaPago),
-                ),
-
-                // Ficha técnica
-                if (d.ficha.numeroPiso != null ||
-                    d.ficha.planoNivelUrl != null ||
-                    d.ficha.planoDistribucionUrl != null ||
-                    d.ficha.regiones.isNotEmpty)
-                  _FichaTecnica(ficha: d.ficha),
-
-                // Documentos
-                const SSectionLabel.heading(
-                  icon: Icons.description_outlined,
-                  text: 'Documentos',
-                ),
-                if (d.documentos.isEmpty)
-                  const SEmptyState.card(
-                    icon: Icons.folder_open_outlined,
-                    title: 'Sin documentos para esta propiedad',
-                  )
-                else
-                  for (final doc in d.documentos) ...[
-                    _DocRow(d: doc),
-                    const SizedBox(height: 10),
-                  ],
+                // Pestañas (Pagos · Avance de obra · Documentos · Ficha),
+                // igual que el modo portal: en vez de apilar todas las
+                // secciones verticalmente, el resto del detalle (cronograma,
+                // avance de obra, documentos y ficha/ubicación/copropietarios)
+                // vive dentro de su pestaña.
+                const SizedBox(height: 16),
+                _portalTabBar(),
+                const SizedBox(height: 16),
+                _mobileTabContent(context, tone, d),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// Contenido de la pestaña activa en modo MÓVIL (mismo mapeo canónico de las
+  /// 4 pestañas que `_portalTabContent`, pero con las variantes móviles de cada
+  /// sección — sin `portal: true`).
+  Widget _mobileTabContent(
+    BuildContext context,
+    SozuColorRoles tone,
+    PropiedadDetalle d,
+  ) {
+    switch (_portalTab) {
+      // Pagos → cronograma (misma ancla para "Confirmar plan de pagos").
+      case _DetailTab.pagos:
+        return KeyedSubtree(
+          key: _cronoKey,
+          child: CronogramaPagos(esquemaPago: d.esquemaPago),
+        );
+
+      // Avance de obra → video (si hay) + card de datos del backend; si aún no
+      // hay datos ni video, empty state discreto (misma lógica que el portal).
+      case _DetailTab.obra:
+        final videoUrl = d.videoObraUrl?.trim();
+        final tieneVideo = videoUrl != null && videoUrl.isNotEmpty;
+        final secciones = <Widget>[
+          if (tieneVideo) _portalVideoObra(videoUrl),
+          if (d.avanceObra != null)
+            _portalAvanceObra(d.avanceObra!)
+          else if (!tieneVideo)
+            _portalAvanceObraVacio(),
+        ];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < secciones.length; i++) ...[
+              if (i > 0) const SizedBox(height: 16),
+              secciones[i],
+            ],
+          ],
+        );
+
+      // Documentos → misma lista de documentos que ya usa la vista móvil.
+      case _DetailTab.docs:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SSectionLabel.heading(
+              icon: Icons.description_outlined,
+              text: 'Documentos',
+            ),
+            if (d.documentos.isEmpty)
+              const SEmptyState.card(
+                icon: Icons.folder_open_outlined,
+                title: 'Sin documentos para esta propiedad',
+              )
+            else
+              for (final doc in d.documentos) ...[
+                _DocRow(d: doc),
+                const SizedBox(height: 10),
+              ],
+          ],
+        );
+
+      // Ficha técnica → ficha + ubicación (si hay coordenadas) + copropietarios
+      // (el widget se oculta solo si la cuenta no tiene copropiedad), variantes
+      // móviles con las mismas condiciones de visibilidad que hoy.
+      case _DetailTab.ficha:
+        final tieneFicha =
+            d.ficha.numeroPiso != null ||
+            d.ficha.planoNivelUrl != null ||
+            d.ficha.planoDistribucionUrl != null ||
+            d.ficha.regiones.isNotEmpty;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (tieneFicha) _FichaTecnica(ficha: d.ficha),
+            if (d.ubicacion != null)
+              _UbicacionSection(ubicacion: d.ubicacion!, proyecto: d.proyecto),
+            CopropietariosSection(copropietarios: d.copropietarios),
+          ],
+        );
+    }
   }
 
   /// Routing del botón Pagar: primera vez en el último pago → "Pago final";
