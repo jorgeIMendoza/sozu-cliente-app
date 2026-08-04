@@ -32,6 +32,26 @@ cada decision se tomo, y esto va a produccion.
   (gitignored; patrón de admin-sozu/sozu-admin: secciones fechadas + comandos
   exactos). Jorge lo ejecuta a mano y reporta.
 
+## Quien entra al Portal del Cliente
+Dos caminos, no uno (`features/auth/services/portal_access.dart`):
+**rol Cliente (`roles.id` 23) O comprador activo** (`compradores.activo`, que
+llega como `es_comprador` en el RPC del perfil). El rol dice para que se
+contrato a la persona, no si compro: hay 8 internos (agentes, etc.) que son
+clientes de SOZU.
+
+⚠️ **El gate esta DUPLICADO y los dos lados se cambian juntos.** El de verdad es
+`_shared/cliente.ts` -> `authClient()` en `sozu-edge-functions`: si el frontend
+deja pasar y el backend no, el usuario entra y recibe **403 en cada pantalla**.
+`PortalAccess.allows` es el espejo del gate del backend, y `test/features/auth/
+portal_access_test.dart` fija el contrato.
+
+`isBuyer` es aditivo: sin `es_comprador` en el RPC se lee `false` y el acceso
+queda como antes (solo rol 23), asi que frontend y backend no necesitan
+despliegue simultaneo. El orden seguro es backend primero.
+
+El acceso administrador es OTRA COSA: va por `canManageClientApp`
+(`roles.apps.administrar` incluye `clientes`), no por aqui.
+
 ## Reglas de SEGURIDAD (innegociables - mismas que el app RN)
 - SOLO Supabase ANON KEY (pública) + JWT del usuario logueado.
 - NUNCA service_role ni credenciales de BD en el código.
@@ -137,7 +157,7 @@ screens/forgot_password_screen.dart · change_password_screen.dart
 components/auth_brand_image.dart · auth_header.dart · auth_alert.dart
 components/biometric_setup_sheet.dart · biometric_toggle_card.dart · login_form.dart
 services/biometric_service.dart BiometricService · BiometricLoginResult
-services/client_role.dart       ClientRole.id · ClientRole.matches (gate rol Cliente)
+services/portal_access.dart     PortalAccess.allows (quien entra al portal)
 ```
 
 Toda la biometría (huella / Face ID) vive en `auth`: es autenticación. El servicio,

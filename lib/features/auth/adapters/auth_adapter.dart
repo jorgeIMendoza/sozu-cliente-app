@@ -35,6 +35,9 @@ class AuthAdapter implements AuthPort {
         roleId: row['rol_id'] is int
             ? row['rol_id'] as int
             : int.tryParse('${row['rol_id']}'),
+        // Ausente hasta que el RPC agregue la columna: se lee como false y el
+        // acceso queda igual que antes (solo rol Cliente).
+        isBuyer: row['es_comprador'] == true,
         personId: row['id_persona'] is int
             ? row['id_persona'] as int
             : int.tryParse('${row['id_persona']}'),

@@ -8,7 +8,7 @@ import 'package:sozu_cliente_app/core/push_service.dart';
 import 'package:sozu_cliente_app/features/auth/adapters/auth_adapter.dart';
 import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
 import 'package:sozu_cliente_app/features/auth/services/biometric_service.dart';
-import 'package:sozu_cliente_app/features/auth/services/client_role.dart';
+import 'package:sozu_cliente_app/features/auth/services/portal_access.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
 
 /// Estado de sesión/JWT + perfil (espejo de src/providers/AuthProvider.tsx).
@@ -53,7 +53,7 @@ class AuthController extends ChangeNotifier {
   bool get isLoading => !_authReady || !_profileReady;
   bool get mustChangePassword => profile?.requiresPasswordChange ?? false;
 
-  bool get isClient => ClientRole.matches(profile);
+  bool get hasPortalAccess => PortalAccess.allows(profile);
 
   /// Acceso administrador del app: por permiso del rol (no por nombre).
   bool get isSuperAdmin => profile?.canManageClientApp ?? false;
@@ -153,10 +153,10 @@ class AuthController extends ChangeNotifier {
   Future<bool> shouldOfferBiometrics() async {
     final bio = BiometricService.instance;
     if (bio.offerDeclined) return false;
-    // SOLO clientes. La biometría es un candado local sobre un refresh token
-    // guardado, y la sesión de un administrador puede impersonar a cualquier
-    // cliente: no se deja detrás de la huella enrolada en un teléfono.
-    if (!isClient) return false;
+    // SOLO usuarios del portal. La biometría es un candado local sobre un
+    // refresh token guardado, y la sesión de un administrador puede impersonar a
+    // cualquier cliente: no se deja detrás de la huella enrolada en un teléfono.
+    if (!hasPortalAccess) return false;
     if (!await bio.isSupported()) return false;
     return !await bio.isEnabled();
   }
