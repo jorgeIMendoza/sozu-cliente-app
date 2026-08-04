@@ -25,8 +25,8 @@ class UserProfile {
   final String? email;
   final String? roleName;
 
-  /// Id del rol (`roles.id`). Gate del acceso de cliente: se compara contra
-  /// [AuthController.clientRoleId] (estable, no depende del nombre del rol).
+  /// Id del rol (`roles.id`). Gate del acceso de cliente: lo compara
+  /// `ClientRole.matches` (estable, no depende del nombre del rol).
   final int? roleId;
   final int? personId;
 
