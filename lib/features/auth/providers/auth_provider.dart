@@ -53,18 +53,21 @@ class AuthController extends ChangeNotifier {
   bool get isLoading => !_authReady || !_profileReady;
   bool get mustChangePassword => profile?.requiresPasswordChange ?? false;
 
-  /// Id del rol de usuario final (Cliente), configurable por ambiente vía el
-  /// env `CLIENTE_ROL_ID` (dev/prod distintos). Si no está definido, el gate
-  /// cae al nombre "Cliente" (transición) para no romper el acceso.
-  static final int? clientRoleId = dotenv.isInitialized
-      ? int.tryParse(dotenv.env['CLIENTE_ROL_ID'] ?? '')
-      : null;
+  /// Id del rol de usuario final (Cliente) = `roles.id` 23 en producción. Fijo
+  /// en código (esta app solo se compila contra el proyecto de producción), sin
+  /// configuración. El env `CLIENTE_ROL_ID` lo sobreescribe si algún día hace
+  /// falta otro ambiente.
+  static const int _defaultClientRoleId = 23;
+  static final int clientRoleId = (dotenv.isInitialized
+          ? int.tryParse(dotenv.env['CLIENTE_ROL_ID'] ?? '')
+          : null) ??
+      _defaultClientRoleId;
 
   /// ¿El perfil es un usuario final de la app (rol Cliente)? Por `roleId`; con
-  /// fallback al nombre normalizado si `CLIENTE_ROL_ID` no está configurado.
+  /// fallback al nombre normalizado si el backend aún no devolviera `rol_id`.
   static bool isClientRole(UserProfile? p) {
     if (p == null) return false;
-    if (clientRoleId != null) return p.roleId == clientRoleId;
+    if (p.roleId != null) return p.roleId == clientRoleId;
     return (p.roleName ?? '').trim().toLowerCase() == 'cliente';
   }
 
