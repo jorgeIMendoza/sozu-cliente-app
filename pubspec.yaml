@@ -78,6 +78,8 @@ flutter:
     # Imagen del panel de marca del login (columna izquierda en desktop).
     # 1403x1403; se recorta con BoxFit.cover.
     - assets/images/bg-sozu.jpg
+    # QR para descargar la app (login + modal "Descargar app" del portal web).
+    - assets/images/sozu-qr-web.png
 
   # Inter: tipografía de interfaz de la app entera (ver lib/core/theme.dart).
   # Se eligió por ser lo más cercano al `system-ui` del navegador (Segoe UI en

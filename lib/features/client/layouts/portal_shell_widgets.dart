@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/features/app_download/components/app_download.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
 import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
@@ -532,6 +534,16 @@ class _PortalTopBarAvatarMenuState
                               context.go('/perfil');
                             },
                           ),
+                          // "Descargar app" solo en web: en nativo no aplica.
+                          if (kIsWeb)
+                            _AvatarMenuItem(
+                              icon: Icons.qr_code,
+                              label: 'Descargar app',
+                              onTap: () {
+                                _overlay.hide();
+                                showAppDownloadDialog(context);
+                              },
+                            ),
                           _AvatarMenuItem(
                             icon: Icons.logout,
                             label: 'Cerrar sesión',
