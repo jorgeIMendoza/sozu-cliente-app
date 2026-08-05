@@ -1,0 +1,187 @@
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
+import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
+
+const _kQrAsset = 'assets/images/sozu-qr-web.png';
+
+/// Redirector (Cloudflare Worker) que detecta el SO y manda a la tienda
+/// correcta. Es el MISMO destino que codifica el QR: una sola fuente de verdad.
+const _kDownloadUrl = 'https://obtener-clientes-app.sozu.com';
+
+/// Bloque "Descarga la app": encabezado opcional + instrucción + QR. Tonto:
+/// no lee providers. Se usa en el login y dentro del modal del portal.
+class AppQrPanel extends StatelessWidget {
+  /// Lado del QR en px.
+  final double size;
+
+  /// Pinta el título "Descarga la app". En el modal lo pone el shell.
+  final bool showHeading;
+
+  const AppQrPanel({super.key, this.size = 188, this.showHeading = true});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showHeading) ...[
+          Text(
+            'Descarga la app',
+            style: t.text.h3,
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: t.space.xs),
+        ],
+        Text(
+          'Escanea el codigo con tu telefono para instalarla.',
+          style: t.text.bodySmall.copyWith(color: t.color.fgMuted),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: t.space.md),
+        Container(
+          padding: EdgeInsets.all(t.space.sm),
+          decoration: BoxDecoration(
+            // El QR es negro sobre transparente: fondo blanco fijo para que
+            // sea legible tambien en tema oscuro. No es un color de marca.
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(t.radius.md),
+            border: Border.all(color: t.color.border),
+          ),
+          child: Image.asset(
+            _kQrAsset,
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Card compacta horizontal "Descarga la app" (QR + texto). Para el login en
+/// escritorio, sobrepuesta al panel de marca.
+class AppQrCard extends StatelessWidget {
+  const AppQrCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return Container(
+      padding: EdgeInsets.all(t.space.md),
+      decoration: BoxDecoration(
+        color: t.color.surface,
+        borderRadius: BorderRadius.circular(t.radius.lg),
+        border: Border.all(color: t.color.border),
+        boxShadow: t.shadow.lg,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: EdgeInsets.all(t.space.xs),
+            decoration: BoxDecoration(
+              // El QR es negro sobre transparente: fondo blanco fijo. No marca.
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(t.radius.sm),
+            ),
+            child: Image.asset(
+              _kQrAsset,
+              width: 88,
+              height: 88,
+              fit: BoxFit.contain,
+            ),
+          ),
+          SizedBox(width: t.space.md),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 180),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Descarga la app',
+                  style: t.text.body.copyWith(fontWeight: FontWeight.w700),
+                ),
+                SizedBox(height: t.space.xxs),
+                Text(
+                  'Escanea el codigo con tu telefono para instalarla.',
+                  style: t.text.bodySmall.copyWith(color: t.color.fgMuted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Acción "Descargar app". En escritorio-web abre el QR (se escanea con el
+/// teléfono); en móvil (incl. web en teléfono) va directo a la tienda del SO.
+Future<void> showAppDownloadDialog(BuildContext context) {
+  if (!isPortalMode(context)) return openAppStore(context);
+  return showPortalDialog<void>(
+    context,
+    maxWidth: 380,
+    child: const PortalDialogShell(
+      title: 'Descarga la app',
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 4),
+        child: AppQrPanel(showHeading: false),
+      ),
+    ),
+  );
+}
+
+/// Botón "Descargar app" de la topbar: abre [showAppDownloadDialog].
+class AppDownloadButton extends StatelessWidget {
+  const AppDownloadButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SButton.secondary(
+      label: 'Descargar app',
+      icon: Icons.qr_code,
+      size: SButtonSize.sm,
+      fullWidth: false,
+      tooltip: 'Descargar la app (QR)',
+      onPressed: () => showAppDownloadDialog(context),
+    );
+  }
+}
+
+/// Botón que abre el redirector de descarga ([_kDownloadUrl]); el Worker manda
+/// a App Store o Google Play según el SO. Para el login en móvil-web.
+class AppStoreDownloadButton extends StatelessWidget {
+  const AppStoreDownloadButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SButton(
+      label: 'Descargar app',
+      icon: Icons.download_outlined,
+      isNavigation: true,
+      onPressed: () => openAppStore(context),
+    );
+  }
+}
+
+/// Abre el redirector de descarga; el Worker decide la tienda según el SO.
+Future<void> openAppStore(BuildContext context) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final ok = await launchUrl(
+    Uri.parse(_kDownloadUrl),
+    mode: LaunchMode.externalApplication,
+    webOnlyWindowName: '_blank',
+  );
+  if (!ok) {
+    messenger.showSnackBar(
+      const SnackBar(content: Text('No se pudo abrir la descarga.')),
+    );
+  }
+}

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/features/app_download/components/app_download.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/home/components/notification_bell.dart';
 import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
@@ -114,6 +116,17 @@ class InicioScreen extends ConsumerWidget {
                               ],
                             ),
                     ),
+                    // "Descargar app" solo en web-móvil (junto a la campana);
+                    // en desktop lo pinta el topbar del shell.
+                    if (kIsWeb && !isPortalMode(context))
+                      IconButton(
+                        tooltip: 'Descargar app',
+                        icon: Icon(
+                          Icons.download_outlined,
+                          color: tone.fgMuted,
+                        ),
+                        onPressed: () => openAppStore(context),
+                      ),
                     // En modo portal la campana ya la pinta el topbar del shell.
                     if (!isPortalMode(context)) const NotificationBell(),
                   ],

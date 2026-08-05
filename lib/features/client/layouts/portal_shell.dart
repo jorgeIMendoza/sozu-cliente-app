@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,8 +10,11 @@ import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/features/client/providers/client_providers.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
+import 'package:sozu_cliente_app/features/app_download/components/app_download.dart';
 import 'package:sozu_cliente_app/features/client/home/components/notification_bell.dart';
 import 'package:sozu_cliente_app/features/client/layouts/portal_shell_widgets.dart';
+// Botón "Referir" oculto por ahora (a petición); restaurar junto con su uso.
+// import 'package:sozu_cliente_app/features/client/referral/components/referral_action.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Ítem del menú lateral.
@@ -735,6 +739,10 @@ class _PortalShellTopBar extends StatelessWidget {
         children: [
           PortalTopBarSearch(),
           Spacer(),
+          // "Descargar app" solo en web: en la app nativa no aplica.
+          if (kIsWeb) ...[AppDownloadButton(), SizedBox(width: 12)],
+          // Botón "Referir" oculto por ahora (a petición). Restaurar:
+          // ReferralButton(), SizedBox(width: 12),
           NotificationBell(),
           SizedBox(width: 8),
           PortalTopBarAvatarMenu(),
