@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,14 +42,23 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   bool _isBiometricAvailable = false;
   bool _isBiometricRunning = false;
 
+  /// Modo administrador. Solo se puede activar en web de ESCRITORIO, con
+  /// Ctrl+Alt+A (ver [_onKeyEvent]). En app nativa y en web-móvil nunca es true.
+  bool _isAdminMode = false;
+
   @override
   void initState() {
     super.initState();
+    // Handler global del teclado: no depende de que un widget tenga el foco.
+    // Solo en web (en nativo no hay atajo de admin); el ancho de escritorio se
+    // exige dentro de [_onKeyEvent].
+    if (kIsWeb) HardwareKeyboard.instance.addHandler(_onKeyEvent);
     _prepareBiometrics();
   }
 
   @override
   void dispose() {
+    if (kIsWeb) HardwareKeyboard.instance.removeHandler(_onKeyEvent);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -64,7 +74,30 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   /// acceso al portal ([AuthController.shouldOfferBiometrics]), y un
   /// enrolamiento viejo de una cuenta no-cliente se apaga al entrar
   /// (`disableIfOwnedBy`).
-  bool get _showBiometricButton => _isBiometricAvailable;
+  bool get _showBiometricButton => _isBiometricAvailable && !_isAdminMode;
+
+  // -------------------------------------------------------------------------
+  // Modo administrador (Ctrl+Alt+A, SOLO web de escritorio)
+  // -------------------------------------------------------------------------
+
+  /// Alterna el modo administrador con Ctrl+Shift+A o Ctrl+Alt+A. Solo en web
+  /// de ESCRITORIO: en web-móvil el atajo no hace nada, en nativo ni se instala.
+  ///
+  /// Va en `HardwareKeyboard` (global), NO en un `Focus`: con nada enfocado el
+  /// atajo se perdería. Ctrl+Alt+A existe porque Chrome/Edge se reservan
+  /// Ctrl+Shift+A y la página no puede cancelarlo.
+  bool _onKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    if (!context.bp.isDesktop) return false; // nunca en web-móvil
+    final keyboard = HardwareKeyboard.instance;
+    final isKeyA =
+        event.logicalKey == LogicalKeyboardKey.keyA ||
+        event.physicalKey == PhysicalKeyboardKey.keyA;
+    if (!isKeyA || !keyboard.isControlPressed) return false;
+    if (!keyboard.isShiftPressed && !keyboard.isAltPressed) return false;
+    if (mounted) setState(() => _isAdminMode = !_isAdminMode);
+    return true; // consumido: no llega al campo de texto enfocado
+  }
 
   /// El botón se ofrece con que el usuario haya activado la biometría, aunque el
   /// token guardado ya no sirva: en ese caso el intento falla y pide contraseña,
@@ -97,6 +130,10 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    // Se lee AQUI (sincrono, antes de cualquier await): el modo admin manual
+    // solo cuenta en web de escritorio. Guardarlo evita usar `context` tras el
+    // await de refreshProfile.
+    final bool adminRequested = _isAdminMode && context.bp.isDesktop;
     ref.read(inactivityLogoutProvider.notifier).state = false;
     ref.read(passwordChangedProvider.notifier).state = false;
     setState(() {
@@ -123,10 +160,12 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
     try {
       final profile = await auth.refreshProfile();
-      // Acceso administrador: por el permiso del rol (roles.apps.administrar
-      // incluye "clientes" => canManageClientApp). Cualquier rol que administre
-      // la app entra directo al selector de clientes, igual en web y en móvil.
-      final isAdminAccess = profile?.canManageClientApp ?? false;
+      // Acceso administrador: requiere el permiso del rol (canManageClientApp)
+      // Y el modo admin activo (Ctrl+Alt+A, solo web de escritorio). Sin el modo
+      // activo, un rol que administra apps NO entra: cae en el mensaje genérico
+      // de credenciales de abajo. Con el modo activo, va al selector de clientes.
+      final isAdminAccess =
+          adminRequested && (profile?.canManageClientApp ?? false);
       if (!PortalAccess.allows(profile) && !isAdminAccess) {
         // Ni usuario del portal (rol Cliente o comprador) ni administrador de
         // la app: mensaje genérico para no revelar cuentas existentes.
@@ -310,6 +349,11 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             SizedBox(height: t.space.xs),
             const AuthSubtitle('Entra a tu portal para seguir tu inversión.'),
 
+            if (_isAdminMode) ...[
+              SizedBox(height: t.space.sm),
+              const _AdminModeBadge(),
+            ],
+
             SizedBox(height: t.space.lg),
 
             if (passwordJustChanged) ...[
@@ -428,10 +472,8 @@ class _ForgotPasswordLink extends StatelessWidget {
   );
 }
 
-/// Sello de versión del pie: texto inerte.
-///
-/// Sostenerlo encendía el modo administrador. Ese gesto murió: el acceso admin
-/// lo da el permiso del rol, no un toque secreto.
+/// Sello de versión del pie: texto inerte. El modo administrador NO se activa
+/// desde aquí (el long-press murió), sino con Ctrl+Alt+A en web de escritorio.
 class _VersionStamp extends StatelessWidget {
   const _VersionStamp();
 
@@ -443,6 +485,47 @@ class _VersionStamp extends StatelessWidget {
       textAlign: TextAlign.center,
       style: t.text.overline.copyWith(
         color: t.color.fgSubtle.withValues(alpha: 0.6),
+      ),
+    );
+  }
+}
+
+/// Pastilla que indica que el modo administrador está activo (Ctrl+Alt+A).
+class _AdminModeBadge extends StatelessWidget {
+  const _AdminModeBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return Center(
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: t.space.md,
+          vertical: t.space.xs,
+        ),
+        decoration: BoxDecoration(
+          color: t.color.primarySoft,
+          borderRadius: BorderRadius.circular(t.radius.lg),
+          border: Border.all(color: t.color.primary),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.admin_panel_settings_outlined,
+              size: 16,
+              color: t.color.primary,
+            ),
+            SizedBox(width: t.space.xs),
+            Text(
+              'Modo administrador',
+              style: t.text.bodySmall.copyWith(
+                color: t.color.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

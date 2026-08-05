@@ -9,22 +9,23 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 
 import 'fake_auth_port.dart';
 
-/// El acceso administrador NO se activa desde esta pantalla: lo da el permiso
-/// del rol (`canManageClientApp`) y el destino post-login sale del perfil, igual
-/// en web y en móvil.
+/// Modo administrador: el ÚNICO interruptor manual que existe es Ctrl+Alt+A
+/// (o Ctrl+Shift+A) y SOLO en web de escritorio (el handler se instala con
+/// `if (kIsWeb)` y exige `context.bp.isDesktop`). El long-press de 1.5 s sobre el
+/// sello de versión murió y NO debe volver: separaba el gesto por plataforma.
 ///
-/// Hubo dos interruptores manuales, Ctrl+Shift+A y un long-press de 1.5 s sobre
-/// el sello de versión. Los dos murieron al conceder el acceso por rol. Lo que
-/// este archivo protege ahora es que **no vuelvan**: el sello es texto inerte y
-/// sostenerlo no enciende nada.
+/// Estos tests protegen que el long-press siga muerto y el sello sea texto
+/// inerte. El atajo de teclado es web-only, así que en la VM (`kIsWeb` == false)
+/// ni se registra; su comportamiento se verifica manualmente / con
+/// `flutter test --platform chrome`.
 void main() {
   /// Con margen sobre el umbral que tenía el gesto viejo (1.5 s): si alguien lo
   /// reintroduce con el mismo threshold, el test lo caza.
   const holdWithMargin = Duration(milliseconds: 1600);
 
-  /// Etiqueta de la pastilla que pintaba el modo admin. Ya no existe; se
-  /// conserva como sonda: si reaparece, el gesto volvió.
-  const badgeLabel = 'Acceso administrador';
+  /// Etiqueta de la pastilla del modo admin. Sonda del long-press: sostener el
+  /// sello NO debe pintarla (el modo solo se enciende con Ctrl+Alt+A en web).
+  const badgeLabel = 'Modo administrador';
 
   /// Único andamio de entorno que el formulario exige: **el canal de
   /// flutter_secure_storage respondiendo `null`.** En un test
