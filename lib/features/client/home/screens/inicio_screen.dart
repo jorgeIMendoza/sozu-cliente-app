@@ -9,6 +9,7 @@ import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/app_download/components/app_download.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/home/components/notification_bell.dart';
+import 'package:sozu_cliente_app/features/client/home/components/quick_access_grid.dart';
 import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/portal_property_card.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/property_card.dart';
@@ -19,8 +20,65 @@ import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 
 const _actividadMax = 3;
 
-/// Inicio: hero patrimonio (fórmulas del portal web), Tu actividad,
-/// Pendientes por propiedad, Mis propiedades y accesos rápidos.
+/// Los 8 destinos del grid, en orden de necesidad. Ninguno abre un objeto
+/// concreto: con varias propiedades, adivinar cuál llevaba a "/pagar" sin
+/// acuerdo y a un error. Vive aquí y no en el componente porque navega.
+List<QuickAccessItem> _accesosRapidos(
+  BuildContext context, {
+  required int pendientes,
+}) {
+  String? conteo(int n) => n > 0 ? (n > 9 ? '9+' : '$n') : null;
+  return [
+    QuickAccessItem(
+      icon: Icons.apartment_outlined,
+      label: 'Propiedades',
+      featured: true,
+      badge: conteo(pendientes),
+      onTap: () => context.go('/propiedades'),
+    ),
+    QuickAccessItem(
+      icon: Icons.bar_chart_outlined,
+      label: 'Estado de cuenta',
+      onTap: () => context.push('/estado-cuenta'),
+    ),
+    QuickAccessItem(
+      icon: Icons.credit_card_outlined,
+      label: 'Pagos',
+      onTap: () => context.push('/pagos'),
+    ),
+    // "Facturación" y "Mis documentos" antes se llamaban "Documentos" y
+    // "Expediente": nadie sabía cuál era cuál. Ahora el nombre dice el
+    // contenido - facturas de la unidad contra identidad del titular.
+    QuickAccessItem(
+      icon: Icons.receipt_long_outlined,
+      label: 'Facturación',
+      onTap: () => context.go('/documentos'),
+    ),
+    QuickAccessItem(
+      icon: Icons.badge_outlined,
+      label: 'Mis documentos',
+      onTap: () => context.push('/expediente'),
+    ),
+    QuickAccessItem(
+      icon: Icons.build_outlined,
+      label: 'Mantenimientos',
+      onTap: () => context.push('/mantenimientos'),
+    ),
+    QuickAccessItem(
+      icon: Icons.inventory_2_outlined,
+      label: 'Productos',
+      onTap: () => context.push('/productos'),
+    ),
+    QuickAccessItem(
+      icon: Icons.settings_outlined,
+      label: 'Configuración',
+      onTap: () => context.go('/perfil'),
+    ),
+  ];
+}
+
+/// Inicio: saludo, accesos rápidos, pendientes más urgentes y propiedades. El
+/// patrimonio total no va aquí: la cifra agregada no dice qué hacer.
 class InicioScreen extends ConsumerWidget {
   const InicioScreen({super.key});
 
@@ -96,8 +154,7 @@ class InicioScreen extends ConsumerWidget {
                                   '${_saludo()}, ${resumen.valueOrNull?.nombreLegal.split(RegExp(r'\s+')).first ?? 'cliente'}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 18,
+                                  style: context.s.text.bodyLarge.copyWith(
                                     fontWeight: FontWeight.w700,
                                     color: tone.fg,
                                   ),
@@ -108,8 +165,7 @@ class InicioScreen extends ConsumerWidget {
                                   'Últ. acceso $ultimoAcceso',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
+                                  style: context.s.text.caption.copyWith(
                                     color: tone.fgMuted,
                                   ),
                                 ),
@@ -131,7 +187,16 @@ class InicioScreen extends ConsumerWidget {
                     if (!isPortalMode(context)) const NotificationBell(),
                   ],
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: context.s.space.md),
+
+                // Fuera del `when`: no dependen de la carga.
+                QuickAccessGrid(
+                  items: _accesosRapidos(
+                    context,
+                    pendientes: resumen.valueOrNull?.actividad.length ?? 0,
+                  ),
+                ),
+                SizedBox(height: context.s.space.lg),
 
                 ...resumen.when(
                   loading: () => [
@@ -141,9 +206,9 @@ class InicioScreen extends ConsumerWidget {
                         children: [
                           SSkeleton(width: 140, height: 12),
                           SizedBox(height: 10),
-                          SSkeleton(width: 260, height: 34),
-                          SizedBox(height: 16),
-                          SSkeleton(height: 12),
+                          SSkeleton(height: 64),
+                          SizedBox(height: 12),
+                          SSkeleton(height: 64),
                         ],
                       ),
                     ),
@@ -181,208 +246,50 @@ class InicioScreen extends ConsumerWidget {
     bool propiedadesCargadas,
     void Function(int) abrirProp,
   ) {
-    final r = data.resumen;
+    final pendientes = data.actividad.take(_actividadMax).toList();
     return [
-      // Hero patrimonio
-      FadeSlideIn(
-        child: SCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'PATRIMONIO TOTAL',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 2,
-                            color: tone.fgSubtle,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: CountUpMoney(
-                            value: r.patrimonioTotal,
-                            style: TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.w700,
-                              color: tone.fg,
-                            ),
-                          ),
-                        ),
-                        if (r.invertidoTotal > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              '+${formatMXN(r.plusvaliaGenerada)} '
-                              '(${r.plusvaliaPorcentaje}%) últimos 12 meses',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: tone.positive,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _miniMetric(
-                        tone,
-                        'Invertido total',
-                        r.invertidoTotal,
-                        tone.fg,
-                      ),
-                      const SizedBox(height: 8),
-                      _miniMetric(
-                        tone,
-                        'Plusvalía generada',
-                        r.plusvaliaGenerada,
-                        tone.positive,
-                        prefix: '+',
-                      ),
-                      const SizedBox(height: 8),
-                      _miniMetric(
-                        tone,
-                        'Saldo pendiente',
-                        r.saldoPendiente,
-                        tone.warningFg,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Divider(color: tone.border, height: 1),
-              const SizedBox(height: 12),
-              _dotLine(
-                tone,
-                tone.positive,
-                'Patrimonio activo: ${formatMXN(r.activoValor)} (${r.activoUnidades} ${r.activoUnidades == 1 ? 'unidad' : 'unidades'})',
-              ),
-              const SizedBox(height: 4),
-              _dotLine(
-                tone,
-                tone.warningFg,
-                'En adquisición: ${formatMXN(r.adquisicionValor)} (${r.adquisicionUnidades} ${r.adquisicionUnidades == 1 ? 'unidad' : 'unidades'})',
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Pagado · ${r.porcentajePagado.toStringAsFixed(0)}%',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: tone.fg,
-                    ),
-                  ),
-                  Text(
-                    '${formatMXNCompact(r.pagadoTotal)} de ${formatMXNCompact(r.invertidoTotal)}',
-                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              SProgressBar(
-                thickness: SProgressBarThickness.thick,
-                percent: r.porcentajePagado,
-              ),
-            ],
-          ),
-        ),
-      ),
-
-      // Accesos rápidos (justo después del hero financiero)
-      const FadeSlideIn(
-        delayMs: 80,
-        child: SSectionLabel.heading(
-          icon: Icons.grid_view_outlined,
-          text: 'Accesos rápidos',
-        ),
-      ),
-      FadeSlideIn(
-        delayMs: 100,
-        child: Column(
-          children: [
-            _QuickAccess(
-              icon: Icons.bar_chart_outlined,
-              label: 'Estado de cuenta',
-              subtitle: 'Saldo y movimientos',
-              destacado: true,
-              onTap: () => context.push('/estado-cuenta'),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _QuickAccess(
-                    icon: Icons.schedule_outlined,
-                    label: 'Historial de pagos',
-                    subtitle: 'Todos tus pagos',
-                    onTap: () => context.push('/pagos'),
+      // Pendientes: lo primero bajo los accesos porque es lo unico de esta
+      // pantalla que pide una accion con fecha.
+      SSectionLabel.heading(
+        icon: Icons.pending_actions_outlined,
+        text: pendientes.isEmpty
+            ? 'Pendientes'
+            : 'Pendientes (${data.actividad.length})',
+        trailing: data.actividad.length > _actividadMax
+            ? TextButton(
+                onPressed: () => context.go('/propiedades'),
+                child: Text(
+                  'Ver todos',
+                  style: context.s.text.label.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: tone.primaryHover,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _QuickAccess(
-                    icon: Icons.folder_outlined,
-                    label: 'Documentos',
-                    subtitle: 'Tu expediente',
-                    onTap: () => context.go('/documentos'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              )
+            : null,
       ),
-
-      // Tu actividad
-      const FadeSlideIn(
-        delayMs: 120,
-        child: SSectionLabel.heading(
-          icon: Icons.bolt_outlined,
-          text: 'Tu actividad',
-        ),
-      ),
-      if (data.actividad.isEmpty)
+      if (pendientes.isEmpty)
         SCard(
           child: Row(
             children: [
-              const Icon(
-                Icons.check_circle,
-                color: SozuBrand.green500,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
+              Icon(Icons.check_circle, color: tone.positive, size: 28),
+              SizedBox(width: context.s.space.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Estás al día',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: context.s.text.body.copyWith(
                         fontWeight: FontWeight.w600,
                         color: tone.fg,
                       ),
                     ),
                     Text(
                       data.resumen.mensajeContexto ?? 'Sin pagos pendientes',
-                      style: TextStyle(fontSize: 12, color: tone.fgMuted),
+                      style: context.s.text.caption.copyWith(
+                        color: tone.fgMuted,
+                      ),
                     ),
                   ],
                 ),
@@ -390,75 +297,11 @@ class InicioScreen extends ConsumerWidget {
             ],
           ),
         )
-      else ...[
-        SCard(
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: tone.warningSoft,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.warning_amber_outlined,
-                  color: SozuAmber.strong,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tienes ${data.actividad.length} pendiente${data.actividad.length == 1 ? '' : 's'}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: tone.fg,
-                    ),
-                  ),
-                  Text(
-                    'Revisa y liquida tus pagos',
-                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        for (final a in data.actividad.take(_actividadMax)) ...[
+      else
+        for (final a in pendientes) ...[
           _ActividadCard(a: a, onTap: () => abrirProp(a.cuentaId)),
-          const SizedBox(height: 12),
+          SizedBox(height: context.s.space.sm),
         ],
-        if (data.actividad.length > _actividadMax)
-          Center(
-            child: TextButton(
-              onPressed: () => context.go('/adquisicion'),
-              child: Text(
-                'Ver ${data.actividad.length - _actividadMax} más',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: tone.primaryHover,
-                ),
-              ),
-            ),
-          ),
-      ],
-
-      // Pendientes por propiedad
-      if (data.pendientesPorPropiedad.isNotEmpty) ...[
-        const SSectionLabel.heading(
-          icon: Icons.pending_actions_outlined,
-          text: 'Pendientes por propiedad',
-        ),
-        for (final p in data.pendientesPorPropiedad) ...[
-          _PendienteRow(p: p, onTap: () => abrirProp(p.cuentaId)),
-          const SizedBox(height: 10),
-        ],
-      ],
 
       // Mis propiedades (o estado vacío si no hay ninguna con data cargada)
       if (propiedadesCargadas && misPropiedades.isEmpty)
@@ -481,7 +324,7 @@ class InicioScreen extends ConsumerWidget {
         if (misPropiedades.length > 3)
           Center(
             child: TextButton(
-              onPressed: () => context.go('/adquisicion'),
+              onPressed: () => context.go('/propiedades'),
               child: Text(
                 'Ver todas (${misPropiedades.length} propiedades)',
                 style: TextStyle(
@@ -494,54 +337,10 @@ class InicioScreen extends ConsumerWidget {
       ],
     ];
   }
-
-  /// Recibe el MONTO, no una cadena ya formateada: la cifra cuenta hacia arriba
-  /// al aparecer (y se muestra completa con "reducir movimiento", lo resuelve
-  /// [CountUpMoney]).
-  Widget _miniMetric(
-    SozuColorRoles tone,
-    String label,
-    double value,
-    Color color, {
-    String prefix = '',
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(label, style: TextStyle(fontSize: 10, color: tone.fgSubtle)),
-        CountUpMoney(
-          value: value,
-          prefix: prefix,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _dotLine(SozuColorRoles tone, Color dot, String text) {
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(fontSize: 12, color: tone.fgMuted),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
+/// Card de un pendiente: propiedad, tipo, fecha, monto y CTA. El borde tiñe
+/// por urgencia.
 class _ActividadCard extends StatelessWidget {
   final ActividadItem a;
   final VoidCallback onTap;
@@ -550,16 +349,19 @@ class _ActividadCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = context.s.color;
+    final t = context.s;
+    final tone = t.color;
     final pagar = a.accion == 'pagar' && a.monto > 0;
     // Borde por urgencia: urgente (rojo), próximo (ámbar), futuro (verde).
     final borde = switch (a.urgencia) {
       'urgent' => tone.danger,
-      'upcoming' => SozuAmber.strong,
-      _ => SozuBrand.green500,
+      'upcoming' => tone.warning,
+      _ => tone.positive,
     };
-    return PressableScale(
+    return SPressable(
       onTap: onTap,
+      borderRadius: t.radius.lgBorder,
+      hoverLift: true,
       child: SCard(
         borderColor: borde.withValues(alpha: 0.35),
         child: Row(
@@ -572,13 +374,12 @@ class _ActividadCard extends StatelessWidget {
                     a.propiedad,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: t.text.bodySmall.copyWith(
                       fontWeight: FontWeight.w700,
                       color: tone.fg,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: t.space.xxs),
                   Row(
                     children: [
                       SBadge(
@@ -587,19 +388,23 @@ class _ActividadCard extends StatelessWidget {
                             ? SBadgeTone.pending
                             : SBadgeTone.neutral,
                       ),
-                      const SizedBox(width: 6),
+                      SizedBox(width: t.space.xxs),
                       Text(
                         a.categoria == 'patrimonio'
                             ? 'Patrimonio'
                             : 'En adquisición',
-                        style: TextStyle(fontSize: 11, color: tone.fgSubtle),
+                        style: t.text.overline.copyWith(
+                          color: tone.fgSubtle,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: t.space.xxs),
                   Text(
                     a.fecha != null ? formatDate(a.fecha) : 'Próximamente',
-                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
+                    style: t.text.caption.copyWith(color: tone.fgMuted),
                   ),
                 ],
               ),
@@ -610,28 +415,26 @@ class _ActividadCard extends StatelessWidget {
                 if (a.monto > 0)
                   Text(
                     formatMXN(a.monto),
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: t.text.bodySmall.copyWith(
                       fontWeight: FontWeight.w700,
                       color: tone.fg,
                     ),
                   ),
-                const SizedBox(height: 6),
+                SizedBox(height: t.space.xxs),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: t.space.md,
+                    vertical: t.space.xxs,
                   ),
                   decoration: BoxDecoration(
-                    color: pagar ? SozuBrand.green500 : tone.surfaceAlt,
-                    borderRadius: BorderRadius.circular(999),
+                    color: pagar ? tone.primary : tone.surfaceAlt,
+                    borderRadius: t.radius.fullBorder,
                   ),
                   child: Text(
                     pagar ? 'Pagar' : 'Ver',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: t.text.caption.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: pagar ? Colors.white : tone.fgMuted,
+                      color: pagar ? tone.onPrimary : tone.fgMuted,
                     ),
                   ),
                 ),
@@ -644,70 +447,6 @@ class _ActividadCard extends StatelessWidget {
   }
 }
 
-class _PendienteRow extends StatelessWidget {
-  final PendientePropiedad p;
-  final VoidCallback onTap;
-
-  const _PendienteRow({required this.p, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = context.s.color;
-    final dot = switch (p.urgencia) {
-      'urgent' => tone.danger,
-      'upcoming' => tone.warningFg,
-      _ => tone.positive,
-    };
-    return PressableScale(
-      onTap: onTap,
-      child: SCard(
-        child: Row(
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${p.proyecto} · U-${p.unidad}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: tone.fg,
-                    ),
-                  ),
-                  Text(
-                    '${p.tipo} · ${p.fecha != null ? formatDate(p.fecha) : 'Próximamente'}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: tone.fgMuted),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              formatMXN(p.monto),
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: tone.warningFg,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Estado vacío del portafolio: el cliente aún no tiene propiedades.
 class _PortafolioVacio extends StatelessWidget {
   const _PortafolioVacio();
 
@@ -754,95 +493,6 @@ class _PortafolioVacio extends StatelessWidget {
   }
 }
 
-class _QuickAccess extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String subtitle;
-  final bool destacado;
-  final VoidCallback onTap;
-
-  const _QuickAccess({
-    required this.icon,
-    required this.label,
-    required this.subtitle,
-    this.destacado = false,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = context.s.color;
-
-    final iconBox = Container(
-      width: 38,
-      height: 38,
-      decoration: BoxDecoration(
-        color: destacado ? tone.primarySoft : tone.surfaceAlt,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Icon(
-        icon,
-        size: 20,
-        color: destacado ? SozuBrand.green600 : tone.fgMuted,
-      ),
-    );
-
-    final textos = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: tone.fg,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 11, color: tone.fgSubtle),
-        ),
-      ],
-    );
-
-    return PressableScale(
-      onTap: onTap,
-      child: destacado
-          // Tarjeta destacada de ancho completo (Estado de cuenta).
-          ? SCard(
-              child: Row(
-                children: [
-                  iconBox,
-                  const SizedBox(width: 12),
-                  Expanded(child: textos),
-                  Text(
-                    'Ver →',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: tone.primaryHover,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : SCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [iconBox, const SizedBox(height: 10), textos],
-              ),
-            ),
-    );
-  }
-}
-
-/// Vista "modo portal" (web >=1024): hero patrimonio, Tu actividad, grid de
-/// propiedades y columna lateral. Mismos providers que la vista móvil.
 class _PortalInicio extends ConsumerWidget {
   const _PortalInicio();
 
@@ -876,8 +526,6 @@ class _PortalInicio extends ConsumerWidget {
     return 'Hoy $h:$mm $ampm';
   }
 
-  String _unidades(int n) => n == 1 ? 'unidad' : 'unidades';
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final resumen = ref.watch(summaryProvider);
@@ -900,38 +548,14 @@ class _PortalInicio extends ConsumerWidget {
               alignment: Alignment.centerLeft,
               child: SSkeleton(width: 320, height: 12),
             ),
-            SizedBox(height: 16),
-            SSkeleton(height: 220, radius: kPortalRadiusCard),
             SizedBox(height: 24),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SSkeleton(height: 88, radius: kPortalRadiusCard),
-                      SizedBox(height: 12),
-                      SSkeleton(height: 120, radius: kPortalRadiusCard),
-                      SizedBox(height: 12),
-                      SSkeleton(height: 120, radius: kPortalRadiusCard),
-                    ],
-                  ),
-                ),
-                SizedBox(width: 24),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SSkeleton(height: 72, radius: kPortalRadiusLg),
-                      SizedBox(height: 12),
-                      SSkeleton(height: 150, radius: kPortalRadiusCard),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            SSkeleton(height: 108, radius: kPortalRadiusCard),
+            SizedBox(height: 24),
+            SSkeleton(height: 88, radius: kPortalRadiusCard),
+            SizedBox(height: 12),
+            SSkeleton(height: 88, radius: kPortalRadiusCard),
+            SizedBox(height: 12),
+            SSkeleton(height: 88, radius: kPortalRadiusCard),
           ],
         ),
       ),
@@ -951,32 +575,28 @@ class _PortalInicio extends ConsumerWidget {
         ];
         final sinPropiedades = props.hasValue && misPropiedades.isEmpty;
 
+        // Una sola columna, igual que en móvil: accesos, pendientes y
+        // propiedades. Las dos columnas del portal existían para acomodar el
+        // hero de patrimonio; sin él, partir el ancho solo alejaba lo urgente
+        // de lo que se mira primero.
         return SingleChildScrollView(
           padding: const EdgeInsets.only(top: 24, bottom: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _welcome(data, ultimoAcceso),
+              SizedBox(height: context.s.space.lg),
+              QuickAccessGrid(
+                items: _accesosRapidos(
+                  context,
+                  pendientes: data.actividad.length,
+                ),
+              ),
               if (sinPropiedades)
                 _portafolioVacio()
               else ...[
-                const SizedBox(height: 16),
-                _heroPatrimonio(data.resumen),
-                const SizedBox(height: 24),
-                // Grid 2/1 del portal: columna principal + lateral.
-                LayoutBuilder(
-                  builder: (context, c) => Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: c.maxWidth >= 960 ? 2 : 1,
-                        child: _columnaPrincipal(context, data, misPropiedades),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(child: _columnaLateral(context, data)),
-                    ],
-                  ),
-                ),
+                SizedBox(height: context.s.space.lg),
+                _contenido(context, data, misPropiedades),
               ],
             ],
           ),
@@ -1038,284 +658,33 @@ class _PortalInicio extends ConsumerWidget {
     );
   }
 
-  // ── 2. Hero PATRIMONIO TOTAL (HeroFinancialSummary) ───────────────────────
-  Widget _heroPatrimonio(ResumenFinanciero r) {
-    final plusvalia = r.plusvaliaGenerada < 0 ? 0.0 : r.plusvaliaGenerada;
-    return SCard(
-      borderColor: PortalColors.borderSoft,
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          LayoutBuilder(
-            builder: (context, c) {
-              final izquierda = _heroIzquierda(r, plusvalia);
-              final derecha = _heroMetricas(r, plusvalia);
-              if (c.maxWidth < 720) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [izquierda, const SizedBox(height: 24), derecha],
-                );
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 7, child: izquierda),
-                  const SizedBox(width: 32),
-                  Expanded(
-                    flex: 5,
-                    child: Container(
-                      padding: const EdgeInsets.only(left: 32),
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          left: BorderSide(color: PortalColors.borderSoft),
-                        ),
-                      ),
-                      child: derecha,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 24),
-          // Barra "Pagado · %"
-          Container(
-            padding: const EdgeInsets.only(top: 20),
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: PortalColors.borderSoft)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Pagado · ${r.porcentajePagado.toStringAsFixed(0)}%',
-                      style: portalText(size: 12, weight: FontWeight.w500),
-                    ),
-                    Text(
-                      '${formatMXNCompact(r.pagadoTotal)} de '
-                      '${formatMXNCompact(r.invertidoTotal)}',
-                      style: portalText(
-                        size: 12,
-                        color: PortalColors.mutedForeground,
-                        tabular: true,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                SProgressBar(
-                  percent: r.porcentajePagado,
-                  thickness: SProgressBarThickness.thin,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _heroIzquierda(ResumenFinanciero r, double plusvalia) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'PATRIMONIO TOTAL',
-          style: portalText(
-            size: 10,
-            weight: FontWeight.w600,
-            color: PortalColors.mutedForeground,
-            letterSpacing: 2, // tracking-[0.2em]
-          ),
-        ),
-        const SizedBox(height: 12),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: CountUpMoney(
-            value: r.patrimonioTotal,
-            style: portalText(
-              size: 56,
-              weight: FontWeight.w700,
-              letterSpacing: -1.4,
-              height: 1,
-              tabular: true,
-            ),
-          ),
-        ),
-        if (r.invertidoTotal > 0) ...[
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.trending_up,
-                    size: 14,
-                    color: PortalColors.primary,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '+${formatMXN(plusvalia)}',
-                    style: portalText(
-                      size: 13,
-                      weight: FontWeight.w600,
-                      color: PortalColors.primary,
-                      tabular: true,
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                '(${r.plusvaliaPorcentaje.toStringAsFixed(1)}%)',
-                style: portalText(
-                  size: 13,
-                  weight: FontWeight.w500,
-                  color: PortalColors.primary,
-                  tabular: true,
-                ),
-              ),
-              Text(
-                'últimos 12 meses',
-                style: portalText(
-                  size: 13,
-                  color: PortalColors.mutedForeground,
-                ),
-              ),
-            ],
-          ),
-        ],
-        const SizedBox(height: 12),
-        Text(
-          '${r.propiedadesActivas} '
-          'propiedad${r.propiedadesActivas == 1 ? '' : 'es'} '
-          'activa${r.propiedadesActivas == 1 ? '' : 's'}',
-          style: portalText(size: 12, color: PortalColors.mutedForeground),
-        ),
-        const SizedBox(height: 16),
-        // Indicadores por categoría
-        Wrap(
-          spacing: 20,
-          runSpacing: 8,
-          children: [
-            _categoria(
-              PortalColors.primary,
-              'Patrimonio activo:',
-              r.activoValor,
-              r.activoUnidades,
-            ),
-            _categoria(
-              PortalColors.warning,
-              'En adquisición:',
-              r.adquisicionValor,
-              r.adquisicionUnidades,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _categoria(Color dot, String label, double valor, int unidades) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: portalText(size: 12, color: PortalColors.mutedForeground),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          formatMXN(valor),
-          style: portalText(size: 12, weight: FontWeight.w600, tabular: true),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          '($unidades ${_unidades(unidades)})',
-          style: portalText(size: 12, color: PortalColors.mutedForeground),
-        ),
-      ],
-    );
-  }
-
-  Widget _heroMetricas(ResumenFinanciero r, double plusvalia) {
-    Widget fila(
-      String label,
-      double value,
-      Color color, {
-      String prefix = '',
-    }) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: portalText(size: 12, color: PortalColors.mutedForeground),
-          ),
-          CountUpMoney(
-            value: value,
-            prefix: prefix,
-            style: portalText(
-              size: 14,
-              weight: FontWeight.w600,
-              color: color,
-              tabular: true,
-            ),
-          ),
-        ],
-      ),
-    );
-    return Column(
-      children: [
-        fila('Invertido total', r.invertidoTotal, PortalColors.foreground),
-        const Divider(height: 1, color: PortalColors.borderSoft),
-        fila(
-          'Plusvalía generada',
-          plusvalia,
-          PortalColors.primary,
-          prefix: '+',
-        ),
-        const Divider(height: 1, color: PortalColors.borderSoft),
-        fila('Saldo pendiente', r.saldoPendiente, PortalColors.foreground),
-      ],
-    );
-  }
-
-  // ── Columna principal: Tu actividad + Mis propiedades ─────────────────────
-  Widget _columnaPrincipal(
+  // ── Pendientes + Mis propiedades ──────────────────────────────────────────
+  Widget _contenido(
     BuildContext context,
     ClienteResumen data,
     List<PropiedadCard> misPropiedades,
   ) {
+    final total = data.actividad.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Tu actividad',
-          style: portalText(size: 15, weight: FontWeight.w600),
+        _tituloSeccion(
+          context,
+          total > 0 ? 'Pendientes ($total)' : 'Pendientes',
+          verTodos: total > _actividadMax
+              ? () => context.go('/propiedades')
+              : null,
         ),
         const SizedBox(height: 12),
         ..._actividad(context, data),
         if (misPropiedades.isNotEmpty) ...[
           const SizedBox(height: 24),
-          Text(
+          _tituloSeccion(
+            context,
             'Mis propiedades',
-            style: portalText(size: 15, weight: FontWeight.w600),
+            verTodos: misPropiedades.length > 3
+                ? () => context.go('/propiedades')
+                : null,
           ),
           const SizedBox(height: 12),
           PortalCardGrid(
@@ -1328,14 +697,32 @@ class _PortalInicio extends ConsumerWidget {
                 ),
             ],
           ),
-          if (misPropiedades.length > 3) ...[
-            const SizedBox(height: 12),
-            PortalDashedButton(
-              label: 'Ver todas (${misPropiedades.length} propiedades)',
-              onTap: () => context.go('/adquisicion'),
-            ),
-          ],
         ],
+      ],
+    );
+  }
+
+  /// Título de sección con un "Ver todos" opcional a la derecha.
+  Widget _tituloSeccion(
+    BuildContext context,
+    String texto, {
+    VoidCallback? verTodos,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(texto, style: portalText(size: 15, weight: FontWeight.w600)),
+        if (verTodos != null)
+          TextButton(
+            onPressed: verTodos,
+            child: Text(
+              'Ver todos',
+              style: context.s.text.label.copyWith(
+                fontWeight: FontWeight.w600,
+                color: context.s.color.primaryHover,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1387,142 +774,14 @@ class _PortalInicio extends ConsumerWidget {
       ];
     }
     return [
-      // Banner resumen de pendientes
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: PortalColors.warningSoft10,
-          borderRadius: BorderRadius.circular(kPortalRadiusCard),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: PortalColors.warningSoft15,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.warning_amber_outlined,
-                size: 20,
-                color: PortalColors.warning,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tienes ${data.actividad.length} '
-                    'pendiente${data.actividad.length == 1 ? '' : 's'}',
-                    style: portalText(size: 14, weight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Revisa y liquida tus pagos',
-                    style: portalText(
-                      size: 12,
-                      color: PortalColors.mutedForeground,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      for (final a in data.actividad.take(_actividadMax)) ...[
-        const SizedBox(height: 12),
+      for (var k = 0; k < data.actividad.length && k < _actividadMax; k++) ...[
+        if (k > 0) const SizedBox(height: 12),
         _PortalActividadCard(
-          a: a,
-          onTap: () => context.push('/propiedad/${a.cuentaId}'),
-        ),
-      ],
-      if (data.actividad.length > _actividadMax) ...[
-        const SizedBox(height: 12),
-        PortalDashedButton(
-          label: 'Ver ${data.actividad.length - _actividadMax} más',
-          onTap: () => context.go('/adquisicion'),
+          a: data.actividad[k],
+          onTap: () => context.push('/propiedad/${data.actividad[k].cuentaId}'),
         ),
       ],
     ];
-  }
-
-  // ── Columna lateral: Accesos rápidos + Pendientes por propiedad ───────────
-  Widget _columnaLateral(BuildContext context, ClienteResumen data) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Accesos rápidos',
-          style: portalText(size: 15, weight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-        _PortalQuickAction(
-          icon: Icons.receipt_long_outlined,
-          label: 'Estado de cuenta',
-          subtitle: 'Saldo y movimientos',
-          featured: true,
-          onTap: () => context.push('/estado-cuenta'),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _PortalQuickAction(
-                icon: Icons.schedule_outlined,
-                label: 'Historial de pagos',
-                subtitle: 'Todos tus pagos',
-                onTap: () => context.push('/pagos'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _PortalQuickAction(
-                icon: Icons.description_outlined,
-                label: 'Documentos',
-                subtitle: 'Tu expediente',
-                onTap: () => context.go('/documentos'),
-              ),
-            ),
-          ],
-        ),
-        if (data.pendientesPorPropiedad.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          Text(
-            'Pendientes por propiedad',
-            style: portalText(size: 14, weight: FontWeight.w600),
-          ),
-          const SizedBox(height: 12),
-          SCard(
-            clip: true,
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                for (
-                  var i = 0;
-                  i < data.pendientesPorPropiedad.length;
-                  i++
-                ) ...[
-                  if (i > 0)
-                    const Divider(height: 1, color: PortalColors.border),
-                  _PortalPendienteRow(
-                    p: data.pendientesPorPropiedad[i],
-                    onTap: () => context.push(
-                      '/propiedad/${data.pendientesPorPropiedad[i].cuentaId}',
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
   }
 
   // ── Portafolio vacío (EmptyPortfolio) ─────────────────────────────────────
@@ -1730,202 +989,6 @@ class _PortalActividadCard extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Acceso rápido del portal (QuickActionsGrid): destacado en fila con
-/// "Ver →" o celda vertical con icono en caja muted.
-class _PortalQuickAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String subtitle;
-  final bool featured;
-  final VoidCallback onTap;
-
-  const _PortalQuickAction({
-    required this.icon,
-    required this.label,
-    required this.subtitle,
-    this.featured = false,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final iconBox = Container(
-      width: 36,
-      height: 36,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: featured ? PortalColors.primarySoft10 : PortalColors.muted,
-        borderRadius: BorderRadius.circular(kPortalRadiusMd),
-      ),
-      child: Icon(
-        icon,
-        size: 16,
-        color: featured ? PortalColors.primary : PortalColors.mutedForeground,
-      ),
-    );
-    final textos = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: portalText(size: 13, weight: FontWeight.w600),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: portalText(size: 11, color: PortalColors.mutedForeground),
-        ),
-      ],
-    );
-    return SPressable(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(kPortalRadiusLg),
-      child: SHoverBuilder(
-        builder: (context, hovered) => AnimatedContainer(
-          // Solo el borde y la sombra se animan aquí: el hundido de press lo
-          // pone SPressable.
-          duration: context.s.motion.fast,
-          curve: context.s.motion.emphasized,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: PortalColors.surface,
-            borderRadius: BorderRadius.circular(kPortalRadiusLg),
-            border: Border.all(
-              color: hovered ? PortalColors.borderSoft : PortalColors.border,
-            ),
-            boxShadow: featured && hovered
-                ? const [
-                    BoxShadow(
-                      color: Color(0x0D000000),
-                      offset: Offset(0, 1),
-                      blurRadius: 2,
-                    ),
-                  ]
-                : const [],
-          ),
-          child: featured
-              ? Row(
-                  children: [
-                    iconBox,
-                    const SizedBox(width: 12),
-                    Expanded(child: textos),
-                    Text(
-                      'Ver →',
-                      style: portalText(
-                        size: 12,
-                        weight: FontWeight.w500,
-                        color: PortalColors.primary,
-                      ),
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [iconBox, const SizedBox(height: 10), textos],
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Fila de "Pendientes por propiedad" (PendingsByProperty): punto de
-/// urgencia, proyecto + unidad, tipo · fecha y monto con chevron.
-class _PortalPendienteRow extends StatelessWidget {
-  final PendientePropiedad p;
-  final VoidCallback onTap;
-
-  const _PortalPendienteRow({required this.p, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final dot = switch (p.urgencia) {
-      'urgent' => PortalColors.destructive,
-      'upcoming' => PortalColors.warning,
-      _ => PortalColors.primary,
-    };
-    return SHoverBuilder(
-      builder: (context, hovered) => GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          color: hovered ? PortalColors.mutedHover : Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: p.proyecto,
-                            style: portalText(
-                              size: 13,
-                              weight: FontWeight.w600,
-                            ),
-                          ),
-                          TextSpan(
-                            text: '  U-${p.unidad}',
-                            style: portalText(
-                              size: 11,
-                              color: PortalColors.mutedForeground,
-                            ),
-                          ),
-                        ],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${p.tipo} · '
-                      '${p.fecha != null ? formatDate(p.fecha) : 'Próximamente'}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: portalText(
-                        size: 11,
-                        color: PortalColors.mutedForeground,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                formatMXN(p.monto),
-                style: portalText(
-                  size: 14,
-                  weight: FontWeight.w700,
-                  tabular: true,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Icon(
-                Icons.chevron_right,
-                size: 14,
-                color: PortalColors.mutedForeground.withValues(alpha: .4),
               ),
             ],
           ),
