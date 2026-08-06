@@ -16,8 +16,29 @@ import 'package:sozu_cliente_app/shared/api_error.dart';
 /// - `mustChangePassword` fuerza el cambio de contraseña temporal.
 /// - El listener de sessionChanges solo actualiza la sesión; el perfil se
 ///   carga aparte (mismo patrón anti-deadlock que el app RN).
+/// - [AuthController.applyAccessGates] cierra la sesión de las cuentas que no
+///   pueden entrar (dadas de baja o con el correo sin confirmar).
 
 class WrongCurrentPasswordError implements Exception {}
+
+/// Motivo por el que una cuenta autenticada NO puede usar la app. El orden de
+/// los valores es el del gate: primero la baja, después el correo.
+enum AccessBlock {
+  /// `usuarios.activo = false`.
+  deactivated,
+
+  /// Rol de portal (`roles.requiere_confirmacion_email`) cuyo correo todavía no
+  /// está verificado (`usuarios.email_confirmado = false`).
+  emailNotConfirmed,
+}
+
+/// Texto que se muestra al usuario para cada motivo de bloqueo.
+String accessBlockMessage(AccessBlock reason) => switch (reason) {
+  AccessBlock.deactivated =>
+    'Tu cuenta está desactivada. Contacta al administrador para reactivarla.',
+  AccessBlock.emailNotConfirmed =>
+    'Confirma tu correo para entrar. Revisa tu bandeja de entrada.',
+};
 
 class AuthController extends ChangeNotifier {
   /// Al construirse inyecta el puerto en [BiometricService]: el singleton no
@@ -46,6 +67,16 @@ class AuthController extends ChangeNotifier {
   /// huella/rostro o contraseña. El router lo trata como "sin sesión".
   bool locked = false;
 
+  /// Motivo por el que el gate de cuenta cerró la sesión (baja o correo sin
+  /// confirmar). El router lo lee para llevar a la pantalla que corresponde y
+  /// el login para explicar el rechazo. Se limpia al reintentar el acceso.
+  AccessBlock? blockedAccess;
+
+  /// Correo de la cuenta bloqueada. La sesión ya no existe cuando se muestra la
+  /// pantalla de confirmación, así que se conserva aquí para poder reenviar el
+  /// correo de confirmación.
+  String? blockedEmail;
+
   bool _authReady = false;
   bool _profileReady = false;
   String? _profileForUserId;
@@ -70,6 +101,10 @@ class AuthController extends ChangeNotifier {
     _authReady = true;
     if (session != null && !locked) {
       await refreshProfile();
+      // Rehidratar una sesión guardada NO puede saltarse el gate: una cuenta
+      // dada de baja (o con el correo des-confirmado por un reset) tiene que
+      // caer aquí igual que en el login.
+      await applyAccessGates();
     }
     _profileReady = true;
     notifyListeners();
@@ -112,6 +147,63 @@ class AuthController extends ChangeNotifier {
     if (profile != null) _profileForUserId = session?.userId;
     notifyListeners();
     return profile;
+  }
+
+  /// Gate de acceso sobre el perfil ya cargado: cuenta desactivada primero,
+  /// correo sin confirmar después (`debe_cambiar_password` lo maneja el router
+  /// al final, ya con la sesión aceptada). Si la cuenta no puede entrar cierra
+  /// la sesión y deja registrado el motivo en [blockedAccess].
+  ///
+  /// Devuelve null cuando el acceso es válido, o cuando no hay perfil que
+  /// evaluar: un perfil ausente (RPC caída, sin fila en `usuarios`) ya lo
+  /// rechazan las pantallas de acceso por su cuenta.
+  ///
+  /// Los defaults tolerantes de [UserProfile] hacen que este gate sea inocuo
+  /// mientras la migración de `email_confirmado` no esté desplegada.
+  Future<AccessBlock?> applyAccessGates() async {
+    final p = profile;
+    if (p == null) return null;
+    final AccessBlock reason;
+    if (!p.isActive) {
+      reason = AccessBlock.deactivated;
+    } else if (p.hasPendingEmailConfirmation) {
+      reason = AccessBlock.emailNotConfirmed;
+    } else {
+      return null;
+    }
+    // El correo se guarda ANTES del signOut: después no queda ni perfil ni
+    // sesión de donde sacarlo para el reenvío.
+    final email = p.email ?? session?.email;
+    await signOut();
+    blockedAccess = reason;
+    blockedEmail = email;
+    notifyListeners();
+    return reason;
+  }
+
+  /// Olvida el último bloqueo (al reintentar el acceso o volver al login).
+  void clearAccessBlock() {
+    if (blockedAccess == null && blockedEmail == null) return;
+    blockedAccess = null;
+    blockedEmail = null;
+    notifyListeners();
+  }
+
+  /// Reenvía el correo de confirmación de la cuenta bloqueada por el gate.
+  Future<void> resendEmailConfirmation(String email) async {
+    await _port.resendEmailConfirmation(email);
+  }
+
+  /// Mensaje para un fallo de [resendEmailConfirmation].
+  static String resendConfirmationErrorMessage(Object e) {
+    final reason = e is AuthError ? e.reason : AuthFailure.network;
+    return switch (reason) {
+      AuthFailure.tooManyAttempts =>
+        'Demasiadas solicitudes. Espera unos minutos y vuelve a intentar.',
+      AuthFailure.network =>
+        'No pudimos conectar. Revisa tu conexion e intenta de nuevo.',
+      _ => 'No pudimos reenviar el correo. Contacta a soporte.',
+    };
   }
 
   /// Traduce el fallo de [signIn] a un mensaje accionable.
@@ -226,9 +318,20 @@ class AuthController extends ChangeNotifier {
     PushService.olvidarSesion();
     // Cierra la sesión de mediciones ANTES de perder el JWT.
     await PortalTracking.cerrar();
-    await _port.signOut();
+    try {
+      await _port.signOut();
+    } catch (_) {
+      // Sin red el cierre en el servidor falla. El estado local se limpia
+      // igual: ni el gate de cuenta ni un logout pueden quedarse a medias por
+      // un error de conexión y dejar al usuario dentro.
+    }
     locked = false;
     profile = null;
+    // La sesión se limpia AQUÍ y no solo en el listener: en el arranque en frío
+    // el gate puede cerrar la sesión antes de que `_sub` exista, y con `session`
+    // desactualizada el router creería que sigue habiendo sesión válida.
+    session = null;
+    _profileForUserId = null;
     notifyListeners();
   }
 
