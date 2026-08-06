@@ -18,6 +18,7 @@ import 'package:sozu_cliente_app/features/client/home/screens/inicio_screen.dart
 import 'package:sozu_cliente_app/features/auth/screens/login_screen.dart';
 import 'package:sozu_cliente_app/features/client/home/screens/notificaciones_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/pagar_screen.dart';
+import 'package:sozu_cliente_app/features/client/properties/screens/mantenimientos_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/pagos_screen.dart';
 import 'package:sozu_cliente_app/features/client/profile/screens/perfil_screen.dart';
 import 'package:sozu_cliente_app/features/client/products/screens/producto_detalle_screen.dart';
@@ -254,6 +255,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/expediente',
             pageBuilder: (context, state) =>
                 _slidePage(context, state, const ExpedienteScreen()),
+          ),
+          GoRoute(
+            path: '/mantenimientos',
+            pageBuilder: (context, state) =>
+                _slidePage(context, state, const MantenimientosScreen()),
           ),
           GoRoute(
             path: '/productos',
