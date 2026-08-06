@@ -9,7 +9,6 @@ import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/admin/screens/announcements_screen.dart';
-import 'package:sozu_cliente_app/features/client/properties/screens/adquisicion_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.dart';
 import 'package:sozu_cliente_app/features/client/documents/screens/documentos_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/estado_cuenta_screen.dart';
@@ -20,11 +19,11 @@ import 'package:sozu_cliente_app/features/auth/screens/login_screen.dart';
 import 'package:sozu_cliente_app/features/client/home/screens/notificaciones_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/pagar_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/pagos_screen.dart';
-import 'package:sozu_cliente_app/features/client/properties/screens/patrimonio_screen.dart';
 import 'package:sozu_cliente_app/features/client/profile/screens/perfil_screen.dart';
 import 'package:sozu_cliente_app/features/client/products/screens/producto_detalle_screen.dart';
 import 'package:sozu_cliente_app/features/client/products/screens/productos_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/propiedad_detalle_screen.dart';
+import 'package:sozu_cliente_app/features/client/properties/screens/propiedades_screen.dart';
 import 'package:sozu_cliente_app/features/admin/screens/select_client_screen.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/features/client/home/components/notificaciones_fx.dart';
@@ -88,6 +87,12 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final loc = state.matchedLocation;
       final inAuthArea = loc == '/login' || loc == '/forgot-password';
+
+      // Las dos pestañas viejas son ahora un filtro de /propiedades. Se
+      // redirigen y no se borran: el menú de la BD todavía puede mandar a
+      // cualquiera, y hay avisos ya enviados que apuntan ahí.
+      if (loc == '/adquisicion') return '/propiedades?filtro=adquisicion';
+      if (loc == '/patrimonio') return '/propiedades?filtro=entregadas';
 
       // Pantalla de autenticación aún trabajando: no sacarla (ni a /splash)
       // hasta que ella decida. En /login evita que el signOut por rol inválido
@@ -290,16 +295,12 @@ final routerProvider = Provider<GoRouter>((ref) {
               StatefulShellBranch(
                 routes: [
                   GoRoute(
-                    path: '/adquisicion',
-                    builder: (context, state) => const AdquisicionScreen(),
-                  ),
-                ],
-              ),
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: '/patrimonio',
-                    builder: (context, state) => const PatrimonioScreen(),
+                    path: '/propiedades',
+                    builder: (context, state) => PropiedadesScreen(
+                      filtroInicial: _filtroDesdeQuery(
+                        state.uri.queryParameters['filtro'],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -327,13 +328,20 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
+/// `?filtro=` de /propiedades -> valor del enum. Un valor desconocido abre la
+/// pantalla en "todas" en vez de fallar.
+PropiedadesFiltro _filtroDesdeQuery(String? valor) => switch (valor) {
+  'adquisicion' => PropiedadesFiltro.adquisicion,
+  'entregadas' => PropiedadesFiltro.entregadas,
+  _ => PropiedadesFiltro.todas,
+};
+
 /// Tabs del shell (icono, label, ruta interna). La ruta permite filtrar qué
 /// tabs se muestran según el menú de la BD (mismo criterio que el sidebar del
 /// portal), degradando a los 5 tabs si el endpoint aún no responde.
 const _navItems = [
   (Icons.home_outlined, 'Inicio', '/inicio'),
-  (Icons.shopping_bag_outlined, 'En adquisición', '/adquisicion'),
-  (Icons.account_balance_wallet_outlined, 'Patrimonio', '/patrimonio'),
+  (Icons.apartment_outlined, 'Propiedades', '/propiedades'),
   (Icons.description_outlined, 'Documentos', '/documentos'),
   (Icons.person_outline, 'Perfil', '/perfil'),
 ];
@@ -438,8 +446,7 @@ class _ClienteBottomNav extends ConsumerWidget {
   /// con `context.go` (nunca push) para conservar el estado de la rama.
   static const _branchRoutes = {
     '/inicio',
-    '/adquisicion',
-    '/patrimonio',
+    '/propiedades',
     '/documentos',
     '/perfil',
   };
@@ -451,7 +458,7 @@ class _ClienteBottomNav extends ConsumerWidget {
   }
 
   String _shortLabel(String label) =>
-      label == 'En adquisición' ? 'Adquisición' : label;
+      label == 'Mantenimientos' ? 'Manto.' : label;
 
   void _navigateTo(BuildContext context, String route, {required bool push}) {
     if (_branchRoutes.contains(route)) {

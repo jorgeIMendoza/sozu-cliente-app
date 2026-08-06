@@ -1166,6 +1166,11 @@ String? _rutaAppDesdeUrl(String? url) {
     '/notificaciones',
     '/perfil',
     '/inicio',
+    '/propiedades',
+    '/mantenimientos',
+    // Se quedan aunque ya no sean rutas propias: el router las redirige al
+    // filtro correspondiente de /propiedades, y hay avisos ya enviados que
+    // apuntan ahí. Quitarlas los dejaría sin enlace.
     '/adquisicion',
     '/patrimonio',
     '/productos',
