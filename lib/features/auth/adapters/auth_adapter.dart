@@ -146,6 +146,60 @@ class AuthAdapter implements AuthPort {
     }
   }
 
+  /// Tipos que GoTrue puede haber emitido para un enlace de confirmacion. El
+  /// `type` de la URL no siempre coincide con el token real, y declarar el que
+  /// no es responde 403 sin consumirlo: por eso se reintenta con el contrario.
+  static const _tiposEnlace = {
+    'magiclink': OtpType.magiclink,
+    'signup': OtpType.signup,
+    'invite': OtpType.invite,
+    'recovery': OtpType.recovery,
+    'email': OtpType.email,
+    'email_change': OtpType.emailChange,
+  };
+
+  @override
+  Future<AuthSession> confirmEmailLink({
+    required String tokenHash,
+    required String type,
+  }) async {
+    final primero = _tiposEnlace[type] ?? OtpType.magiclink;
+    final alterno = switch (primero) {
+      OtpType.magiclink => OtpType.signup,
+      OtpType.signup => OtpType.magiclink,
+      _ => null,
+    };
+    for (final t in [primero, if (alterno != null) alterno]) {
+      try {
+        final res = await _sb.auth.verifyOTP(type: t, tokenHash: tokenHash);
+        final s = _toDomain(res.session);
+        if (s != null) return s;
+      } on AuthRetryableFetchException {
+        throw AuthError(AuthFailure.network);
+      } on AuthException {
+        continue; // tipo equivocado: el token sigue vivo, se prueba el otro
+      }
+    }
+    throw AuthError(AuthFailure.sessionRevoked);
+  }
+
+  @override
+  Future<void> completeRegistration({
+    required String email,
+    String? name,
+  }) async {
+    try {
+      await _sb.functions.invoke(
+        'post-confirmacion-registro',
+        body: {'email': email, if (name != null) 'nombre': name},
+      );
+    } on FunctionException catch (e) {
+      throw ApiError(e.status, 'post_confirmacion_failed');
+    } catch (_) {
+      throw ApiError(0, 'network_error');
+    }
+  }
+
   @override
   Future<void> markPasswordChanged() async {
     try {

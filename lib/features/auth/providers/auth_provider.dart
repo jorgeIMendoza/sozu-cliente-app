@@ -193,6 +193,40 @@ class AuthController extends ChangeNotifier {
     return !await bio.isEnabled();
   }
 
+  /// Canjea el enlace de confirmación y cierra el alta. Deja la sesión abierta
+  /// y el perfil ya cargado, para que el guard decida el destino.
+  Future<void> confirmEmailLink({
+    required String tokenHash,
+    required String type,
+    String? email,
+    String? nombre,
+  }) async {
+    await _port.confirmEmailLink(tokenHash: tokenHash, type: type);
+    final correo = email ?? session?.email;
+    if (correo != null && correo.isNotEmpty) {
+      // Best-effort: la confirmación en Auth ya ocurrió. Si esto falla, el
+      // usuario entra igual; lo que se pierde es el correo de credenciales.
+      try {
+        await _port.completeRegistration(email: correo, name: nombre);
+      } catch (_) {
+        // sin ruido: no bloquea el acceso
+      }
+    }
+    await refreshProfile();
+  }
+
+  /// Mensaje para un fallo de [confirmEmailLink].
+  static String confirmEmailErrorMessage(Object e) {
+    final reason = e is AuthError ? e.reason : AuthFailure.network;
+    return switch (reason) {
+      AuthFailure.network =>
+        'No pudimos conectar. Revisa tu conexion e intenta de nuevo.',
+      _ =>
+        'El enlace vencio o ya se uso (dura 24 horas). Pide uno nuevo desde '
+            '"¿Olvidaste tu contrasena?".',
+    };
+  }
+
   Future<void> resetPassword(String email) async {
     await _port.sendPasswordReset(email);
   }

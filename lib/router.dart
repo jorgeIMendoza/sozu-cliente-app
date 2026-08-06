@@ -13,6 +13,7 @@ import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.da
 import 'package:sozu_cliente_app/features/client/documents/screens/documentos_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/estado_cuenta_screen.dart';
 import 'package:sozu_cliente_app/features/client/documents/screens/expediente_screen.dart';
+import 'package:sozu_cliente_app/features/auth/screens/confirmacion_email_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/forgot_password_screen.dart';
 import 'package:sozu_cliente_app/features/client/home/screens/inicio_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/login_screen.dart';
@@ -88,7 +89,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: Listenable.merge([auth, imp]),
     redirect: (context, state) {
       final loc = state.matchedLocation;
-      final inAuthArea = loc == '/login' || loc == '/forgot-password';
+      final inAuthArea =
+          loc == '/login' ||
+          loc == '/forgot-password' ||
+          loc == _rutaConfirmacion;
 
       // Las dos pestañas viejas son ahora un filtro de /propiedades. Se
       // redirigen y no se borran: el menú de la BD todavía puede mandar a
@@ -102,7 +106,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // que el perfil ya sin `debe_cambiar_password` se lleve el sheet de
       // biometría antes de que el usuario conteste.
       if (auth.authFlowInProgress &&
-          (loc == '/login' || loc == '/change-password')) {
+          (loc == '/login' ||
+              loc == '/change-password' ||
+              loc == _rutaConfirmacion)) {
         return null;
       }
       if (auth.isLoading) return loc == '/splash' ? null : '/splash';
@@ -150,6 +156,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         pageBuilder: (context, state) =>
             _slidePage(context, state, const LoginScreen(), sinMarco: true),
+      ),
+      // La fija la Edge Function en el correo: cambiarla deja muertos los
+      // enlaces ya enviados. Este host servia el portal legacy y ahora sirve
+      // Flutter, asi que sin esta ruta el enlace caia en el fallback SPA y
+      // terminaba en /login sin confirmar nada.
+      GoRoute(
+        path: _rutaConfirmacion,
+        pageBuilder: (context, state) {
+          final q = state.uri.queryParameters;
+          return _slidePage(
+            context,
+            state,
+            ConfirmacionEmailScreen(
+              tokenHash: q['token_hash'],
+              type: q['type'],
+              email: q['email'],
+              nombre: q['nombre'],
+            ),
+            sinMarco: true,
+          );
+        },
       ),
       GoRoute(
         path: '/forgot-password',
@@ -341,6 +368,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// Aterrizaje del enlace de confirmacion de correo. La ruta la fija
+/// `reset-user-password` en el correo; aqui solo se atiende.
+const _rutaConfirmacion = '/auth/confirmacion-email';
 
 /// `?filtro=` de /propiedades -> valor del enum. Un valor desconocido abre la
 /// pantalla en "todas" en vez de fallar.
