@@ -219,7 +219,7 @@ class ExpedienteCard extends StatelessWidget {
                 ),
               ),
               icon: const Icon(Icons.description_outlined, size: 16),
-              label: const Text('Gestionar documentos'),
+              label: const Text('Gestionar mis documentos'),
             ),
             txt(
               '${estado.validadas} de ${PerfilSeccionesEstado.total} '

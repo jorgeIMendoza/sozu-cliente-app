@@ -20,6 +20,7 @@ import 'package:sozu_cliente_app/features/client/home/screens/notificaciones_scr
 import 'package:sozu_cliente_app/features/client/properties/screens/pagar_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/mantenimientos_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/pagos_screen.dart';
+import 'package:sozu_cliente_app/features/client/profile/screens/perfil_detalle_screens.dart';
 import 'package:sozu_cliente_app/features/client/profile/screens/perfil_screen.dart';
 import 'package:sozu_cliente_app/features/client/products/screens/producto_detalle_screen.dart';
 import 'package:sozu_cliente_app/features/client/products/screens/productos_screen.dart';
@@ -255,6 +256,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/expediente',
             pageBuilder: (context, state) =>
                 _slidePage(context, state, const ExpedienteScreen()),
+          ),
+          // Los datos fiscales viven en Perfil, pero se llega desde Facturación:
+          // ahí es donde el cliente descubre que su RFC está mal.
+          GoRoute(
+            path: '/datos-fiscales',
+            pageBuilder: (context, state) =>
+                _slidePage(context, state, const PerfilFiscalScreen()),
           ),
           GoRoute(
             path: '/mantenimientos',
