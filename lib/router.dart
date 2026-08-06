@@ -14,6 +14,7 @@ import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.da
 import 'package:sozu_cliente_app/features/client/documents/screens/documentos_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/estado_cuenta_screen.dart';
 import 'package:sozu_cliente_app/features/client/documents/screens/expediente_screen.dart';
+import 'package:sozu_cliente_app/features/auth/screens/email_not_confirmed_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/forgot_password_screen.dart';
 import 'package:sozu_cliente_app/features/client/home/screens/inicio_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/login_screen.dart';
@@ -87,7 +88,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: Listenable.merge([auth, imp]),
     redirect: (context, state) {
       final loc = state.matchedLocation;
-      final inAuthArea = loc == '/login' || loc == '/forgot-password';
+      final inAuthArea =
+          loc == '/login' ||
+          loc == '/forgot-password' ||
+          loc == emailNotConfirmedPath;
 
       // Pantalla de autenticación aún trabajando: no sacarla (ni a /splash)
       // hasta que ella decida. En /login evita que el signOut por rol inválido
@@ -99,6 +103,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
       if (auth.isLoading) return loc == '/splash' ? null : '/splash';
+      // Gate de correo sin confirmar (roles de portal): pantalla dedicada. Va
+      // antes que todo lo demás para atrapar también la rehidratación de una
+      // sesión guardada al abrir la app, no solo el login. El gate ya cerró la
+      // sesión, así que sin esta regla el usuario caería en /login sin
+      // explicación.
+      if (auth.blockedAccess == AccessBlock.emailNotConfirmed) {
+        return loc == emailNotConfirmedPath ? null : emailNotConfirmedPath;
+      }
       if (loc == '/splash') {
         // Sesión resuelta: salir del splash.
         if (auth.session == null || auth.locked) return '/login';
@@ -109,6 +121,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Candado biométrico puesto: la sesión sigue viva por debajo pero la
       // app se comporta como deslogueada hasta desbloquear.
       if (auth.session == null || auth.locked) {
+        // Bloqueo ya limpiado ("Volver al inicio de sesión"): la pantalla de
+        // confirmación deja de tener sentido.
+        if (loc == emailNotConfirmedPath) return '/login';
         return inAuthArea ? null : '/login';
       }
       if (auth.mustChangePassword) {
@@ -137,7 +152,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         builder: (context, state) => const _SplashScreen(),
       ),
-      // Las tres pantallas de acceso van a sangre: su propio AuthScaffold
+      // Las pantallas de acceso van a sangre: su propio AuthScaffold
       // resuelve el responsive y fuerza el tema claro.
       GoRoute(
         path: '/login',
@@ -150,6 +165,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           context,
           state,
           const ForgotPasswordScreen(),
+          sinMarco: true,
+        ),
+      ),
+      GoRoute(
+        path: emailNotConfirmedPath,
+        pageBuilder: (context, state) => _slidePage(
+          context,
+          state,
+          const EmailNotConfirmedScreen(),
           sinMarco: true,
         ),
       ),
