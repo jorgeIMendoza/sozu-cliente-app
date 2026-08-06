@@ -160,4 +160,33 @@ void main() {
     await pumpPantalla(tester);
     expect(find.text('Tus datos de facturación'), findsOneWidget);
   });
+
+  testWidgets('el archivo que no llegó no es pulsable', (tester) async {
+    await pumpPantalla(
+      tester,
+      datos: {
+        'documentos': [],
+        'total': 0,
+        // Solo PDF: el XML no viene.
+        'facturas': [
+          {'id_cuenta': 301, 'propiedad': 'Margot 814', 'pdf': 'a.pdf'},
+        ],
+      },
+    );
+
+    // Las dos etiquetas se pintan: que falte uno se VE, no se esconde.
+    expect(find.text('PDF'), findsOneWidget);
+    expect(find.text('XML'), findsOneWidget);
+
+    final pulsables = tester
+        .widgetList<SPressable>(find.byType(SPressable))
+        .where((p) => p.onTap != null)
+        .length;
+    final apagados = tester
+        .widgetList<SPressable>(find.byType(SPressable))
+        .where((p) => p.onTap == null)
+        .length;
+    expect(pulsables, greaterThan(0), reason: 'el PDF sí abre');
+    expect(apagados, greaterThan(0), reason: 'el XML ausente queda apagado');
+  });
 }

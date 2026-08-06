@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:sozu_cliente_app/core/open_document.dart';
+import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/documents/components/datos_facturacion_card.dart';
@@ -118,7 +118,7 @@ class _FacturasScreenState extends ConsumerState<FacturasScreen> {
               onVolver: unidades.length == 1
                   ? null
                   : () => setState(() => _abierta = null),
-              onAbrir: (url) => openDoc(context, url),
+              onAbrir: (url, titulo) => openMedia(context, url, titulo: titulo),
             )
           else ...[
             SSectionLabel.heading(

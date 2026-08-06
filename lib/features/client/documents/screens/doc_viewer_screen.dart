@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -10,7 +11,7 @@ import 'package:sozu_cliente_app/core/open_document.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/widgets/network_image.dart';
 
-enum _MediaKind { image, pdf, unknown }
+enum _MediaKind { image, pdf, xml, unknown }
 
 const _imageExts = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic'};
 
@@ -39,12 +40,14 @@ class _DocViewerScreenState extends State<DocViewerScreen> {
   Future<_MediaKind> _detectKind() async {
     final ext = fileExtensionOf(widget.url);
     if (ext == 'pdf') return _MediaKind.pdf;
+    if (ext == 'xml') return _MediaKind.xml;
     if (_imageExts.contains(ext)) return _MediaKind.image;
     // Sin extensión reconocible: preguntar por Content-Type.
     try {
       final res = await http.head(Uri.parse(widget.url));
       final ct = (res.headers['content-type'] ?? '').toLowerCase();
       if (ct.contains('pdf')) return _MediaKind.pdf;
+      if (ct.contains('xml')) return _MediaKind.xml;
       if (ct.startsWith('image/')) return _MediaKind.image;
     } catch (_) {
       /* cae a unknown */
@@ -126,6 +129,8 @@ class _DocViewerScreenState extends State<DocViewerScreen> {
               );
             case _MediaKind.pdf:
               return _PdfView(url: widget.url, onError: () {});
+            case _MediaKind.xml:
+              return _XmlView(url: widget.url, onError: () => _fallback(tone));
             case _MediaKind.unknown:
               return _fallback(tone);
           }
@@ -246,5 +251,60 @@ class _PdfViewState extends State<_PdfView> {
       return const Center(child: CircularProgressIndicator());
     }
     return PdfViewPinch(controller: _controller!);
+  }
+}
+
+/// Muestra el XML como texto seleccionable. Un CFDI no se "renderiza": lo que
+/// el cliente necesita es verlo sin salir de la app y poder copiarlo o
+/// descargarlo, que es lo que ofrece esta vista mas el boton de la barra.
+class _XmlView extends StatefulWidget {
+  final String url;
+
+  /// Que pintar si el archivo no se pudo leer (CORS, red, 404).
+  final Widget Function() onError;
+
+  const _XmlView({required this.url, required this.onError});
+
+  @override
+  State<_XmlView> createState() => _XmlViewState();
+}
+
+class _XmlViewState extends State<_XmlView> {
+  late final Future<String> _texto = _cargar();
+
+  Future<String> _cargar() async {
+    final res = await http.get(Uri.parse(widget.url));
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('status ${res.statusCode}');
+    }
+    return utf8.decode(res.bodyBytes, allowMalformed: true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return FutureBuilder<String>(
+      future: _texto,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError || snap.data == null) return widget.onError();
+        return SingleChildScrollView(
+          padding: EdgeInsets.all(t.space.md),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SelectableText(
+              snap.data!,
+              style: t.text.caption.copyWith(
+                color: Colors.white,
+                fontFamily: 'monospace',
+                height: 1.5,
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

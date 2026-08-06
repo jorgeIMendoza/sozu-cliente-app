@@ -96,7 +96,7 @@ class UnidadFacturasDetalle extends StatelessWidget {
 
   /// `null` cuando no hay a dónde volver (el cliente tiene una sola unidad).
   final VoidCallback? onVolver;
-  final ValueChanged<String> onAbrir;
+  final void Function(String url, String titulo) onAbrir;
 
   const UnidadFacturasDetalle({
     super.key,
@@ -186,8 +186,8 @@ class FacturaCard extends StatelessWidget {
   final String? pdf;
   final String? xml;
 
-  /// Recibe la URL del archivo tocado. La pantalla decide cómo abrirlo.
-  final ValueChanged<String> onAbrir;
+  /// Recibe la URL y un título ya armado. La pantalla decide cómo abrirlo.
+  final void Function(String url, String titulo) onAbrir;
 
   const FacturaCard({
     super.key,
@@ -227,9 +227,9 @@ class FacturaCard extends StatelessWidget {
             ),
           ),
           SizedBox(width: t.space.xs),
-          _Archivo(label: 'PDF', url: pdf, onAbrir: onAbrir),
+          _Archivo(label: 'PDF', url: pdf, titulo: titulo, onAbrir: onAbrir),
           SizedBox(width: t.space.xs),
-          _Archivo(label: 'XML', url: xml, onAbrir: onAbrir),
+          _Archivo(label: 'XML', url: xml, titulo: titulo, onAbrir: onAbrir),
         ],
       ),
     );
@@ -241,11 +241,13 @@ class FacturaCard extends StatelessWidget {
 class _Archivo extends StatelessWidget {
   final String label;
   final String? url;
-  final ValueChanged<String> onAbrir;
+  final String titulo;
+  final void Function(String url, String titulo) onAbrir;
 
   const _Archivo({
     required this.label,
     required this.url,
+    required this.titulo,
     required this.onAbrir,
   });
 
@@ -256,7 +258,7 @@ class _Archivo extends StatelessWidget {
     final valor = url;
     final hay = valor != null && valor.isNotEmpty;
     return SPressable(
-      onTap: hay ? () => onAbrir(valor) : null,
+      onTap: hay ? () => onAbrir(valor, '$titulo · $label') : null,
       borderRadius: t.radius.mdBorder,
       semanticLabel: hay ? 'Abrir $label' : '$label no disponible',
       child: Container(
