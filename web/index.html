@@ -19,38 +19,51 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SEO Y TARJETAS AL COMPARTIR - lo único que se edita de este archivo.
+
+       index.html NO se compila: `flutter build web` lo copia tal cual, así que
+       tocar esto no recompila Dart, solo pide un deploy. Y tiene que vivir en
+       el HTML: los rastreadores de WhatsApp, X y Meta no ejecutan JavaScript,
+       así que un meta puesto en runtime no lo ve nadie.
+
+       Al cambiar el host hay que tocar los 4 valores absolutos (canonical,
+       og:url y las dos imágenes). La imagen es web/og-image.jpg: se
+       reemplaza el archivo, respetando 1.91:1 (hoy 1200x630).
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <title>SOZU • Portal del Cliente</title>
   <meta name="description"
     content="Portal del Cliente SOZU: consulta tus propiedades, pagos, estado de cuenta y documentos de tu inversión inmobiliaria.">
   <link rel="canonical" href="https://clientes.sozu.com/">
 
-  <!--
-    El portal vive detrás del login: no hay nada que indexar y sí cuentas que
-    proteger. `noindex` mantiene la app fuera de las búsquedas; las tarjetas de
-    abajo SÍ funcionan igual, porque los rastreadores de WhatsApp, X y Meta no
-    obedecen robots.
-  -->
+  <!-- El portal vive detrás del login: nada que indexar y sí cuentas que
+       proteger. Las tarjetas de abajo funcionan igual: esos rastreadores no
+       obedecen robots. -->
   <meta name="robots" content="noindex, nofollow">
 
-  <!-- Tarjetas al compartir el enlace (WhatsApp, Meta, LinkedIn, Slack) -->
+  <!-- WhatsApp, Meta, LinkedIn, Slack -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="SOZU">
   <meta property="og:locale" content="es_MX">
-  <meta property="og:title" content="SOZU · Portal del Cliente">
+  <meta property="og:title" content="SOZU • Portal del Cliente">
   <meta property="og:description"
     content="Consulta tus propiedades, pagos, estado de cuenta y documentos de tu inversión inmobiliaria.">
   <meta property="og:url" content="https://clientes.sozu.com/">
-  <meta property="og:image" content="https://clientes.sozu.com/og-image.png">
+  <meta property="og:image" content="https://clientes.sozu.com/og-image.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="SOZU · Portal del Cliente">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:alt" content="Pantalla de acceso al Portal del Cliente SOZU">
 
+  <!-- X -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="SOZU · Portal del Cliente">
+  <meta name="twitter:title" content="SOZU • Portal del Cliente">
   <meta name="twitter:description"
     content="Consulta tus propiedades, pagos, estado de cuenta y documentos de tu inversión inmobiliaria.">
-  <meta name="twitter:image" content="https://clientes.sozu.com/og-image.png">
+  <meta name="twitter:image" content="https://clientes.sozu.com/og-image.jpg">
 
   <meta name="theme-color" content="#239F71">
+  <!-- ══════════════════════ fin del bloque editable ══════════════════════ -->
 
   <!--
     OBLIGATORIO, no adorno. Sin esta línea Safari en iOS asume un viewport de
@@ -76,7 +89,6 @@
   <link rel="icon" type="image/png" href="favicon-dark.png" media="(prefers-color-scheme: dark)">
   <link rel="icon" type="image/png" href="favicon-light.png">
 
-  <title>SOZU • Portal del Cliente</title>
   <link rel="manifest" href="manifest.json">
 
   <!-- pdf.js: requerido por pdfx para renderizar PDFs en web (visor in-app) -->

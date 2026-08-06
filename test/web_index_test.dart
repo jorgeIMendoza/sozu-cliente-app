@@ -48,12 +48,16 @@ void main() {
     ]) {
       expect(html, contains(tag), reason: 'falta $tag');
     }
-    expect(html, contains('https://clientes.sozu.com/og-image.png'));
-    expect(File('web/og-image.png').existsSync(), isTrue);
+    expect(html, contains('https://clientes.sozu.com/og-image.jpg'));
+    expect(File('web/og-image.jpg').existsSync(), isTrue);
   });
 
   test('el portal no se indexa: vive detrás del login', () {
     expect(html, contains('noindex'));
+  });
+
+  test('el título de la pestaña es el acordado', () {
+    expect(html, contains('<title>SOZU • Portal del Cliente</title>'));
   });
 
   test('no bloquea el zoom: es un requisito de accesibilidad', () {
