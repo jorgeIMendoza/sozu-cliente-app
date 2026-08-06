@@ -1161,6 +1161,8 @@ String? _rutaAppDesdeUrl(String? url) {
   const directas = {
     '/pagos',
     '/estado-cuenta',
+    '/facturas',
+    // Sigue viva por redirect: hay avisos enviados que apuntan aqui.
     '/documentos',
     '/expediente',
     '/notificaciones',

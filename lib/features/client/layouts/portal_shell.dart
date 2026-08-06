@@ -36,7 +36,7 @@ const List<_PortalNavItemData> _portalNavItems = [
     '/estado-cuenta',
     Icons.bar_chart_outlined,
   ),
-  _PortalNavItemData('Facturación', '/documentos', Icons.receipt_long_outlined),
+  _PortalNavItemData('Facturas', '/facturas', Icons.receipt_long_outlined),
   _PortalNavItemData('Mantenimientos', '/mantenimientos', Icons.build_outlined),
   _PortalNavItemData(
     'Notificaciones',
@@ -81,8 +81,14 @@ const Map<String, ({String route, IconData icon})> _portalRouteMap = {
     route: '/estado-cuenta',
     icon: Icons.bar_chart_outlined,
   ),
+  // Las dos rutas del portal caen en la misma pantalla: la BD dira `facturas`
+  // tras el renombre, pero `documentos` sigue viva en menus ya publicados.
   '/admin/portal-cliente/documentos': (
-    route: '/documentos',
+    route: '/facturas',
+    icon: Icons.receipt_long_outlined,
+  ),
+  '/admin/portal-cliente/facturas': (
+    route: '/facturas',
     icon: Icons.receipt_long_outlined,
   ),
   '/admin/portal-cliente/notificaciones': (
@@ -99,14 +105,13 @@ const Map<String, ({String route, IconData icon})> _portalRouteMap = {
 /// vista mapea a una ruta de la app, degrada a [_portalNavItems].
 /// Rutas cuyo rótulo lo fija la app y NO el menú de la BD.
 ///
-/// `/propiedades` recibe tres vistas del portal ("En adquisición",
-/// "Patrimonio", "Propiedades") y se queda con la etiqueta de la primera que
-/// llegue, que puede ser cualquiera. `/documentos` se llama Facturación aquí
-/// aunque el portal siga diciendo "Documentos": en la app eso es el expediente
-/// de identidad, y dos ítems con el mismo nombre no se distinguen.
+/// `/propiedades` recibe tres vistas del portal y se queda con la etiqueta de
+/// la primera que llegue, que puede ser cualquiera. `/facturas` se llama así
+/// aunque el menú de la BD aún diga "Documentos": la pantalla ya solo muestra
+/// facturas.
 const Map<String, String> _rotulosPropios = {
   '/propiedades': 'Propiedades',
-  '/documentos': 'Facturación',
+  '/facturas': 'Facturas',
 };
 
 List<_PortalNavItemData> _resolvePortalNavItems(List<MenuItemDto>? dbItems) {
