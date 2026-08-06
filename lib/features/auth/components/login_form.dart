@@ -538,13 +538,59 @@ class _ForgotPasswordLink extends StatelessWidget {
 /// (500 ms) para que sea deliberado y no un toque accidental.
 const Duration _kAdminHoldDuration = Duration(milliseconds: 1500);
 
-/// Sello de versión del pie. Con [onHold], un long-press de
+/// Cuánto puede moverse el dedo sin cancelar el gesto. Generoso a propósito: en
+/// 1.5 s la mano siempre deriva unos píxeles.
+const double _kAdminHoldSlop = 24;
+
+/// Sello de versión del pie. Con [onHold], mantenerlo pulsado
 /// [_kAdminHoldDuration] enciende el modo administrador; sin él es texto
 /// inerte.
-class _VersionStamp extends StatelessWidget {
+///
+/// Usa [Listener] y NO un reconocedor de gestos: el sello vive dentro de un
+/// scroll, y en la arena el arrastre vertical gana en cuanto el dedo pasa el
+/// touch slop, así que el long-press moría antes de cumplirse. Con eventos
+/// crudos el gesto no compite, y el scroll sigue funcionando porque nadie
+/// reclama el puntero.
+class _VersionStamp extends StatefulWidget {
   final VoidCallback? onHold;
 
   const _VersionStamp({this.onHold});
+
+  @override
+  State<_VersionStamp> createState() => _VersionStampState();
+}
+
+class _VersionStampState extends State<_VersionStamp> {
+  Timer? _timer;
+  Offset? _origen;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _cancelar() {
+    _timer?.cancel();
+    _timer = null;
+    _origen = null;
+  }
+
+  void _iniciar(PointerDownEvent e) {
+    _origen = e.position;
+    _timer = Timer(_kAdminHoldDuration, () {
+      _cancelar();
+      widget.onHold?.call();
+    });
+  }
+
+  void _mover(PointerMoveEvent e) {
+    final origen = _origen;
+    // Se movió: el usuario está haciendo scroll, no sosteniendo.
+    if (origen != null && (e.position - origen).distance > _kAdminHoldSlop) {
+      _cancelar();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -556,17 +602,12 @@ class _VersionStamp extends StatelessWidget {
         color: t.color.fgSubtle.withValues(alpha: 0.6),
       ),
     );
-    if (onHold == null) return label;
-    // RawGestureDetector para fijar la duración del long-press (GestureDetector
-    // no la deja cambiar).
-    return RawGestureDetector(
-      gestures: {
-        LongPressGestureRecognizer:
-            GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
-              () => LongPressGestureRecognizer(duration: _kAdminHoldDuration),
-              (r) => r.onLongPress = onHold,
-            ),
-      },
+    if (widget.onHold == null) return label;
+    return Listener(
+      onPointerDown: _iniciar,
+      onPointerMove: _mover,
+      onPointerUp: (_) => _cancelar(),
+      onPointerCancel: (_) => _cancelar(),
       child: label,
     );
   }

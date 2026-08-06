@@ -77,11 +77,21 @@ void main() {
 
   /// Sostiene el sello. `tester.longPress` presiona `kLongPressTimeout` (500 ms),
   /// un tercio del umbral que tenía el gesto viejo, así que no probaría nada.
+  /// Sostiene el sello. [deriva] mueve el dedo mientras aguanta: en un telefono
+  /// real la mano SIEMPRE deriva unos pixeles en 1.5 s, y con un reconocedor de
+  /// gestos eso bastaba para que el scroll ganara la arena y matara el gesto.
+  /// El test con el dedo perfectamente quieto no lo cazaba.
   Future<void> holdVersionStamp(
     WidgetTester tester, {
     Duration duration = holdWithMargin,
+    double deriva = 0,
   }) async {
-    final gesture = await tester.startGesture(tester.getCenter(versionStamp()));
+    final centro = tester.getCenter(versionStamp());
+    final gesture = await tester.startGesture(centro);
+    if (deriva != 0) {
+      await tester.pump(const Duration(milliseconds: 100));
+      await gesture.moveTo(centro + Offset(0, deriva));
+    }
     await tester.pump(duration);
     await gesture.up();
     await tester.pump();
@@ -104,6 +114,34 @@ void main() {
           'incluida la app nativa',
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('aguanta la deriva del dedo: no lo mata el scroll', (
+    tester,
+  ) async {
+    await pumpLoginForm(tester);
+
+    await holdVersionStamp(tester, deriva: 8);
+    await tester.pump();
+
+    expect(
+      find.text(badgeLabel),
+      findsOneWidget,
+      reason:
+          'el sello vive dentro de un scroll; con un reconocedor de gestos el '
+          'arrastre ganaba la arena y el gesto no llegaba a cumplirse',
+    );
+  });
+
+  testWidgets('arrastrar de verdad NO enciende nada: eso es hacer scroll', (
+    tester,
+  ) async {
+    await pumpLoginForm(tester);
+
+    await holdVersionStamp(tester, deriva: 60);
+    await tester.pump();
+
+    expect(find.text(badgeLabel), findsNothing);
   });
 
   testWidgets('un toque corto NO enciende nada', (tester) async {

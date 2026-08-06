@@ -85,11 +85,12 @@ class _DocViewerScreenState extends State<DocViewerScreen> {
               widget.titulo,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: context.s.text.label,
             ),
-            const Text(
+            Text(
               'Vista previa',
-              style: TextStyle(fontSize: 12, color: Colors.white70),
+              // Barra oscura fija: el blanco atenuado no sale de los roles.
+              style: context.s.text.caption.copyWith(color: Colors.white70),
             ),
           ],
         ),
@@ -135,7 +136,7 @@ class _DocViewerScreenState extends State<DocViewerScreen> {
 
   Widget _fallback(SozuColorRoles tone) => Center(
     child: Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(context.s.space.lg),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -215,7 +216,7 @@ class _PdfViewState extends State<_PdfView> {
     if (_error != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(context.s.space.lg),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
