@@ -78,14 +78,10 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   bool get _showBiometricButton => _isBiometricAvailable && !_isAdminMode;
 
   // -------------------------------------------------------------------------
-  // Modo administrador (SOLO web; nunca en app nativa)
+  // Modo administrador: long-press del sello (toda plataforma) o Ctrl+Alt+A
+  // (solo web de escritorio). Encenderlo no concede nada: el acceso lo decide
+  // `canManageClientApp` del perfil.
   // -------------------------------------------------------------------------
-  //
-  // Dos activaciones, según el ancho, ambas vía [_toggleAdminMode]:
-  //   - web ESCRITORIO: Ctrl+Alt+A / Ctrl+Shift+A ([_onKeyEvent]).
-  //   - web MÓVIL: long-press de 1.5 s sobre el sello de versión
-  //     ([_VersionStamp.onHold]).
-  // En app nativa no se instala ninguna, así que _isAdminMode nunca es true.
 
   /// Único punto que enciende/apaga el modo administrador.
   void _toggleAdminMode() {
@@ -169,10 +165,9 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     try {
       final profile = await auth.refreshProfile();
       // Acceso administrador: requiere el permiso del rol (canManageClientApp)
-      // Y el modo admin activo. El modo solo se puede encender en WEB (atajo en
-      // escritorio, long-press del sello en móvil), así que en nativo nunca se
-      // concede. Sin el modo activo, un rol que administra apps NO entra: cae en
-      // el mensaje genérico. Con el modo activo, va al selector de clientes.
+      // Y el modo admin activo. Sin el modo activo, un rol que administra apps
+      // NO entra: cae en el mensaje genérico. Con el modo activo, va al selector
+      // de clientes.
       final isAdminAccess =
           _isAdminMode && (profile?.canManageClientApp ?? false);
       if (!PortalAccess.allows(profile) && !isAdminAccess) {
@@ -461,11 +456,9 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             _RegistrationLine(onTap: _openPropertyRegistration),
 
             SizedBox(height: t.space.lg),
-            // Long-press del sello = acceso admin SOLO en web-móvil. En
-            // escritorio manda Ctrl+Alt+A; en nativo no hay modo admin.
-            _VersionStamp(
-              onHold: (kIsWeb && !isSplit) ? _toggleAdminMode : null,
-            ),
+            // Ctrl+Alt+A lo duplica en escritorio: sostener con el ratón es
+            // un gesto que nadie busca.
+            _VersionStamp(onHold: _toggleAdminMode),
           ],
         ),
       ),
@@ -485,15 +478,13 @@ class _ForgotPasswordLink extends StatelessWidget {
   );
 }
 
-/// Sello de versión del pie: texto inerte. El modo administrador NO se activa
-/// desde aquí (el long-press murió), sino con Ctrl+Alt+A en web de escritorio.
-/// Umbral del long-press que enciende el modo admin en web-móvil. Más largo que
-/// el default (500 ms) para que sea deliberado y no un toque accidental.
+/// Umbral del long-press que enciende el modo admin. Más largo que el default
+/// (500 ms) para que sea deliberado y no un toque accidental.
 const Duration _kAdminHoldDuration = Duration(milliseconds: 1500);
 
-/// Sello de versión del pie. Con [onHold], un long-press de [_kAdminHoldDuration]
-/// enciende el modo administrador (gesto secreto de web-móvil); sin él, es texto
-/// inerte (web-escritorio usa Ctrl+Alt+A; nativo no tiene modo admin).
+/// Sello de versión del pie. Con [onHold], un long-press de
+/// [_kAdminHoldDuration] enciende el modo administrador; sin él es texto
+/// inerte.
 class _VersionStamp extends StatelessWidget {
   final VoidCallback? onHold;
 
