@@ -235,7 +235,22 @@ workflows:
           flutter test
       - name: Build IPA firmado
         script: |
+          # CFBundleVersion (build number interno) desde App Store Connect:
+          # Apple exige uno mayor en cada subida. El versionName visible sale de
+          # pubspec.yaml (misma fuente que Android y el footer web), asi los tres
+          # coinciden siempre.
+          APP_ID=$(app-store-connect apps list \
+            --bundle-id-identifier com.sozu.sozuClienteApp --json 2>/dev/null \
+            | jq -r '.[0].id // empty')
+          LATEST=""
+          if [ -n "$APP_ID" ]; then
+            LATEST=$(app-store-connect get-latest-build-number "$APP_ID" 2>/dev/null || true)
+          fi
+          case "$LATEST" in ''|*[!0-9]*) LATEST="${PROJECT_BUILD_NUMBER:-0}" ;; esac
+          IOS_BUILD_NUMBER=$((LATEST + 1))
+          echo "App Store Connect: último $LATEST · CFBundleVersion a publicar: $IOS_BUILD_NUMBER"
           flutter build ipa --release \
+            --build-number=$IOS_BUILD_NUMBER \
             --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
             --dart-define=APP_ENV=prod \
             --export-options-plist=/Users/builder/export_options.plist
@@ -434,7 +449,22 @@ workflows:
           flutter test
       - name: Build IPA firmado
         script: |
+          # CFBundleVersion (build number interno) desde App Store Connect:
+          # Apple exige uno mayor en cada subida. El versionName visible sale de
+          # pubspec.yaml (misma fuente que Android y el footer web), asi los tres
+          # coinciden siempre.
+          APP_ID=$(app-store-connect apps list \
+            --bundle-id-identifier com.sozu.sozuClienteApp --json 2>/dev/null \
+            | jq -r '.[0].id // empty')
+          LATEST=""
+          if [ -n "$APP_ID" ]; then
+            LATEST=$(app-store-connect get-latest-build-number "$APP_ID" 2>/dev/null || true)
+          fi
+          case "$LATEST" in ''|*[!0-9]*) LATEST="${PROJECT_BUILD_NUMBER:-0}" ;; esac
+          IOS_BUILD_NUMBER=$((LATEST + 1))
+          echo "App Store Connect: último $LATEST · CFBundleVersion a publicar: $IOS_BUILD_NUMBER"
           flutter build ipa --release \
+            --build-number=$IOS_BUILD_NUMBER \
             --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
             --dart-define=APP_ENV=prod \
             --export-options-plist=/Users/builder/export_options.plist
@@ -461,6 +491,37 @@ workflows:
               --whats-new "$RELEASE_NOTES"
         # Al final, para que el aviso refleje el resultado de la publicación
         # y no solo el de la compilación.
+        - *wa_notify
+
+  # Sube la version UNA vez y la deja commiteada en la rama. Correr esto ANTES
+  # de publicar: luego los publish de Android e iOS leen el mismo pubspec.yaml,
+  # asi que salen con el MISMO versionName en ambas tiendas (y el footer web).
+  # Opcional VERSION_SET (dashboard) para fijar una version exacta, ej. 1.3.0.
+  # Requiere que Codemagic tenga permiso de PUSH al repo (token/SSH de escritura).
+  bump-version:
+    name: Subir versión (vigesimal) y push
+    max_build_duration: 15
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Subir versión y commitear
+        script: |
+          set -e
+          if [ -n "${VERSION_SET:-}" ]; then
+            bash tool/bump_version.sh --set "$VERSION_SET"
+          else
+            bash tool/bump_version.sh
+          fi
+          NEW=$(grep -E '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//')
+          git config user.email "ci@sozu.com"
+          git config user.name "SOZU CI"
+          git add pubspec.yaml lib/core/version.dart
+          git commit -m "chore(version): $NEW"
+          git push origin "HEAD:$CM_BRANCH"
+          echo "Nueva versión: $NEW · push a $CM_BRANCH"
+    publishing:
+      scripts:
         - *wa_notify
 
   # Sincroniza la lista de testers del dashboard con el grupo externo de
