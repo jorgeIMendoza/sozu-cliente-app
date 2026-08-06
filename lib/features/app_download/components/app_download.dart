@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -155,27 +157,138 @@ class AppDownloadButton extends StatelessWidget {
   }
 }
 
-/// Botón que abre el redirector de descarga ([_kDownloadUrl]); el Worker manda
-/// a App Store o Google Play según el SO. Para el login en móvil-web.
+/// Franja "Descarga la app" del login en web-móvil. Teñida y sin relleno
+/// sólido a propósito: un segundo botón primario competiría con "Iniciar
+/// sesión". Sin tienda para el sistema actual informa en vez de navegar.
 class AppStoreDownloadButton extends StatelessWidget {
-  const AppStoreDownloadButton({super.key});
+  /// URLs del backend; `null` mientras la config no llega.
+  final String? androidStoreUrl;
+  final String? iosStoreUrl;
+
+  const AppStoreDownloadButton({
+    super.key,
+    this.androidStoreUrl,
+    this.iosStoreUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SButton(
-      label: 'Descargar app',
-      icon: Icons.download_outlined,
+    final t = context.s;
+    final c = t.color;
+    final destino = appDownloadTarget(
+      androidStoreUrl: androidStoreUrl,
+      iosStoreUrl: iosStoreUrl,
+    );
+    final pendiente = destino == null;
+
+    // Sin tienda la franja se apaga: sigue visible, pero no promete un toque.
+    final fondo = pendiente ? c.muted : c.primarySoft;
+    final borde = pendiente ? c.borderSoft : c.primaryBorder;
+    final acento = pendiente ? c.fgMuted : c.primaryHover;
+
+    final contenido = Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: t.space.md,
+        vertical: t.space.sm,
+      ),
+      decoration: BoxDecoration(
+        color: fondo,
+        borderRadius: t.radius.lgBorder,
+        border: Border.all(color: borde),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: t.radius.mdBorder,
+            ),
+            child: Icon(
+              pendiente ? Icons.schedule_outlined : Icons.phone_iphone_outlined,
+              size: 22,
+              color: acento,
+            ),
+          ),
+          SizedBox(width: t.space.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  pendiente ? 'App para iPhone' : 'Descarga la app',
+                  style: t.text.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: c.fg,
+                    height: 1.2,
+                  ),
+                ),
+                Text(
+                  pendiente
+                      ? 'Muy pronto en el App Store'
+                      : 'Entra en un toque, sin escribir tu contraseña',
+                  style: t.text.caption.copyWith(color: c.fgMuted),
+                ),
+              ],
+            ),
+          ),
+          if (!pendiente) Icon(Icons.chevron_right, size: 20, color: acento),
+        ],
+      ),
+    );
+
+    if (pendiente) return contenido;
+    return SPressable(
+      onTap: () => openAppStore(
+        context,
+        androidStoreUrl: androidStoreUrl,
+        iosStoreUrl: iosStoreUrl,
+      ),
+      borderRadius: t.radius.lgBorder,
       isNavigation: true,
-      onPressed: () => openAppStore(context),
+      semanticLabel: 'Descargar la app de SOZU',
+      child: contenido,
     );
   }
 }
 
-/// Abre el redirector de descarga; el Worker decide la tienda según el SO.
-Future<void> openAppStore(BuildContext context) async {
+/// Respaldo si la config no llega. El `referrer` es el del redirector: partirlo
+/// separaría la atribución del QR y la del login.
+const _kPlayUrl =
+    'https://play.google.com/store/apps/details?id=com.sozu.clientes_app'
+    '&referrer=utm_source%3Dqr%26utm_medium%3Dimpreso';
+
+String? _oNull(String? v) => (v == null || v.trim().isEmpty) ? null : v.trim();
+
+/// Tienda de ESTE dispositivo, o `null` si aún no publica la app.
+///
+/// Las URLs vienen de `app_cliente_config` vía el gate de versión: publicar iOS
+/// es llenar una fila, sin recompilar. Sin config, Android cae en la constante
+/// y iOS en "próximamente"; nunca un enlace muerto.
+String? appDownloadTarget({String? androidStoreUrl, String? iosStoreUrl}) =>
+    switch (defaultTargetPlatform) {
+      TargetPlatform.android => _oNull(androidStoreUrl) ?? _kPlayUrl,
+      TargetPlatform.iOS => _oNull(iosStoreUrl),
+      _ => _kDownloadUrl,
+    };
+
+/// Abre la tienda que toca. Sin tienda para este sistema no hace nada: quien
+/// llama ya pintó el aviso de "próximamente".
+Future<void> openAppStore(
+  BuildContext context, {
+  String? androidStoreUrl,
+  String? iosStoreUrl,
+}) async {
+  final destino = appDownloadTarget(
+    androidStoreUrl: androidStoreUrl,
+    iosStoreUrl: iosStoreUrl,
+  );
+  if (destino == null) return;
   final messenger = ScaffoldMessenger.of(context);
   final ok = await launchUrl(
-    Uri.parse(_kDownloadUrl),
+    Uri.parse(destino),
     mode: LaunchMode.externalApplication,
     webOnlyWindowName: '_blank',
   );

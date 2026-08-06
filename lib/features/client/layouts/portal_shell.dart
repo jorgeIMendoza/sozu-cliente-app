@@ -28,16 +28,7 @@ class _PortalNavItemData {
 
 const List<_PortalNavItemData> _portalNavItems = [
   _PortalNavItemData('Inicio', '/inicio', Icons.home_outlined),
-  _PortalNavItemData(
-    'En adquisición',
-    '/adquisicion',
-    Icons.shopping_bag_outlined,
-  ),
-  _PortalNavItemData(
-    'Patrimonio',
-    '/patrimonio',
-    Icons.account_balance_wallet_outlined,
-  ),
+  _PortalNavItemData('Propiedades', '/propiedades', Icons.apartment_outlined),
   _PortalNavItemData('Productos', '/productos', Icons.inventory_2_outlined),
   _PortalNavItemData('Pagos', '/pagos', Icons.credit_card_outlined),
   _PortalNavItemData(
@@ -45,7 +36,8 @@ const List<_PortalNavItemData> _portalNavItems = [
     '/estado-cuenta',
     Icons.bar_chart_outlined,
   ),
-  _PortalNavItemData('Documentos', '/documentos', Icons.description_outlined),
+  _PortalNavItemData('Facturación', '/documentos', Icons.receipt_long_outlined),
+  _PortalNavItemData('Mantenimientos', '/mantenimientos', Icons.build_outlined),
   _PortalNavItemData(
     'Notificaciones',
     '/notificaciones',
@@ -58,19 +50,20 @@ const List<_PortalNavItemData> _portalNavItems = [
 /// entrada aquí no la sabe pintar la app y se omite.
 const Map<String, ({String route, IconData icon})> _portalRouteMap = {
   '/admin/portal-cliente/inicio': (route: '/inicio', icon: Icons.home_outlined),
+  // Las TRES vistas del portal caen en la misma ruta interna: la app tiene una
+  // sola pantalla de propiedades con filtros. `_resolvePortalNavItems` dedupe
+  // por ruta, así que el menú colapsa a un solo ítem sin tocar la BD.
   '/admin/portal-cliente/en-adquisicion': (
-    route: '/adquisicion',
-    icon: Icons.shopping_bag_outlined,
+    route: '/propiedades',
+    icon: Icons.apartment_outlined,
   ),
-  // El portal puede exponer "Propiedades" como único ítem; la app lo lleva a
-  // su pantalla de adquisición.
   '/admin/portal-cliente/propiedades': (
-    route: '/adquisicion',
-    icon: Icons.shopping_bag_outlined,
+    route: '/propiedades',
+    icon: Icons.apartment_outlined,
   ),
   '/admin/portal-cliente/patrimonio': (
-    route: '/patrimonio',
-    icon: Icons.account_balance_wallet_outlined,
+    route: '/propiedades',
+    icon: Icons.apartment_outlined,
   ),
   '/admin/portal-cliente/productos': (
     route: '/productos',
@@ -90,7 +83,7 @@ const Map<String, ({String route, IconData icon})> _portalRouteMap = {
   ),
   '/admin/portal-cliente/documentos': (
     route: '/documentos',
-    icon: Icons.description_outlined,
+    icon: Icons.receipt_long_outlined,
   ),
   '/admin/portal-cliente/notificaciones': (
     route: '/notificaciones',
@@ -104,6 +97,18 @@ const Map<String, ({String route, IconData icon})> _portalRouteMap = {
 
 /// Ítems del sidebar desde el menú de la BD. Si la lista viene vacía o ninguna
 /// vista mapea a una ruta de la app, degrada a [_portalNavItems].
+/// Rutas cuyo rótulo lo fija la app y NO el menú de la BD.
+///
+/// `/propiedades` recibe tres vistas del portal ("En adquisición",
+/// "Patrimonio", "Propiedades") y se queda con la etiqueta de la primera que
+/// llegue, que puede ser cualquiera. `/documentos` se llama Facturación aquí
+/// aunque el portal siga diciendo "Documentos": en la app eso es el expediente
+/// de identidad, y dos ítems con el mismo nombre no se distinguen.
+const Map<String, String> _rotulosPropios = {
+  '/propiedades': 'Propiedades',
+  '/documentos': 'Facturación',
+};
+
 List<_PortalNavItemData> _resolvePortalNavItems(List<MenuItemDto>? dbItems) {
   if (dbItems == null || dbItems.isEmpty) return _portalNavItems;
   final out = <_PortalNavItemData>[];
@@ -112,7 +117,9 @@ List<_PortalNavItemData> _resolvePortalNavItems(List<MenuItemDto>? dbItems) {
     final m = _portalRouteMap[it.route];
     if (m == null) continue; // ruta del portal no soportada por la app
     if (!vistas.add(m.route)) continue; // dedupe por ruta interna
-    final label = it.label.trim().isEmpty ? m.route : it.label.trim();
+    final label =
+        _rotulosPropios[m.route] ??
+        (it.label.trim().isEmpty ? m.route : it.label.trim());
     out.add(_PortalNavItemData(label, m.route, m.icon));
   }
   return out.isEmpty ? _portalNavItems : out;

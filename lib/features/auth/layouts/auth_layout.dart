@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:sozu_cliente_app/features/auth/components/auth_brand_image.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Andamio de las pantallas de acceso (login / recuperar / cambio forzado).
@@ -13,13 +14,12 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// El scroll es de toda la página: si el contenido cabe queda centrado.
 /// Breakpoints: los del design system (`context.bp`), nunca unos propios.
 class AuthLayout extends StatefulWidget {
-  const AuthLayout({super.key, required this.child, required this.brand});
+  const AuthLayout({super.key, required this.child});
 
   /// Contenido de la columna del formulario.
   final Widget child;
 
   /// Panel decorativo de la columna izquierda en el layout partido.
-  final Widget brand;
 
   @override
   State<AuthLayout> createState() => _AuthLayoutState();
@@ -80,7 +80,7 @@ class _AuthLayoutState extends State<AuthLayout> {
             backgroundColor: _kSurface,
             body: Row(
               children: [
-                Expanded(flex: 55, child: widget.brand),
+                const Expanded(flex: 55, child: AuthBrandImage()),
                 Expanded(
                   flex: 45,
                   child: SafeArea(

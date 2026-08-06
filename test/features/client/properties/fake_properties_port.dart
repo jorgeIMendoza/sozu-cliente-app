@@ -18,15 +18,22 @@ class FakePropertiesPort implements PropertiesPort {
     if (f != null) throw f;
   }
 
+  /// JSON que devuelve [properties]; null usa el de por defecto. Se fija para
+  /// probar listados (filtros, vacios) sin tocar el resto del doble.
+  Map<String, dynamic>? propertiesJson;
+
   @override
   Future<ClientePropiedades> properties() async {
     _throwIfFailing('properties');
-    return ClientePropiedades.fromJson({
-      'en_adquisicion': [
-        {'id': 11, 'nombre': '101', 'proyecto': 'Toreo'},
-      ],
-      'totales': {'en_adquisicion': 1000.0},
-    });
+    return ClientePropiedades.fromJson(
+      propertiesJson ??
+          {
+            'en_adquisicion': [
+              {'id': 11, 'nombre': '101', 'proyecto': 'Toreo'},
+            ],
+            'totales': {'en_adquisicion': 1000.0},
+          },
+    );
   }
 
   @override

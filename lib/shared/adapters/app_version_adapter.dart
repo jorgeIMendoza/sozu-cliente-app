@@ -1,42 +1,28 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:sozu_cliente_app/data/models.dart';
+import 'package:sozu_cliente_app/shared/adapters/anon_function.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
 import 'package:sozu_cliente_app/shared/ports/app_version_port.dart';
 
-/// Implementacion actual de [AppVersionPort] sobre Supabase (edge function
-/// `cliente-app-version`): la unica frontera donde se conocen sus tipos.
+/// Implementacion actual de [AppVersionPort] sobre la edge function
+/// `cliente-app-version`: la unica frontera donde se conocen sus tipos.
 class AppVersionAdapter implements AppVersionPort {
-  /// Getter perezoso a proposito: construir el adaptador no toca el singleton
-  /// de Supabase, asi el provider puede crearlo antes de `Supabase.initialize`.
-  SupabaseClient get _sb => Supabase.instance.client;
-
-  /// Invoca la edge function y normaliza cualquier fallo a [ApiError]. Va con
-  /// la llave anonima cuando no hay sesion: el gate funciona pre-login.
-  Future<Map<String, dynamic>> _invoke(
-    String fn, {
-    Map<String, dynamic>? body,
-  }) async {
+  /// Version minima/sugerida y URLs de tienda.
+  ///
+  /// Va por [invokeAnonFunction] y NO por `functions.invoke`: esta llamada
+  /// corre sin sesion (el gate decide antes del login) y ese cliente manda la
+  /// llave anonima en `apikey` Y en `Authorization`, que el gateway nuevo
+  /// rechaza con 401 antes de ejecutar nada.
+  @override
+  Future<AppVersionInfo> version() async {
+    final AnonFunctionResponse res;
     try {
-      final res = await _sb.functions.invoke(fn, body: body ?? {});
-      final data = res.data;
-      if (data is Map) return Map<String, dynamic>.from(data);
-      throw ApiError(500, 'empty_response');
-    } on FunctionException catch (e) {
-      var code = 'internal_error';
-      final details = e.details;
-      if (details is Map && details['error'] != null) {
-        code = details['error'].toString();
-      }
-      throw ApiError(e.status, code);
-    } on ApiError {
-      rethrow;
+      res = await invokeAnonFunction('cliente-app-version');
     } catch (_) {
       throw ApiError(0, 'network_error');
     }
+    if (res.status < 200 || res.status >= 300) {
+      throw ApiError(res.status, '${res.body['error'] ?? 'internal_error'}');
+    }
+    return AppVersionInfo.fromJson(res.body);
   }
-
-  @override
-  Future<AppVersionInfo> version() async =>
-      AppVersionInfo.fromJson(await _invoke('cliente-app-version'));
 }
