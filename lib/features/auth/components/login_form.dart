@@ -14,6 +14,7 @@ import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
 import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/features/auth/screens/email_not_confirmed_screen.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -131,6 +132,11 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   Future<void> _prepareBiometrics() async {
     if (!await _isBiometricEnabled() || !mounted) return;
     setState(() => _isBiometricAvailable = true);
+    // Con un bloqueo de cuenta pendiente (baja detectada al rehidratar la
+    // sesión al abrir la app) NO se dispara el prompt solo: taparía el aviso y
+    // el token guardado ya no sirve porque el gate cerró la sesión. El botón
+    // queda visible como reintento manual.
+    if (ref.read(authProvider).blockedAccess != null) return;
     if (!await _canAutoStartBiometricLogin() || !mounted) return;
     // Fire-and-forget a proposito: el formulario sigue usable mientras corre.
     unawaited(_signInWithBiometrics(silentOnFailure: true));
@@ -144,11 +150,13 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     ref.read(inactivityLogoutProvider.notifier).state = false;
     ref.read(passwordChangedProvider.notifier).state = false;
+    final auth = ref.read(authProvider);
+    // Reintento: olvidar el bloqueo anterior para que su aviso no quede pegado.
+    auth.clearAccessBlock();
     setState(() {
       _isSubmitting = true;
       _formError = null;
     });
-    final auth = ref.read(authProvider);
     auth.authFlowInProgress = true;
     try {
       await auth.signIn(_emailController.text, _passwordController.text);
@@ -168,6 +176,21 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
     try {
       final profile = await auth.refreshProfile();
+      // Gate de cuenta ANTES del acceso administrador: una cuenta dada de baja
+      // (o de un rol de portal con el correo sin confirmar) no entra por
+      // ninguna de las dos puertas. El gate ya cerró la sesión.
+      final block = await auth.applyAccessGates();
+      if (block != null) {
+        auth.authFlowInProgress = false;
+        if (!mounted) return;
+        if (block == AccessBlock.emailNotConfirmed) {
+          context.go(emailNotConfirmedPath);
+          return;
+        }
+        // Cuenta desactivada: el aviso lo pinta el banner de bloqueo del build.
+        setState(() => _isSubmitting = false);
+        return;
+      }
       // Acceso administrador: requiere el permiso del rol (canManageClientApp)
       // Y el modo admin activo. El modo solo se puede encender en WEB (atajo en
       // escritorio, long-press del sello en móvil), así que en nativo nunca se
@@ -250,11 +273,12 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     if (_isBiometricRunning || _isSubmitting) return;
     ref.read(inactivityLogoutProvider.notifier).state = false;
     ref.read(passwordChangedProvider.notifier).state = false;
+    final auth = ref.read(authProvider);
+    auth.clearAccessBlock();
     setState(() {
       _isBiometricRunning = true;
       _formError = null;
     });
-    final auth = ref.read(authProvider);
     auth.authFlowInProgress = true;
     // Con candado la sesión nunca se cerró: solo se desbloquea. El login con
     // token guardado es el fallback cuando la sesión local ya no existe.
@@ -290,6 +314,24 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     }
     try {
       final profile = await auth.refreshProfile();
+      // Mismo gate que el login por contraseña: la huella no puede saltárselo.
+      final block = await auth.applyAccessGates();
+      if (block != null) {
+        auth.authFlowInProgress = false;
+        // El signOut del gate invalidó el refresh token guardado: sin botón
+        // biométrico hasta que vuelva a entrar por contraseña.
+        final isEnabled = await _isBiometricEnabled();
+        if (!mounted) return;
+        if (block == AccessBlock.emailNotConfirmed) {
+          context.go(emailNotConfirmedPath);
+          return;
+        }
+        setState(() {
+          _isBiometricRunning = false;
+          _isBiometricAvailable = isEnabled;
+        });
+        return;
+      }
       if (!PortalAccess.allows(profile)) {
         // Enrolamiento viejo de una cuenta no-cliente: se apaga aquí. Dejarlo
         // activo daría acceso a la consola de administración con solo la huella
@@ -344,6 +386,11 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     final loggedOutByInactivity = ref.watch(inactivityLogoutProvider);
     final passwordJustChanged = ref.watch(passwordChangedProvider);
     final isSplit = context.bp.isDesktop;
+    // Bloqueo de cuenta detectado por el gate, sea en este login o al rehidratar
+    // la sesión al abrir la app (en ese caso el router trae al usuario aquí).
+    // El correo sin confirmar tiene pantalla propia, así que aquí solo la baja.
+    final isAccountDeactivated =
+        ref.watch(authProvider).blockedAccess == AccessBlock.deactivated;
 
     // No quitar: sin AutofillGroup, `autofillHints` en los campos no alcanza y
     // el gestor de contrasenas ni autocompleta ni ofrece guardar.
@@ -372,6 +419,15 @@ class _LoginFormState extends ConsumerState<LoginForm> {
                 message:
                     'Contraseña actualizada. Inicia sesión de nuevo con tu '
                     'nueva contraseña para entrar.',
+              ),
+              SizedBox(height: t.space.md),
+            ],
+
+            if (isAccountDeactivated) ...[
+              AuthAlert(
+                kind: AuthAlertKind.error,
+                icon: Icons.block,
+                message: accessBlockMessage(AccessBlock.deactivated),
               ),
               SizedBox(height: t.space.md),
             ],

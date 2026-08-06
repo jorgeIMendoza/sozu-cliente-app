@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
+import 'package:sozu_cliente_app/shared/adapters/anon_function.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
 
 /// Implementacion actual de [AuthPort] sobre Supabase (GoTrue + RPC): la unica
@@ -43,6 +44,12 @@ class AuthAdapter implements AuthPort {
             : int.tryParse('${row['id_persona']}'),
         requiresPasswordChange: row['debe_cambiar_password'] == true,
         canManageClientApp: row['administrar_app_clientes'] == true,
+        // Defaults TOLERANTES: mientras la migracion que agrega estas columnas
+        // no este desplegada el RPC no las devuelve (llegan null) y nadie debe
+        // quedar bloqueado por eso. `!= false` = "true salvo negativa expresa".
+        isActive: row['activo'] != false,
+        isEmailConfirmed: row['email_confirmado'] != false,
+        requiresEmailConfirmation: row['requiere_confirmacion_email'] == true,
       );
     } catch (_) {
       return null;
@@ -115,22 +122,43 @@ class AuthAdapter implements AuthPort {
   /// sin dejar rastro ni en Postmark ni en `auth.users.recovery_sent_at`).
   static const _resetFunction = 'reset-user-password';
 
+  /// Nombre de la Edge Function que reenvía el correo de confirmación.
+  static const _resendConfirmationFunction = 'reenviar-confirmacion-email';
+
   @override
-  Future<void> sendPasswordReset(String email) async {
+  Future<void> sendPasswordReset(String email) =>
+      _postAnon(_resetFunction, email);
+
+  @override
+  Future<void> resendEmailConfirmation(String email) =>
+      _postAnon(_resendConfirmationFunction, email);
+
+  /// POST crudo a una función de acceso (sin sesión) con el correo en el
+  /// cuerpo, traduciendo el resultado al contrato de [AuthPort].
+  ///
+  /// NO usa `functions.invoke`: ese cliente manda la llave anónima en `apikey`
+  /// Y en `Authorization`, y el gateway nuevo (llaves `sb_`) responde 401
+  /// "Conflicting API keys" antes de ejecutar la función. Además, con
+  /// `Authorization` presente estas funciones salen de su modo público
+  /// (self-service) e intentan resolver un usuario autenticado.
+  ///
+  /// Las dos responden 200 genérico exista o no la cuenta (anti-enumeración de
+  /// correos): un status de error aquí es fallo REAL de servidor.
+  Future<void> _postAnon(String fn, String email) async {
+    final AnonFunctionResponse res;
     try {
-      await _sb.functions.invoke(
-        _resetFunction,
-        body: {'email': email.trim().toLowerCase()},
-      );
-    } on FunctionException catch (e) {
-      // La función responde 200 genérico exista o no la cuenta (anti-
-      // enumeración): un status de error aquí es fallo real de servidor.
-      throw AuthError(
-        e.status == 429 ? AuthFailure.tooManyAttempts : AuthFailure.unknown,
-      );
+      res = await invokeAnonFunction(fn, body: {
+        'email': email.trim().toLowerCase(),
+      });
     } catch (_) {
       throw AuthError(AuthFailure.network);
     }
+    if (res.status >= 200 && res.status < 300 && res.body['success'] != false) {
+      return;
+    }
+    throw AuthError(
+      res.status == 429 ? AuthFailure.tooManyAttempts : AuthFailure.unknown,
+    );
   }
 
   @override

@@ -112,6 +112,13 @@ class FakeAuthPort implements AuthPort {
   }
 
   @override
+  Future<void> resendEmailConfirmation(String email) async {
+    log.add('resendEmailConfirmation');
+    final failure = _consumeFailure();
+    if (failure != null) throw AuthError(failure);
+  }
+
+  @override
   Future<void> updatePassword(String newPassword) async {
     log.add('updatePassword');
     final failure = _consumeFailure();
