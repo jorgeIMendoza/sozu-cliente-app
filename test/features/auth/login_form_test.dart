@@ -9,22 +9,20 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 
 import 'fake_auth_port.dart';
 
-/// Modo administrador: el ÚNICO interruptor manual que existe es Ctrl+Alt+A
-/// (o Ctrl+Shift+A) y SOLO en web de escritorio (el handler se instala con
-/// `if (kIsWeb)` y exige `context.bp.isDesktop`). El long-press de 1.5 s sobre el
-/// sello de versión murió y NO debe volver: separaba el gesto por plataforma.
+/// Modo administrador: solo en WEB, con dos activaciones por ancho: Ctrl+Alt+A
+/// en escritorio y long-press de 1.5 s sobre el sello en móvil. Ambas cuelgan de
+/// `kIsWeb`, así que en la VM de tests (`kIsWeb` == false, "app nativa") NINGUNA
+/// se arma: el sello es inerte y no hay forma de entrar en modo admin.
 ///
-/// Estos tests protegen que el long-press siga muerto y el sello sea texto
-/// inerte. El atajo de teclado es web-only, así que en la VM (`kIsWeb` == false)
-/// ni se registra; su comportamiento se verifica manualmente / con
-/// `flutter test --platform chrome`.
+/// Esto es justo lo que estos tests fijan: que en nativo el sello no active nada
+/// y siga siendo texto. El comportamiento web (atajo y long-press) se verifica
+/// manualmente / con `flutter test --platform chrome`.
 void main() {
-  /// Con margen sobre el umbral que tenía el gesto viejo (1.5 s): si alguien lo
-  /// reintroduce con el mismo threshold, el test lo caza.
+  /// Margen sobre el umbral real del gesto (1.5 s).
   const holdWithMargin = Duration(milliseconds: 1600);
 
-  /// Etiqueta de la pastilla del modo admin. Sonda del long-press: sostener el
-  /// sello NO debe pintarla (el modo solo se enciende con Ctrl+Alt+A en web).
+  /// Etiqueta de la pastilla del modo admin. Sonda: en nativo (kIsWeb false)
+  /// sostener el sello NO debe pintarla.
   const badgeLabel = 'Modo administrador';
 
   /// Único andamio de entorno que el formulario exige: **el canal de
@@ -89,7 +87,9 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('sostener el sello de versión NO activa nada', (tester) async {
+  testWidgets('en nativo (kIsWeb false) sostener el sello NO activa nada', (
+    tester,
+  ) async {
     await pumpLoginForm(tester);
 
     await holdVersionStamp(tester);
@@ -99,8 +99,8 @@ void main() {
       find.text(badgeLabel),
       findsNothing,
       reason:
-          'el acceso admin lo da el rol; si vuelve un interruptor manual aquí, '
-          'el flujo de web y móvil se separa otra vez',
+          'el long-press del sello es acceso admin SOLO en web-móvil; en nativo '
+          '(kIsWeb false) no se arma y no debe encender el modo admin',
     );
     expect(tester.takeException(), isNull);
   });

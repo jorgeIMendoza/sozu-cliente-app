@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -77,11 +78,22 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   bool get _showBiometricButton => _isBiometricAvailable && !_isAdminMode;
 
   // -------------------------------------------------------------------------
-  // Modo administrador (Ctrl+Alt+A, SOLO web de escritorio)
+  // Modo administrador (SOLO web; nunca en app nativa)
   // -------------------------------------------------------------------------
+  //
+  // Dos activaciones, según el ancho, ambas vía [_toggleAdminMode]:
+  //   - web ESCRITORIO: Ctrl+Alt+A / Ctrl+Shift+A ([_onKeyEvent]).
+  //   - web MÓVIL: long-press de 1.5 s sobre el sello de versión
+  //     ([_VersionStamp.onHold]).
+  // En app nativa no se instala ninguna, así que _isAdminMode nunca es true.
 
-  /// Alterna el modo administrador con Ctrl+Shift+A o Ctrl+Alt+A. Solo en web
-  /// de ESCRITORIO: en web-móvil el atajo no hace nada, en nativo ni se instala.
+  /// Único punto que enciende/apaga el modo administrador.
+  void _toggleAdminMode() {
+    if (mounted) setState(() => _isAdminMode = !_isAdminMode);
+  }
+
+  /// Alterna el modo administrador con Ctrl+Shift+A o Ctrl+Alt+A, SOLO en web de
+  /// escritorio (en web-móvil el atajo no hace nada; el nativo ni lo instala).
   ///
   /// Va en `HardwareKeyboard` (global), NO en un `Focus`: con nada enfocado el
   /// atajo se perdería. Ctrl+Alt+A existe porque Chrome/Edge se reservan
@@ -95,7 +107,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         event.physicalKey == PhysicalKeyboardKey.keyA;
     if (!isKeyA || !keyboard.isControlPressed) return false;
     if (!keyboard.isShiftPressed && !keyboard.isAltPressed) return false;
-    if (mounted) setState(() => _isAdminMode = !_isAdminMode);
+    _toggleAdminMode();
     return true; // consumido: no llega al campo de texto enfocado
   }
 
@@ -130,10 +142,6 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    // Se lee AQUI (sincrono, antes de cualquier await): el modo admin manual
-    // solo cuenta en web de escritorio. Guardarlo evita usar `context` tras el
-    // await de refreshProfile.
-    final bool adminRequested = _isAdminMode && context.bp.isDesktop;
     ref.read(inactivityLogoutProvider.notifier).state = false;
     ref.read(passwordChangedProvider.notifier).state = false;
     setState(() {
@@ -161,11 +169,12 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     try {
       final profile = await auth.refreshProfile();
       // Acceso administrador: requiere el permiso del rol (canManageClientApp)
-      // Y el modo admin activo (Ctrl+Alt+A, solo web de escritorio). Sin el modo
-      // activo, un rol que administra apps NO entra: cae en el mensaje genérico
-      // de credenciales de abajo. Con el modo activo, va al selector de clientes.
+      // Y el modo admin activo. El modo solo se puede encender en WEB (atajo en
+      // escritorio, long-press del sello en móvil), así que en nativo nunca se
+      // concede. Sin el modo activo, un rol que administra apps NO entra: cae en
+      // el mensaje genérico. Con el modo activo, va al selector de clientes.
       final isAdminAccess =
-          adminRequested && (profile?.canManageClientApp ?? false);
+          _isAdminMode && (profile?.canManageClientApp ?? false);
       if (!PortalAccess.allows(profile) && !isAdminAccess) {
         // Ni usuario del portal (rol Cliente o comprador) ni administrador de
         // la app: mensaje genérico para no revelar cuentas existentes.
@@ -452,7 +461,11 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             _RegistrationLine(onTap: _openPropertyRegistration),
 
             SizedBox(height: t.space.lg),
-            const _VersionStamp(),
+            // Long-press del sello = acceso admin SOLO en web-móvil. En
+            // escritorio manda Ctrl+Alt+A; en nativo no hay modo admin.
+            _VersionStamp(
+              onHold: (kIsWeb && !isSplit) ? _toggleAdminMode : null,
+            ),
           ],
         ),
       ),
@@ -474,23 +487,45 @@ class _ForgotPasswordLink extends StatelessWidget {
 
 /// Sello de versión del pie: texto inerte. El modo administrador NO se activa
 /// desde aquí (el long-press murió), sino con Ctrl+Alt+A en web de escritorio.
+/// Umbral del long-press que enciende el modo admin en web-móvil. Más largo que
+/// el default (500 ms) para que sea deliberado y no un toque accidental.
+const Duration _kAdminHoldDuration = Duration(milliseconds: 1500);
+
+/// Sello de versión del pie. Con [onHold], un long-press de [_kAdminHoldDuration]
+/// enciende el modo administrador (gesto secreto de web-móvil); sin él, es texto
+/// inerte (web-escritorio usa Ctrl+Alt+A; nativo no tiene modo admin).
 class _VersionStamp extends StatelessWidget {
-  const _VersionStamp();
+  final VoidCallback? onHold;
+
+  const _VersionStamp({this.onHold});
 
   @override
   Widget build(BuildContext context) {
     final t = context.s;
-    return Text(
+    final label = Text(
       appVersionLabel,
       textAlign: TextAlign.center,
       style: t.text.overline.copyWith(
         color: t.color.fgSubtle.withValues(alpha: 0.6),
       ),
     );
+    if (onHold == null) return label;
+    // RawGestureDetector para fijar la duración del long-press (GestureDetector
+    // no la deja cambiar).
+    return RawGestureDetector(
+      gestures: {
+        LongPressGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
+              () => LongPressGestureRecognizer(duration: _kAdminHoldDuration),
+              (r) => r.onLongPress = onHold,
+            ),
+      },
+      child: label,
+    );
   }
 }
 
-/// Pastilla que indica que el modo administrador está activo (Ctrl+Alt+A).
+/// Pastilla que indica que el modo administrador está activo.
 class _AdminModeBadge extends StatelessWidget {
   const _AdminModeBadge();
 
