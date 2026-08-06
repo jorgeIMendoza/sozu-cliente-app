@@ -1,9 +1,14 @@
+import 'dart:convert';
+
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'models.dart';
 
 /// Capa de acceso a datos: SOLO Edge Functions (espejo de src/lib/api.ts).
 /// La app nunca consulta tablas. Cada invoke envía el JWT del usuario.
+/// Excepción: [invokeAnonFunction], para las funciones de acceso (pre-login).
 
 class ApiError implements Exception {
   final int status;
@@ -50,6 +55,50 @@ Future<Map<String, dynamic>> _invoke(
   } catch (_) {
     throw ApiError(0, 'network_error');
   }
+}
+
+/// Respuesta cruda de una Edge Function llamada sin sesión.
+typedef AnonFunctionResponse = ({int status, Map<String, dynamic> body});
+
+/// Llama una Edge Function SIN sesión (pantallas de acceso: recuperar
+/// contraseña, reenviar confirmación) mandando la llave anon ÚNICAMENTE en el
+/// header `apikey`.
+///
+/// No usa `functions.invoke` a propósito, por dos motivos:
+///  1. `invoke` manda la llave anon en `apikey` Y en `Authorization`. El
+///     gateway nuevo de Supabase (llaves `sb_`) compara los dos headers y
+///     responde 401 "Conflicting API keys" ANTES de ejecutar la función.
+///  2. `reset-user-password` solo entra en su "modo público" (self-service,
+///     anti-enumeración de correos) cuando NO recibe `Authorization`: con ese
+///     header intenta resolver un usuario autenticado y rechaza la petición.
+///
+/// Nunca lanza por status != 2xx: devuelve status + cuerpo para que decida el
+/// llamador (las pantallas de acceso muestran mensajes genéricos).
+Future<AnonFunctionResponse> invokeAnonFunction(
+  String fn, {
+  Map<String, dynamic> body = const {},
+}) async {
+  final baseUrl = (dotenv.env['SUPABASE_URL'] ?? '').replaceAll(
+    RegExp(r'/+$'),
+    '',
+  );
+  final res = await http.post(
+    Uri.parse('$baseUrl/functions/v1/$fn'),
+    headers: {
+      'Content-Type': 'application/json',
+      // SOLO aquí. Repetirla en Authorization rompe el gateway (ver doc arriba).
+      'apikey': dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+    },
+    body: jsonEncode(body),
+  );
+  var parsed = const <String, dynamic>{};
+  try {
+    final decoded = jsonDecode(res.body);
+    if (decoded is Map) parsed = Map<String, dynamic>.from(decoded);
+  } catch (_) {
+    // Cuerpo no-JSON (p.ej. HTML de error del gateway): se ignora.
+  }
+  return (status: res.statusCode, body: parsed);
 }
 
 /// Info del "version gate" nativo (versión mínima/sugerida + URLs de store).

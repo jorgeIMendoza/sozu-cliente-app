@@ -13,6 +13,7 @@ import 'screens/adquisicion_screen.dart';
 import 'screens/cambiar_password_screen.dart';
 import 'screens/change_password_forced_screen.dart';
 import 'screens/documentos_screen.dart';
+import 'screens/email_no_confirmado_screen.dart';
 import 'screens/estado_cuenta_screen.dart';
 import 'screens/expediente_screen.dart';
 import 'screens/forgot_password_screen.dart';
@@ -86,13 +87,23 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: Listenable.merge([auth, imp]),
     redirect: (context, state) {
       final loc = state.matchedLocation;
-      final inAuthArea = loc == '/login' || loc == '/forgot-password';
+      final inAuthArea = loc == '/login' ||
+          loc == '/forgot-password' ||
+          loc == emailNoConfirmadoPath;
 
       // Login validando rol: no salir de /login (ni a /splash) hasta que
       // la pantalla decida; si no, el signOut por rol inválido desmonta el
       // login y el mensaje de error se pierde.
       if (auth.loginEnCurso && loc == '/login') return null;
       if (auth.isLoading) return loc == '/splash' ? null : '/splash';
+      // Gate de correo sin confirmar (roles de portal): pantalla dedicada. Va
+      // antes que todo lo demás para atrapar también la rehidratación de una
+      // sesión guardada al abrir la app, no solo el login. El gate ya cerró la
+      // sesión, así que sin esta regla el usuario caería en /login sin
+      // explicación.
+      if (auth.bloqueoAcceso == AccesoBloqueado.emailNoConfirmado) {
+        return loc == emailNoConfirmadoPath ? null : emailNoConfirmadoPath;
+      }
       if (loc == '/splash') {
         // Sesión resuelta: salir del splash.
         if (auth.session == null || auth.locked) return '/login';
@@ -103,6 +114,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Candado biométrico puesto: la sesión sigue viva por debajo pero la
       // app se comporta como deslogueada hasta desbloquear.
       if (auth.session == null || auth.locked) {
+        // Bloqueo ya limpiado ("Volver al inicio de sesión"): la pantalla de
+        // confirmación deja de tener sentido.
+        if (loc == emailNoConfirmadoPath) return '/login';
         return inAuthArea ? null : '/login';
       }
       if (auth.mustChangePassword) {
@@ -139,6 +153,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/forgot-password',
         pageBuilder: (context, state) =>
             _slidePage(state, const ForgotPasswordScreen()),
+      ),
+      GoRoute(
+        path: emailNoConfirmadoPath,
+        pageBuilder: (context, state) =>
+            _slidePage(state, const EmailNoConfirmadoScreen()),
       ),
       GoRoute(
         path: '/change-password',

@@ -6,8 +6,12 @@ import '../providers/auth_provider.dart';
 import 'auth_widgets.dart';
 
 /// Recuperar contraseña. Réplica del card del portal admin: misma tarjeta,
-/// logo, textos y estado de éxito "Revisa tu correo". Respuesta neutra (no
-/// revela si el correo existe).
+/// logo, textos y estado de éxito "Revisa tu correo".
+///
+/// Va por la Edge Function `reset-user-password` en modo público (ver
+/// `AuthController.resetPassword`), cuya respuesta es SIEMPRE genérica por
+/// diseño: aquí se muestra el mismo estado de éxito exista o no la cuenta, y
+/// los errores se tragan a propósito para no filtrar qué correos existen.
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -125,7 +129,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       const SizedBox(height: 12),
       const AuthSubtitle(
         'Si existe una cuenta activa con ese correo, te enviamos un enlace '
-        'para restablecer tu contraseña.',
+        'para acceder.',
       ),
       const SizedBox(height: 16),
       Container(
@@ -142,8 +146,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             Expanded(
               child: Text(
                 'Abre el enlace desde tu bandeja de entrada (revisa también la '
-                'carpeta de spam) para verificar tu identidad y definir una '
-                'nueva contraseña. El enlace es de un solo uso.',
+                'carpeta de spam) para confirmar tu correo y definir una nueva '
+                'contraseña. El enlace es de un solo uso.',
                 style: TextStyle(
                   fontSize: 14,
                   color: AuthColors.infoText,

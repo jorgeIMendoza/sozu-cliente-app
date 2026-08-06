@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/biometric_service.dart';
 import '../core/portal_tracking.dart';
 import '../core/push_service.dart';
+import '../data/api_client.dart';
 
 /// Estado de sesión/JWT + perfil (espejo de src/providers/AuthProvider.tsx).
 /// - Perfil vía RPC SECURITY DEFINER `get_current_user_profile` (por auth.uid()).
@@ -14,8 +15,29 @@ import '../core/push_service.dart';
 /// - `mustChangePassword` fuerza el cambio de contraseña temporal.
 /// - El listener de onAuthStateChange solo actualiza la sesión; el perfil se
 ///   carga aparte (mismo patrón anti-deadlock que el app RN).
+/// - [AuthController.aplicarGatesDeAcceso] cierra la sesión de las cuentas que
+///   no pueden entrar (dadas de baja o con el correo sin confirmar).
 
 class WrongCurrentPasswordError implements Exception {}
+
+/// Motivo por el que una cuenta autenticada NO puede usar la app. El orden de
+/// los valores es el del gate: primero la baja, después el correo.
+enum AccesoBloqueado {
+  /// `usuarios.activo = false`.
+  desactivada,
+
+  /// Rol de portal (`roles.requiere_confirmacion_email`) cuyo correo todavía no
+  /// está verificado (`usuarios.email_confirmado = false`).
+  emailNoConfirmado,
+}
+
+/// Texto que se muestra al usuario para cada motivo de bloqueo.
+String mensajeAccesoBloqueado(AccesoBloqueado motivo) => switch (motivo) {
+  AccesoBloqueado.desactivada =>
+    'Tu cuenta está desactivada. Contacta al administrador para reactivarla.',
+  AccesoBloqueado.emailNoConfirmado =>
+    'Confirma tu correo para entrar. Revisa tu bandeja de entrada.',
+};
 
 class UserProfile {
   final String? nombre;
@@ -28,6 +50,17 @@ class UserProfile {
   /// (selector de clientes, envío de avisos, configuración).
   final bool administrarAppClientes;
 
+  /// usuarios.activo. La RPC dejó de filtrar por `activo = TRUE` (antes una
+  /// cuenta dada de baja devolvía cero filas), así que el gate vive aquí.
+  final bool activo;
+
+  /// usuarios.email_confirmado: si el correo ya fue verificado.
+  final bool emailConfirmado;
+
+  /// roles.requiere_confirmacion_email: true en los roles de portal (Cliente
+  /// incluido). Los roles internos entran sin confirmar el correo.
+  final bool requiereConfirmacionEmail;
+
   const UserProfile({
     this.nombre,
     this.email,
@@ -35,7 +68,14 @@ class UserProfile {
     this.idPersona,
     this.debeCambiarPassword = false,
     this.administrarAppClientes = false,
+    this.activo = true,
+    this.emailConfirmado = true,
+    this.requiereConfirmacionEmail = false,
   });
+
+  /// El rol exige confirmar el correo y todavía no está confirmado.
+  bool get emailPendienteDeConfirmar =>
+      requiereConfirmacionEmail && !emailConfirmado;
 }
 
 class AuthController extends ChangeNotifier {
@@ -54,6 +94,16 @@ class AuthController extends ChangeNotifier {
   /// pero la app se comporta como deslogueada hasta desbloquear con
   /// huella/rostro o contraseña. El router lo trata como "sin sesión".
   bool locked = false;
+
+  /// Motivo por el que el gate de cuenta cerró la sesión (baja o correo sin
+  /// confirmar). El router lo lee para llevar a la pantalla que corresponde y
+  /// el login para explicar el rechazo. Se limpia al reintentar el acceso.
+  AccesoBloqueado? bloqueoAcceso;
+
+  /// Correo de la cuenta bloqueada. La sesión ya no existe cuando se muestra la
+  /// pantalla de confirmación, así que se conserva aquí para poder reenviar el
+  /// correo de confirmación.
+  String? emailBloqueado;
 
   bool _authReady = false;
   bool _profileReady = false;
@@ -82,6 +132,10 @@ class AuthController extends ChangeNotifier {
     _authReady = true;
     if (session != null && !locked) {
       await refreshProfile();
+      // Rehidratar una sesión guardada NO puede saltarse el gate: una cuenta
+      // dada de baja (o con el correo des-confirmado por un reset) tiene que
+      // caer aquí igual que en el login.
+      await aplicarGatesDeAcceso();
     }
     _profileReady = true;
     notifyListeners();
@@ -139,6 +193,12 @@ class AuthController extends ChangeNotifier {
             : int.tryParse('${row['id_persona']}'),
         debeCambiarPassword: row['debe_cambiar_password'] == true,
         administrarAppClientes: row['administrar_app_clientes'] == true,
+        // Defaults TOLERANTES: mientras la migración que agrega estas columnas
+        // no esté desplegada la RPC no las devuelve (llegan null) y nadie debe
+        // quedar bloqueado por eso. `!= false` = "true salvo negativa expresa".
+        activo: row['activo'] != false,
+        emailConfirmado: row['email_confirmado'] != false,
+        requiereConfirmacionEmail: row['requiere_confirmacion_email'] == true,
       );
       _profileForUserId = session?.user.id;
       notifyListeners();
@@ -148,6 +208,46 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
       return null;
     }
+  }
+
+  /// Gate de acceso sobre el perfil ya cargado: cuenta desactivada primero,
+  /// correo sin confirmar después (`debe_cambiar_password` lo maneja el router
+  /// al final, ya con la sesión aceptada). Si la cuenta no puede entrar cierra
+  /// la sesión y deja registrado el motivo en [bloqueoAcceso].
+  ///
+  /// Devuelve null cuando el acceso es válido, o cuando no hay perfil que
+  /// evaluar: un perfil ausente (RPC caída, sin fila en `usuarios`) ya lo
+  /// rechazan las pantallas de acceso por su cuenta.
+  ///
+  /// Los defaults tolerantes de [UserProfile] hacen que este gate sea inocuo
+  /// mientras la migración de `email_confirmado` no esté desplegada.
+  Future<AccesoBloqueado?> aplicarGatesDeAcceso() async {
+    final p = profile;
+    if (p == null) return null;
+    final AccesoBloqueado motivo;
+    if (!p.activo) {
+      motivo = AccesoBloqueado.desactivada;
+    } else if (p.emailPendienteDeConfirmar) {
+      motivo = AccesoBloqueado.emailNoConfirmado;
+    } else {
+      return null;
+    }
+    // El correo se guarda ANTES del signOut: después no queda ni perfil ni
+    // sesión de donde sacarlo para el reenvío.
+    final email = p.email ?? session?.user.email;
+    await signOut();
+    bloqueoAcceso = motivo;
+    emailBloqueado = email;
+    notifyListeners();
+    return motivo;
+  }
+
+  /// Olvida el último bloqueo (al reintentar el acceso o volver al login).
+  void limpiarBloqueo() {
+    if (bloqueoAcceso == null && emailBloqueado == null) return;
+    bloqueoAcceso = null;
+    emailBloqueado = null;
+    notifyListeners();
   }
 
   Future<void> signIn(String email, String password) async {
@@ -172,8 +272,23 @@ class AuthController extends ChangeNotifier {
     return !await bio.habilitada();
   }
 
+  /// Recuperación de contraseña self-service.
+  ///
+  /// Va por la Edge Function `reset-user-password` en MODO PÚBLICO, no por
+  /// `auth.resetPasswordForEmail`: ese atajo se salta el flujo de la
+  /// plataforma. La función repone la contraseña temporal, DES-CONFIRMA el
+  /// correo y manda el enlace de confirmación; al abrirlo el usuario confirma y
+  /// define su contraseña, y vuelve a la app con `debe_cambiar_password` (que
+  /// el router ya maneja llevándolo a /change-password).
+  ///
+  /// La respuesta es SIEMPRE genérica por diseño (anti-enumeración de correos):
+  /// aquí se ignora a propósito y la UI muestra el mismo mensaje de éxito
+  /// exista o no la cuenta.
   Future<void> resetPassword(String email) async {
-    await _sb.auth.resetPasswordForEmail(email.trim());
+    await invokeAnonFunction(
+      'reset-user-password',
+      body: {'email': email.trim().toLowerCase()},
+    );
   }
 
   /// Cambio forzado (contraseña temporal): updateUser + mark_password_changed.
@@ -211,9 +326,20 @@ class AuthController extends ChangeNotifier {
     PushService.olvidarSesion();
     // Cierra la sesión de mediciones ANTES de perder el JWT.
     await PortalTracking.cerrar();
-    await _sb.auth.signOut();
+    try {
+      await _sb.auth.signOut();
+    } catch (_) {
+      // Sin red el cierre en el servidor falla. El estado local se limpia
+      // igual: ni el gate de cuenta ni un logout pueden quedarse a medias por
+      // un error de conexión y dejar al usuario dentro.
+    }
     locked = false;
     profile = null;
+    // La sesión se limpia AQUÍ y no solo en el listener: en el arranque en frío
+    // el gate puede cerrar la sesión antes de que `_sub` exista, y con `session`
+    // desactualizada el router creería que sigue habiendo sesión válida.
+    session = null;
+    _profileForUserId = null;
     notifyListeners();
   }
 

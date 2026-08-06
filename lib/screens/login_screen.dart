@@ -10,9 +10,11 @@ import '../core/theme.dart';
 import '../core/version.dart';
 import '../providers/auth_provider.dart';
 import 'auth_widgets.dart';
+import 'email_no_confirmado_screen.dart';
 
-/// Login: branding SOZU + email/contraseña. Tras autenticar valida rol
-/// Cliente (perfil vía RPC); si no es cliente cierra sesión.
+/// Login: branding SOZU + email/contraseña. Tras autenticar aplica el gate de
+/// cuenta (baja / correo sin confirmar) y valida rol Cliente (perfil vía RPC);
+/// si algo falla cierra sesión.
 /// Solo web: Ctrl+Alt+A alterna el acceso de super administrador
 /// (impersonación de clientes vía selector).
 class LoginScreen extends ConsumerStatefulWidget {
@@ -55,6 +57,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final disponible = await _bioParaLogin();
     if (!disponible || !mounted) return;
     setState(() => _bioDisponible = true);
+    // Con un bloqueo de cuenta pendiente (baja detectada al rehidratar la
+    // sesión al abrir la app) NO se dispara el prompt solo: taparía el aviso y
+    // el token guardado ya no sirve porque el gate cerró la sesión. El botón
+    // queda visible como reintento manual.
+    if (ref.read(authProvider).bloqueoAcceso != null) return;
     _loginBiometrico(auto: true);
   }
 
@@ -81,11 +88,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     ref.read(inactivityLogoutProvider.notifier).state = false;
+    final auth = ref.read(authProvider);
+    // Reintento: olvidar el bloqueo anterior para que su aviso no quede pegado.
+    auth.limpiarBloqueo();
     setState(() {
       _submitting = true;
       _formError = null;
     });
-    final auth = ref.read(authProvider);
     auth.loginEnCurso = true;
     try {
       await auth.signIn(_email.text, _password.text);
@@ -100,6 +109,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final perfil = await auth.refreshProfile();
+      // Gate de cuenta ANTES del acceso administrador: una cuenta dada de baja
+      // (o de un rol de portal con el correo sin confirmar) no entra por
+      // ninguna de las dos puertas. El gate ya cerró la sesión.
+      final bloqueo = await auth.aplicarGatesDeAcceso();
+      if (bloqueo != null) {
+        auth.loginEnCurso = false;
+        if (!mounted) return;
+        if (bloqueo == AccesoBloqueado.emailNoConfirmado) {
+          context.go(emailNoConfirmadoPath);
+          return;
+        }
+        // Cuenta desactivada: el aviso lo pinta el banner de bloqueo del build.
+        setState(() => _submitting = false);
+        return;
+      }
       // Acceso administrador: por permiso del rol (administrar_app_clientes),
       // ya no por el nombre "super administrador".
       final esAdmin = perfil?.administrarAppClientes ?? false;
@@ -235,11 +259,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _loginBiometrico({bool auto = false}) async {
     if (_bioEnCurso || _submitting) return;
     ref.read(inactivityLogoutProvider.notifier).state = false;
+    final auth = ref.read(authProvider);
+    auth.limpiarBloqueo();
     setState(() {
       _bioEnCurso = true;
       _formError = null;
     });
-    final auth = ref.read(authProvider);
     auth.loginEnCurso = true;
     // Con candado la sesión nunca se cerró: solo se desbloquea. El camino
     // con setSession (token guardado) queda como fallback cuando la sesión
@@ -264,6 +289,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
     try {
       final perfil = await auth.refreshProfile();
+      // Mismo gate que el login por contraseña: la huella no puede saltárselo.
+      final bloqueo = await auth.aplicarGatesDeAcceso();
+      if (bloqueo != null) {
+        auth.loginEnCurso = false;
+        // El signOut del gate invalidó el refresh token guardado: sin botón
+        // biométrico hasta que vuelva a entrar por contraseña.
+        final disponible = await _bioParaLogin();
+        if (!mounted) return;
+        if (bloqueo == AccesoBloqueado.emailNoConfirmado) {
+          context.go(emailNoConfirmadoPath);
+          return;
+        }
+        setState(() {
+          _bioEnCurso = false;
+          _bioDisponible = disponible;
+        });
+        return;
+      }
       if (perfil?.rolNombre != 'Cliente') {
         await auth.signOut();
         auth.loginEnCurso = false;
@@ -302,6 +345,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final porInactividad = ref.watch(inactivityLogoutProvider);
+    // Bloqueo de cuenta detectado por el gate, sea en este login o al rehidratar
+    // la sesión al abrir la app (en ese caso el router trae al usuario aquí).
+    // El correo sin confirmar tiene pantalla propia, así que aquí solo la baja.
+    final cuentaDesactivada =
+        ref.watch(authProvider).bloqueoAcceso == AccesoBloqueado.desactivada;
     return Focus(
       canRequestFocus: false,
       onKeyEvent: _onKeyEvent,
@@ -327,6 +375,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   icon: Icons.schedule,
                   message: 'Tu sesión se cerró por inactividad. '
                       'Vuelve a iniciar sesión.',
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              if (cuentaDesactivada) ...[
+                AuthAlert(
+                  kind: AuthAlertKind.error,
+                  icon: Icons.block,
+                  message: mensajeAccesoBloqueado(AccesoBloqueado.desactivada),
                 ),
                 const SizedBox(height: 16),
               ],
