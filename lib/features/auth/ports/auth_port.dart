@@ -47,6 +47,17 @@ class UserProfile {
   /// del app (selector de clientes, avisos, configuracion).
   final bool canManageClientApp;
 
+  /// `usuarios.activo`. El RPC dejó de filtrar por `activo = TRUE` (antes una
+  /// cuenta dada de baja devolvía cero filas), así que el gate vive aquí.
+  final bool isActive;
+
+  /// `usuarios.email_confirmado`: si el correo ya fue verificado.
+  final bool isEmailConfirmed;
+
+  /// `roles.requiere_confirmacion_email`: true en los roles de portal (Cliente
+  /// incluido). Los roles internos entran sin confirmar el correo.
+  final bool requiresEmailConfirmation;
+
   const UserProfile({
     this.displayName,
     this.email,
@@ -56,7 +67,14 @@ class UserProfile {
     this.personId,
     this.requiresPasswordChange = false,
     this.canManageClientApp = false,
+    this.isActive = true,
+    this.isEmailConfirmed = true,
+    this.requiresEmailConfirmation = false,
   });
+
+  /// El rol exige confirmar el correo y todavía no está confirmado.
+  bool get hasPendingEmailConfirmation =>
+      requiresEmailConfirmation && !isEmailConfirmed;
 }
 
 /// Sesion, perfil y contrasenas. No cubre el candado biometrico ni el cierre por
@@ -94,6 +112,11 @@ abstract interface class AuthPort {
   /// ante fallo real (red o servidor): que la cuenta no exista NO es error, el
   /// backend responde igual para no revelar que correos estan registrados.
   Future<void> sendPasswordReset(String email);
+
+  /// Reenvia el correo de confirmacion de la cuenta. Se llama SIN sesion (el
+  /// gate ya la cerro), asi que recibe el correo por parametro. Lanza
+  /// [AuthError] ante fallo real.
+  Future<void> resendEmailConfirmation(String email);
 
   /// Cambia la contrasena del usuario autenticado. Lanza [AuthError].
   Future<void> updatePassword(String newPassword);
