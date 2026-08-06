@@ -92,14 +92,17 @@ class _AuthLayoutState extends State<AuthLayout> {
           )
         : Scaffold(
             backgroundColor: _kSurface,
-            body: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Foto de marca de fondo, tenue. Puramente decorativa; el
-                // formulario va encima sobre la superficie clara.
-                Opacity(opacity: 0.18, child: widget.brand),
-                SafeArea(child: _formColumn(context, insidePanel: false)),
-              ],
+            body: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  // Elipse ancha y poco alta, desplazada arriba (50% 30%).
+                  center: Alignment(0, -0.55),
+                  radius: 0.9,
+                  colors: [_kPrimarySoft, _kSurface],
+                  stops: [0.0, 0.75],
+                ),
+              ),
+              child: SafeArea(child: _formColumn(context, insidePanel: false)),
             ),
           );
 
@@ -119,9 +122,11 @@ class _AuthLayoutState extends State<AuthLayout> {
 // `const BoxDecoration` falla con "Not a constant expression"; solo sirven las
 // constantes crudas.
 //
-// Equivalencia: `_kSurface` == `SozuColorRoles.light.surface`.
+// Equivalencias: `_kSurface` == `SozuColorRoles.light.surface`,
+// `_kPrimarySoft` == `SozuColorRoles.light.primarySoft`.
 
 const Color _kSurface = SozuNeutral.n0;
+const Color _kPrimarySoft = SozuBrand.soft06;
 
 // ---------------------------------------------------------------------------
 // Alineación del contenido de acceso
