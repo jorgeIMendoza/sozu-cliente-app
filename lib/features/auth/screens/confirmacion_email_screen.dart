@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';
-import 'package:sozu_cliente_app/features/auth/components/auth_brand_image.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
 import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
@@ -91,7 +90,6 @@ class _ConfirmacionEmailScreenState
   Widget build(BuildContext context) {
     final t = context.s;
     return AuthLayout(
-      brand: const AuthBrandImage(),
       child: AuthFormBody(
         children: [
           const AuthLogo(),
