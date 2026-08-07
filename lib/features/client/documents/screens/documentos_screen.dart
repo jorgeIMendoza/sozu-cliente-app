@@ -2,6 +2,7 @@ import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:sozu_cliente_app/core/file_download.dart';
@@ -11,7 +12,9 @@ import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/documents/providers/documents_providers.dart';
+import 'package:sozu_cliente_app/features/client/documents/components/datos_facturacion_card.dart';
 import 'package:sozu_cliente_app/features/client/layouts/portal_top_bar.dart';
+import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
@@ -161,7 +164,7 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
     // #F9FAFB; PortalTopBar ya se colapsa solo (sin doble header).
     return Scaffold(
       backgroundColor: isPortalMode(context) ? Colors.transparent : null,
-      appBar: const PortalTopBar(title: 'Documentos'),
+      appBar: const PortalTopBar(title: 'Facturación'),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(documentsProvider);
@@ -302,7 +305,7 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
         children: [
           if (portal) ...[
             Text(
-              'Documentos',
+              'Facturación',
               style: portalText(
                 size: 26,
                 weight: FontWeight.w700,
@@ -338,7 +341,7 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
         // vive en el AppBar y solo se muestra el subtítulo.
         if (portal) ...[
           Text(
-            'Documentos',
+            'Facturación',
             style: portalText(
               size: 26,
               weight: FontWeight.w700,
@@ -355,6 +358,12 @@ class _DocumentosScreenState extends ConsumerState<DocumentosScreen> {
           Text(subtitulo, style: TextStyle(fontSize: 13, color: tone.fgMuted)),
           const SizedBox(height: 12),
         ],
+
+        DatosFacturacionCard(
+          perfil: ref.watch(profileProvider).valueOrNull,
+          onModificar: () => context.push('/datos-fiscales'),
+        ),
+        SizedBox(height: context.s.space.md),
 
         // Barra de stats por estatus (chips clicables).
         _StatsBar(
