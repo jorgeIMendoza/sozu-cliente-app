@@ -20,16 +20,22 @@ de prueba: Chrome).
   del login, definida en lib/core/version.dart. En cada build/entrega actualizar
   `_buildTimestampDefault` (PowerShell: `Get-Date -Format "yyMMdd.HHmm"`) o
   compilar con `--dart-define=BUILD_TIMESTAMP=...`.
-- **El `X.Y.Z` NO se sube a mano.** `pubspec.yaml` es la fuente única (de ahí
-  salen Play, App Store y `appVersionBase`) y los 4 workflows de tienda corren
-  `bump_release_version` (codemagic.yaml): suben el vigesimal con
-  `tool/bump_version.sh`, commitean y tagean `vX.Y.Z`. El tag es lo que hace el
-  paso idempotente: si HEAD ya lo trae, es la segunda tienda de la misma tanda y
-  reusa la versión, así Android e iOS nunca divergen. El versionCode/
-  CFBundleVersion va por separado, calculado desde cada tienda.
-- El aviso in-app de actualización NO se enciende con esto: lo decide
-  `app_cliente_config.latest_version` en BD, que se actualiza a mano tras cada
-  release (`Ejecuciones_manuales/2026-08-07_version_gate_latest_por_release.md`).
+- **El `X.Y.Z` NO se sube a mano y el estado vive en los TAGS de git**, no en
+  `pubspec.yaml`. Se publica desde `main`, que está protegida (`enforce_admins`,
+  review de code owner), así que el CI no puede commitear ahí; los tags sí se
+  pueden pushear. `bump_release_version` (codemagic.yaml) resuelve la versión
+  desde el tag `vX.Y.Z` más alto, la escribe en pubspec/version.dart **solo en el
+  workspace del build** y tagea HEAD. Si HEAD ya trae tag, es la segunda tienda
+  de la misma tanda y reusa la versión: Android e iOS nunca divergen. El
+  versionCode/CFBundleVersion va por separado, calculado desde cada tienda.
+  Por eso `pubspec.yaml` en el repo se queda atrás: es solo el piso inicial.
+- El aviso in-app lo enciende `app_cliente_config.latest_version`, que escribe el
+  CI vía la edge function `app-version-publicar` al publicar **a producción**
+  (no en Play interno ni TestFlight). Requiere el secret
+  `APP_VERSION_PUBLISH_SECRET` en Supabase y en Codemagic; el setup y el fallback
+  manual están en
+  `Ejecuciones_manuales/2026-08-07_version_gate_latest_por_release.md`.
+  `min_version` (forzar) sigue siendo manual a propósito: es decisión de negocio.
 
 ## Rama de trabajo
 `dev-eddy` es la unica rama de trabajo. De ahi salen los PR hacia `dev`. NO se
