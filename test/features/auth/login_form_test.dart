@@ -9,20 +9,20 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 
 import 'fake_auth_port.dart';
 
-/// Modo administrador: solo en WEB, con dos activaciones por ancho: Ctrl+Alt+A
-/// en escritorio y long-press de 1.5 s sobre el sello en móvil. Ambas cuelgan de
-/// `kIsWeb`, así que en la VM de tests (`kIsWeb` == false, "app nativa") NINGUNA
-/// se arma: el sello es inerte y no hay forma de entrar en modo admin.
+/// Modo administrador: dos activaciones. El long-press de 1.5 s sobre el sello
+/// de versión funciona en TODA plataforma (web y app nativa) y es el que fijan
+/// estos tests; Ctrl+Alt+A lo duplica solo en web de escritorio y se verifica
+/// aparte (`flutter test --platform chrome`), porque el handler cuelga de
+/// `kIsWeb` y en la VM no se registra.
 ///
-/// Esto es justo lo que estos tests fijan: que en nativo el sello no active nada
-/// y siga siendo texto. El comportamiento web (atajo y long-press) se verifica
-/// manualmente / con `flutter test --platform chrome`.
+/// El gesto tiene que seguir siendo SECRETO: enciende el modo, pero el sello no
+/// se anuncia como botón ni pinta ripple. Encenderlo tampoco concede nada por sí
+/// solo - quien decide es `canManageClientApp` del perfil.
 void main() {
   /// Margen sobre el umbral real del gesto (1.5 s).
   const holdWithMargin = Duration(milliseconds: 1600);
 
-  /// Etiqueta de la pastilla del modo admin. Sonda: en nativo (kIsWeb false)
-  /// sostener el sello NO debe pintarla.
+  /// Etiqueta de la pastilla del modo admin: la señal de que el gesto prendió.
   const badgeLabel = 'Modo administrador';
 
   /// Único andamio de entorno que el formulario exige: **el canal de
@@ -87,25 +87,53 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('en nativo (kIsWeb false) sostener el sello NO activa nada', (
+  testWidgets('sostener el sello enciende el modo administrador', (
     tester,
   ) async {
     await pumpLoginForm(tester);
+    expect(find.text(badgeLabel), findsNothing);
 
     await holdVersionStamp(tester);
     await tester.pump();
 
     expect(
       find.text(badgeLabel),
-      findsNothing,
+      findsOneWidget,
       reason:
-          'el long-press del sello es acceso admin SOLO en web-móvil; en nativo '
-          '(kIsWeb false) no se arma y no debe encender el modo admin',
+          'el long-press del sello es la activación de toda plataforma, '
+          'incluida la app nativa',
     );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('el sello es texto: ni botón ni superficie pulsable', (
+  testWidgets('un toque corto NO enciende nada', (tester) async {
+    await pumpLoginForm(tester);
+
+    await tester.tap(versionStamp());
+    await tester.pump();
+
+    expect(
+      find.text(badgeLabel),
+      findsNothing,
+      reason: 'el gesto exige 1.5 s: un toque al azar no puede abrirlo',
+    );
+  });
+
+  testWidgets('volver a sostener lo apaga', (tester) async {
+    await pumpLoginForm(tester);
+
+    await holdVersionStamp(tester);
+    await tester.pump();
+    expect(find.text(badgeLabel), findsOneWidget);
+
+    await holdVersionStamp(tester);
+    await tester.pump();
+    expect(find.text(badgeLabel), findsNothing);
+  });
+
+  /// El gesto existe, pero el sello NO se delata: sin semántica de botón, sin
+  /// ripple y sin cursor de mano. Es lo que lo mantiene secreto.
+  testWidgets('el sello no se anuncia como botón ni pinta superficie', (
     tester,
   ) async {
     await pumpLoginForm(tester);
@@ -269,13 +297,12 @@ void main() {
     expect(prompts.value, 0);
   });
 
-  testWidgets('el botón de huella NO se esconde por sostener el sello', (
+  testWidgets('con el modo admin encendido se esconde el botón de huella', (
     tester,
   ) async {
-    // Antes el modo admin manual lo ocultaba, porque la biometría es solo para
-    // usuarios del portal y la pastilla era la única señal antes de autenticar.
-    // Ya no hace falta: solo se enrola quien tiene acceso al portal, y un
-    // enrolamiento viejo de una cuenta no-cliente se apaga al entrar.
+    // La biometría es solo para clientes: la sesión de un administrador puede
+    // impersonar a cualquiera y no se deja detrás de la huella de un teléfono.
+    // Sostener el sello no debe, además, disparar el prompt.
     mockBiometricsEnabled(enabled: true);
     final prompts = mockBiometricPromptAlwaysRejected();
     await pumpLoginForm(tester);
@@ -291,8 +318,8 @@ void main() {
       await tester.pump();
     }
 
-    expect(find.text(biometricLabel), findsOneWidget);
-    expect(find.text(badgeLabel), findsNothing);
+    expect(find.text(badgeLabel), findsOneWidget);
+    expect(find.text(biometricLabel), findsNothing);
     expect(prompts.value, 1, reason: 'sostener el sello no pide la huella');
   });
 }

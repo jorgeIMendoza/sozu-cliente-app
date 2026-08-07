@@ -55,3 +55,8 @@ assets/env
 # contenido; el directorio se conserva vía su README)
 Ejecuciones_manuales/*
 !Ejecuciones_manuales/README.md
+
+# Skills instaladas (equivalente a node_modules). Se reconstruyen desde
+# skills-lock.json, que SI se commitea: trae origen y hash de cada una.
+.agents/
+.claude/

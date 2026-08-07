@@ -9,23 +9,25 @@ import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/admin/screens/announcements_screen.dart';
-import 'package:sozu_cliente_app/features/client/properties/screens/adquisicion_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.dart';
 import 'package:sozu_cliente_app/features/client/documents/screens/documentos_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/estado_cuenta_screen.dart';
 import 'package:sozu_cliente_app/features/client/documents/screens/expediente_screen.dart';
+import 'package:sozu_cliente_app/features/auth/screens/confirmacion_email_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/email_not_confirmed_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/forgot_password_screen.dart';
 import 'package:sozu_cliente_app/features/client/home/screens/inicio_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/login_screen.dart';
 import 'package:sozu_cliente_app/features/client/home/screens/notificaciones_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/pagar_screen.dart';
+import 'package:sozu_cliente_app/features/client/properties/screens/mantenimientos_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/pagos_screen.dart';
-import 'package:sozu_cliente_app/features/client/properties/screens/patrimonio_screen.dart';
+import 'package:sozu_cliente_app/features/client/profile/screens/perfil_detalle_screens.dart';
 import 'package:sozu_cliente_app/features/client/profile/screens/perfil_screen.dart';
 import 'package:sozu_cliente_app/features/client/products/screens/producto_detalle_screen.dart';
 import 'package:sozu_cliente_app/features/client/products/screens/productos_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/propiedad_detalle_screen.dart';
+import 'package:sozu_cliente_app/features/client/properties/screens/propiedades_screen.dart';
 import 'package:sozu_cliente_app/features/admin/screens/select_client_screen.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/features/client/home/components/notificaciones_fx.dart';
@@ -91,7 +93,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       final inAuthArea =
           loc == '/login' ||
           loc == '/forgot-password' ||
+          loc == _rutaConfirmacion ||
           loc == emailNotConfirmedPath;
+
+      // Las dos pestañas viejas son ahora un filtro de /propiedades. Se
+      // redirigen y no se borran: el menú de la BD todavía puede mandar a
+      // cualquiera, y hay avisos ya enviados que apuntan ahí.
+      if (loc == '/adquisicion') return '/propiedades?filtro=adquisicion';
+      if (loc == '/patrimonio') return '/propiedades?filtro=entregadas';
 
       // Pantalla de autenticación aún trabajando: no sacarla (ni a /splash)
       // hasta que ella decida. En /login evita que el signOut por rol inválido
@@ -99,7 +108,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // que el perfil ya sin `debe_cambiar_password` se lleve el sheet de
       // biometría antes de que el usuario conteste.
       if (auth.authFlowInProgress &&
-          (loc == '/login' || loc == '/change-password')) {
+          (loc == '/login' ||
+              loc == '/change-password' ||
+              loc == _rutaConfirmacion)) {
         return null;
       }
       if (auth.isLoading) return loc == '/splash' ? null : '/splash';
@@ -158,6 +169,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         pageBuilder: (context, state) =>
             _slidePage(context, state, const LoginScreen(), sinMarco: true),
+      ),
+      // La fija la Edge Function en el correo: cambiarla deja muertos los
+      // enlaces ya enviados. Este host servia el portal legacy y ahora sirve
+      // Flutter, asi que sin esta ruta el enlace caia en el fallback SPA y
+      // terminaba en /login sin confirmar nada.
+      GoRoute(
+        path: _rutaConfirmacion,
+        pageBuilder: (context, state) {
+          final q = state.uri.queryParameters;
+          return _slidePage(
+            context,
+            state,
+            ConfirmacionEmailScreen(
+              tokenHash: q['token_hash'],
+              type: q['type'],
+              email: q['email'],
+              nombre: q['nombre'],
+            ),
+            sinMarco: true,
+          );
+        },
       ),
       GoRoute(
         path: '/forgot-password',
@@ -274,6 +306,18 @@ final routerProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) =>
                 _slidePage(context, state, const ExpedienteScreen()),
           ),
+          // Los datos fiscales viven en Perfil, pero se llega desde Facturación:
+          // ahí es donde el cliente descubre que su RFC está mal.
+          GoRoute(
+            path: '/datos-fiscales',
+            pageBuilder: (context, state) =>
+                _slidePage(context, state, const PerfilFiscalScreen()),
+          ),
+          GoRoute(
+            path: '/mantenimientos',
+            pageBuilder: (context, state) =>
+                _slidePage(context, state, const MantenimientosScreen()),
+          ),
           GoRoute(
             path: '/productos',
             pageBuilder: (context, state) =>
@@ -314,16 +358,12 @@ final routerProvider = Provider<GoRouter>((ref) {
               StatefulShellBranch(
                 routes: [
                   GoRoute(
-                    path: '/adquisicion',
-                    builder: (context, state) => const AdquisicionScreen(),
-                  ),
-                ],
-              ),
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: '/patrimonio',
-                    builder: (context, state) => const PatrimonioScreen(),
+                    path: '/propiedades',
+                    builder: (context, state) => PropiedadesScreen(
+                      filtroInicial: _filtroDesdeQuery(
+                        state.uri.queryParameters['filtro'],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -351,13 +391,24 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
+/// Aterrizaje del enlace de confirmacion de correo. La ruta la fija
+/// `reset-user-password` en el correo; aqui solo se atiende.
+const _rutaConfirmacion = '/auth/confirmacion-email';
+
+/// `?filtro=` de /propiedades -> valor del enum. Un valor desconocido abre la
+/// pantalla en "todas" en vez de fallar.
+PropiedadesFiltro _filtroDesdeQuery(String? valor) => switch (valor) {
+  'adquisicion' => PropiedadesFiltro.adquisicion,
+  'entregadas' => PropiedadesFiltro.entregadas,
+  _ => PropiedadesFiltro.todas,
+};
+
 /// Tabs del shell (icono, label, ruta interna). La ruta permite filtrar qué
 /// tabs se muestran según el menú de la BD (mismo criterio que el sidebar del
 /// portal), degradando a los 5 tabs si el endpoint aún no responde.
 const _navItems = [
   (Icons.home_outlined, 'Inicio', '/inicio'),
-  (Icons.shopping_bag_outlined, 'En adquisición', '/adquisicion'),
-  (Icons.account_balance_wallet_outlined, 'Patrimonio', '/patrimonio'),
+  (Icons.apartment_outlined, 'Propiedades', '/propiedades'),
   (Icons.description_outlined, 'Documentos', '/documentos'),
   (Icons.person_outline, 'Perfil', '/perfil'),
 ];
@@ -462,8 +513,7 @@ class _ClienteBottomNav extends ConsumerWidget {
   /// con `context.go` (nunca push) para conservar el estado de la rama.
   static const _branchRoutes = {
     '/inicio',
-    '/adquisicion',
-    '/patrimonio',
+    '/propiedades',
     '/documentos',
     '/perfil',
   };
@@ -475,7 +525,7 @@ class _ClienteBottomNav extends ConsumerWidget {
   }
 
   String _shortLabel(String label) =>
-      label == 'En adquisición' ? 'Adquisición' : label;
+      label == 'Mantenimientos' ? 'Manto.' : label;
 
   void _navigateTo(BuildContext context, String route, {required bool push}) {
     if (_branchRoutes.contains(route)) {

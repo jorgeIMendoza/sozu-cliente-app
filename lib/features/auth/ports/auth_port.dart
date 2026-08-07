@@ -140,4 +140,18 @@ abstract interface class AuthPort {
   /// Limpia el flag de contrasena temporal. Best-effort: el llamador no debe
   /// abortar el cambio de contrasena si esto falla.
   Future<void> markPasswordChanged();
+
+  /// Canjea el token de un enlace de confirmacion y deja la sesion abierta.
+  ///
+  /// [type] es el tipo que declara la URL. Lanza [AuthError]: `sessionRevoked`
+  /// si el token vencio o ya se uso (el enlace es de un solo uso).
+  Future<AuthSession> confirmEmailLink({
+    required String tokenHash,
+    required String type,
+  });
+
+  /// Cierra el alta tras confirmar el correo: marca la cuenta como confirmada
+  /// y dispara el envio de credenciales. Requiere la sesion de
+  /// [confirmEmailLink] como prueba de titularidad.
+  Future<void> completeRegistration({required String email, String? name});
 }

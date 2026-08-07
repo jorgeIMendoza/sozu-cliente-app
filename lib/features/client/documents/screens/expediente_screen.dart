@@ -252,7 +252,7 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Documentos',
+          'Mis documentos',
           style: portal
               ? portalText(size: 18, weight: FontWeight.w700)
               : TextStyle(
@@ -263,7 +263,8 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Sube cada documento; validamos los datos por ti.',
+          'Identificación y comprobantes del titular. Súbelos y validamos los '
+          'datos por ti.',
           style: portal
               ? portalText(size: 13.5, color: PortalColors.mutedForeground)
               : TextStyle(fontSize: 13.5, color: tone.fgMuted),

@@ -107,6 +107,40 @@ class FakeAuthPort implements AuthPort {
   /// Respuesta de [sendPasswordReset] cuando no hay fallo programado.
   PasswordResetResult nextResetResult = const PasswordResetResult();
 
+  /// Tokens que [confirmEmailLink] acepta. Cualquier otro se trata como
+  /// vencido o ya usado, que es el caso real del enlace de un solo uso.
+  final Set<String> validTokens = {'token-bueno'};
+
+  /// Correos a los que [completeRegistration] fue llamado, en orden.
+  final List<String> completedRegistrations = [];
+
+  @override
+  Future<AuthSession> confirmEmailLink({
+    required String tokenHash,
+    required String type,
+  }) async {
+    log.add('confirmEmailLink:$type');
+    final failure = _consumeFailure();
+    if (failure != null) throw AuthError(failure);
+    if (!validTokens.remove(tokenHash)) {
+      throw AuthError(AuthFailure.sessionRevoked);
+    }
+    final s = _newSession();
+    emitSession(s);
+    return s;
+  }
+
+  @override
+  Future<void> completeRegistration({
+    required String email,
+    String? name,
+  }) async {
+    log.add('completeRegistration');
+    completedRegistrations.add(email);
+    final failure = _consumeFailure();
+    if (failure != null) throw AuthError(failure);
+  }
+
   @override
   Future<PasswordResetResult> sendPasswordReset(String email) async {
     log.add('sendPasswordReset');
