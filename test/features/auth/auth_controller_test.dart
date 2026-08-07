@@ -111,6 +111,21 @@ void main() {
     expect(port.log, contains('sendPasswordReset'));
   });
 
+  test('resetPassword propaga el límite de envíos como éxito, no como '
+      'error', () async {
+    final port = FakeAuthPort();
+    final controller = await makeController(port);
+    port.nextResetResult = const PasswordResetResult(
+      rateLimited: true,
+      retryAfterMinutes: 15,
+    );
+
+    final result = await controller.resetPassword('cliente@sozu.com');
+
+    expect(result.rateLimited, isTrue);
+    expect(result.retryAfterMinutes, 15);
+  });
+
   test('resetPasswordErrorMessage distingue red y límite de solicitudes', () {
     expect(
       AuthController.resetPasswordErrorMessage(
