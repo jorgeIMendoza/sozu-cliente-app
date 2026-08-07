@@ -48,6 +48,17 @@ enum AuthFailure {
   /// El llamador debe DESCARTAR la credencial guardada.
   sessionRevoked,
 
+  /// La contrasena nueva es igual a la que ya tiene la cuenta. El backend lo
+  /// rechaza con 422; las reglas del formulario no pueden verlo (no conocen la
+  /// actual), asi que solo se descubre al enviar.
+  samePassword,
+
+  /// El backend rechazo la contrasena por su politica (422): longitud minima,
+  /// clases de caracteres o la lista de contrasenas filtradas. Es DISTINTA de
+  /// las reglas del formulario: se puede cumplir la checklist y aun asi caer
+  /// aqui.
+  weakPassword,
+
   unknown,
 }
 

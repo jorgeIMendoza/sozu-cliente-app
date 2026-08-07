@@ -104,6 +104,9 @@ class FakeAuthPort implements AuthPort {
     emitSession(null);
   }
 
+  /// Respuesta de [sendPasswordReset] cuando no hay fallo programado.
+  PasswordResetResult nextResetResult = const PasswordResetResult();
+
   /// Tokens que [confirmEmailLink] acepta. Cualquier otro se trata como
   /// vencido o ya usado, que es el caso real del enlace de un solo uso.
   final Set<String> validTokens = {'token-bueno'};
@@ -139,10 +142,11 @@ class FakeAuthPort implements AuthPort {
   }
 
   @override
-  Future<void> sendPasswordReset(String email) async {
+  Future<PasswordResetResult> sendPasswordReset(String email) async {
     log.add('sendPasswordReset');
     final failure = _consumeFailure();
     if (failure != null) throw AuthError(failure);
+    return nextResetResult;
   }
 
   @override

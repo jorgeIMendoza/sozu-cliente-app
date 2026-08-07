@@ -254,6 +254,11 @@ class AuthController extends ChangeNotifier {
         'No pudimos conectar. Revisa tu conexion e intenta de nuevo.',
       AuthFailure.sessionRevoked =>
         'Tu sesion expiro. Vuelve a iniciar sesion e intenta de nuevo.',
+      AuthFailure.samePassword =>
+        'Esa ya es tu contrasena actual. Elige una distinta.',
+      AuthFailure.weakPassword =>
+        'Esa contrasena es facil de adivinar (aparece en filtraciones '
+            'conocidas). Cumple las reglas, pero elige otra menos comun.',
       _ =>
         'No pudimos actualizar la contrasena. Revisa que cumpla los '
             'requisitos e intenta de nuevo.',
@@ -319,8 +324,10 @@ class AuthController extends ChangeNotifier {
     };
   }
 
-  Future<void> resetPassword(String email) async {
-    await _port.sendPasswordReset(email);
+  /// Pide el enlace de restablecimiento. El resultado distingue el envío real
+  /// del omitido por límite; solo los fallos REALES salen por excepción.
+  Future<PasswordResetResult> resetPassword(String email) {
+    return _port.sendPasswordReset(email);
   }
 
   /// Cambio forzado (contraseña temporal): updatePassword + limpiar el flag.

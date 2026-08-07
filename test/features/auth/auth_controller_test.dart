@@ -111,6 +111,21 @@ void main() {
     expect(port.log, contains('sendPasswordReset'));
   });
 
+  test('resetPassword propaga el límite de envíos como éxito, no como '
+      'error', () async {
+    final port = FakeAuthPort();
+    final controller = await makeController(port);
+    port.nextResetResult = const PasswordResetResult(
+      rateLimited: true,
+      retryAfterMinutes: 15,
+    );
+
+    final result = await controller.resetPassword('cliente@sozu.com');
+
+    expect(result.rateLimited, isTrue);
+    expect(result.retryAfterMinutes, 15);
+  });
+
   test('resetPasswordErrorMessage distingue red y límite de solicitudes', () {
     expect(
       AuthController.resetPasswordErrorMessage(
@@ -125,6 +140,24 @@ void main() {
     expect(
       AuthController.resetPasswordErrorMessage(AuthError(AuthFailure.unknown)),
       'No pudimos enviar el correo. Intenta de nuevo o escribe a soporte.',
+    );
+  });
+
+  test('changePasswordErrorMessage explica los rechazos del backend que la '
+      'checklist no puede anticipar', () {
+    // Los dos son 422 y antes caían en "revisa que cumpla los requisitos", con
+    // las cinco reglas en verde: el usuario reintentaba lo mismo.
+    expect(
+      AuthController.changePasswordErrorMessage(
+        AuthError(AuthFailure.samePassword),
+      ),
+      'Esa ya es tu contrasena actual. Elige una distinta.',
+    );
+    expect(
+      AuthController.changePasswordErrorMessage(
+        AuthError(AuthFailure.weakPassword),
+      ),
+      contains('filtraciones'),
     );
   });
 

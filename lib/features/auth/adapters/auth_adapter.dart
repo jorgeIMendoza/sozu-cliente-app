@@ -126,15 +126,27 @@ class AuthAdapter implements AuthPort {
   static const _resendConfirmationFunction = 'reenviar-confirmacion-email';
 
   @override
-  Future<void> sendPasswordReset(String email) =>
-      _postAnon(_resetFunction, email);
+  Future<PasswordResetResult> sendPasswordReset(String email) async {
+    final body = await _postAnon(_resetFunction, email);
+    // A partir del 4º intento en 15 minutos la función deja de enviar y lo
+    // avisa en el cuerpo, con el mismo 200 de siempre. Descartarlo dejaba a la
+    // pantalla diciendo "revisa tu correo" por un correo que nunca salió.
+    return PasswordResetResult(
+      rateLimited: body['rate_limited'] == true,
+      retryAfterMinutes: body['retry_after_min'] is int
+          ? body['retry_after_min'] as int
+          : int.tryParse('${body['retry_after_min']}'),
+    );
+  }
 
   @override
-  Future<void> resendEmailConfirmation(String email) =>
-      _postAnon(_resendConfirmationFunction, email);
+  Future<void> resendEmailConfirmation(String email) async {
+    await _postAnon(_resendConfirmationFunction, email);
+  }
 
   /// POST crudo a una función de acceso (sin sesión) con el correo en el
-  /// cuerpo, traduciendo el resultado al contrato de [AuthPort].
+  /// cuerpo, traduciendo el resultado al contrato de [AuthPort]. Devuelve el
+  /// cuerpo ya decodificado; un status de error sale por excepción.
   ///
   /// NO usa `functions.invoke`: ese cliente manda la llave anónima en `apikey`
   /// Y en `Authorization`, y el gateway nuevo (llaves `sb_`) responde 401
@@ -144,7 +156,7 @@ class AuthAdapter implements AuthPort {
   ///
   /// Las dos responden 200 genérico exista o no la cuenta (anti-enumeración de
   /// correos): un status de error aquí es fallo REAL de servidor.
-  Future<void> _postAnon(String fn, String email) async {
+  Future<Map<String, dynamic>> _postAnon(String fn, String email) async {
     final AnonFunctionResponse res;
     try {
       res = await invokeAnonFunction(
@@ -155,7 +167,7 @@ class AuthAdapter implements AuthPort {
       throw AuthError(AuthFailure.network);
     }
     if (res.status >= 200 && res.status < 300 && res.body['success'] != false) {
-      return;
+      return res.body;
     }
     throw AuthError(
       res.status == 429 ? AuthFailure.tooManyAttempts : AuthFailure.unknown,
@@ -168,11 +180,43 @@ class AuthAdapter implements AuthPort {
       await _sb.auth.updateUser(UserAttributes(password: newPassword));
     } on AuthRetryableFetchException {
       throw AuthError(AuthFailure.network);
-    } on AuthException {
-      throw AuthError(AuthFailure.unknown);
+    } on AuthException catch (e) {
+      throw AuthError(_updatePasswordFailure(e));
     } catch (_) {
       throw AuthError(AuthFailure.network);
     }
+  }
+
+  /// Traduce el rechazo de `updateUser`. Los 422 tienen causa concreta y el
+  /// usuario NO puede adivinarla desde el formulario: la checklist no conoce la
+  /// contrasena actual ni la politica del proyecto (longitud, clases,
+  /// contrasenas filtradas), asi que mandarlos todos a "revisa que cumpla los
+  /// requisitos" dejaba al usuario reintentando lo mismo con las palomitas en
+  /// verde.
+  ///
+  /// Se mira el `code` y TAMBIEN el texto: no todas las versiones del backend
+  /// pueblan el codigo, y sin el fallback el caso vuelve a caer en generico.
+  static AuthFailure _updatePasswordFailure(AuthException e) {
+    final code = e.code ?? '';
+    final status = int.tryParse(e.statusCode ?? '') ?? 0;
+    final message = e.message.toLowerCase();
+    if (status == 429 || code == 'over_request_rate_limit') {
+      return AuthFailure.tooManyAttempts;
+    }
+    if (code == 'same_password' ||
+        message.contains('should be different from the old password')) {
+      return AuthFailure.samePassword;
+    }
+    if (code == 'weak_password' || message.contains('password is known')) {
+      return AuthFailure.weakPassword;
+    }
+    if (code == 'session_not_found' ||
+        code == 'refresh_token_not_found' ||
+        status == 401 ||
+        status == 403) {
+      return AuthFailure.sessionRevoked;
+    }
+    return AuthFailure.unknown;
   }
 
   /// Tipos que GoTrue puede haber emitido para un enlace de confirmacion. El
