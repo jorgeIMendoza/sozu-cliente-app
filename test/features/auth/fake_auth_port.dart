@@ -104,11 +104,15 @@ class FakeAuthPort implements AuthPort {
     emitSession(null);
   }
 
+  /// Respuesta de [sendPasswordReset] cuando no hay fallo programado.
+  PasswordResetResult nextResetResult = const PasswordResetResult();
+
   @override
-  Future<void> sendPasswordReset(String email) async {
+  Future<PasswordResetResult> sendPasswordReset(String email) async {
     log.add('sendPasswordReset');
     final failure = _consumeFailure();
     if (failure != null) throw AuthError(failure);
+    return nextResetResult;
   }
 
   @override

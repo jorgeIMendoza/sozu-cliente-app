@@ -126,15 +126,27 @@ class AuthAdapter implements AuthPort {
   static const _resendConfirmationFunction = 'reenviar-confirmacion-email';
 
   @override
-  Future<void> sendPasswordReset(String email) =>
-      _postAnon(_resetFunction, email);
+  Future<PasswordResetResult> sendPasswordReset(String email) async {
+    final body = await _postAnon(_resetFunction, email);
+    // A partir del 4º intento en 15 minutos la función deja de enviar y lo
+    // avisa en el cuerpo, con el mismo 200 de siempre. Descartarlo dejaba a la
+    // pantalla diciendo "revisa tu correo" por un correo que nunca salió.
+    return PasswordResetResult(
+      rateLimited: body['rate_limited'] == true,
+      retryAfterMinutes: body['retry_after_min'] is int
+          ? body['retry_after_min'] as int
+          : int.tryParse('${body['retry_after_min']}'),
+    );
+  }
 
   @override
-  Future<void> resendEmailConfirmation(String email) =>
-      _postAnon(_resendConfirmationFunction, email);
+  Future<void> resendEmailConfirmation(String email) async {
+    await _postAnon(_resendConfirmationFunction, email);
+  }
 
   /// POST crudo a una función de acceso (sin sesión) con el correo en el
-  /// cuerpo, traduciendo el resultado al contrato de [AuthPort].
+  /// cuerpo, traduciendo el resultado al contrato de [AuthPort]. Devuelve el
+  /// cuerpo ya decodificado; un status de error sale por excepción.
   ///
   /// NO usa `functions.invoke`: ese cliente manda la llave anónima en `apikey`
   /// Y en `Authorization`, y el gateway nuevo (llaves `sb_`) responde 401
@@ -144,17 +156,18 @@ class AuthAdapter implements AuthPort {
   ///
   /// Las dos responden 200 genérico exista o no la cuenta (anti-enumeración de
   /// correos): un status de error aquí es fallo REAL de servidor.
-  Future<void> _postAnon(String fn, String email) async {
+  Future<Map<String, dynamic>> _postAnon(String fn, String email) async {
     final AnonFunctionResponse res;
     try {
-      res = await invokeAnonFunction(fn, body: {
-        'email': email.trim().toLowerCase(),
-      });
+      res = await invokeAnonFunction(
+        fn,
+        body: {'email': email.trim().toLowerCase()},
+      );
     } catch (_) {
       throw AuthError(AuthFailure.network);
     }
     if (res.status >= 200 && res.status < 300 && res.body['success'] != false) {
-      return;
+      return res.body;
     }
     throw AuthError(
       res.status == 429 ? AuthFailure.tooManyAttempts : AuthFailure.unknown,

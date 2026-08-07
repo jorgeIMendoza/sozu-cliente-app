@@ -285,8 +285,10 @@ class AuthController extends ChangeNotifier {
     return !await bio.isEnabled();
   }
 
-  Future<void> resetPassword(String email) async {
-    await _port.sendPasswordReset(email);
+  /// Pide el enlace de restablecimiento. El resultado distingue el envío real
+  /// del omitido por límite; solo los fallos REALES salen por excepción.
+  Future<PasswordResetResult> resetPassword(String email) {
+    return _port.sendPasswordReset(email);
   }
 
   /// Cambio forzado (contraseña temporal): updatePassword + limpiar el flag.

@@ -7,6 +7,7 @@ import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_brand_image.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
 import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
+import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Recuperar contraseña, con estado de éxito "Revisa tu correo". La respuesta
@@ -25,6 +26,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   bool _submitting = false;
   bool _sent = false;
   String? _formError;
+
+  /// El backend topó su límite y NO envió este correo. Es un estado normal (la
+  /// llamada responde 200), no un error: cambia el mensaje de éxito, no lo pinta
+  /// como fallo.
+  bool _rateLimited = false;
+  int? _retryAfterMinutes;
 
   @override
   void dispose() {
@@ -46,8 +53,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       _submitting = true;
       _formError = null;
     });
+    final PasswordResetResult result;
     try {
-      await ref.read(authProvider).resetPassword(_email.text);
+      result = await ref.read(authProvider).resetPassword(_email.text);
     } catch (e) {
       // Solo llegan fallos REALES (red o servidor): el backend responde éxito
       // genérico exista o no la cuenta, así que mostrarlos no filtra nada.
@@ -64,6 +72,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     if (mounted) {
       setState(() {
         _sent = true;
+        _rateLimited = result.rateLimited;
+        _retryAfterMinutes = result.retryAfterMinutes;
         _submitting = false;
       });
     }
@@ -149,16 +159,29 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     // Ojo: `context.s` no puede ir dentro de una expresion `const`.
     final t = context.s;
     final c = t.color;
+    // Tope de envíos alcanzado: este correo NO salió, así que decir "revisa tu
+    // correo" mandaba al usuario a esperar algo que no iba a llegar y a pedir
+    // más enlaces. Sigue siendo neutro: el límite se evalúa antes de buscar la
+    // cuenta, así que un correo desconocido topa igual y ve lo mismo.
+    final minutes = _retryAfterMinutes ?? 15;
     return [
       const AuthLogo(),
       SizedBox(height: t.space.lg),
-      Icon(Icons.check_circle, size: 56, color: c.primaryHover),
+      Icon(
+        _rateLimited ? Icons.mark_email_unread_outlined : Icons.check_circle,
+        size: 56,
+        color: _rateLimited ? c.warning : c.primaryHover,
+      ),
       SizedBox(height: t.space.md),
-      const AuthTitle('Revisa tu correo'),
+      AuthTitle(
+        _rateLimited ? 'Usa el enlace que ya tienes' : 'Revisa tu correo',
+      ),
       SizedBox(height: t.space.sm),
-      const AuthSubtitle(
-        'Si existe una cuenta activa con ese correo, te enviamos un enlace '
-        'para confirmar tu identidad.',
+      AuthSubtitle(
+        _rateLimited
+            ? 'Ya pediste varios enlaces, así que este último no se envió.'
+            : 'Si existe una cuenta activa con ese correo, te enviamos un '
+                  'enlace para confirmar tu identidad.',
       ),
       SizedBox(height: t.space.md),
       Container(
@@ -167,21 +190,33 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           vertical: t.space.sm,
         ),
         decoration: BoxDecoration(
-          color: c.infoSoft,
+          color: _rateLimited ? c.warningSoft : c.infoSoft,
           borderRadius: t.radius.mdBorder,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.mail_outline, size: 20, color: c.info),
+            Icon(
+              _rateLimited ? Icons.schedule : Icons.mail_outline,
+              size: 20,
+              color: _rateLimited ? c.warning : c.info,
+            ),
             SizedBox(width: t.space.sm),
             Expanded(
               child: Text(
-                'Abre el enlace desde tu bandeja de entrada (revisa también la '
-                'carpeta de spam). Al confirmarlo recibirás un segundo correo '
-                'con tu contraseña temporal: entra con ella y la app te pedirá '
-                'definir la definitiva. El enlace es de un solo uso.',
-                style: t.text.body.copyWith(color: c.infoFg, height: 1.35),
+                _rateLimited
+                    ? 'Abre el correo más reciente que ya recibiste: ese enlace '
+                          'sigue siendo válido. Si ya no lo tienes, espera '
+                          '$minutes minutos y vuelve a intentar.'
+                    : 'Abre el enlace desde tu bandeja de entrada (revisa '
+                          'también la carpeta de spam). Al confirmarlo '
+                          'recibirás un segundo correo con tu contraseña '
+                          'temporal: entra con ella y la app te pedirá definir '
+                          'la definitiva. El enlace es de un solo uso.',
+                style: t.text.body.copyWith(
+                  color: _rateLimited ? c.warningFg : c.infoFg,
+                  height: 1.35,
+                ),
               ),
             ),
           ],
