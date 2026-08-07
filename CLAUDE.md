@@ -20,6 +20,16 @@ de prueba: Chrome).
   del login, definida en lib/core/version.dart. En cada build/entrega actualizar
   `_buildTimestampDefault` (PowerShell: `Get-Date -Format "yyMMdd.HHmm"`) o
   compilar con `--dart-define=BUILD_TIMESTAMP=...`.
+- **El `X.Y.Z` NO se sube a mano.** `pubspec.yaml` es la fuente única (de ahí
+  salen Play, App Store y `appVersionBase`) y los 4 workflows de tienda corren
+  `bump_release_version` (codemagic.yaml): suben el vigesimal con
+  `tool/bump_version.sh`, commitean y tagean `vX.Y.Z`. El tag es lo que hace el
+  paso idempotente: si HEAD ya lo trae, es la segunda tienda de la misma tanda y
+  reusa la versión, así Android e iOS nunca divergen. El versionCode/
+  CFBundleVersion va por separado, calculado desde cada tienda.
+- El aviso in-app de actualización NO se enciende con esto: lo decide
+  `app_cliente_config.latest_version` en BD, que se actualiza a mano tras cada
+  release (`Ejecuciones_manuales/2026-08-07_version_gate_latest_por_release.md`).
 
 ## Rama de trabajo
 `dev-eddy` es la unica rama de trabajo. De ahi salen los PR hacia `dev`. NO se

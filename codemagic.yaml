@@ -49,6 +49,45 @@ definitions:
       echo "ANDROID_BUILD_NUMBER=$NEXT" >> $CM_ENV
       echo "Último versionCode en Play: $LATEST · se publicará como: $NEXT"
 
+  # Sube el versionName y lo deja commiteado + tageado ANTES de compilar.
+  # Va dentro de cada workflow que publica, no en uno aparte: como paso manual
+  # nadie lo corría y las cuatro primeras subidas a Play salieron todas como
+  # "1.0.0" (solo cambiaba el versionCode). Eso además dejaba muerto el version
+  # gate del app, que compara `appVersionBase` contra `latest_version`.
+  #
+  # Idempotente por tag: si HEAD ya trae el tag de la versión del pubspec, es la
+  # segunda tienda de la MISMA tanda de código y se publica con la misma versión
+  # (así Android e iOS nunca divergen en versionName). Con VERSION_SET siempre
+  # sube, porque fijar una versión explícita es una decisión deliberada.
+  bump_release_version: &bump_release_version
+    name: Subir versionName (una vez por tanda de código)
+    script: |
+      set -e
+      git fetch --tags --force --quiet || true
+      leer_nombre() { grep -E '^version:' pubspec.yaml | head -1 | sed -E 's/^version:[[:space:]]*//;s/\+.*//'; }
+      NAME=$(leer_nombre)
+      if [ -z "${VERSION_SET:-}" ] && git tag --points-at HEAD | grep -qx "v$NAME"; then
+        echo "HEAD ya está publicado como v$NAME: se reusa (misma tanda, otra tienda)."
+      else
+        if [ -n "${VERSION_SET:-}" ]; then
+          bash tool/bump_version.sh --set "$VERSION_SET"
+        else
+          bash tool/bump_version.sh
+        fi
+        NAME=$(leer_nombre)
+        git config user.email "ci@sozu.com"
+        git config user.name "SOZU CI"
+        git add pubspec.yaml lib/core/version.dart
+        git commit -m "chore(version): v$NAME"
+        git tag "v$NAME"
+        # Falla duro a propósito: publicar con una versión que no quedó en el
+        # repo es cómo se pierde la trazabilidad y se repite un versionName.
+        git push origin "HEAD:$CM_BRANCH"
+        git push origin "v$NAME"
+        echo "Nueva versión: v$NAME (commiteada y tageada en $CM_BRANCH)"
+      fi
+      echo "APP_VERSION_NAME=$NAME" >> $CM_ENV
+
   # Aviso por WhatsApp al terminar (exito o fallo). El telefono lo inyecta el
   # dashboard como WA_PHONE al lanzar el build; sin el, el paso no hace nada.
   # Va en publishing.scripts para que corra tambien cuando el build falla.
@@ -164,11 +203,15 @@ workflows:
           flutter pub get
           flutter analyze --no-fatal-infos
           flutter test
+      # Despues de los tests: un test rojo no debe dejar un versionName
+      # pusheado y tageado que nunca llego a la tienda.
+      - *bump_release_version
       - name: Build AAB (Google Play)
         script: |
           flutter build appbundle --release \
             --build-number=$ANDROID_BUILD_NUMBER \
-            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP
+            --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
+            --dart-define=APP_ENV=prod
     artifacts:
       - build/app/outputs/bundle/release/*.aab
     publishing:
@@ -233,6 +276,7 @@ workflows:
           flutter pub get
           flutter analyze --no-fatal-infos
           flutter test
+      - *bump_release_version
       - name: Build IPA firmado
         script: |
           # CFBundleVersion (build number interno) desde App Store Connect:
@@ -401,6 +445,9 @@ workflows:
           flutter pub get
           flutter analyze --no-fatal-infos
           flutter test
+      # Despues de los tests: un test rojo no debe dejar un versionName
+      # pusheado y tageado que nunca llego a la tienda.
+      - *bump_release_version
       - name: Build AAB (Google Play)
         script: |
           flutter build appbundle --release \
@@ -447,6 +494,7 @@ workflows:
           flutter pub get
           flutter analyze --no-fatal-infos
           flutter test
+      - *bump_release_version
       - name: Build IPA firmado
         script: |
           # CFBundleVersion (build number interno) desde App Store Connect:
@@ -493,10 +541,11 @@ workflows:
         # y no solo el de la compilación.
         - *wa_notify
 
-  # Sube la version UNA vez y la deja commiteada en la rama. Correr esto ANTES
-  # de publicar: luego los publish de Android e iOS leen el mismo pubspec.yaml,
-  # asi que salen con el MISMO versionName en ambas tiendas (y el footer web).
-  # Opcional VERSION_SET (dashboard) para fijar una version exacta, ej. 1.3.0.
+  # Sube la version a mano, fuera de una publicacion. Ya NO hace falta antes de
+  # publicar: los workflows de tienda corren `bump_release_version` solos. Sirve
+  # para fijar una version exacta con VERSION_SET (ej. 1.3.0) o para adelantar el
+  # salto sin construir. Deja el mismo commit + tag `vX.Y.Z` que el CI, asi el
+  # siguiente publish reconoce la version y no la vuelve a subir.
   # Requiere que Codemagic tenga permiso de PUSH al repo (token/SSH de escritura).
   bump-version:
     name: Subir versión (vigesimal) y push
@@ -505,21 +554,7 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Subir versión y commitear
-        script: |
-          set -e
-          if [ -n "${VERSION_SET:-}" ]; then
-            bash tool/bump_version.sh --set "$VERSION_SET"
-          else
-            bash tool/bump_version.sh
-          fi
-          NEW=$(grep -E '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//')
-          git config user.email "ci@sozu.com"
-          git config user.name "SOZU CI"
-          git add pubspec.yaml lib/core/version.dart
-          git commit -m "chore(version): $NEW"
-          git push origin "HEAD:$CM_BRANCH"
-          echo "Nueva versión: $NEW · push a $CM_BRANCH"
+      - *bump_release_version
     publishing:
       scripts:
         - *wa_notify
