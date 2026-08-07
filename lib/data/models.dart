@@ -691,14 +691,24 @@ class FacturaDocumento {
 }
 
 /// Factura CFDI de un pago de mantenimiento.
+///
+/// [idCuenta] es la cuenta PADRE, la misma que usa [FacturaDocumento]: con ella
+/// las dos listas caen bajo la misma unidad. Llega null mientras el backend no
+/// la mande, y entonces la factura queda sin unidad asignada.
 class FacturaMantenimientoDoc {
   final int idPago;
+  final int? idCuenta;
+  final String? propiedad;
+  final double? monto;
   final String? fecha;
   final String? pdf;
   final String? xml;
 
   FacturaMantenimientoDoc.fromJson(Map<String, dynamic> j)
     : idPago = asInt(j['id_pago']),
+      idCuenta = j['id_cuenta'] == null ? null : asInt(j['id_cuenta']),
+      propiedad = j['propiedad'] as String?,
+      monto = j['monto'] == null ? null : asDouble(j['monto']),
       fecha = j['fecha'] as String?,
       pdf = j['pdf'] as String?,
       xml = j['xml'] as String?;

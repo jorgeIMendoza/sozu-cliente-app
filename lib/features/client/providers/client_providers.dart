@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:sozu_cliente_app/features/client/documents/providers/documents_providers.dart';
+import 'package:sozu_cliente_app/features/client/facturacion/providers/documents_providers.dart';
 import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/features/client/products/providers/products_providers.dart';
 import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';

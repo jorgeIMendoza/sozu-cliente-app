@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
-import 'package:sozu_cliente_app/features/client/documents/adapters/documents_adapter.dart';
-import 'package:sozu_cliente_app/features/client/documents/providers/documents_providers.dart';
+import 'package:sozu_cliente_app/features/client/facturacion/adapters/documents_adapter.dart';
+import 'package:sozu_cliente_app/features/client/facturacion/providers/documents_providers.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
 
 import '../client_test_support.dart';

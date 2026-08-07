@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
-import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 
 /// Estado de una sección del Perfil (validada / en proceso / pendiente).
 enum SeccionEstado { validada, enProceso, pendiente }
@@ -103,24 +101,8 @@ PerfilSeccionesEstado computePerfilSeccionesEstado(
   );
 }
 
-// ── Paleta exacta del hero "motor" del portal (ClientePerfil.tsx) ──────────
-const Color _heroGradA = Color(0xFFF0FAF4);
-const Color _heroGradB = Color(0xFFFBFEFC);
-const Color _heroBorder = Color(0xFFCFE9DA);
-const Color _heroTitle = Color(0xFF16331F);
-const Color _heroBody = Color(0xFF3F5A4A);
-const Color _estadoBoxBorder = Color(0xFFDCEEE3);
-const Color _estadoLabel = Color(0xFF9AA3AD);
-const Color _tallyLabel = Color(0xFF4B5563);
-const Color _valBg = Color(0xFFE8F5EE);
-const Color _procBg = Color(0xFFFBEFD9);
-const Color _procFg = Color(0xFFB5730A);
-const Color _pendBg = Color(0xFFEEF0F2);
-const Color _pendFg = Color(0xFF6B7280);
-
 /// Hero "Tu expediente · el motor de tu activación" del overview del Perfil:
-/// contador de secciones completadas y caja "ESTADO DE SECCIONES". En modo
-/// portal usa la paleta fija del portal; en móvil degrada a colores del tema.
+/// contador de secciones completadas y caja "ESTADO DE SECCIONES".
 class ExpedienteCard extends StatelessWidget {
   final PerfilSeccionesEstado estado;
   final VoidCallback onGestionarDocumentos;
@@ -133,33 +115,13 @@ class ExpedienteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final portal = isPortalMode(context);
-    final tone = context.s.color;
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final t = context.s;
+    final tone = t.color;
+    final Color eyebrowColor = tone.primaryHover;
+    final Color titleColor = tone.fg;
+    final Color bodyColor = tone.fgMuted;
 
-    // Colores del contenedor.
-    final Gradient? gradient = portal
-        ? const LinearGradient(colors: [_heroGradA, _heroGradB])
-        : null;
-    final Color bg = portal
-        ? _heroGradA
-        : dark
-        ? tone.primarySoft
-        : const Color(0xFFEEF7F1);
-    final Color border = portal
-        ? _heroBorder
-        : dark
-        ? SozuBrand.green700
-        : const Color(0xFFD8ECDF);
-
-    final Color eyebrowColor = portal
-        ? PortalColors.primary
-        : tone.primaryHover;
-    final Color titleColor = portal ? _heroTitle : tone.fg;
-    final Color bodyColor = portal ? _heroBody : tone.fgMuted;
-
-    Widget txt(String s, TextStyle style) =>
-        portal ? Text(s, style: _p(style)) : Text(s, style: style);
+    Widget txt(String s, TextStyle style) => Text(s, style: style);
 
     final izquierda = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,36 +129,33 @@ class ExpedienteCard extends StatelessWidget {
       children: [
         txt(
           'TU EXPEDIENTE · EL MOTOR DE TU ACTIVACIÓN',
-          TextStyle(
-            fontSize: 10,
+          t.text.overline.copyWith(
             fontWeight: FontWeight.w700,
             letterSpacing: 1.2,
             color: eyebrowColor,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: t.space.xs),
         txt(
           'Tu información se construye desde tus documentos.',
-          TextStyle(
-            fontSize: 21,
+          t.text.h3.copyWith(
             fontWeight: FontWeight.w700,
             height: 1.25,
             letterSpacing: -0.4,
             color: titleColor,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: t.space.xs),
         txt(
           'Cada documento que subes alimenta tu información personal y '
           'fiscal. Solo validas lo que ya dijeron.',
-          TextStyle(
-            fontSize: 13,
+          t.text.bodySmall.copyWith(
             fontWeight: FontWeight.w500,
             height: 1.55,
             color: bodyColor,
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: t.space.md),
         Wrap(
           spacing: 14,
           runSpacing: 10,
@@ -207,14 +166,7 @@ class ExpedienteCard extends StatelessWidget {
               style: FilledButton.styleFrom(
                 minimumSize: const Size(0, 44),
                 padding: const EdgeInsets.symmetric(horizontal: 18),
-                backgroundColor: portal ? PortalColors.primary : null,
-                shape: portal
-                    ? RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(kPortalRadiusMd),
-                      )
-                    : null,
-                textStyle: const TextStyle(
-                  fontSize: 13,
+                textStyle: t.text.bodySmall.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -224,8 +176,7 @@ class ExpedienteCard extends StatelessWidget {
             txt(
               '${estado.validadas} de ${PerfilSeccionesEstado.total} '
               'secciones completadas',
-              TextStyle(
-                fontSize: 12,
+              t.text.caption.copyWith(
                 fontWeight: FontWeight.w600,
                 color: bodyColor,
               ),
@@ -235,17 +186,14 @@ class ExpedienteCard extends StatelessWidget {
       ],
     );
 
-    final estadoBox = _EstadoSeccionesBox(estado: estado, portal: portal);
+    final estadoBox = _EstadoSeccionesBox(estado: estado);
 
     return Container(
-      padding: portal
-          ? const EdgeInsets.all(22)
-          : const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      padding: EdgeInsets.all(t.space.lg),
       decoration: BoxDecoration(
-        color: bg,
-        gradient: gradient,
-        border: Border.all(color: border),
-        borderRadius: BorderRadius.circular(portal ? kPortalRadiusMd : 16),
+        color: tone.primarySoft,
+        border: Border.all(color: tone.primaryBorder),
+        borderRadius: t.radius.lgBorder,
       ),
       child: LayoutBuilder(
         builder: (context, c) {
@@ -255,91 +203,78 @@ class ExpedienteCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: izquierda),
-                const SizedBox(width: 22),
+                SizedBox(width: t.space.lg),
                 SizedBox(width: 210, child: estadoBox),
               ],
             );
           }
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [izquierda, const SizedBox(height: 18), estadoBox],
+            children: [
+              izquierda,
+              SizedBox(height: t.space.md),
+              estadoBox,
+            ],
           );
         },
       ),
     );
   }
-
-  /// Aplica la familia tipográfica del portal a un [TextStyle] arbitrario.
-  TextStyle _p(TextStyle s) => portalText(
-    size: s.fontSize ?? 13,
-    weight: s.fontWeight ?? FontWeight.w400,
-    color: s.color ?? PortalColors.foreground,
-    letterSpacing: s.letterSpacing,
-    height: s.height,
-  );
 }
 
 /// Caja "ESTADO DE SECCIONES" con los tres renglones de conteo.
 class _EstadoSeccionesBox extends StatelessWidget {
   final PerfilSeccionesEstado estado;
-  final bool portal;
 
-  const _EstadoSeccionesBox({required this.estado, required this.portal});
+  const _EstadoSeccionesBox({required this.estado});
 
   @override
   Widget build(BuildContext context) {
-    final tone = context.s.color;
+    final t = context.s;
+    final tone = t.color;
 
     final tally = <({int n, String label, Color bg, Color fg})>[
       (
         n: estado.validadas,
         label: 'validadas',
-        bg: portal ? _valBg : tone.primarySoft,
-        fg: portal ? PortalColors.primary : tone.primaryHover,
+        bg: tone.primarySoft,
+        fg: tone.primaryHover,
       ),
       (
         n: estado.enProceso,
         label: 'en proceso',
-        bg: portal ? _procBg : tone.warningSoft,
-        fg: portal ? _procFg : SozuAmber.strong,
+        bg: tone.warningSoft,
+        fg: tone.warningFg,
       ),
       (
         n: estado.pendientes,
         label: 'pendientes',
-        bg: portal ? _pendBg : tone.surfaceAlt,
-        fg: portal ? _pendFg : tone.fgMuted,
+        bg: tone.surfaceAlt,
+        fg: tone.fgMuted,
       ),
     ];
 
-    final labelStyle = portal
-        ? portalText(
-            size: 9.5,
-            weight: FontWeight.w700,
-            color: _estadoLabel,
-            letterSpacing: 0.8,
-          )
-        : TextStyle(
-            fontSize: 9.5,
-            fontWeight: FontWeight.w700,
-            color: tone.fgSubtle,
-            letterSpacing: 0.8,
-          );
+    final labelStyle = t.text.overline.copyWith(
+      fontWeight: FontWeight.w700,
+      color: tone.fgSubtle,
+      letterSpacing: 0.8,
+    );
 
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: EdgeInsets.all(t.space.md),
       decoration: BoxDecoration(
-        color: portal ? PortalColors.surface : tone.surface,
-        border: Border.all(color: portal ? _estadoBoxBorder : tone.border),
-        borderRadius: BorderRadius.circular(portal ? kPortalRadiusMd : 12),
+        color: tone.surface,
+        border: Border.all(color: tone.border),
+        borderRadius: t.radius.mdBorder,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('ESTADO DE SECCIONES', style: labelStyle),
-          const SizedBox(height: 12),
+          SizedBox(height: t.space.sm),
           for (var i = 0; i < tally.length; i++) ...[
-            if (i > 0) const SizedBox(height: 11),
+            if (i > 0) SizedBox(height: t.space.sm),
             Row(
               children: [
                 Container(
@@ -348,24 +283,22 @@ class _EstadoSeccionesBox extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: tally[i].bg,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: t.radius.smBorder,
                   ),
                   child: Text(
                     '${tally[i].n}',
-                    style: TextStyle(
-                      fontSize: 11,
+                    style: t.text.overline.copyWith(
                       fontWeight: FontWeight.w700,
                       color: tally[i].fg,
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: t.space.xs),
                 Text(
                   tally[i].label,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: t.text.caption.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: portal ? _tallyLabel : tone.fgMuted,
+                    color: tone.fgMuted,
                   ),
                 ),
               ],
@@ -386,16 +319,16 @@ class _EstadoSeccionesBox extends StatelessWidget {
   switch (estatus) {
     case 'aprobado':
       return (
-        dot: SozuBrand.green500,
+        dot: tone.positive,
         bg: tone.primarySoft,
         fg: tone.primaryHover,
         label: 'Aprobado',
       );
     case 'revision':
       return (
-        dot: SozuAmber.base,
+        dot: tone.warning,
         bg: tone.warningSoft,
-        fg: SozuAmber.strong,
+        fg: tone.warningFg,
         label: 'En revisión',
       );
     case 'expirado':

@@ -9,9 +9,9 @@ import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/features/client/documents/components/expediente_card.dart'
+import 'package:sozu_cliente_app/features/client/facturacion/components/expediente_card.dart'
     show expedienteEstatusStyle;
-import 'package:sozu_cliente_app/features/client/documents/providers/documents_providers.dart';
+import 'package:sozu_cliente_app/features/client/facturacion/providers/documents_providers.dart';
 import 'package:sozu_cliente_app/features/client/profile/components/perfil_sheets.dart'
     show showCuentaBancariaSheet;
 import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
@@ -180,7 +180,7 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
         builder: (_) => Dialog(
           clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: context.s.radius.lgBorder,
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
@@ -238,8 +238,10 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
   @override
   Widget build(BuildContext context) {
     final tone = context.s.color;
-    // Modo portal (web ≥1024): mismo contenido centrado tipo card grande del
-    // portal, pero con la card y tipografía del portal y fondo del shell.
+    // `isPortalMode` a propósito aunque esté deprecado: decide si el shell del
+    // portal ya pinta el fondo, y ese shell solo existe en WEB de escritorio.
+    // Con `context.bp` una tablet nativa ancha se creería portal y quedaría sin
+    // fondo. Migra cuando migre el shell.
     final portal = isPortalMode(context);
     final exp = ref.watch(identityFileProvider);
     // Cuentas bancarias del perfil: alimentan la fila estructurada "Cuenta
@@ -253,21 +255,16 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
       children: [
         Text(
           'Mis documentos',
-          style: portal
-              ? portalText(size: 18, weight: FontWeight.w700)
-              : TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: tone.fg,
-                ),
+          style: context.s.text.bodyLarge.copyWith(
+            fontWeight: FontWeight.w700,
+            color: tone.fg,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           'Identificación y comprobantes del titular. Súbelos y validamos los '
           'datos por ti.',
-          style: portal
-              ? portalText(size: 13.5, color: PortalColors.mutedForeground)
-              : TextStyle(fontSize: 13.5, color: tone.fgMuted),
+          style: context.s.text.bodySmall.copyWith(color: tone.fgMuted),
         ),
         const SizedBox(height: 18),
         _grupos(exp, cuentas),
@@ -291,12 +288,9 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
                   child: TextButton.icon(
                     onPressed: _volver,
                     style: TextButton.styleFrom(
-                      foregroundColor: portal
-                          ? PortalColors.mutedForeground
-                          : tone.fgMuted,
+                      foregroundColor: tone.fgMuted,
                       padding: const EdgeInsets.symmetric(horizontal: 4),
-                      textStyle: const TextStyle(
-                        fontSize: 13,
+                      textStyle: context.s.text.bodySmall.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -305,7 +299,10 @@ class _ExpedienteScreenState extends ConsumerState<ExpedienteScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                SCard(padding: const EdgeInsets.all(22), child: cardBody),
+                SCard(
+                  padding: EdgeInsets.all(context.s.space.lg),
+                  child: cardBody,
+                ),
               ],
             ),
           ),
@@ -414,8 +411,7 @@ class _GrupoHeader extends StatelessWidget {
     final tone = context.s.color;
     return Text(
       titulo,
-      style: TextStyle(
-        fontSize: 10.5,
+      style: context.s.text.overline.copyWith(
         fontWeight: FontWeight.w700,
         letterSpacing: 0.8,
         color: tone.fgSubtle,
@@ -483,7 +479,7 @@ class _SlotRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
       decoration: BoxDecoration(
         border: Border.all(color: tone.border),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: context.s.radius.smBorder,
       ),
       child: Row(
         children: [
@@ -493,7 +489,7 @@ class _SlotRow extends StatelessWidget {
             height: 36,
             decoration: BoxDecoration(
               color: tone.surfaceAlt,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: context.s.radius.mdBorder,
             ),
             alignment: Alignment.center,
             child: Icon(
@@ -516,8 +512,7 @@ class _SlotRow extends StatelessWidget {
                   children: [
                     Text(
                       slot.nombre,
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: context.s.text.bodySmall.copyWith(
                         fontWeight: FontWeight.w700,
                         color: tone.fg,
                       ),
@@ -529,12 +524,11 @@ class _SlotRow extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: st.bg,
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: context.s.radius.fullBorder,
                       ),
                       child: Text(
                         st.label,
-                        style: TextStyle(
-                          fontSize: 9.5,
+                        style: context.s.text.overline.copyWith(
                           fontWeight: FontWeight.w700,
                           color: st.fg,
                         ),
@@ -547,8 +541,7 @@ class _SlotRow extends StatelessWidget {
                   tieneDoc
                       ? 'Subido el ${formatDateEsMX(slot.fecha)}'
                       : 'Sin cargar',
-                  style: TextStyle(
-                    fontSize: 11.5,
+                  style: context.s.text.caption.copyWith(
                     fontWeight: FontWeight.w500,
                     color: tone.fgSubtle,
                   ),
@@ -635,7 +628,7 @@ class _CuentaBancariaRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
       decoration: BoxDecoration(
         border: Border.all(color: tone.border),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: context.s.radius.smBorder,
       ),
       child: Row(
         children: [
@@ -644,7 +637,7 @@ class _CuentaBancariaRow extends StatelessWidget {
             height: 36,
             decoration: BoxDecoration(
               color: tone.surfaceAlt,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: context.s.radius.mdBorder,
             ),
             alignment: Alignment.center,
             child: Icon(
@@ -663,8 +656,7 @@ class _CuentaBancariaRow extends StatelessWidget {
                     Flexible(
                       child: Text(
                         'Cuenta bancaria',
-                        style: TextStyle(
-                          fontSize: 13,
+                        style: context.s.text.bodySmall.copyWith(
                           fontWeight: FontWeight.w700,
                           color: tone.fg,
                         ),
@@ -678,12 +670,11 @@ class _CuentaBancariaRow extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: bg,
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: context.s.radius.fullBorder,
                       ),
                       child: Text(
                         label,
-                        style: TextStyle(
-                          fontSize: 9.5,
+                        style: context.s.text.overline.copyWith(
                           fontWeight: FontWeight.w700,
                           color: fg,
                         ),
@@ -696,8 +687,7 @@ class _CuentaBancariaRow extends StatelessWidget {
                   subtitulo,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11.5,
+                  style: context.s.text.caption.copyWith(
                     fontWeight: FontWeight.w500,
                     color: tone.fgSubtle,
                   ),
@@ -747,14 +737,14 @@ class _IconBtn extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: context.s.radius.smBorder,
         child: Container(
           width: 36,
           height: 36,
           decoration: BoxDecoration(
             color: tone.surface,
             border: Border.all(color: tone.border),
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: context.s.radius.smBorder,
           ),
           alignment: Alignment.center,
           child: child,
@@ -784,7 +774,9 @@ class _CsfSheetWrapper extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: tone.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(context.s.radius.sheet),
+          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: SingleChildScrollView(child: child),
@@ -821,8 +813,7 @@ class _CampoConfirm extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 6),
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 12.5,
+              style: context.s.text.caption.copyWith(
                 fontWeight: FontWeight.w600,
                 color: tone.fg,
               ),
@@ -873,8 +864,7 @@ class _ConfirmShell extends StatelessWidget {
               children: [
                 Text(
                   titulo,
-                  style: TextStyle(
-                    fontSize: 17,
+                  style: context.s.text.bodyLarge.copyWith(
                     fontWeight: FontWeight.w700,
                     color: tone.fg,
                   ),
@@ -883,7 +873,7 @@ class _ConfirmShell extends StatelessWidget {
                 Text(
                   'Extrajimos estos datos de tu documento. Verifica que sean '
                   'correctos; se guardarán en tu perfil.',
-                  style: TextStyle(fontSize: 13, color: tone.fgMuted),
+                  style: context.s.text.bodySmall.copyWith(color: tone.fgMuted),
                 ),
               ],
             ),
@@ -906,7 +896,7 @@ class _ConfirmShell extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(0, 44),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: context.s.radius.mdBorder,
                       ),
                     ),
                     child: const Text('Cancelar'),
@@ -919,7 +909,7 @@ class _ConfirmShell extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(0, 44),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: context.s.radius.mdBorder,
                       ),
                     ),
                     child: busy

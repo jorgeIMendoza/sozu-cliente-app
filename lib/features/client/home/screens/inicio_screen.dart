@@ -52,7 +52,7 @@ List<QuickAccessItem> _accesosRapidos(
     QuickAccessItem(
       icon: Icons.receipt_long_outlined,
       label: 'Facturación',
-      onTap: () => context.go('/documentos'),
+      onTap: () => context.go('/facturas'),
     ),
     QuickAccessItem(
       icon: Icons.badge_outlined,

@@ -6,13 +6,12 @@ import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
-import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/admin/screens/announcements_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.dart';
-import 'package:sozu_cliente_app/features/client/documents/screens/documentos_screen.dart';
+import 'package:sozu_cliente_app/features/client/facturacion/screens/facturas_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/estado_cuenta_screen.dart';
-import 'package:sozu_cliente_app/features/client/documents/screens/expediente_screen.dart';
+import 'package:sozu_cliente_app/features/client/facturacion/screens/expediente_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/confirmacion_email_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/email_not_confirmed_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/forgot_password_screen.dart';
@@ -75,7 +74,7 @@ CustomTransitionPage<void> _slidePage(
 
 /// Navegación (espejo de Expo Router del app RN):
 /// - Guards: sin sesión → /login; contraseña temporal → /change-password.
-/// - Shell con 5 tabs: Inicio · Adquisición · Patrimonio · Documentos · Perfil.
+/// - Shell con 4 tabs: Inicio · Propiedades · Facturas · Perfil.
 /// - Secundarias: pagos, estado-cuenta, pagar, notificaciones, propiedad/:id.
 final routerProvider = Provider<GoRouter>((ref) {
   // read (NO watch) para ambos: Listenable.merge ya re-evalúa el redirect en
@@ -101,6 +100,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // cualquiera, y hay avisos ya enviados que apuntan ahí.
       if (loc == '/adquisicion') return '/propiedades?filtro=adquisicion';
       if (loc == '/patrimonio') return '/propiedades?filtro=entregadas';
+      // La pantalla dejo de ser "Documentos": ahora solo muestra facturas.
+      if (loc == '/documentos') return '/facturas';
 
       // Pantalla de autenticación aún trabajando: no sacarla (ni a /splash)
       // hasta que ella decida. En /login evita que el signOut por rol inválido
@@ -370,8 +371,8 @@ final routerProvider = Provider<GoRouter>((ref) {
               StatefulShellBranch(
                 routes: [
                   GoRoute(
-                    path: '/documentos',
-                    builder: (context, state) => const DocumentosScreen(),
+                    path: '/facturas',
+                    builder: (context, state) => const FacturasScreen(),
                   ),
                 ],
               ),
@@ -409,7 +410,7 @@ PropiedadesFiltro _filtroDesdeQuery(String? valor) => switch (valor) {
 const _navItems = [
   (Icons.home_outlined, 'Inicio', '/inicio'),
   (Icons.apartment_outlined, 'Propiedades', '/propiedades'),
-  (Icons.description_outlined, 'Documentos', '/documentos'),
+  (Icons.receipt_long_outlined, 'Facturas', '/facturas'),
   (Icons.person_outline, 'Perfil', '/perfil'),
 ];
 
@@ -514,7 +515,7 @@ class _ClienteBottomNav extends ConsumerWidget {
   static const _branchRoutes = {
     '/inicio',
     '/propiedades',
-    '/documentos',
+    '/facturas',
     '/perfil',
   };
 
@@ -571,7 +572,7 @@ class _ClienteBottomNav extends ConsumerWidget {
     // Menú completo del portal (misma resolución/orden/permisos que el sidebar,
     // vía cliente-menu con degradación). Los primeros ítems como tabs; el resto
     // tras "Más" (…) para que TODOS sean alcanzables aunque no quepan.
-    final menu = clienteMenuTabs(ref.watch(menuProvider).valueOrNull);
+    final menu = clienteMenuTabs();
     const maxTabs = 4; // 4 tabs + "Más" cuando hay más de 5 ítems
     final hasOverflow = menu.length > 5;
     final tabs = hasOverflow ? menu.take(maxTabs).toList() : menu;
