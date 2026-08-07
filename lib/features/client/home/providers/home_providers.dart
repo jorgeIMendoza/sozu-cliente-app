@@ -20,8 +20,9 @@ final summaryProvider = FutureProvider<ClienteResumen>(
   (ref) => ref.watch(homePortProvider).summary(),
 );
 
-/// Menu lateral del portal (submenus activos/permitidos). Si el fetch falla,
-/// la UI cae a su menu hardcodeado.
+/// Menú del portal desde la BD. NO lo consume la navegación: hoy el menú vive
+/// en código (`_portalNavItems`) porque el menú padre de la BD está apagado.
+/// Se conserva el provider para volver a conectarlo sin rearmar el puerto.
 final menuProvider = FutureProvider<List<MenuItemDto>>(
   (ref) => ref.watch(homePortProvider).menu(),
 );

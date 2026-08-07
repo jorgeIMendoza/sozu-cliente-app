@@ -120,17 +120,41 @@ if [ "$DEVICE" != "web-server" ] && [ "$DEVICE" != "chrome" ]; then
     echo "==> adb local (hot reload disponible)"
     echo "==> para la web en paralelo, en OTRA terminal:  ./tool/dev.sh"
   else
-    WIN_HOST="$(ip route show default 2>/dev/null | awk '{print $3}')"
-    if [ -n "$WIN_HOST" ] && timeout 3 bash -c "cat < /dev/null > /dev/tcp/$WIN_HOST/5037" 2>/dev/null; then
+    # Candidatos para el servidor de adb de Windows, en orden:
+    #  - 127.0.0.1  con `networkingMode=mirrored` WSL comparte la red del host,
+    #    asi que el servidor de Windows se alcanza por localhost (y NO por el
+    #    gateway, que en ese modo no lleva a ningun lado).
+    #  - gateway    modo NAT, el de siempre.
+    #
+    # No basta con que el puerto abra: `adb devices` de arriba ya dejo un
+    # servidor LOCAL escuchando en 127.0.0.1:5037, y en modo espejo eso se ve
+    # igual que el de Windows. Se acepta el candidato solo si REPORTA un
+    # dispositivo, que es lo unico que lo hace util.
+    WIN_HOST=""
+    for CAND in 127.0.0.1 "$(ip route show default 2>/dev/null | awk '{print $3}')"; do
+      [ -z "$CAND" ] && continue
+      timeout 3 bash -c "cat < /dev/null > /dev/tcp/$CAND/5037" 2>/dev/null || continue
+      if ADB_SERVER_SOCKET="tcp:$CAND:5037" timeout 5 adb devices 2>/dev/null |
+        tail -n +2 | grep -q "device$"; then
+        WIN_HOST="$CAND"
+        break
+      fi
+    done
+    if [ -n "$WIN_HOST" ]; then
       export ADB_SERVER_SOCKET="tcp:$WIN_HOST:5037"
-      echo "!!  Usando el puente al adb de Windows: SIN HOT RELOAD." >&2
+      echo "!!  Usando el puente al adb de Windows ($WIN_HOST): SIN HOT RELOAD." >&2
       echo "    Los forwards quedan en el host y WSL no los alcanza." >&2
       echo "    Para tener hot reload, usa depuracion inalambrica:" >&2
       echo "      adb pair <ip-telefono>:<puerto>   # codigo de 6 digitos" >&2
       echo "      adb connect <ip-telefono>:<puerto>" >&2
       echo "    Detalle en tool/android-usb.md" >&2
     else
-      echo "!!  Ningun dispositivo. Activa depuracion inalambrica y corre:" >&2
+      echo "!!  Ningun dispositivo y no hay servidor de adb en Windows." >&2
+      echo "    En Windows, dentro de platform-tools, deja corriendo:" >&2
+      echo "      .\\adb.exe -a -P 5037 nodaemon server" >&2
+      echo "    (el flag -a es obligatorio en modo NAT; en mirrored no estorba)" >&2
+      echo "" >&2
+      echo "    O usa depuracion inalambrica, que da hot reload:" >&2
       echo "      adb pair <ip-telefono>:<puerto>" >&2
       echo "      adb connect <ip-telefono>:<puerto>" >&2
       echo "    Detalle en tool/android-usb.md" >&2

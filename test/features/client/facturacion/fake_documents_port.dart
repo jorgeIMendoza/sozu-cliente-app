@@ -1,5 +1,5 @@
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/features/client/documents/ports/documents_port.dart';
+import 'package:sozu_cliente_app/features/client/facturacion/ports/documents_port.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
 
 /// Doble de [DocumentsPort] con datos fijos en memoria: sin red, sin Supabase.
@@ -19,15 +19,21 @@ class FakeDocumentsPort implements DocumentsPort {
     if (f != null) throw f;
   }
 
+  /// JSON que devuelve [documents]; null usa el de por defecto.
+  Map<String, dynamic>? documentsJson;
+
   @override
   Future<ClienteDocumentos> documents() async {
     _throwIfFailing('documents');
-    return ClienteDocumentos.fromJson({
-      'documentos': [
-        {'id': 1, 'nombre': 'Contrato'},
-      ],
-      'total': 1,
-    });
+    return ClienteDocumentos.fromJson(
+      documentsJson ??
+          {
+            'documentos': [
+              {'id': 1, 'nombre': 'Contrato'},
+            ],
+            'total': 1,
+          },
+    );
   }
 
   @override

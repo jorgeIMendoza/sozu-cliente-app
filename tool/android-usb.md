@@ -5,6 +5,27 @@ conectado. Hay dos caminos y el segundo es el que da hot reload.
 
 ---
 
+## Antes que nada: ¿WSL está en modo espejo?
+
+```bash
+cat /mnt/c/Users/*/.wslconfig
+```
+
+Con `networkingMode=mirrored`, WSL **comparte la red de Windows**: el servidor de
+adb del host se alcanza por `127.0.0.1`, y el gateway de `ip route` NO lleva a
+ningún lado. `dev.sh` prueba los dos, así que funciona en ambos modos, pero si
+diagnosticas a mano recuerda cuál te toca.
+
+Ojo con el falso positivo: `adb devices` deja un servidor LOCAL escuchando en
+`127.0.0.1:5037`, y en modo espejo se ve idéntico al de Windows. Que el puerto
+abra no prueba nada; lo que prueba es que **reporte un dispositivo**.
+
+```bash
+adb kill-server                       # mata el local
+timeout 2 bash -c "cat </dev/null >/dev/tcp/127.0.0.1/5037" \
+  && echo "es el de Windows" || echo "no hay servidor en Windows"
+```
+
 ## Camino A: solo instalar el APK (sin hot reload)
 
 ```bash
