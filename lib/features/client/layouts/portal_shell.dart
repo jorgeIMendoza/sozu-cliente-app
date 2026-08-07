@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/core/version.dart';
-import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/features/client/providers/client_providers.dart';
@@ -26,6 +25,10 @@ class _PortalNavItemData {
   const _PortalNavItemData(this.label, this.route, this.icon);
 }
 
+/// EL menú del portal. Vive en código a propósito: el de la BD
+/// (`cliente-menu`) existe pero su menú padre está apagado, así que devolvía
+/// cero ítems y encenderlo borraría de la navegación todo lo que la BD no tenga.
+/// Cuando se pueble allá se vuelve a conectar; mientras, una sola fuente.
 const List<_PortalNavItemData> _portalNavItems = [
   _PortalNavItemData('Inicio', '/inicio', Icons.home_outlined),
   _PortalNavItemData('Propiedades', '/propiedades', Icons.apartment_outlined),
@@ -37,6 +40,7 @@ const List<_PortalNavItemData> _portalNavItems = [
     Icons.bar_chart_outlined,
   ),
   _PortalNavItemData('Facturas', '/facturas', Icons.receipt_long_outlined),
+  _PortalNavItemData('Mis documentos', '/expediente', Icons.badge_outlined),
   _PortalNavItemData('Mantenimientos', '/mantenimientos', Icons.build_outlined),
   _PortalNavItemData(
     'Notificaciones',
@@ -46,101 +50,15 @@ const List<_PortalNavItemData> _portalNavItems = [
   _PortalNavItemData('Perfil', '/perfil', Icons.person_outline),
 ];
 
-/// `vista_front_end` de `cliente-menu` → ruta interna + icono. Una vista sin
-/// entrada aquí no la sabe pintar la app y se omite.
-const Map<String, ({String route, IconData icon})> _portalRouteMap = {
-  '/admin/portal-cliente/inicio': (route: '/inicio', icon: Icons.home_outlined),
-  // Las TRES vistas del portal caen en la misma ruta interna: la app tiene una
-  // sola pantalla de propiedades con filtros. `_resolvePortalNavItems` dedupe
-  // por ruta, así que el menú colapsa a un solo ítem sin tocar la BD.
-  '/admin/portal-cliente/en-adquisicion': (
-    route: '/propiedades',
-    icon: Icons.apartment_outlined,
-  ),
-  '/admin/portal-cliente/propiedades': (
-    route: '/propiedades',
-    icon: Icons.apartment_outlined,
-  ),
-  '/admin/portal-cliente/patrimonio': (
-    route: '/propiedades',
-    icon: Icons.apartment_outlined,
-  ),
-  '/admin/portal-cliente/productos': (
-    route: '/productos',
-    icon: Icons.inventory_2_outlined,
-  ),
-  '/admin/portal-cliente/pagos': (
-    route: '/pagos',
-    icon: Icons.credit_card_outlined,
-  ),
-  '/admin/portal-cliente/historial-pagos': (
-    route: '/pagos',
-    icon: Icons.credit_card_outlined,
-  ),
-  '/admin/portal-cliente/estado-de-cuenta': (
-    route: '/estado-cuenta',
-    icon: Icons.bar_chart_outlined,
-  ),
-  // Las dos rutas del portal caen en la misma pantalla: la BD dira `facturas`
-  // tras el renombre, pero `documentos` sigue viva en menus ya publicados.
-  '/admin/portal-cliente/documentos': (
-    route: '/facturas',
-    icon: Icons.receipt_long_outlined,
-  ),
-  '/admin/portal-cliente/facturas': (
-    route: '/facturas',
-    icon: Icons.receipt_long_outlined,
-  ),
-  '/admin/portal-cliente/notificaciones': (
-    route: '/notificaciones',
-    icon: Icons.notifications_outlined,
-  ),
-  '/admin/portal-cliente/perfil': (
-    route: '/perfil',
-    icon: Icons.person_outline,
-  ),
-};
+/// Rutas que el menú permite. Se conserva la función (y no `_portalNavItems`
+/// crudo) porque el bottom nav y el sidebar filtran por ella.
+Set<String> portalAllowedRoutes() =>
+    _portalNavItems.map((e) => e.route).toSet();
 
-/// Ítems del sidebar desde el menú de la BD. Si la lista viene vacía o ninguna
-/// vista mapea a una ruta de la app, degrada a [_portalNavItems].
-/// Rutas cuyo rótulo lo fija la app y NO el menú de la BD.
-///
-/// `/propiedades` recibe tres vistas del portal y se queda con la etiqueta de
-/// la primera que llegue, que puede ser cualquiera. `/facturas` se llama así
-/// aunque el menú de la BD aún diga "Documentos": la pantalla ya solo muestra
-/// facturas.
-const Map<String, String> _rotulosPropios = {
-  '/propiedades': 'Propiedades',
-  '/facturas': 'Facturas',
-};
-
-List<_PortalNavItemData> _resolvePortalNavItems(List<MenuItemDto>? dbItems) {
-  if (dbItems == null || dbItems.isEmpty) return _portalNavItems;
-  final out = <_PortalNavItemData>[];
-  final vistas = <String>{};
-  for (final it in dbItems) {
-    final m = _portalRouteMap[it.route];
-    if (m == null) continue; // ruta del portal no soportada por la app
-    if (!vistas.add(m.route)) continue; // dedupe por ruta interna
-    final label =
-        _rotulosPropios[m.route] ??
-        (it.label.trim().isEmpty ? m.route : it.label.trim());
-    out.add(_PortalNavItemData(label, m.route, m.icon));
-  }
-  return out.isEmpty ? _portalNavItems : out;
-}
-
-/// Rutas internas permitidas por el menú de la BD, para filtrar la navegación
-/// móvil (bottom nav) con el mismo criterio/degradación que el sidebar.
-Set<String> portalAllowedRoutes(List<MenuItemDto>? dbItems) =>
-    _resolvePortalNavItems(dbItems).map((e) => e.route).toSet();
-
-/// Menú resuelto para el bottom nav móvil, en el orden del sidebar. El nav
-/// muestra los primeros como tabs y el resto tras un botón "Más".
-List<({IconData icon, String label, String route})> clienteMenuTabs(
-  List<MenuItemDto>? dbItems,
-) => [
-  for (final it in _resolvePortalNavItems(dbItems))
+/// Menú del bottom nav móvil, en el orden del sidebar. El nav muestra los
+/// primeros como tabs y el resto tras un botón "Más".
+List<({IconData icon, String label, String route})> clienteMenuTabs() => [
+  for (final it in _portalNavItems)
     (icon: it.icon, label: it.label, route: it.route),
 ];
 
@@ -298,9 +216,7 @@ class _PortalSidebar extends ConsumerWidget {
         ref.watch(notificationsProvider).valueOrNull?.noLeidas ?? 0;
     final nombre =
         auth.profile?.displayName ?? auth.profile?.email ?? 'Usuario';
-    final navItems = _resolvePortalNavItems(
-      ref.watch(menuProvider).valueOrNull,
-    );
+    const navItems = _portalNavItems;
 
     return Container(
       width: kPortalSidebarWidth,

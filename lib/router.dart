@@ -6,7 +6,6 @@ import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
-import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/admin/screens/announcements_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.dart';
@@ -573,7 +572,7 @@ class _ClienteBottomNav extends ConsumerWidget {
     // Menú completo del portal (misma resolución/orden/permisos que el sidebar,
     // vía cliente-menu con degradación). Los primeros ítems como tabs; el resto
     // tras "Más" (…) para que TODOS sean alcanzables aunque no quepan.
-    final menu = clienteMenuTabs(ref.watch(menuProvider).valueOrNull);
+    final menu = clienteMenuTabs();
     const maxTabs = 4; // 4 tabs + "Más" cuando hay más de 5 ítems
     final hasOverflow = menu.length > 5;
     final tabs = hasOverflow ? menu.take(maxTabs).toList() : menu;
