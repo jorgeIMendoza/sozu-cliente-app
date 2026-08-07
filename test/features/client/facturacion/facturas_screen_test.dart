@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sozu_cliente_app/features/client/documents/providers/documents_providers.dart';
-import 'package:sozu_cliente_app/features/client/documents/screens/facturas_screen.dart';
+import 'package:sozu_cliente_app/features/client/facturacion/providers/documents_providers.dart';
+import 'package:sozu_cliente_app/features/client/facturacion/screens/facturas_screen.dart';
 import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 

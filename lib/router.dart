@@ -10,9 +10,9 @@ import 'package:sozu_cliente_app/features/client/home/providers/home_providers.d
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/admin/screens/announcements_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/change_password_screen.dart';
-import 'package:sozu_cliente_app/features/client/documents/screens/facturas_screen.dart';
+import 'package:sozu_cliente_app/features/client/facturacion/screens/facturas_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/estado_cuenta_screen.dart';
-import 'package:sozu_cliente_app/features/client/documents/screens/expediente_screen.dart';
+import 'package:sozu_cliente_app/features/client/facturacion/screens/expediente_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/confirmacion_email_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/email_not_confirmed_screen.dart';
 import 'package:sozu_cliente_app/features/auth/screens/forgot_password_screen.dart';

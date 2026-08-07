@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/features/client/documents/ports/documents_port.dart';
+import 'package:sozu_cliente_app/features/client/facturacion/ports/documents_port.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
 
 /// Implementacion de [DocumentsPort] sobre Supabase (edge functions
