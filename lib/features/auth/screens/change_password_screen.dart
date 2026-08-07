@@ -96,9 +96,13 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
           SizedBox(height: t.space.lg),
           const AuthTitle('Cambiar Contraseña'),
           SizedBox(height: t.space.xs),
+          // "Tu contraseña temporal" ya no siempre es cierto: quien abre el
+          // enlace de recuperación aterriza aquí conservando la suya (el modo
+          // público de reset-user-password no toca la cuenta a propósito), y
+          // hablarle de una temporal lo empujaba a teclear la que ya tenía, que
+          // el backend rechaza. Neutral sirve para los dos caminos.
           const AuthSubtitle(
-            'Por seguridad, debes cambiar tu contraseña temporal antes de '
-            'continuar',
+            'Por seguridad, define una contraseña nueva antes de continuar',
           ),
           SizedBox(height: t.space.lg),
           // No quitar: sin AutofillGroup el gestor de contrasenas no reconoce

@@ -254,6 +254,11 @@ class AuthController extends ChangeNotifier {
         'No pudimos conectar. Revisa tu conexion e intenta de nuevo.',
       AuthFailure.sessionRevoked =>
         'Tu sesion expiro. Vuelve a iniciar sesion e intenta de nuevo.',
+      AuthFailure.samePassword =>
+        'Esa ya es tu contrasena actual. Elige una distinta.',
+      AuthFailure.weakPassword =>
+        'Esa contrasena es facil de adivinar (aparece en filtraciones '
+            'conocidas). Cumple las reglas, pero elige otra menos comun.',
       _ =>
         'No pudimos actualizar la contrasena. Revisa que cumpla los '
             'requisitos e intenta de nuevo.',

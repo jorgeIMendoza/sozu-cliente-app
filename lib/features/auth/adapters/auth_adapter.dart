@@ -180,11 +180,43 @@ class AuthAdapter implements AuthPort {
       await _sb.auth.updateUser(UserAttributes(password: newPassword));
     } on AuthRetryableFetchException {
       throw AuthError(AuthFailure.network);
-    } on AuthException {
-      throw AuthError(AuthFailure.unknown);
+    } on AuthException catch (e) {
+      throw AuthError(_updatePasswordFailure(e));
     } catch (_) {
       throw AuthError(AuthFailure.network);
     }
+  }
+
+  /// Traduce el rechazo de `updateUser`. Los 422 tienen causa concreta y el
+  /// usuario NO puede adivinarla desde el formulario: la checklist no conoce la
+  /// contrasena actual ni la politica del proyecto (longitud, clases,
+  /// contrasenas filtradas), asi que mandarlos todos a "revisa que cumpla los
+  /// requisitos" dejaba al usuario reintentando lo mismo con las palomitas en
+  /// verde.
+  ///
+  /// Se mira el `code` y TAMBIEN el texto: no todas las versiones del backend
+  /// pueblan el codigo, y sin el fallback el caso vuelve a caer en generico.
+  static AuthFailure _updatePasswordFailure(AuthException e) {
+    final code = e.code ?? '';
+    final status = int.tryParse(e.statusCode ?? '') ?? 0;
+    final message = e.message.toLowerCase();
+    if (status == 429 || code == 'over_request_rate_limit') {
+      return AuthFailure.tooManyAttempts;
+    }
+    if (code == 'same_password' ||
+        message.contains('should be different from the old password')) {
+      return AuthFailure.samePassword;
+    }
+    if (code == 'weak_password' || message.contains('password is known')) {
+      return AuthFailure.weakPassword;
+    }
+    if (code == 'session_not_found' ||
+        code == 'refresh_token_not_found' ||
+        status == 401 ||
+        status == 403) {
+      return AuthFailure.sessionRevoked;
+    }
+    return AuthFailure.unknown;
   }
 
   /// Tipos que GoTrue puede haber emitido para un enlace de confirmacion. El
