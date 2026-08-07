@@ -77,6 +77,19 @@ class UserProfile {
       requiresEmailConfirmation && !isEmailConfirmed;
 }
 
+/// Desenlace de [AuthPort.sendPasswordReset]. Siempre es un exito: distingue el
+/// envio real del que el backend omitio por limite.
+class PasswordResetResult {
+  /// El backend topo su limite de envios y NO mando correo. NO es un fallo: la
+  /// llamada responde 200 y el enlace del ultimo correo recibido sigue vivo.
+  final bool rateLimited;
+
+  /// Minutos que faltan para que vuelva a enviar. null si el backend no lo dijo.
+  final int? retryAfterMinutes;
+
+  const PasswordResetResult({this.rateLimited = false, this.retryAfterMinutes});
+}
+
 /// Sesion, perfil y contrasenas. No cubre el candado biometrico ni el cierre por
 /// inactividad: eso es estado local de la app, no del backend.
 abstract interface class AuthPort {
@@ -111,7 +124,10 @@ abstract interface class AuthPort {
   /// Envia el correo de restablecimiento de contrasena. Lanza [AuthError] solo
   /// ante fallo real (red o servidor): que la cuenta no exista NO es error, el
   /// backend responde igual para no revelar que correos estan registrados.
-  Future<void> sendPasswordReset(String email);
+  ///
+  /// Tampoco es error topar el limite de envios: eso vuelve en
+  /// [PasswordResetResult.rateLimited] para que la pantalla lo explique.
+  Future<PasswordResetResult> sendPasswordReset(String email);
 
   /// Reenvia el correo de confirmacion de la cuenta. Se llama SIN sesion (el
   /// gate ya la cerro), asi que recibe el correo por parametro. Lanza
