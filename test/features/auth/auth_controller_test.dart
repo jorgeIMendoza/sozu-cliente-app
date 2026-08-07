@@ -143,6 +143,24 @@ void main() {
     );
   });
 
+  test('changePasswordErrorMessage explica los rechazos del backend que la '
+      'checklist no puede anticipar', () {
+    // Los dos son 422 y antes caían en "revisa que cumpla los requisitos", con
+    // las cinco reglas en verde: el usuario reintentaba lo mismo.
+    expect(
+      AuthController.changePasswordErrorMessage(
+        AuthError(AuthFailure.samePassword),
+      ),
+      'Esa ya es tu contrasena actual. Elige una distinta.',
+    );
+    expect(
+      AuthController.changePasswordErrorMessage(
+        AuthError(AuthFailure.weakPassword),
+      ),
+      contains('filtraciones'),
+    );
+  });
+
   test('changePasswordErrorMessage distingue la contraseña actual', () {
     expect(
       AuthController.changePasswordErrorMessage(WrongCurrentPasswordError()),
