@@ -14,6 +14,9 @@ jobs:
           # El notify de PROD necesita HEAD^1 (tip anterior de main) para
           # listar a TODOS los autores de PRs del release; depth 1 lo rompe.
           fetch-depth: 2
+          # Los tags son la fuente de verdad del versionName (ver paso
+          # "Resolver versionName desde tags"). Sin esto el checkout no los baja.
+          fetch-tags: true
 
       - uses: subosito/flutter-action@v2
         with:
@@ -29,6 +32,27 @@ jobs:
           SUPABASE_URL=https://tzmhgfjmddkfyffkkmto.supabase.co
           SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6bWhnZmptZGRrZnlmZmtrbXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNTU0NDUsImV4cCI6MjA3MjkzMTQ0NX0.8DaFtWO6zyJg14jFo_Zm2idYKwI-mvfmUtlixG2JDSE
           EOF
+
+      # El X.Y.Z vive en los tags, no en pubspec.yaml: `main` está protegida y
+      # el CI no puede commitear ahí, así que el pubspec del repo se queda en el
+      # piso inicial (1.0.0) para siempre. Sin este paso el footer de la web
+      # anunciaba 1.0.0 mientras las tiendas iban en 1.0.2.
+      #
+      # A diferencia de Codemagic, aquí NO se sube el vigesimal ni se tagea: la
+      # web se despliega desde `main`, o sea código YA publicado. Le toca
+      # anunciar la versión vigente, no inventar la siguiente.
+      - name: Resolver versionName desde tags
+        run: |
+          set -e
+          EN_HEAD=$(git tag --points-at HEAD --list 'v[0-9]*' --sort=v:refname | tail -1)
+          ULTIMO=$(git tag --list 'v[0-9]*' --sort=v:refname | tail -1)
+          NAME="${EN_HEAD:-$ULTIMO}"
+          if [ -z "$NAME" ]; then
+            echo "Sin tags vX.Y.Z: se queda el piso del pubspec."
+          else
+            bash tool/bump_version.sh --set "${NAME#v}" >/dev/null
+            echo "Tag en HEAD: ${EN_HEAD:-ninguno} · último tag: ${ULTIMO:-ninguno} · se publica: ${NAME#v}"
+          fi
 
       - name: Build web (versión con hora de México)
         run: |
