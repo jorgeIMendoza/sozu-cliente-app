@@ -101,7 +101,7 @@ class _PwGateSheetState extends ConsumerState<_PwGateSheet> {
       title: 'Confirmar identidad',
       subtitle: 'Ingresa tu contraseña para guardar los cambios',
       children: [
-        _FieldLabel('Contraseña actual'),
+        SFieldLabel('Contraseña actual'),
         TextField(
           controller: _pw,
           autofocus: true,
@@ -329,7 +329,7 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
       title: 'Datos personales',
       subtitle: 'Actualiza tu información de identificación',
       children: [
-        _FieldLabel('Nombre completo *'),
+        SFieldLabel('Nombre completo', requerido: true),
         TextField(
           controller: _nombre,
           decoration: const InputDecoration(
@@ -337,7 +337,7 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
           ),
         ),
         const SizedBox(height: 14),
-        _FieldLabel('RFC con homoclave'),
+        SFieldLabel('RFC con homoclave'),
         TextField(
           controller: _rfc,
           maxLength: 13,
@@ -348,7 +348,7 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
           ),
         ),
         const SizedBox(height: 14),
-        _FieldLabel('CURP'),
+        SFieldLabel('CURP'),
         TextField(
           controller: _curp,
           maxLength: 18,
@@ -359,7 +359,7 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
           ),
         ),
         const SizedBox(height: 14),
-        _FieldLabel('Teléfono'),
+        SFieldLabel('Teléfono'),
         Row(
           children: [
             SizedBox(
@@ -391,7 +391,7 @@ class _EditPersonalSheetState extends ConsumerState<_EditPersonalSheet> {
           ],
         ),
         const SizedBox(height: 14),
-        _FieldLabel('Ocupación'),
+        SFieldLabel('Ocupación'),
         _PickerField(
           value: _ocupacionOtro ? 'Otro' : _ocupacion,
           placeholder: 'Selecciona tu ocupación...',
@@ -565,7 +565,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
       title: 'Datos fiscales',
       subtitle: 'Régimen, CFDI y dirección fiscal',
       children: [
-        _FieldLabel('Régimen fiscal'),
+        SFieldLabel('Régimen fiscal'),
         _PickerField(
           value: _regimenLabel,
           placeholder: _loadError
@@ -588,7 +588,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
           },
         ),
         const SizedBox(height: 14),
-        _FieldLabel('Uso CFDI'),
+        SFieldLabel('Uso CFDI'),
         _PickerField(
           value: _usoCfdiLabel,
           placeholder: _loadError
@@ -611,7 +611,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
           },
         ),
         const SizedBox(height: 14),
-        _FieldLabel('Código postal'),
+        SFieldLabel('Código postal'),
         TextField(
           controller: _cp,
           maxLength: 5,
@@ -620,7 +620,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
           decoration: const InputDecoration(hintText: '00000', counterText: ''),
         ),
         const SizedBox(height: 14),
-        _FieldLabel('Calle'),
+        SFieldLabel('Calle'),
         TextField(
           controller: _calle,
           decoration: const InputDecoration(hintText: 'Nombre de la calle'),
@@ -633,7 +633,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _FieldLabel('Núm. exterior'),
+                  SFieldLabel('Núm. exterior'),
                   TextField(
                     controller: _numExt,
                     decoration: const InputDecoration(hintText: '123'),
@@ -646,7 +646,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _FieldLabel('Núm. interior'),
+                  SFieldLabel('Núm. interior'),
                   TextField(
                     controller: _numInt,
                     decoration: const InputDecoration(hintText: 'A'),
@@ -657,7 +657,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
           ],
         ),
         const SizedBox(height: 14),
-        _FieldLabel('Colonia'),
+        SFieldLabel('Colonia'),
         TextField(
           controller: _colonia,
           decoration: const InputDecoration(hintText: 'Nombre de la colonia'),
@@ -678,7 +678,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
 Future<void> showCuentaBancariaSheet(
   BuildContext context, {
   CuentaBancariaPerfil? cuenta,
-}) => _showPerfilModal<void>(context, _CuentaSheet(cuenta: cuenta));
+}) => showSDocModal<void>(context, child: _CuentaSheet(cuenta: cuenta));
 
 class _CuentaSheet extends ConsumerStatefulWidget {
   final CuentaBancariaPerfil? cuenta;
@@ -770,7 +770,7 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
     }
   }
 
-  Future<void> _pickEvidencia() async {
+  Future<({String nombre, Uint8List bytes})?> _pickEvidencia() async {
     final file = await openFile(
       acceptedTypeGroups: const [
         XTypeGroup(
@@ -779,16 +779,31 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
         ),
       ],
     );
-    if (file == null) return;
-    final bytes = await file.readAsBytes();
+    if (file == null) return null;
+    return (nombre: file.name, bytes: await file.readAsBytes());
+  }
+
+  /// Recibe la carátula del selector o del arrastre.
+  void _adjuntarEvidencia(String nombre, Uint8List bytes) {
     if (bytes.length > 10 * 1024 * 1024) {
       _snack('El archivo supera el límite de 10 MB.');
       return;
     }
     setState(() {
       _evidenciaBytes = bytes;
-      _evidenciaNombre = file.name;
+      _evidenciaNombre = nombre;
     });
+  }
+
+  /// PDF con el visor del sistema de diseño; imagen tal cual.
+  Widget _vistaEvidencia() {
+    final bytes = _evidenciaBytes!;
+    final esPdf = (_evidenciaNombre ?? '').toLowerCase().endsWith('.pdf');
+    if (esPdf) return SPdfPreview(bytes: bytes, nombre: _evidenciaNombre);
+    return ClipRRect(
+      borderRadius: context.s.radius.mdBorder,
+      child: Image.memory(bytes, fit: BoxFit.contain),
+    );
   }
 
   /// Alta de un banco nuevo al catálogo.
@@ -872,235 +887,172 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
   Widget build(BuildContext context) {
     final tone = context.s.color;
     final nombreLegal = ref.watch(profileProvider).valueOrNull?.nombreLegal;
-    return _SheetShell(
-      icon: Icons.credit_card_outlined,
-      title: _isEdit ? 'Editar cuenta bancaria' : 'Nueva cuenta bancaria',
-      subtitle: _isEdit
-          ? 'Corrige los datos de tu cuenta'
-          : 'SOZU usará esta cuenta para depósitos',
-      children: [
-        _FieldLabel('Banco *'),
-        _PickerField(
-          value: _bancoNombre,
-          placeholder: _loadError
-              ? 'Catálogo no disponible'
-              : (_catalogos == null ? 'Cargando bancos...' : 'Buscar banco...'),
-          enabled: _catalogos != null,
-          onTap: () async {
-            final sel = await _pickOption(
-              context,
-              title: 'Banco',
-              options: [
-                for (final b in _catalogos!.bancos)
-                  (value: '${b.id}', label: b.nombre),
-              ],
-              selected: _idBanco?.toString(),
-              onAddNew: _agregarBanco,
-            );
-            if (sel != null) {
-              setState(() {
-                _idBanco = int.tryParse(sel);
-                _bancoNombre = _catalogos!.bancos
-                    .where((b) => '${b.id}' == sel)
-                    .map((b) => b.nombre)
-                    .firstOrNull;
-              });
-            }
-          },
-        ),
-        const SizedBox(height: 14),
-        _FieldLabel('Número de cuenta *'),
-        TextField(
-          controller: _numeroCuenta,
-          maxLength: 34,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
-          ],
-          onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(
-            hintText: 'Entre 8 y 34 caracteres',
-            counterText: '',
-          ),
-        ),
-        const SizedBox(height: 14),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _FieldLabel('CLABE'),
-                  TextField(
-                    controller: _clabe,
-                    maxLength: 18,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (_) => setState(() {}),
-                    decoration: const InputDecoration(
-                      hintText: '18 dígitos (opcional)',
-                      counterText: '',
-                    ),
-                  ),
+    return SDocUploadLayout(
+      titulo: _isEdit ? 'Editar cuenta bancaria' : 'Nueva cuenta bancaria',
+      descripcion: _isEdit
+          ? 'Corrige los datos y revisa la carátula antes de guardar'
+          : 'SOZU usará esta cuenta para depósitos. Adjunta la carátula y '
+                'revísala antes de guardar',
+      apilado: !context.bp.hasTwoColumns,
+      preview: _evidenciaBytes != null ? _vistaEvidencia() : null,
+      etiquetaGuardar: _isEdit ? 'Guardar cambios' : 'Guardar cuenta',
+      etiquetaGuardando: 'Guardando…',
+      guardando: _busy,
+      onGuardar: (!_valid || _busy) ? null : _save,
+      izquierda: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SFieldLabel('Banco', requerido: true),
+          _PickerField(
+            value: _bancoNombre,
+            placeholder: _loadError
+                ? 'Catálogo no disponible'
+                : (_catalogos == null
+                      ? 'Cargando bancos...'
+                      : 'Buscar banco...'),
+            enabled: _catalogos != null,
+            onTap: () async {
+              final sel = await _pickOption(
+                context,
+                title: 'Banco',
+                options: [
+                  for (final b in _catalogos!.bancos)
+                    (value: '${b.id}', label: b.nombre),
                 ],
+                selected: _idBanco?.toString(),
+                onAddNew: _agregarBanco,
+              );
+              if (sel != null) {
+                setState(() {
+                  _idBanco = int.tryParse(sel);
+                  _bancoNombre = _catalogos!.bancos
+                      .where((b) => '${b.id}' == sel)
+                      .map((b) => b.nombre)
+                      .firstOrNull;
+                });
+              }
+            },
+          ),
+          SizedBox(height: context.s.space.sm),
+          SFieldLabel('Número de cuenta', requerido: true),
+          STextField(
+            controller: _numeroCuenta,
+            hint: 'Entre 8 y 34 caracteres',
+            size: STextFieldSize.md,
+            maxLength: 34,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
+            ],
+            onChanged: (_) => setState(() {}),
+          ),
+          SizedBox(height: context.s.space.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SFieldLabel('CLABE'),
+                    STextField(
+                      controller: _clabe,
+                      hint: '18 dígitos (opcional)',
+                      size: STextFieldSize.md,
+                      maxLength: 18,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _FieldLabel('Código SWIFT'),
-                  TextField(
-                    controller: _swift,
-                    maxLength: 11,
-                    textCapitalization: TextCapitalization.characters,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
-                      TextInputFormatter.withFunction(
-                        (_, n) => n.copyWith(text: n.text.toUpperCase()),
+              SizedBox(width: context.s.space.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SFieldLabel('Código SWIFT'),
+                    STextField(
+                      controller: _swift,
+                      hint: '8 u 11 (opcional)',
+                      size: STextFieldSize.md,
+                      maxLength: 11,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[0-9A-Za-z]'),
+                        ),
+                        TextInputFormatter.withFunction(
+                          (_, n) => n.copyWith(text: n.text.toUpperCase()),
+                        ),
+                      ],
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: context.s.space.sm),
+          SFieldLabel('Titular de la cuenta', requerido: true),
+          if ((nombreLegal ?? '').trim().isNotEmpty)
+            InkWell(
+              onTap: () => setState(() {
+                _titularAuto = !_titularAuto;
+                _titular.text = _titularAuto ? nombreLegal!.trim() : '';
+              }),
+              borderRadius: context.s.radius.mdBorder,
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: context.s.space.xxs),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: Checkbox(
+                        value: _titularAuto,
+                        onChanged: (v) => setState(() {
+                          _titularAuto = v ?? false;
+                          _titular.text = _titularAuto
+                              ? nombreLegal!.trim()
+                              : '';
+                        }),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                    ],
-                    onChanged: (_) => setState(() {}),
-                    decoration: const InputDecoration(
-                      hintText: '8 u 11 (opcional)',
-                      counterText: '',
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        _FieldLabel('Titular de la cuenta *'),
-        if ((nombreLegal ?? '').trim().isNotEmpty)
-          InkWell(
-            onTap: () => setState(() {
-              _titularAuto = !_titularAuto;
-              _titular.text = _titularAuto ? nombreLegal!.trim() : '';
-            }),
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: Checkbox(
-                      value: _titularAuto,
-                      onChanged: (v) => setState(() {
-                        _titularAuto = v ?? false;
-                        _titular.text = _titularAuto ? nombreLegal!.trim() : '';
-                      }),
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    SizedBox(width: context.s.space.xs),
+                    Expanded(
+                      child: Text(
+                        'El titular es $nombreLegal',
+                        style: context.s.text.caption.copyWith(
+                          color: tone.fgMuted,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'El titular es $nombreLegal',
-                      style: TextStyle(fontSize: 12.5, color: tone.fgMuted),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _titular,
-          onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(
-            hintText: 'Nombre completo del titular',
-          ),
-        ),
-        const SizedBox(height: 14),
-        _FieldLabel(_isEdit ? 'Evidencia' : 'Evidencia *'),
-        _EvidenciaPicker(
-          nombre: _evidenciaNombre,
-          onPick: _pickEvidencia,
-          hint: _isEdit
-              ? 'Reemplaza la carátula (opcional)'
-              : 'Sube la carátula de tu estado de cuenta',
-        ),
-        const SizedBox(height: 20),
-        FilledButton(
-          onPressed: (!_valid || _busy) ? null : _save,
-          child: Text(
-            _busy
-                ? 'Guardando...'
-                : (_isEdit ? 'Guardar cambios' : 'Guardar cuenta'),
-          ),
-        ),
-        _CancelButton(onTap: () => Navigator.pop(context)),
-      ],
-    );
-  }
-}
-
-/// Selector de archivo para la carátula.
-class _EvidenciaPicker extends StatelessWidget {
-  final String? nombre;
-  final VoidCallback onPick;
-  final String hint;
-
-  const _EvidenciaPicker({
-    required this.nombre,
-    required this.onPick,
-    required this.hint,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = context.s.color;
-    final tiene = nombre != null;
-    return InkWell(
-      onTap: onPick,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        decoration: BoxDecoration(
-          color: tone.surfaceAlt.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: tiene
-                ? SozuBrand.green500.withValues(alpha: 0.4)
-                : tone.border,
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        child: Row(
-          children: [
-            Icon(
-              tiene ? Icons.description_outlined : Icons.upload_outlined,
-              size: 20,
-              color: tone.fgMuted,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                tiene ? nombre! : hint,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: tiene ? tone.fg : tone.fgSubtle,
+                  ],
                 ),
               ),
             ),
-            if (tiene)
-              Text(
-                'Cambiar',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: tone.primaryHover,
-                ),
-              ),
-          ],
-        ),
+          SizedBox(height: context.s.space.xxs),
+          STextField(
+            controller: _titular,
+            hint: 'Nombre completo del titular',
+            size: STextFieldSize.md,
+            onChanged: (_) => setState(() {}),
+          ),
+          SizedBox(height: context.s.space.sm),
+          SFieldLabel('Evidencia', requerido: !_isEdit),
+          SDropZone(
+            titulo: _evidenciaNombre ?? 'Adjuntar carátula',
+            subtitulo: _isEdit
+                ? 'Reemplaza la carátula (opcional)'
+                : 'Carátula de tu estado de cuenta, en PDF o imagen',
+            archivo: _evidenciaNombre,
+            onSeleccionar: _pickEvidencia,
+            onArchivo: _adjuntarEvidencia,
+          ),
+        ],
       ),
     );
   }
@@ -1179,7 +1131,7 @@ class _CambiarPasswordSheetState extends ConsumerState<_CambiarPasswordSheet> {
       title: 'Cambiar contraseña',
       subtitle: 'Actualiza tu contraseña de acceso',
       children: [
-        _FieldLabel('Contraseña actual'),
+        SFieldLabel('Contraseña actual'),
         TextField(
           controller: _current,
           obscureText: true,
@@ -1187,7 +1139,7 @@ class _CambiarPasswordSheetState extends ConsumerState<_CambiarPasswordSheet> {
           decoration: const InputDecoration(hintText: '••••••••'),
         ),
         const SizedBox(height: 14),
-        _FieldLabel('Nueva contraseña'),
+        SFieldLabel('Nueva contraseña'),
         TextField(
           controller: _pwd,
           obscureText: true,
@@ -1197,7 +1149,7 @@ class _CambiarPasswordSheetState extends ConsumerState<_CambiarPasswordSheet> {
         const SizedBox(height: 10),
         PasswordRulesChecklist(value: _pwdValue),
         const SizedBox(height: 14),
-        _FieldLabel('Confirmar nueva contraseña'),
+        SFieldLabel('Confirmar nueva contraseña'),
         TextField(
           controller: _confirm,
           obscureText: true,
@@ -1677,27 +1629,6 @@ class _SheetShell extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-  const _FieldLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = context.s.color;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: tone.fg,
         ),
       ),
     );

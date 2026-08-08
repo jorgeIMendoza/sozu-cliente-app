@@ -26,9 +26,14 @@ class PerfilPersonalScreen extends ConsumerWidget {
 
     final filas = <Widget>[
       PerfilInfoRow(label: 'Tipo de persona', value: p?.tipoPersonaLabel),
-      PerfilInfoRow(label: 'Nombre completo', value: p?.nombreLegal),
+      PerfilInfoRow(
+        label: (p?.esMoral ?? false) ? 'Razón social' : 'Nombre completo',
+        value: p?.nombreLegal,
+      ),
       PerfilInfoRow(label: 'RFC con homoclave', value: p?.rfc, mono: true),
-      PerfilInfoRow(label: 'CURP', value: p?.curp, mono: true),
+      // Una persona moral no tiene CURP: la fila salía siempre "Sin dato".
+      if (!(p?.esMoral ?? false))
+        PerfilInfoRow(label: 'CURP', value: p?.curp, mono: true),
       PerfilInfoRow(
         label: 'Teléfono',
         value: p?.telefono != null
@@ -113,7 +118,9 @@ class PerfilPersonalScreen extends ConsumerWidget {
                           value: p?.tipoPersonaLabel,
                         ),
                         PerfilInfoRow(
-                          label: 'Nombre completo',
+                          label: (p?.esMoral ?? false)
+                              ? 'Razón social'
+                              : 'Nombre completo',
                           value: p?.nombreLegal,
                         ),
                         PerfilInfoRow(
@@ -121,11 +128,13 @@ class PerfilPersonalScreen extends ConsumerWidget {
                           value: p?.rfc,
                           mono: true,
                         ),
-                        PerfilInfoRow(
-                          label: 'CURP',
-                          value: p?.curp,
-                          mono: true,
-                        ),
+                        // Una persona moral no tiene CURP.
+                        if (!(p?.esMoral ?? false))
+                          PerfilInfoRow(
+                            label: 'CURP',
+                            value: p?.curp,
+                            mono: true,
+                          ),
                         PerfilInfoRow(
                           label: 'Teléfono',
                           value: p?.telefono != null
