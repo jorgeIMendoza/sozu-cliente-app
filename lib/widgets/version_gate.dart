@@ -59,11 +59,49 @@ String _destinoDeActualizacion(AppVersionInfo info) =>
     ) ??
     kAppDownloadUrl;
 
+/// Esquema nativo de la tienda para un enlace `https`, o null si no aplica.
+///
+/// Con la URL web, Android abre PRIMERO el navegador y de ahi salta a Play:
+/// dos toques y una pantalla intermedia. `market://` entra directo a la tienda.
+/// El id sale del propio enlace en vez de una constante, para que no haya dos
+/// sitios que puedan discrepar sobre cual es el paquete.
+Uri? _esquemaNativoDeTienda(String url) {
+  final u = Uri.tryParse(url);
+  if (u == null) return null;
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+      final id = u.queryParameters['id'];
+      // El referrer de la URL web no se traslada, y da igual: sirve para
+      // atribuir instalaciones, y aqui la app ya esta instalada.
+      return (id == null || id.isEmpty)
+          ? null
+          : Uri.parse('market://details?id=$id');
+    case TargetPlatform.iOS:
+      // itms-apps abre la App Store sin pasar por Safari.
+      return u.host.contains('apps.apple.com')
+          ? u.replace(scheme: 'itms-apps')
+          : null;
+    default:
+      return null;
+  }
+}
+
+/// Abre la tienda en UN toque. Intenta el esquema nativo y cae al enlace web
+/// si no hay tienda instalada que lo atienda (emulador, dispositivo sin Play).
 Future<void> _openStore(String url) async {
-  final uri = Uri.tryParse(url);
-  if (uri == null) return;
+  final web = Uri.tryParse(url);
+  if (web == null) return;
+
+  final nativo = _esquemaNativoDeTienda(url);
+  if (nativo != null) {
+    try {
+      if (await launchUrl(nativo, mode: LaunchMode.externalApplication)) return;
+    } catch (_) {
+      // Sin tienda que atienda el esquema: se intenta el enlace web.
+    }
+  }
   try {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    await launchUrl(web, mode: LaunchMode.externalApplication);
   } catch (_) {
     // best-effort: si no se puede abrir, no rompemos la UI.
   }
@@ -137,81 +175,69 @@ class _ForcedUpdateScreen extends StatelessWidget {
   }
 }
 
-/// Banner soft descartable (una sola vez por sesión de arranque) sobre el
-/// `child` normal. Usa un flag de estado para no reaparecer en cada rebuild.
-class _SoftUpdateBanner extends StatefulWidget {
+/// Franja de aviso sobre el `child` normal: hay versión nueva y se puede
+/// actualizar. No se descarta - toda ella es un solo destino, la tienda.
+class _SoftUpdateBanner extends StatelessWidget {
   final AppVersionInfo info;
   final Widget child;
 
   const _SoftUpdateBanner({required this.info, required this.child});
 
   @override
-  State<_SoftUpdateBanner> createState() => _SoftUpdateBannerState();
-}
-
-class _SoftUpdateBannerState extends State<_SoftUpdateBanner> {
-  bool _dismissed = false;
-
-  @override
   Widget build(BuildContext context) {
-    if (_dismissed) return widget.child;
-
     final theme = Theme.of(context);
-    final url = _destinoDeActualizacion(widget.info);
-    final msg = widget.info.updateMessage?.isNotEmpty == true
-        ? widget.info.updateMessage!
+    final url = _destinoDeActualizacion(info);
+    final msg = info.updateMessage?.isNotEmpty == true
+        ? info.updateMessage!
         : 'Hay una nueva versión disponible.';
 
     return Column(
       children: [
-        Expanded(child: widget.child),
+        Expanded(child: child),
         Material(
           color: theme.colorScheme.secondaryContainer,
-          child: SafeArea(
-            top: false,
-            child: Row(
-              children: [
-                // Todo el mensaje abre la tienda, no solo el botón: el aviso se
-                // lee como algo tocable y en pantalla angosta el botón queda
-                // reducido a un blanco muy chico.
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _openStore(url),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.system_update_rounded,
-                            size: 20,
-                            color: theme.colorScheme.onSecondaryContainer,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              msg,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSecondaryContainer,
-                              ),
-                            ),
-                          ),
-                        ],
+          // Un solo InkWell sobre toda la franja, sin botones anidados dentro:
+          // con varios blancos de toque hay que atinarle a uno, y "Actualizar"
+          // como botón aparte compite con el propio aviso. Así cualquier punto
+          // de la franja hace lo mismo y basta un toque.
+          child: InkWell(
+            onTap: () => _openStore(url),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.system_update_rounded,
+                      size: 20,
+                      color: theme.colorScheme.onSecondaryContainer,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        msg,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSecondaryContainer,
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Actualizar',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () => _openStore(url),
-                  child: const Text('Actualizar'),
-                ),
-                IconButton(
-                  tooltip: 'Ahora no',
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  color: theme.colorScheme.onSecondaryContainer,
-                  onPressed: () => setState(() => _dismissed = true),
-                ),
-                const SizedBox(width: 8),
-              ],
+              ),
             ),
           ),
         ),

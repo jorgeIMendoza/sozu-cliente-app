@@ -40,7 +40,7 @@ void main() {
 
   group('aviso soft (hay version nueva)', () {
     // La version compilada es 1.0.0 (appVersionBase), asi que un latest mayor
-    // dispara el aviso descartable.
+    // dispara el aviso.
     const hayNueva = AppVersionInfo(latestVersion: '9.9.9');
 
     testWidgets('en iOS sin ios_store_url el aviso SIGUE teniendo accion', (
@@ -52,22 +52,44 @@ void main() {
         await montar(tester, hayNueva);
 
         expect(find.text('Hay una nueva versión disponible.'), findsOneWidget);
-        expect(find.widgetWithText(TextButton, 'Actualizar'), findsOneWidget);
+        expect(find.text('Actualizar'), findsOneWidget);
       });
     });
 
-    testWidgets('el mensaje completo es tocable, no solo el boton', (
-      tester,
-    ) async {
+    testWidgets('toda la franja es UN solo blanco de toque', (tester) async {
+      // Con varios blancos hay que atinarle a uno; por eso no hay botones
+      // anidados y el InkWell envuelve mensaje y llamada a la accion.
       await conPlataforma(TargetPlatform.android, () async {
         await montar(tester, hayNueva);
 
-        final tocable = find.ancestor(
-          of: find.text('Hay una nueva versión disponible.'),
-          matching: find.byType(InkWell),
-        );
-        expect(tocable, findsWidgets);
-        expect(tester.widget<InkWell>(tocable.first).onTap, isNotNull);
+        for (final etiqueta in [
+          'Hay una nueva versión disponible.',
+          'Actualizar',
+        ]) {
+          final tocable = find.ancestor(
+            of: find.text(etiqueta),
+            matching: find.byType(InkWell),
+          );
+          expect(
+            tocable,
+            findsOneWidget,
+            reason: 'sin InkWell sobre $etiqueta',
+          );
+          expect(tester.widget<InkWell>(tocable.first).onTap, isNotNull);
+        }
+
+        // Un solo InkWell para toda la franja: si hubiera dos, serian dos
+        // blancos distintos y volveria el problema de tener que atinarle.
+        expect(find.byType(InkWell), findsOneWidget);
+      });
+    });
+
+    testWidgets('no se puede descartar: sin boton de cerrar', (tester) async {
+      await conPlataforma(TargetPlatform.android, () async {
+        await montar(tester, hayNueva);
+
+        expect(find.byTooltip('Ahora no'), findsNothing);
+        expect(find.byIcon(Icons.close_rounded), findsNothing);
       });
     });
 
@@ -84,20 +106,6 @@ void main() {
         );
 
         expect(find.text('Ya salio'), findsOneWidget);
-      });
-    });
-
-    testWidgets('"Ahora no" lo descarta y deja ver el contenido', (
-      tester,
-    ) async {
-      await conPlataforma(TargetPlatform.android, () async {
-        await montar(tester, hayNueva);
-
-        await tester.tap(find.byTooltip('Ahora no'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Hay una nueva versión disponible.'), findsNothing);
-        expect(find.text('contenido'), findsOneWidget);
       });
     });
   });
