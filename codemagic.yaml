@@ -380,6 +380,8 @@ workflows:
     integrations:
       app_store_connect: sozu_app_store_connect
     environment:
+      groups:
+        - app_version_gate
       # No compila, pero `publicar_version_al_gate` llama a la edge function y
       # necesita la URL + anon key del proyecto.
       vars:
@@ -419,6 +421,8 @@ workflows:
     max_build_duration: 15
     instance_type: mac_mini_m2
     environment:
+      groups:
+        - app_version_gate
       vars:
         # No compila, pero `publicar_version_al_gate` llama a la edge function y
         # necesita la URL + anon key del proyecto.
@@ -482,6 +486,7 @@ workflows:
     environment:
       groups:
         - android_signing_custom
+        - app_version_gate
       vars:
         <<: *supabase_env
       flutter: stable
@@ -548,6 +553,8 @@ workflows:
     integrations:
       app_store_connect: sozu_app_store_connect
     environment:
+      groups:
+        - app_version_gate
       vars:
         <<: *supabase_env
       ios_signing:
