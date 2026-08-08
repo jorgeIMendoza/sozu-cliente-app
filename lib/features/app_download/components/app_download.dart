@@ -11,7 +11,10 @@ const _kQrAsset = 'assets/images/sozu-qr-web.png';
 
 /// Redirector (Cloudflare Worker) que detecta el SO y manda a la tienda
 /// correcta. Es el MISMO destino que codifica el QR: una sola fuente de verdad.
-const _kDownloadUrl = 'https://obtener-clientes-app.sozu.com';
+///
+/// Publico porque el aviso de actualizacion lo usa como ultimo recurso cuando
+/// `appDownloadTarget` no tiene tienda para esta plataforma.
+const kAppDownloadUrl = 'https://obtener-clientes-app.sozu.com';
 
 /// Bloque "Descarga la app": encabezado opcional + instrucción + QR. Tonto:
 /// no lee providers. Se usa en el login y dentro del modal del portal.
@@ -271,7 +274,7 @@ String? appDownloadTarget({String? androidStoreUrl, String? iosStoreUrl}) =>
     switch (defaultTargetPlatform) {
       TargetPlatform.android => _oNull(androidStoreUrl) ?? _kPlayUrl,
       TargetPlatform.iOS => _oNull(iosStoreUrl),
-      _ => _kDownloadUrl,
+      _ => kAppDownloadUrl,
     };
 
 /// Abre la tienda que toca. Sin tienda para este sistema no hace nada: quien

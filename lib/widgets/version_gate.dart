@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:sozu_cliente_app/core/version.dart';
+import 'package:sozu_cliente_app/features/app_download/components/app_download.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 
@@ -45,19 +46,18 @@ class VersionGate extends ConsumerWidget {
   }
 }
 
-/// URL de la store para la plataforma nativa actual (web-safe:
-/// `defaultTargetPlatform` no usa `dart:io`). Null si no hay URL para esta
-/// plataforma o si no es Android/iOS.
-String? _storeUrlFor(AppVersionInfo info) {
-  switch (defaultTargetPlatform) {
-    case TargetPlatform.android:
-      return info.androidStoreUrl;
-    case TargetPlatform.iOS:
-      return info.iosStoreUrl;
-    default:
-      return null;
-  }
-}
+/// A dónde manda el aviso de actualización. Nunca null: si la config no trae
+/// tienda para esta plataforma (hoy `ios_store_url` está vacío), cae en el
+/// redirector, que detecta el sistema del lado del servidor.
+///
+/// Un aviso sin destino es peor que no avisar: dice que hay algo nuevo y deja
+/// al usuario sin manera de bajarlo.
+String _destinoDeActualizacion(AppVersionInfo info) =>
+    appDownloadTarget(
+      androidStoreUrl: info.androidStoreUrl,
+      iosStoreUrl: info.iosStoreUrl,
+    ) ??
+    kAppDownloadUrl;
 
 Future<void> _openStore(String url) async {
   final uri = Uri.tryParse(url);
@@ -78,7 +78,7 @@ class _ForcedUpdateScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final url = _storeUrlFor(info);
+    final url = _destinoDeActualizacion(info);
     final msg = info.updateMessage?.isNotEmpty == true
         ? info.updateMessage!
         : 'Debes actualizar la app para continuar.';
@@ -117,17 +117,15 @@ class _ForcedUpdateScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium,
                     ),
-                    if (url != null) ...[
-                      const SizedBox(height: 28),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: () => _openStore(url),
-                          icon: const Icon(Icons.download_rounded),
-                          label: const Text('Actualizar'),
-                        ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () => _openStore(url),
+                        icon: const Icon(Icons.download_rounded),
+                        label: const Text('Actualizar'),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -159,7 +157,7 @@ class _SoftUpdateBannerState extends State<_SoftUpdateBanner> {
     if (_dismissed) return widget.child;
 
     final theme = Theme.of(context);
-    final url = _storeUrlFor(widget.info);
+    final url = _destinoDeActualizacion(widget.info);
     final msg = widget.info.updateMessage?.isNotEmpty == true
         ? widget.info.updateMessage!
         : 'Hay una nueva versión disponible.';
@@ -171,37 +169,49 @@ class _SoftUpdateBannerState extends State<_SoftUpdateBanner> {
           color: theme.colorScheme.secondaryContainer,
           child: SafeArea(
             top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.system_update_rounded,
-                    size: 20,
-                    color: theme.colorScheme.onSecondaryContainer,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      msg,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSecondaryContainer,
+            child: Row(
+              children: [
+                // Todo el mensaje abre la tienda, no solo el botón: el aviso se
+                // lee como algo tocable y en pantalla angosta el botón queda
+                // reducido a un blanco muy chico.
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _openStore(url),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.system_update_rounded,
+                            size: 20,
+                            color: theme.colorScheme.onSecondaryContainer,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              msg,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSecondaryContainer,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  if (url != null)
-                    TextButton(
-                      onPressed: () => _openStore(url),
-                      child: const Text('Actualizar'),
-                    ),
-                  IconButton(
-                    tooltip: 'Ahora no',
-                    icon: const Icon(Icons.close_rounded, size: 20),
-                    color: theme.colorScheme.onSecondaryContainer,
-                    onPressed: () => setState(() => _dismissed = true),
-                  ),
-                ],
-              ),
+                ),
+                TextButton(
+                  onPressed: () => _openStore(url),
+                  child: const Text('Actualizar'),
+                ),
+                IconButton(
+                  tooltip: 'Ahora no',
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  color: theme.colorScheme.onSecondaryContainer,
+                  onPressed: () => setState(() => _dismissed = true),
+                ),
+                const SizedBox(width: 8),
+              ],
             ),
           ),
         ),
