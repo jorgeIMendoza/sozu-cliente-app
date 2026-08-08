@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 
@@ -63,6 +64,8 @@ class STextField extends StatefulWidget {
     this.maxLength,
     this.size = STextFieldSize.lg,
     this.focusNode,
+    this.inputFormatters,
+    this.textCapitalization = TextCapitalization.none,
   }) : _isPassword = false;
 
   /// Campo de contraseña con el ojo de mostrar/ocultar YA resuelto.
@@ -87,7 +90,9 @@ class STextField extends StatefulWidget {
     this.maxLength,
     this.size = STextFieldSize.lg,
     this.focusNode,
+    this.inputFormatters,
   }) : _isPassword = true,
+       textCapitalization = TextCapitalization.none,
        obscureText = true,
        suffix = null,
        readOnly = false,
@@ -98,6 +103,12 @@ class STextField extends StatefulWidget {
 
   /// Etiqueta ARRIBA del campo, como texto propio.
   final String? label;
+
+  /// Filtros de escritura (solo dígitos, longitud, mayúsculas). Van aquí y no
+  /// en el `validator`: lo que no se puede escribir no se puede equivocar.
+  final List<TextInputFormatter>? inputFormatters;
+
+  final TextCapitalization textCapitalization;
 
   /// Placeholder dentro del campo; no sustituye a [label].
   final String? hint;
@@ -345,6 +356,12 @@ class _STextFieldState extends State<STextField> {
       textInputAction: widget.textInputAction,
       maxLines: widget.maxLines,
       maxLength: widget.maxLength,
+      inputFormatters: widget.inputFormatters,
+      textCapitalization: widget.textCapitalization,
+      // El contador de Material caería fuera del borde que pinta esta
+      // primitiva; `maxLength` aquí solo limita, no dibuja.
+      buildCounter:
+          (_, {required currentLength, required isFocused, maxLength}) => null,
       cursorColor: c.primary,
       // Con `isDense: true` el `InputDecorator` no reparte el sobrante.
       textAlignVertical: TextAlignVertical.center,
