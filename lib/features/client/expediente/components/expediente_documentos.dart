@@ -83,16 +83,7 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
     } on DocumentoInvalidoError catch (e) {
       _aviso(e.reason, error: true);
     } on ApiError catch (e) {
-      // La edge function anterior no conoce el INE completo (tipo 63): con ella
-      // la identificación solo se puede cubrir con el pasaporte. Se dice, en
-      // vez de dejar un "intenta de nuevo" que nunca va a funcionar.
-      _aviso(
-        e.code == 'tipo_invalido'
-            ? 'Ese documento aún no está habilitado en el servidor. Sube tu '
-                  'pasaporte o avísale a tu asesor.'
-            : 'No se pudo subir el documento. Intenta de nuevo.',
-        error: true,
-      );
+      _aviso(_mensajeDe(e), error: true);
     } catch (_) {
       _aviso('No se pudo subir el documento. Intenta de nuevo.', error: true);
     } finally {
@@ -287,6 +278,30 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
     'num_int',
     'colonia',
   }.contains(k);
+
+  /// Qué decirle al cliente por cada fallo del backend.
+  ///
+  /// El código va en el texto cuando NO se reconoce: un "intenta de nuevo"
+  /// pelón deja al cliente atorado y a quien depura sin nada que buscar en los
+  /// logs. Los códigos son los de `cliente-expediente`.
+  String _mensajeDe(ApiError e) => switch (e.code) {
+    'slot_invalido' =>
+      'Ese documento ya no está en tu expediente. Recarga la página e intenta '
+          'de nuevo.',
+    'tipo_invalido' =>
+      'El tipo de documento que elegiste no corresponde a este requisito.',
+    'archivo_requerido' => 'No llegó el archivo. Vuelve a seleccionarlo.',
+    'archivo_invalido' => 'No pudimos leer el archivo. Vuelve a seleccionarlo.',
+    'archivo_demasiado_grande' => 'El archivo supera el límite de 10 MB.',
+    'slot_no_subible' =>
+      'Este documento ya está cargado y en revisión. No hace falta subirlo '
+          'otra vez.',
+    'archivo_no_coincide' =>
+      'El archivo cambió después de revisarlo. Vuelve a seleccionarlo.',
+    'network_error' =>
+      'No pudimos conectar. Revisa tu conexión e intenta de nuevo.',
+    _ => 'No se pudo subir el documento (${e.code}). Intenta de nuevo.',
+  };
 
   void _refrescar() => ref.invalidate(identityFileProvider);
 

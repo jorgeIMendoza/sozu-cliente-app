@@ -209,6 +209,44 @@ void main() {
     expect(holder.single, isNotNull);
   });
 
+  testWidgets('si el analisis revienta no se puede guardar', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: sozuLightTheme(),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showSDocUpload(
+                context,
+                titulo: 'Comprobante de domicilio',
+                tipoId: 8,
+                onSeleccionar: () async => (nombre: 'cfe.pdf', bytes: pdf),
+                preview: (_, nombre) => Text('vista: \$nombre'),
+                onAnalizar: (_, __, ___) async => throw Exception('400'),
+              ),
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+    await adjuntar(tester);
+
+    // Antes seguia habilitado: se subia un archivo que nadie reviso y el fallo
+    // salia despues, ya con el documento en el bucket.
+    final guardar = tester.widget<SButton>(
+      find.widgetWithText(SButton, 'Guardar'),
+    );
+    expect(guardar.onPressed, isNull);
+    expect(find.textContaining('Vuelve a seleccionarlo'), findsOneWidget);
+  });
+
   testWidgets('Esc cierra la hoja en escritorio', (tester) async {
     final holder = await abrir(tester);
 

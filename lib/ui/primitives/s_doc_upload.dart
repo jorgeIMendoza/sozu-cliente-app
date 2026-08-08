@@ -273,6 +273,10 @@ class _SDocUploadBodyState extends State<_SDocUploadBody> {
   SDocAnalisis? _analisis;
   bool _analizando = false;
 
+  /// El análisis reventó. Distinto de `_analisis == null` (todavía no corre) y
+  /// de un rechazo (el backend sí contestó).
+  bool _falloAnalisis = false;
+
   final _ctrl = <String, TextEditingController>{};
   final _seleccion = <String, String?>{};
 
@@ -298,6 +302,7 @@ class _SDocUploadBodyState extends State<_SDocUploadBody> {
       _tipoId != null &&
       _hayArchivo &&
       !_analizando &&
+      !_falloAnalisis &&
       (_analisis?.rechazo == null);
 
   static bool _esLista(SDocFieldSpec c) =>
@@ -319,6 +324,7 @@ class _SDocUploadBodyState extends State<_SDocUploadBody> {
       _nombre = nombre;
       _bytes = bytes;
       _analisis = null;
+      _falloAnalisis = false;
       _analizando = widget.onAnalizar != null;
     });
 
@@ -342,7 +348,8 @@ class _SDocUploadBodyState extends State<_SDocUploadBody> {
       if (!mounted) return;
       setState(() {
         _analizando = false;
-        _error = 'No pudimos revisar el archivo. Intenta de nuevo.';
+        _falloAnalisis = true;
+        _error = 'No pudimos revisar el archivo. Vuelve a seleccionarlo.';
       });
     }
   }
@@ -353,6 +360,7 @@ class _SDocUploadBodyState extends State<_SDocUploadBody> {
       _nombre = null;
       _bytes = null;
       _analisis = null;
+      _falloAnalisis = false;
       _error = null;
       for (final c in _ctrl.values) {
         c.dispose();
