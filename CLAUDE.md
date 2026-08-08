@@ -229,11 +229,20 @@ El IDE usa el Dart Analysis Server, que lee el **mismo** `analysis_options.yaml`
 por eso `flutter analyze` y el panel de Problems dan idéntico resultado.
 
 `check.sh` y el CI corren `flutter analyze --no-fatal-infos`: **errores y warnings
-son fatales, los infos no**. Hoy hay ~800 infos y todos son la deuda conocida de
+son fatales, los infos no**. Hoy hay ~690 infos y todos son la deuda conocida de
 `PortalColors` deprecado; con infos fatales el check salía siempre rojo y se
 aprendía a ignorarlo. `check.sh` imprime el conteo para que una subida se note.
 Al cerrar `PortalColors` hay que quitar el flag en los tres sitios (`check.sh`,
 `.github/workflows/deploy-web-firebase.yml`, `codemagic.yaml`).
+
+⚠️ **`--no-fatal-infos` YA NO cambia el código de salida en este Flutter**:
+`flutter analyze --no-fatal-infos` devuelve **1** aunque solo haya infos
+(comprobado el 2026-08-07 con el árbol limpio en `dev`). Por eso `check.sh`
+marca `✗ analyze encontro errores o warnings` sin que haya ninguno. Es
+preexistente, no lo introduce ningún cambio: para saber si de verdad hay algo
+fatal, `flutter analyze 2>&1 | grep -E '^\s+(error|warning)'`. Arreglar
+`check.sh` (contar errores/warnings en vez de mirar el exit code) es su propio
+commit.
 
 ⚠️ **El repo NO está formateado con el formatter actual** (Dart 3.7 cambió a
 "tall style"). Por eso `check.sh` formatea solo los archivos modificados: un
@@ -262,15 +271,20 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
 
 ## Estructura lib/
 - ui/: design system (tokens + tema + primitivas). Ver sección anterior.
-  16 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
+  22 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
   SSkeleton · SEmptyState · SErrorState · SSectionLabel · SPressable · SStagger ·
-  SSearchField · SAutocompleteField · SLogo · SWebSelectable.
+  SSearchField · SAutocompleteField · SLogo · SWebSelectable · SDropZone ·
+  SPdfPreview · SDocUpload · SConfirm · SSelectField · SFieldLabel.
   `widgets/common.dart` fue ELIMINADO: sus 8 widgets viven aquí.
+  `SDocUpload` es la modal global de carga: tipo, archivo, previsualización y
+  los datos extraídos editables. La extracción y la subida las hace quien la
+  abre; el componente no sabe de backend.
 - features/: TODO el código de producto, por feature. `auth/` (cerrada),
-  `admin/` (cerrada), `client/` (documents, home, layouts, products, profile,
-  properties, providers).
-- core/: format, secure_session_storage, open_document, version, push_service,
-  portal_tracking, portal_theme (legacy). La biometría salió a `features/auth/`.
+  `admin/` (cerrada), `client/` (expediente, facturacion, home, layouts,
+  products, profile, properties, referral, providers).
+- core/: format, secure_session_storage, open_document, file_download,
+  file_drop, version, push_service, portal_tracking, portal_theme (legacy). La
+  biometría salió a `features/auth/`.
 - data/: models (DTOs de las 7 functions)
 - shared/: ports + adapters + providers que consumen 2+ features, api_error
 - router.dart: guards + shell 5 tabs + secundarias
