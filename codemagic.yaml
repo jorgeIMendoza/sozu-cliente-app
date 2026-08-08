@@ -91,12 +91,37 @@ definitions:
         # Sin -f a propósito: si el tag ya existe en otro commit, esta versión ya
         # se publicó y moverlo borraría el rastro. Que truene y se revise.
         git tag "v$NAME"
-        # También falla duro: sin el tag, la siguiente publicación repite este
-        # mismo versionName y la tienda la rechaza.
-        git push origin "v$NAME"
+        # Codemagic clona con credenciales de SOLO LECTURA: `git push origin`
+        # devuelve 403. El push va con un token propio, acotado a este repo y a
+        # `contents: write`. Se pasa por URL efímera en vez de tocar el remoto
+        # para que no quede escrito en el .git del runner.
+        git push "https://x-access-token:${GITHUB_PUSH_TOKEN}@github.com/jorgeIMendoza/sozu-cliente-app.git" "v$NAME"
         echo "Tag v$NAME apuntando a $(git rev-parse --short HEAD)"
       fi
       echo "APP_VERSION_NAME=$NAME" >> $CM_ENV
+
+  # Valida el token de push ANTES de compilar. Sin esto el fallo aparece en el
+  # paso 10, despues de ~10 min de build, y como un 403 que no dice que hacer.
+  # Mismo criterio que la validacion de credenciales de Google Play.
+  validar_push_token: &validar_push_token
+    name: Validar token de push al repo
+    script: |
+      if [ -z "${GITHUB_PUSH_TOKEN:-}" ]; then
+        echo "ERROR: falta GITHUB_PUSH_TOKEN."
+        echo "Codemagic clona en solo lectura, asi que no puede pushear el tag de version."
+        echo "Es un PAT fine-grained con acceso SOLO a jorgeIMendoza/sozu-cliente-app y"
+        echo "permiso Contents: Read and write. Va en el grupo app_version_gate, cifrado."
+        exit 1
+      fi
+      CODIGO=$(curl -s -o /dev/null -w '%{http_code}' \
+        -H "Authorization: Bearer $GITHUB_PUSH_TOKEN" \
+        https://api.github.com/repos/jorgeIMendoza/sozu-cliente-app)
+      if [ "$CODIGO" != "200" ]; then
+        echo "ERROR: GITHUB_PUSH_TOKEN no sirve para este repo (HTTP $CODIGO)."
+        echo "Revisar que no haya expirado y que el repo este en su lista de acceso."
+        exit 1
+      fi
+      echo "Token de push OK."
 
   # Enciende el aviso de actualizacion in-app: escribe `latest_version` en
   # `app_cliente_config` via la edge function `app-version-publicar`.
@@ -237,10 +262,14 @@ workflows:
     environment:
       groups:
         - android_signing_custom
+        # No anuncia la version (el track internal no es publico), pero si
+        # tagea, y el token de push vive en este grupo.
+        - app_version_gate
       vars:
         <<: *supabase_env
       flutter: stable
     scripts:
+      - *validar_push_token
       - name: Validar credenciales de Google Play
         script: |
           # Fallar aquí ahorra ~10 min de build: sin este JSON la publicación
@@ -326,6 +355,10 @@ workflows:
     integrations:
       app_store_connect: sozu_app_store_connect
     environment:
+      groups:
+        # No anuncia la version (TestFlight no es publico), pero si tagea, y el
+        # token de push vive en este grupo.
+        - app_version_gate
       vars:
         <<: *supabase_env
       ios_signing:
@@ -333,6 +366,7 @@ workflows:
         bundle_identifier: com.sozu.sozuClienteApp
       flutter: stable
     scripts:
+      - *validar_push_token
       - *env_setup
       - *build_stamp
       - name: Dependencias, análisis y tests
@@ -491,6 +525,7 @@ workflows:
         <<: *supabase_env
       flutter: stable
     scripts:
+      - *validar_push_token
       - name: Validar release notes
         script: |
           if [ -z "${RELEASE_NOTES:-}" ]; then
@@ -562,6 +597,7 @@ workflows:
         bundle_identifier: com.sozu.sozuClienteApp
       flutter: stable
     scripts:
+      - *validar_push_token
       - name: Validar release notes
         script: |
           if [ -z "${RELEASE_NOTES:-}" ]; then
@@ -635,8 +671,11 @@ workflows:
     max_build_duration: 15
     instance_type: mac_mini_m2
     environment:
+      groups:
+        - app_version_gate
       flutter: stable
     scripts:
+      - *validar_push_token
       - *bump_release_version
     publishing:
       scripts:
