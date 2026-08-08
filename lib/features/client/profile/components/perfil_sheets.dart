@@ -678,7 +678,7 @@ class _EditFiscalSheetState extends ConsumerState<_EditFiscalSheet> {
 Future<void> showCuentaBancariaSheet(
   BuildContext context, {
   CuentaBancariaPerfil? cuenta,
-}) => _showPerfilModal<void>(context, _CuentaSheet(cuenta: cuenta));
+}) => showSDocModal<void>(context, child: _CuentaSheet(cuenta: cuenta));
 
 class _CuentaSheet extends ConsumerStatefulWidget {
   final CuentaBancariaPerfil? cuenta;
@@ -887,182 +887,173 @@ class _CuentaSheetState extends ConsumerState<_CuentaSheet> {
   Widget build(BuildContext context) {
     final tone = context.s.color;
     final nombreLegal = ref.watch(profileProvider).valueOrNull?.nombreLegal;
-    return _SheetShell(
-      icon: Icons.credit_card_outlined,
-      title: _isEdit ? 'Editar cuenta bancaria' : 'Nueva cuenta bancaria',
-      subtitle: _isEdit
-          ? 'Corrige los datos de tu cuenta'
-          : 'SOZU usará esta cuenta para depósitos',
-      children: [
-        SFieldLabel('Banco', requerido: true),
-        _PickerField(
-          value: _bancoNombre,
-          placeholder: _loadError
-              ? 'Catálogo no disponible'
-              : (_catalogos == null ? 'Cargando bancos...' : 'Buscar banco...'),
-          enabled: _catalogos != null,
-          onTap: () async {
-            final sel = await _pickOption(
-              context,
-              title: 'Banco',
-              options: [
-                for (final b in _catalogos!.bancos)
-                  (value: '${b.id}', label: b.nombre),
-              ],
-              selected: _idBanco?.toString(),
-              onAddNew: _agregarBanco,
-            );
-            if (sel != null) {
-              setState(() {
-                _idBanco = int.tryParse(sel);
-                _bancoNombre = _catalogos!.bancos
-                    .where((b) => '${b.id}' == sel)
-                    .map((b) => b.nombre)
-                    .firstOrNull;
-              });
-            }
-          },
-        ),
-        const SizedBox(height: 14),
-        SFieldLabel('Número de cuenta', requerido: true),
-        STextField(
-          controller: _numeroCuenta,
-          hint: 'Entre 8 y 34 caracteres',
-          size: STextFieldSize.md,
-          maxLength: 34,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
-          ],
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 14),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SFieldLabel('CLABE'),
-                  STextField(
-                    controller: _clabe,
-                    hint: '18 dígitos (opcional)',
-                    size: STextFieldSize.md,
-                    maxLength: 18,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (_) => setState(() {}),
-                  ),
+    return SDocUploadLayout(
+      titulo: _isEdit ? 'Editar cuenta bancaria' : 'Nueva cuenta bancaria',
+      descripcion: _isEdit
+          ? 'Corrige los datos y revisa la carátula antes de guardar'
+          : 'SOZU usará esta cuenta para depósitos. Adjunta la carátula y '
+                'revísala antes de guardar',
+      apilado: !context.bp.hasTwoColumns,
+      preview: _evidenciaBytes != null ? _vistaEvidencia() : null,
+      etiquetaGuardar: _isEdit ? 'Guardar cambios' : 'Guardar cuenta',
+      etiquetaGuardando: 'Guardando…',
+      guardando: _busy,
+      onGuardar: (!_valid || _busy) ? null : _save,
+      izquierda: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SFieldLabel('Banco', requerido: true),
+          _PickerField(
+            value: _bancoNombre,
+            placeholder: _loadError
+                ? 'Catálogo no disponible'
+                : (_catalogos == null
+                      ? 'Cargando bancos...'
+                      : 'Buscar banco...'),
+            enabled: _catalogos != null,
+            onTap: () async {
+              final sel = await _pickOption(
+                context,
+                title: 'Banco',
+                options: [
+                  for (final b in _catalogos!.bancos)
+                    (value: '${b.id}', label: b.nombre),
                 ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SFieldLabel('Código SWIFT'),
-                  STextField(
-                    controller: _swift,
-                    hint: '8 u 11 (opcional)',
-                    size: STextFieldSize.md,
-                    maxLength: 11,
-                    textCapitalization: TextCapitalization.characters,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
-                      TextInputFormatter.withFunction(
-                        (_, n) => n.copyWith(text: n.text.toUpperCase()),
-                      ),
-                    ],
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        SFieldLabel('Titular de la cuenta', requerido: true),
-        if ((nombreLegal ?? '').trim().isNotEmpty)
-          InkWell(
-            onTap: () => setState(() {
-              _titularAuto = !_titularAuto;
-              _titular.text = _titularAuto ? nombreLegal!.trim() : '';
-            }),
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: Checkbox(
-                      value: _titularAuto,
-                      onChanged: (v) => setState(() {
-                        _titularAuto = v ?? false;
-                        _titular.text = _titularAuto ? nombreLegal!.trim() : '';
-                      }),
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'El titular es $nombreLegal',
-                      style: TextStyle(fontSize: 12.5, color: tone.fgMuted),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                selected: _idBanco?.toString(),
+                onAddNew: _agregarBanco,
+              );
+              if (sel != null) {
+                setState(() {
+                  _idBanco = int.tryParse(sel);
+                  _bancoNombre = _catalogos!.bancos
+                      .where((b) => '${b.id}' == sel)
+                      .map((b) => b.nombre)
+                      .firstOrNull;
+                });
+              }
+            },
           ),
-        const SizedBox(height: 6),
-        STextField(
-          controller: _titular,
-          hint: 'Nombre completo del titular',
-          size: STextFieldSize.md,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 14),
-        SFieldLabel('Evidencia', requerido: !_isEdit),
-        SDropZone(
-          titulo: _evidenciaNombre ?? 'Adjuntar carátula',
-          subtitulo: _isEdit
-              ? 'Reemplaza la carátula (opcional)'
-              : 'Carátula de tu estado de cuenta, en PDF o imagen',
-          archivo: _evidenciaNombre,
-          onSeleccionar: _pickEvidencia,
-          onArchivo: _adjuntarEvidencia,
-        ),
-        // Misma previsualizacion que el expediente: el cliente ve lo que va a
-        // mandar antes de guardar.
-        if (_evidenciaBytes != null) ...[
-          const SizedBox(height: 10),
-          SizedBox(height: 220, child: _vistaEvidencia()),
+          SizedBox(height: context.s.space.sm),
+          SFieldLabel('Número de cuenta', requerido: true),
+          STextField(
+            controller: _numeroCuenta,
+            hint: 'Entre 8 y 34 caracteres',
+            size: STextFieldSize.md,
+            maxLength: 34,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
+            ],
+            onChanged: (_) => setState(() {}),
+          ),
+          SizedBox(height: context.s.space.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SFieldLabel('CLABE'),
+                    STextField(
+                      controller: _clabe,
+                      hint: '18 dígitos (opcional)',
+                      size: STextFieldSize.md,
+                      maxLength: 18,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: context.s.space.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SFieldLabel('Código SWIFT'),
+                    STextField(
+                      controller: _swift,
+                      hint: '8 u 11 (opcional)',
+                      size: STextFieldSize.md,
+                      maxLength: 11,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[0-9A-Za-z]'),
+                        ),
+                        TextInputFormatter.withFunction(
+                          (_, n) => n.copyWith(text: n.text.toUpperCase()),
+                        ),
+                      ],
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: context.s.space.sm),
+          SFieldLabel('Titular de la cuenta', requerido: true),
+          if ((nombreLegal ?? '').trim().isNotEmpty)
+            InkWell(
+              onTap: () => setState(() {
+                _titularAuto = !_titularAuto;
+                _titular.text = _titularAuto ? nombreLegal!.trim() : '';
+              }),
+              borderRadius: context.s.radius.mdBorder,
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: context.s.space.xxs),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: Checkbox(
+                        value: _titularAuto,
+                        onChanged: (v) => setState(() {
+                          _titularAuto = v ?? false;
+                          _titular.text = _titularAuto
+                              ? nombreLegal!.trim()
+                              : '';
+                        }),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                    SizedBox(width: context.s.space.xs),
+                    Expanded(
+                      child: Text(
+                        'El titular es $nombreLegal',
+                        style: context.s.text.caption.copyWith(
+                          color: tone.fgMuted,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          SizedBox(height: context.s.space.xxs),
+          STextField(
+            controller: _titular,
+            hint: 'Nombre completo del titular',
+            size: STextFieldSize.md,
+            onChanged: (_) => setState(() {}),
+          ),
+          SizedBox(height: context.s.space.sm),
+          SFieldLabel('Evidencia', requerido: !_isEdit),
+          SDropZone(
+            titulo: _evidenciaNombre ?? 'Adjuntar carátula',
+            subtitulo: _isEdit
+                ? 'Reemplaza la carátula (opcional)'
+                : 'Carátula de tu estado de cuenta, en PDF o imagen',
+            archivo: _evidenciaNombre,
+            onSeleccionar: _pickEvidencia,
+            onArchivo: _adjuntarEvidencia,
+          ),
         ],
-        const SizedBox(height: 20),
-        Row(
-          children: [
-            Expanded(
-              child: SButton.secondary(
-                label: 'Cancelar',
-                onPressed: _busy ? null : () => Navigator.pop(context),
-              ),
-            ),
-            SizedBox(width: context.s.space.sm),
-            Expanded(
-              child: SButton(
-                label: _isEdit ? 'Guardar cambios' : 'Guardar cuenta',
-                loading: _busy,
-                loadingLabel: 'Guardando…',
-                onPressed: (!_valid || _busy) ? null : _save,
-              ),
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 }
