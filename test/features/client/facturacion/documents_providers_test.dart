@@ -17,11 +17,9 @@ void main() {
     );
 
     final docs = await container.read(documentsProvider.future);
-    final expediente = await container.read(identityFileProvider.future);
 
     expect(docs.total, 1);
-    expect(expediente.subidos, 3);
-    expect(port.log, ['documents', 'identityFile']);
+    expect(port.log, ['documents']);
   });
 
   test('un fallo del puerto sale como ApiError por el provider', () async {
@@ -34,25 +32,6 @@ void main() {
     await expectLater(
       container.read(documentsProvider.future),
       throwsA(isA<ApiError>().having((e) => e.code, 'code', 'forbidden_role')),
-    );
-  });
-
-  test('uploadIdentityDocument propaga DocumentoInvalidoError', () async {
-    final port = FakeDocumentsPort()
-      ..nextFailure = DocumentoInvalidoError('El PDF no es una CSF valida');
-    final container = makeClientContainer(
-      overrides: [documentsPortProvider.overrideWithValue(port)],
-    );
-
-    await expectLater(
-      container
-          .read(documentsPortProvider)
-          .uploadIdentityDocument(
-            typeId: 6,
-            fileName: 'csf.pdf',
-            fileBase64: '',
-          ),
-      throwsA(isA<DocumentoInvalidoError>()),
     );
   });
 

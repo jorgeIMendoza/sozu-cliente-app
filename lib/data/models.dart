@@ -1159,6 +1159,13 @@ class ClientePerfil {
   final int perfilCompletado; // 0-100
   final String estatusPerfil; // verified | review | incomplete
 
+  /// true si el cliente es persona moral. Decide qué documentos se le piden y
+  /// qué datos NO aplican (una empresa no tiene CURP ni acta de nacimiento).
+  bool get esMoral {
+    final v = (tipoPersona ?? '').toLowerCase().trim();
+    return v == 'pm' || v.contains('moral');
+  }
+
   /// Etiqueta "Persona física/moral/extranjera" (espejo de tipo-persona.ts).
   String get tipoPersonaLabel {
     final v = (tipoPersona ?? '').toLowerCase().trim();
@@ -1586,9 +1593,53 @@ class AdminClientes {
 
 // ─── cliente-expediente ──────────────────────────────────────────────────────
 
-/// Slot del expediente de identidad (espejo del Expediente del Perfil del
-/// portal web). `estatus`: aprobado | revision | rechazado | expirado |
-/// pendiente | opcional.
+/// Grupo del expediente ("Documentos personales", "Documentos de la empresa",
+/// …). El backend manda el orden; el app no lo reordena.
+class ExpedienteGrupo {
+  final String key;
+  final String titulo;
+
+  /// `self` = la persona logueada · `rep` = su representante legal.
+  final String owner;
+
+  ExpedienteGrupo.fromJson(Map<String, dynamic> j)
+    : key = asString(j['key']),
+      titulo = asString(j['titulo']),
+      owner = asString(j['owner'], 'self');
+
+  const ExpedienteGrupo({
+    required this.key,
+    required this.titulo,
+    this.owner = 'self',
+  });
+}
+
+/// Alternativa de un slot que admite varios documentos excluyentes entre sí
+/// (identificación oficial: INE completo **o** pasaporte, nunca los dos).
+typedef ExpedienteOpcion = ({int tipoId, String label});
+
+/// Representante legal de un cliente persona moral. `bloqueado` es true
+/// cuando la persona moral no lo tiene ligado en la base: sus documentos se
+/// muestran, pero no se pueden subir hasta que exista el vínculo.
+class ExpedienteRepLegal {
+  final int? idPersona;
+  final String? nombre;
+  final bool bloqueado;
+  final String? motivo;
+
+  ExpedienteRepLegal.fromJson(Map<String, dynamic> j)
+    : idPersona = asIntOrNull(j['id_persona']),
+      nombre = asStringOrNull(j['nombre']),
+      bloqueado = j['bloqueado'] == true,
+      motivo = asStringOrNull(j['motivo']);
+}
+
+/// Slot del expediente. `estatus`: aprobado | revision | rechazado | expirado
+/// | pendiente | opcional.
+///
+/// La identidad del slot es [key], NO [tipoId]: en persona moral los tipos 6
+/// (CSF) y 8 (domicilio) aparecen dos veces, una de la empresa y otra del
+/// representante legal.
 class ExpedienteSlot {
   final String key;
   final int tipoId;
@@ -1602,6 +1653,22 @@ class ExpedienteSlot {
   /// true si el backend solo acepta el PDF original (CURP, CSF, etc.).
   final bool soloPdf;
 
+  /// Grupo al que pertenece. Vacío con el backend anterior a PF/PM.
+  final String grupo;
+
+  /// De quién es el documento: `self` o `rep`.
+  final String owner;
+
+  /// Por qué no se puede subir cuando la causa es externa al estatus (p. ej.
+  /// una persona moral sin representante legal ligado).
+  final String? bloqueadoMotivo;
+
+  /// Documentos excluyentes; vacío si el slot admite uno solo.
+  final List<ExpedienteOpcion> opciones;
+
+  /// Instrucción para el cliente antes de elegir el archivo.
+  final String? nota;
+
   ExpedienteSlot.fromJson(Map<String, dynamic> j)
     : key = asString(j['key']),
       tipoId = asInt(j['tipo_id']),
@@ -1611,7 +1678,38 @@ class ExpedienteSlot {
       fecha = j['fecha'] as String?,
       urlFirmada = j['url_firmada'] as String?,
       puedeSubir = j['puede_subir'] == true,
-      soloPdf = j['solo_pdf'] == true;
+      soloPdf = j['solo_pdf'] == true,
+      grupo = asString(j['grupo']),
+      owner = asString(j['owner'], 'self'),
+      bloqueadoMotivo = asStringOrNull(j['bloqueado_motivo']),
+      opciones = ((j['opciones'] as List?) ?? [])
+          .map(
+            (e) => (
+              tipoId: asInt((e as Map)['tipo_id']),
+              label: asString(e['label']),
+            ),
+          )
+          .toList(),
+      nota = asStringOrNull(j['nota']);
+
+  /// Slot armado en el cliente. Lo usa la fusión de la identificación oficial
+  /// mientras el backend siga mandando INE y pasaporte por separado.
+  const ExpedienteSlot({
+    required this.key,
+    required this.tipoId,
+    required this.nombre,
+    required this.estatus,
+    this.requerido = false,
+    this.fecha,
+    this.urlFirmada,
+    this.puedeSubir = false,
+    this.soloPdf = true,
+    this.grupo = '',
+    this.owner = 'self',
+    this.bloqueadoMotivo,
+    this.opciones = const [],
+    this.nota,
+  });
 }
 
 class ClienteExpediente {
@@ -1620,13 +1718,109 @@ class ClienteExpediente {
   final int requeridosAprobados;
   final int subidos;
 
+  /// `pf` | `pm`. Cae a `pf` con el backend anterior, que es como se comportaba.
+  final String tipoPersona;
+
+  /// Vacío con el backend anterior; el app arma entonces los grupos por su
+  /// cuenta (ver `ExpedienteLayout`).
+  final List<ExpedienteGrupo> grupos;
+
+  /// Solo en persona moral.
+  final ExpedienteRepLegal? repLegal;
+
   ClienteExpediente.fromJson(Map<String, dynamic> j)
     : slots = ((j['slots'] as List?) ?? [])
           .map((e) => ExpedienteSlot.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
       requeridosTotal = asInt(j['requeridos_total']),
       requeridosAprobados = asInt(j['requeridos_aprobados']),
-      subidos = asInt(j['subidos']);
+      subidos = asInt(j['subidos']),
+      tipoPersona = asString(j['tipo_persona'], 'pf'),
+      grupos = ((j['grupos'] as List?) ?? [])
+          .map((e) => ExpedienteGrupo.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      repLegal = j['rep_legal'] is Map
+          ? ExpedienteRepLegal.fromJson(
+              Map<String, dynamic>.from(j['rep_legal'] as Map),
+            )
+          : null;
+
+  bool get esMoral => tipoPersona.toLowerCase().startsWith('pm');
+}
+
+/// Campo que el backend extrajo de un documento y el cliente confirma o
+/// corrige antes de que el archivo se guarde.
+///
+/// `tipo` gobierna cómo se pinta y se valida el campo: texto | fecha | curp |
+/// rfc | cp | sexo | regimen.
+class CampoExtraido {
+  final String key;
+  final String label;
+  final String? valor;
+  final bool requerido;
+  final String tipo;
+  final bool mono;
+
+  /// Se muestra pero no se guarda (aún no hay dónde, p. ej. actividad
+  /// económica). El app lo pinta deshabilitado con su nota.
+  final bool soloLectura;
+  final String? ayuda;
+
+  /// Valores a elegir cuando el backend no pudo resolver el campo contra su
+  /// catálogo (régimen fiscal, principalmente).
+  final List<({String id, String nombre})> opciones;
+
+  CampoExtraido.fromJson(Map<String, dynamic> j)
+    : key = asString(j['key']),
+      label = asString(j['label']),
+      valor = asStringOrNull(j['valor']),
+      requerido = j['requerido'] == true,
+      tipo = asString(j['tipo'], 'texto'),
+      mono = j['mono'] == true,
+      soloLectura = j['solo_lectura'] == true,
+      ayuda = asStringOrNull(j['ayuda']),
+      opciones = ((j['opciones'] as List?) ?? [])
+          .map(
+            (e) =>
+                (id: asString((e as Map)['id']), nombre: asString(e['nombre'])),
+          )
+          .toList();
+}
+
+/// Veredicto de `cliente-expediente action=analizar`: qué se detectó en el PDF
+/// sin haberlo guardado todavía.
+///
+/// `resultado`:
+/// - `valido`     el documento pasó su validación; al confirmar queda aprobado.
+/// - `sin_texto`  es un PDF real pero escaneado; al confirmar queda en
+///                revisión y los campos los escribe el cliente.
+/// - `rechazado`  no procede (vencido o no es ese documento). `motivo` lo dice.
+class AnalisisDocumento {
+  final String resultado;
+  final String? motivo;
+
+  /// Estatus que tendrá el documento al confirmar: `aprobado` | `revision`.
+  final String estatusPrevisto;
+  final List<CampoExtraido> campos;
+
+  /// sha256 del archivo analizado; viaja de vuelta en `subir` para que el
+  /// backend confirme que se guarda el mismo archivo que el cliente revisó.
+  final String? hash;
+
+  AnalisisDocumento.fromJson(Map<String, dynamic> j)
+    : resultado = asString(j['resultado'], 'sin_texto'),
+      motivo = asStringOrNull(j['motivo']),
+      estatusPrevisto = asString(j['estatus_previsto'], 'revision'),
+      campos = ((j['campos'] as List?) ?? [])
+          .map((e) => CampoExtraido.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      hash = asStringOrNull(j['hash']);
+
+  bool get valido => resultado == 'valido';
+  bool get rechazado => resultado == 'rechazado';
+
+  /// Sin extracción utilizable: el cliente captura los campos a mano.
+  bool get sinTexto => resultado == 'sin_texto';
 }
 
 // ─── cliente-menu ────────────────────────────────────────────────────────────
