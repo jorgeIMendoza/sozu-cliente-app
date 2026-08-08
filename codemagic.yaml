@@ -113,15 +113,24 @@ definitions:
         echo "permiso Contents: Read and write. Va en el grupo app_version_gate, cifrado."
         exit 1
       fi
-      CODIGO=$(curl -s -o /dev/null -w '%{http_code}' \
+      RESP=$(curl -s -w '\n%{http_code}' \
         -H "Authorization: Bearer $GITHUB_PUSH_TOKEN" \
         https://api.github.com/repos/jorgeIMendoza/sozu-cliente-app)
+      CODIGO=$(echo "$RESP" | tail -1)
       if [ "$CODIGO" != "200" ]; then
         echo "ERROR: GITHUB_PUSH_TOKEN no sirve para este repo (HTTP $CODIGO)."
-        echo "Revisar que no haya expirado y que el repo este en su lista de acceso."
+        echo "401 = expirado o mal copiado. 404 = el repo no esta en su lista de acceso."
         exit 1
       fi
-      echo "Token de push OK."
+      # Un 200 solo prueba LECTURA: un token con Contents:read pasaria aqui y
+      # moriria al pushear el tag, que es el fallo que este paso viene a evitar.
+      PUEDE_ESCRIBIR=$(echo "$RESP" | sed '$d' | jq -r '.permissions.push // "desconocido"')
+      if [ "$PUEDE_ESCRIBIR" = "false" ]; then
+        echo "ERROR: el token lee el repo pero NO puede escribir."
+        echo "Falta el permiso Contents: Read and write (hoy esta en solo lectura)."
+        exit 1
+      fi
+      echo "Token de push OK (escritura: $PUEDE_ESCRIBIR)."
 
   # Enciende el aviso de actualizacion in-app: escribe `latest_version` en
   # `app_cliente_config` via la edge function `app-version-publicar`.
