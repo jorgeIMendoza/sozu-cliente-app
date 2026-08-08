@@ -77,3 +77,29 @@ String initials(String? name) {
   final r = (a + b).toUpperCase();
   return r.isEmpty ? '?' : r;
 }
+
+/// Particulas que van en minuscula salvo si abren el nombre.
+const _particulasNombre = {'de', 'del', 'la', 'las', 'los', 'y', 'e'};
+
+/// "JORGE ADRIAN FIGUEROA RUVALCABA" -> "Jorge Adrian Figueroa Ruvalcaba".
+///
+/// Los documentos oficiales (acta de nacimiento, CURP, CSF) traen el nombre en
+/// mayusculas; asi se guarda y asi se lee en pantalla, que grita. Respeta
+/// acentos y deja en minuscula las particulas intermedias:
+/// "JOSE DE LA CRUZ" -> "Jose de la Cruz".
+String toTitleCaseEs(String? input) {
+  final s = (input ?? '').trim();
+  if (s.isEmpty) return '';
+  final palabras = s.toLowerCase().split(RegExp(r'\s+'));
+  final out = <String>[];
+  for (var i = 0; i < palabras.length; i++) {
+    final w = palabras[i];
+    if (w.isEmpty) continue;
+    if (i > 0 && _particulasNombre.contains(w)) {
+      out.add(w);
+    } else {
+      out.add(w[0].toUpperCase() + w.substring(1));
+    }
+  }
+  return out.join(' ');
+}

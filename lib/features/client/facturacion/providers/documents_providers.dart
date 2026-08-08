@@ -18,8 +18,3 @@ final documentsPortProvider = Provider<DocumentsPort>((ref) {
 final documentsProvider = FutureProvider<ClienteDocumentos>(
   (ref) => ref.watch(documentsPortProvider).documents(),
 );
-
-/// Expediente de identidad (tarjeta del Perfil + pantalla Expediente).
-final identityFileProvider = FutureProvider<ClienteExpediente>(
-  (ref) => ref.watch(documentsPortProvider).identityFile(),
-);
