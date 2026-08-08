@@ -157,11 +157,26 @@ Future<SDocUploadResult?> showSDocUpload(
     apilado: !ancho,
   );
 
-  if (ancho) {
-    return showDialog<SDocUploadResult>(
+  return showSDocModal<SDocUploadResult>(context, child: contenido);
+}
+
+/// Presenta [child] como la hoja estándar de carga: diálogo centrado en
+/// escritorio (con `Esc` para cancelar) y hoja de pantalla completa en
+/// angosto.
+///
+/// Se expone aparte de [showSDocUpload] porque hay cargas que traen su propio
+/// formulario (la carátula de una cuenta bancaria) y necesitan el mismo
+/// envoltorio sin pasar por el flujo de extracción.
+Future<T?> showSDocModal<T>(
+  BuildContext context, {
+  required Widget child,
+  double maxWidth = 980,
+}) {
+  if (context.bp.hasTwoColumns) {
+    return showDialog<T>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => _EscCierra(
+      builder: (_) => _EscCierra(
         child: Dialog(
           clipBehavior: Clip.antiAlias,
           insetPadding: EdgeInsets.all(context.s.space.lg),
@@ -170,16 +185,16 @@ Future<SDocUploadResult?> showSDocUpload(
           ),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: 980,
+              maxWidth: maxWidth,
               maxHeight: MediaQuery.sizeOf(context).height * 0.86,
             ),
-            child: contenido,
+            child: child,
           ),
         ),
       ),
     );
   }
-  return showModalBottomSheet<SDocUploadResult>(
+  return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
     isDismissible: false,
@@ -191,7 +206,7 @@ Future<SDocUploadResult?> showSDocUpload(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(context.s.radius.lg),
         ),
-        child: Material(color: context.s.color.surface, child: contenido),
+        child: Material(color: context.s.color.surface, child: child),
       ),
     ),
   );
@@ -417,139 +432,21 @@ class _SDocUploadBodyState extends State<_SDocUploadBody> {
   Widget build(BuildContext context) {
     final tone = context.s.color;
     final bytes = _bytes;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _encabezado(tone),
-        Divider(height: 1, thickness: 1, color: tone.border),
-        if (widget.apilado)
-          Flexible(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(context.s.space.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (bytes != null) ...[
-                    SizedBox(
-                      height: 280,
-                      child: widget.preview(bytes, _nombre),
-                    ),
-                    SizedBox(height: context.s.space.md),
-                  ],
-                  _izquierda(tone),
-                ],
-              ),
-            ),
-          )
-        else
-          // `Expanded` + `stretch`: con restricciones sueltas la
-          // previsualización resuelve a cero y la columna derecha sale vacía.
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.all(context.s.space.md),
-                    // Sin archivo la columna solo lleva la zona de carga, y
-                    // pegada arriba se lee como si faltara algo: se centra
-                    // contra el alto de la previsualización.
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: _hayArchivo
-                            ? 0
-                            : MediaQuery.sizeOf(context).height * 0.6,
-                      ),
-                      child: _izquierda(tone),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 6,
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      0,
-                      context.s.space.md,
-                      context.s.space.md,
-                      context.s.space.md,
-                    ),
-                    child: bytes != null
-                        ? widget.preview(bytes, _nombre)
-                        : _SinVistaPrevia(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        Divider(height: 1, thickness: 1, color: tone.border),
-        Padding(
-          padding: EdgeInsets.all(context.s.space.md),
-          child: Row(
-            children: [
-              Expanded(
-                child: SButton.secondary(
-                  label: 'Cancelar',
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ),
-              SizedBox(width: context.s.space.sm),
-              Expanded(
-                child: SButton(
-                  label: widget.etiquetaGuardar,
-                  loading: _analizando,
-                  loadingLabel: 'Revisando…',
-                  onPressed: _puedeGuardar ? _guardar : null,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+    return SDocUploadLayout(
+      titulo: widget.titulo,
+      descripcion: widget.descripcion,
+      apilado: widget.apilado,
+      izquierda: _izquierda(tone),
+      // Sin archivo la columna solo lleva la zona de carga, y pegada arriba se
+      // lee como si faltara algo.
+      centrarIzquierda: !_hayArchivo,
+      preview: bytes != null ? widget.preview(bytes, _nombre) : null,
+      etiquetaGuardar: widget.etiquetaGuardar,
+      guardando: _analizando,
+      etiquetaGuardando: 'Revisando…',
+      onGuardar: _puedeGuardar ? _guardar : null,
     );
   }
-
-  Widget _encabezado(SozuColorRoles tone) => Padding(
-    padding: EdgeInsets.fromLTRB(
-      context.s.space.lg,
-      context.s.space.md,
-      context.s.space.md,
-      context.s.space.md,
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.titulo,
-                style: context.s.text.bodyLarge.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: tone.fg,
-                ),
-              ),
-              if (widget.descripcion != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  widget.descripcion!,
-                  style: context.s.text.caption.copyWith(color: tone.fgMuted),
-                ),
-              ],
-            ],
-          ),
-        ),
-        IconButton(
-          tooltip: 'Cerrar',
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.close, size: 20),
-        ),
-      ],
-    ),
-  );
 
   /// Columna izquierda: selector de tipo, archivo y campos.
   Widget _izquierda(SozuColorRoles tone) {
@@ -749,6 +646,184 @@ class _SDocUploadBodyState extends State<_SDocUploadBody> {
             _ => null,
           },
           validator: c.soloLectura ? null : (v) => _validar(c, v),
+        ),
+      ],
+    );
+  }
+}
+
+/// Armazón de una hoja de carga: encabezado, dos columnas (contenido a la
+/// izquierda, previsualización a la derecha) y el pie con Cancelar / Guardar.
+///
+/// [showSDocUpload] lo usa para el flujo de extracción, y cualquier hoja que
+/// suba un archivo con su propio formulario lo usa igual (la carátula de una
+/// cuenta bancaria). Así el formato es uno solo y lo que se arregle aquí sirve
+/// en todas.
+///
+/// En pantalla angosta apila: previsualización arriba, contenido abajo.
+class SDocUploadLayout extends StatelessWidget {
+  final String titulo;
+  final String? descripcion;
+
+  /// Formulario y/o campos. Es el contenido propio de cada hoja.
+  final Widget izquierda;
+
+  /// Previsualización del archivo; `null` pinta el hueco con su instrucción.
+  final Widget? preview;
+
+  /// Apila en vez de repartir en dos columnas (pantalla angosta).
+  final bool apilado;
+
+  /// Centra [izquierda] contra el alto de la previsualización. Se usa mientras
+  /// no hay archivo, cuando la columna lleva poco contenido.
+  final bool centrarIzquierda;
+
+  final String etiquetaGuardar;
+  final String? etiquetaGuardando;
+  final bool guardando;
+
+  /// `null` deshabilita Guardar.
+  final VoidCallback? onGuardar;
+
+  const SDocUploadLayout({
+    super.key,
+    required this.titulo,
+    required this.izquierda,
+    this.descripcion,
+    this.preview,
+    this.apilado = false,
+    this.centrarIzquierda = false,
+    this.etiquetaGuardar = 'Guardar',
+    this.etiquetaGuardando,
+    this.guardando = false,
+    this.onGuardar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.s.color;
+    final t = context.s;
+
+    final columna = SingleChildScrollView(
+      padding: EdgeInsets.all(t.space.md),
+      child: centrarIzquierda
+          ? ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.sizeOf(context).height * 0.6,
+              ),
+              child: izquierda,
+            )
+          : izquierda,
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            t.space.lg,
+            t.space.md,
+            t.space.md,
+            t.space.md,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      titulo,
+                      style: t.text.bodyLarge.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: tone.fg,
+                      ),
+                    ),
+                    if (descripcion != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        descripcion!,
+                        style: t.text.caption.copyWith(color: tone.fgMuted),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Cerrar',
+                onPressed: guardando ? null : () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, size: 20),
+              ),
+            ],
+          ),
+        ),
+        Divider(height: 1, thickness: 1, color: tone.border),
+        if (apilado)
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(t.space.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (preview != null) ...[
+                    SizedBox(height: 280, child: preview),
+                    SizedBox(height: t.space.md),
+                  ],
+                  izquierda,
+                ],
+              ),
+            ),
+          )
+        else
+          // `Expanded` + `stretch` es lo que da alto a la previsualización: con
+          // restricciones sueltas el visor resuelve a cero y la columna derecha
+          // sale en blanco.
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(flex: 5, child: columna),
+                Expanded(
+                  flex: 6,
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      0,
+                      t.space.md,
+                      t.space.md,
+                      t.space.md,
+                    ),
+                    child: preview ?? _SinVistaPrevia(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Divider(height: 1, thickness: 1, color: tone.border),
+        Padding(
+          padding: EdgeInsets.all(t.space.md),
+          child: Row(
+            children: [
+              Expanded(
+                child: SButton.secondary(
+                  label: 'Cancelar',
+                  onPressed: guardando
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                ),
+              ),
+              SizedBox(width: t.space.sm),
+              Expanded(
+                child: SButton(
+                  label: etiquetaGuardar,
+                  loading: guardando,
+                  loadingLabel: etiquetaGuardando,
+                  onPressed: onGuardar,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
