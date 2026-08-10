@@ -4,12 +4,15 @@ import 'package:sozu_cliente_app/ui/tokens/color_roles.dart';
 
 /// Prueba que migrar `PortalColors.X` a `context.s.color.Y` NO cambia un pixel.
 ///
-/// El portal va con candado a tema claro (`PortalLightLock`), asi que ahi
-/// `context.s.color` ES `SozuColorRoles.light`. Si cada constante del shim vale
-/// exactamente lo mismo que su rol claro, la migracion del inicio es un
+/// En tema claro `context.s.color` ES `SozuColorRoles.light`. Si cada constante
+/// del shim vale exactamente lo mismo que su rol claro, la migracion es un
 /// renombre y no un cambio de diseño. Cuando esto se rompa, alguien movio un
 /// valor y la migracion dejo de ser invisible: hay que enterarse aqui, no en la
 /// pantalla.
+///
+/// En oscuro NO hay equivalencia posible: las constantes del shim son claras y
+/// no dependen del tema. Por eso lo que sigue sin migrar se ve claro sobre
+/// oscuro, y por eso esta migracion es la que desbloquea el modo oscuro.
 ///
 /// El mapeo es el de la tabla del docstring de `core/portal_theme.dart`.
 void main() {

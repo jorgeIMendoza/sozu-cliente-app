@@ -8,6 +8,9 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 ///
 /// "Auto" es el valor por defecto y una opción de primera clase: hay gente con
 /// el móvil en oscuro por horario.
+///
+/// Solo manda dentro del portal: el área de acceso va con candado a claro
+/// (`AuthAreaLightLock` en main.dart).
 class ThemeSelector extends ConsumerWidget {
   const ThemeSelector({super.key});
 
