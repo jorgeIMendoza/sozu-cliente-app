@@ -172,21 +172,23 @@ Future<T?> showSDocModal<T>(
   required Widget child,
   double maxWidth = 980,
 }) {
+  // TRAMPA: dentro de `builder` se usa SU context, nunca el del llamador. La
+  // hoja vive en otra ruta y se reconstruye por su cuenta; si lee el context de
+  // quien la abrió, al reconstruirse busca un ancestro de un widget ya
+  // desmontado y revienta con "Looking up a deactivated widget's ancestor".
   if (context.bp.hasTwoColumns) {
     return showDialog<T>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _EscCierra(
+      builder: (ctx) => _EscCierra(
         child: Dialog(
           clipBehavior: Clip.antiAlias,
-          insetPadding: EdgeInsets.all(context.s.space.lg),
-          shape: RoundedRectangleBorder(
-            borderRadius: context.s.radius.lgBorder,
-          ),
+          insetPadding: EdgeInsets.all(ctx.s.space.lg),
+          shape: RoundedRectangleBorder(borderRadius: ctx.s.radius.lgBorder),
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: maxWidth,
-              maxHeight: MediaQuery.sizeOf(context).height * 0.86,
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.86,
             ),
             child: child,
           ),
@@ -200,13 +202,13 @@ Future<T?> showSDocModal<T>(
     isDismissible: false,
     enableDrag: false,
     backgroundColor: Colors.transparent,
-    builder: (_) => Padding(
-      padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top + 12),
+    builder: (ctx) => Padding(
+      padding: EdgeInsets.only(top: MediaQuery.paddingOf(ctx).top + 12),
       child: ClipRRect(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(context.s.radius.lg),
+          top: Radius.circular(ctx.s.radius.lg),
         ),
-        child: Material(color: context.s.color.surface, child: child),
+        child: Material(color: ctx.s.color.surface, child: child),
       ),
     ),
   );
