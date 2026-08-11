@@ -82,6 +82,50 @@ segundos, y su scroll propio se peleaba con el de la hoja (rodar la rueda hacía
 saltar la modal al inicio). La misma previsualización la usa la carátula de
 cuenta bancaria en `profile/components/perfil_sheets.dart`.
 
+## Qué se pide y en qué orden
+
+El orden lo manda el backend (`SLOTS_PF` / `SLOTS_PM` de `cliente-expediente`) y
+la pantalla lo respeta tal cual: pinta los grupos en el orden que llegan y, dentro
+de cada uno, los slots en el orden que llegan.
+
+**Persona física** · Documentos personales: identificación oficial (INE o
+pasaporte) · acta de nacimiento · CURP · constancia de situación fiscal ·
+comprobante de domicilio · acta de matrimonio. Después, Datos bancarios.
+
+**Persona moral**
+1. *Documentos de la empresa*: CSF · acta constitutiva · registro público de
+   comercio · comprobante de domicilio · **Otros documentos** (anexos, varios).
+2. *Representante legal*: los seis de persona física + poder notarial.
+3. *Accionista mayoritario (más del 20%)*: los seis de persona física.
+4. *Beneficiario controlador*: su documento.
+5. *Datos bancarios*.
+
+Los seis documentos de persona física salen de **una sola** lista en el backend
+(`slotsPersonaFisica`), que reusan el titular, el representante y el accionista:
+es la misma lista, cambia de quién son.
+
+El nombre que ve el cliente es el `label` del slot, NO `tipos_documento.nombre`:
+el del catálogo es el nombre legal ("INE completo (frente y reverso)").
+
+⚠️ El accionista **no tiene vínculo en la base todavía**: su grupo se pinta con
+el motivo, igual que el del representante legal sin ligar. La tabla va en
+`Ejecuciones_manuales/2026-08-10_BD_personas_relacionadas_expediente.md`.
+
+## Anexos: un slot con varios documentos
+
+"Otros documentos" es el único slot `multiple`. Trae `documentos: [...]` y la
+pantalla pinta **una fila por anexo** más una para agregar otro:
+
+- Subir en la fila de agregar crea un anexo nuevo y no toca los demás.
+- Subir dentro de la fila de un anexo lo reemplaza: viaja `doc_id` y solo ese se
+  expira.
+- Ninguno es obligatorio, así que no bloquean el expediente.
+
+Falta la **descripción** de cada anexo: `documentos` no tiene esa columna. Va en
+`Ejecuciones_manuales/2026-08-10_BD_anexos_otros_documentos.md` junto con el tipo
+"Otros documentos" de la categoría "Otro". Mientras, los anexos se distinguen por
+fecha y usan el tipo 57 (reformas).
+
 ## Persona física / persona moral
 
 Qué se le pide a cada quién lo decide el backend y llega en `grupos` +

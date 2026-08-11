@@ -88,6 +88,7 @@ class ExpedienteAdapter implements ExpedientePort {
     String? slotKey,
     String? hash,
     Map<String, String>? fields,
+    int? docId,
   }) async {
     try {
       final res = await _sb.functions.invoke(
@@ -101,6 +102,7 @@ class ExpedienteAdapter implements ExpedientePort {
           if (slotKey != null) 'key': slotKey,
           if (hash != null) 'hash': hash,
           if (fields != null && fields.isNotEmpty) 'campos': fields,
+          if (docId != null) 'doc_id': docId,
         },
         headers: _headers,
       );

@@ -12,6 +12,9 @@ class FakeExpedientePort implements ExpedientePort {
   /// Nombres de los metodos llamados, en orden, para tests de secuencia.
   final List<String> log = [];
 
+  /// `doc_id` de la ultima subida: null = anexo nuevo, con valor = reemplazo.
+  int? docIdRecibido;
+
   void _throwIfFailing(String method) {
     log.add(method);
     final f = nextFailure;
@@ -60,8 +63,10 @@ class FakeExpedientePort implements ExpedientePort {
     String? slotKey,
     String? hash,
     Map<String, String>? fields,
+    int? docId,
   }) async {
     _throwIfFailing('uploadDocument:$typeId:$fileName');
+    docIdRecibido = docId;
     return (
       estatus: 'revision',
       datosFiscales: null,

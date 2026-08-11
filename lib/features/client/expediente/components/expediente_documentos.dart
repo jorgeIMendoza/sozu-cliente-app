@@ -36,12 +36,55 @@ class ExpedienteDocumentos extends ConsumerStatefulWidget {
 }
 
 class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
-  /// key del slot cuya carga está en curso.
+  /// Fila cuya carga está en curso, por [_filaKey].
   String? _enCurso;
+
+  /// Identidad de una FILA, no de un slot: un slot múltiple pinta una fila por
+  /// anexo y cada una gira su propio indicador.
+  static String _filaKey(ExpedienteSlot slot, int? docId) =>
+      docId == null ? slot.key : '${slot.key}#$docId';
+
+  /// Motivo que comparten TODOS los slots del grupo, o null. Cuando lo
+  /// comparten es del grupo entero y se explica una vez, no fila por fila.
+  static String? _motivoComun(List<ExpedienteSlot> slots) {
+    if (slots.isEmpty) return null;
+    final motivo = slots.first.bloqueadoMotivo;
+    if (motivo == null) return null;
+    return slots.every((s) => s.bloqueadoMotivo == motivo) ? motivo : null;
+  }
+
+  /// Fila de un anexo ya subido: su propio estatus, fecha y archivo.
+  static ExpedienteSlot _filaDeAnexo(ExpedienteSlot slot, ExpedienteAnexo a) =>
+      ExpedienteSlot(
+        key: _filaKey(slot, a.id),
+        tipoId: slot.tipoId,
+        nombre: slot.nombre,
+        estatus: a.estatus,
+        fecha: a.fecha,
+        urlFirmada: a.urlFirmada,
+        puedeSubir: slot.puedeSubir,
+        grupo: slot.grupo,
+        owner: slot.owner,
+      );
+
+  /// Fila para agregar OTRO anexo: nunca muestra uno existente, así que va sin
+  /// fecha y con el texto de agregar.
+  static ExpedienteSlot _filaDeAgregar(ExpedienteSlot slot) => ExpedienteSlot(
+    key: slot.key,
+    tipoId: slot.tipoId,
+    nombre: slot.documentos.isEmpty ? slot.nombre : 'Agregar otro documento',
+    estatus: 'opcional',
+    puedeSubir: slot.puedeSubir,
+    grupo: slot.grupo,
+    owner: slot.owner,
+    nota: slot.nota,
+  );
 
   // ── Flujo de carga ────────────────────────────────────────────────────────
 
-  Future<void> _cargar(ExpedienteSlot slot) async {
+  /// [docId] reemplaza un anexo concreto de un slot múltiple; sin él, un slot
+  /// múltiple agrega uno nuevo.
+  Future<void> _cargar(ExpedienteSlot slot, {int? docId}) async {
     final res = await showSDocUpload(
       context,
       titulo: slot.nombre,
@@ -58,7 +101,7 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
     );
     if (res == null || !mounted) return;
 
-    setState(() => _enCurso = slot.key);
+    setState(() => _enCurso = _filaKey(slot, docId));
     try {
       final subida = await ref
           .read(expedientePortProvider)
@@ -69,6 +112,7 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
             slotKey: slot.key,
             hash: _hashPorArchivo[res.nombre],
             fields: res.campos,
+            docId: docId,
           );
       _refrescar();
       // Con el backend anterior la extracción ocurre AL SUBIR, no antes: lo que
@@ -360,22 +404,50 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
           if (hijos.isNotEmpty) hijos.add(SizedBox(height: context.s.space.lg));
 
           hijos.add(_Encabezado(titulo: grupo.titulo));
-          // Motivo del bloqueo del grupo del representante legal: se explica
-          // una vez arriba, no en cada fila.
-          if (grupo.owner == 'rep' && rep != null && rep.bloqueado) {
+          // Motivo del bloqueo de un grupo entero (representante legal o
+          // accionista sin ligar): se explica una vez arriba, no en cada fila.
+          final motivoGrupo =
+              grupo.owner == 'rep' && rep != null && rep.bloqueado
+              ? rep.motivo
+              : _motivoComun(grupo.slots);
+          if (motivoGrupo != null) {
             hijos.add(SizedBox(height: context.s.space.xs));
-            hijos.add(_AvisoBloqueo(motivo: rep.motivo));
+            hijos.add(_AvisoBloqueo(motivo: motivoGrupo));
           }
           hijos.add(SizedBox(height: context.s.space.xs));
 
           for (final slot in grupo.slots) {
+            // Un slot múltiple son varias filas: una por anexo ya subido, más
+            // la de agregar otro. Reemplazar dentro de una fila solo toca ese
+            // anexo; los demás siguen vigentes.
+            if (slot.multiple) {
+              for (final anexo in slot.documentos) {
+                hijos.add(
+                  ExpedienteSlotRow(
+                    slot: _filaDeAnexo(slot, anexo),
+                    subiendo: _enCurso == _filaKey(slot, anexo.id),
+                    bloqueado: _enCurso != null,
+                    onSubir: () => _cargar(slot, docId: anexo.id),
+                    onVer: anexo.urlFirmada == null
+                        ? null
+                        : () => openMedia(
+                            context,
+                            anexo.urlFirmada,
+                            titulo: slot.nombre,
+                          ),
+                  ),
+                );
+                hijos.add(SizedBox(height: context.s.space.xs));
+              }
+            }
+
             hijos.add(
               ExpedienteSlotRow(
-                slot: slot,
+                slot: slot.multiple ? _filaDeAgregar(slot) : slot,
                 subiendo: _enCurso == slot.key,
                 bloqueado: _enCurso != null,
                 onSubir: () => _cargar(slot),
-                onVer: slot.urlFirmada == null
+                onVer: slot.multiple || slot.urlFirmada == null
                     ? null
                     : () => openMedia(
                         context,

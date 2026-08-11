@@ -42,6 +42,9 @@ abstract interface class ExpedientePort {
   ///
   /// [fields] son los valores que el cliente confirmo y [hash] el del archivo
   /// analizado: el backend rechaza la subida si no es el mismo archivo.
+  ///
+  /// [docId] solo aplica a un slot multiple (anexos): reemplaza ESE anexo. Sin
+  /// el, un slot multiple agrega uno nuevo y no toca los demas.
   Future<ExpedienteUpload> uploadDocument({
     required int typeId,
     required String fileName,
@@ -49,5 +52,6 @@ abstract interface class ExpedientePort {
     String? slotKey,
     String? hash,
     Map<String, String>? fields,
+    int? docId,
   });
 }

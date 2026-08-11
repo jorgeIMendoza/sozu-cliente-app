@@ -1669,6 +1669,13 @@ class ExpedienteSlot {
   /// Instrucción para el cliente antes de elegir el archivo.
   final String? nota;
 
+  /// El slot acepta VARIOS documentos (anexos), cada uno su propia fila.
+  final bool multiple;
+
+  /// Anexos del slot múltiple, del más reciente al más viejo. Vacío en los
+  /// demás slots, que solo tienen el vigente ([urlFirmada]).
+  final List<ExpedienteAnexo> documentos;
+
   ExpedienteSlot.fromJson(Map<String, dynamic> j)
     : key = asString(j['key']),
       tipoId = asInt(j['tipo_id']),
@@ -1681,6 +1688,10 @@ class ExpedienteSlot {
       soloPdf = j['solo_pdf'] == true,
       grupo = asString(j['grupo']),
       owner = asString(j['owner'], 'self'),
+      multiple = j['multiple'] == true,
+      documentos = ((j['documentos'] as List?) ?? [])
+          .map((e) => ExpedienteAnexo.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
       bloqueadoMotivo = asStringOrNull(j['bloqueado_motivo']),
       opciones = ((j['opciones'] as List?) ?? [])
           .map(
@@ -1709,7 +1720,24 @@ class ExpedienteSlot {
     this.bloqueadoMotivo,
     this.opciones = const [],
     this.nota,
+    this.multiple = false,
+    this.documentos = const [],
   });
+}
+
+/// Un anexo de un slot múltiple ("Otros documentos"). Cada uno se ve, se
+/// reemplaza y se verifica por separado.
+class ExpedienteAnexo {
+  final int id;
+  final String estatus;
+  final String? fecha;
+  final String? urlFirmada;
+
+  ExpedienteAnexo.fromJson(Map<String, dynamic> j)
+    : id = asInt(j['id']),
+      estatus = asString(j['estatus'], 'revision'),
+      fecha = j['fecha'] as String?,
+      urlFirmada = j['url_firmada'] as String?;
 }
 
 class ClienteExpediente {
