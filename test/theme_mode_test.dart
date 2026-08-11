@@ -1,69 +1,110 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:sozu_cliente_app/main.dart' show PortalLightLock;
+import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
+import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/main.dart' show AuthAreaLightLock;
 import 'package:sozu_cliente_app/ui/ui.dart';
 
-/// Brillo del tema que recibe el hijo del candado, al ancho dado.
-Future<Brightness> _brilloBajoElCandado(
-  WidgetTester tester, {
-  required double ancho,
-  required ThemeMode modo,
-}) async {
-  late Brightness visto;
-  tester.view.physicalSize = Size(ancho, 900);
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.reset);
+import 'features/auth/fake_auth_port.dart';
 
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: sozuLightTheme(),
-      darkTheme: sozuDarkTheme(),
-      themeMode: modo,
-      home: PortalLightLock(
-        child: Builder(
-          builder: (context) {
-            visto = Theme.of(context).brightness;
-            return const SizedBox.shrink();
-          },
+/// El candado del tema: claro en el area de acceso, la preferencia del usuario
+/// una vez dentro del portal. El criterio es el estado de sesion, NO el ancho ni
+/// la plataforma.
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  const clientProfile = UserProfile(
+    displayName: 'Cliente de Prueba',
+    email: 'cliente@sozu.com',
+    roleName: 'Cliente',
+    personId: 7,
+  );
+
+  /// BiometricService lee secure storage al construirse.
+  setUpAll(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+          (call) async => null,
+        );
+  });
+
+  /// Brillo que recibe el hijo del candado, con el modo oscuro pedido.
+  Future<Brightness> brilloBajoElCandado(
+    WidgetTester tester, {
+    required bool conSesion,
+    UserProfile? perfil,
+  }) async {
+    late Brightness visto;
+    final port = FakeAuthPort(profileRow: perfil ?? clientProfile);
+    final container = ProviderContainer(
+      overrides: [authPortProvider.overrideWithValue(port)],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: sozuLightTheme(),
+          darkTheme: sozuDarkTheme(),
+          themeMode: ThemeMode.dark,
+          home: AuthAreaLightLock(
+            child: Builder(
+              builder: (context) {
+                visto = Theme.of(context).brightness;
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
         ),
       ),
-    ),
-  );
-  return visto;
-}
+    );
+    if (conSesion) {
+      await container
+          .read(authProvider)
+          .signIn('cliente@sozu.com', 'secreta123');
+    }
+    await tester.pumpAndSettle();
+    return visto;
+  }
 
-void main() {
-  group('PortalLightLock', () {
-    testWidgets('en movil/angosto el modo oscuro SI llega', (tester) async {
+  group('AuthAreaLightLock', () {
+    testWidgets('sin sesion el acceso va claro aunque se pida oscuro', (
+      tester,
+    ) async {
       expect(
-        await _brilloBajoElCandado(tester, ancho: 420, modo: ThemeMode.dark),
-        Brightness.dark,
-      );
-    });
-
-    testWidgets('en movil/angosto el modo claro llega claro', (tester) async {
-      expect(
-        await _brilloBajoElCandado(tester, ancho: 420, modo: ThemeMode.light),
+        await brilloBajoElCandado(tester, conSesion: false),
         Brightness.light,
       );
     });
 
-    testWidgets('ancho + oscuro: el candado depende de la plataforma', (
+    testWidgets('dentro del portal manda la preferencia del usuario', (
       tester,
     ) async {
-      final brillo = await _brilloBajoElCandado(
-        tester,
-        ancho: 1440,
-        modo: ThemeMode.dark,
+      expect(
+        await brilloBajoElCandado(tester, conSesion: true),
+        Brightness.dark,
       );
-      // isPortalMode() exige kIsWeb. En la VM (flutter test) es false, asi que
-      // un ancho grande NO es modo portal y el oscuro pasa. En navegador
-      // (flutter test --platform chrome) si es portal y el candado lo fuerza a
-      // claro. Se afirman los dos casos para que la prueba diga la verdad en
-      // ambos objetivos en vez de pasar por accidente en uno.
-      expect(brillo, kIsWeb ? Brightness.light : Brightness.dark);
+    });
+
+    testWidgets('con cambio de contrasena pendiente todavia no entro', (
+      tester,
+    ) async {
+      const temporal = UserProfile(
+        displayName: 'Cliente de Prueba',
+        email: 'cliente@sozu.com',
+        roleName: 'Cliente',
+        personId: 7,
+        requiresPasswordChange: true,
+      );
+      expect(
+        await brilloBajoElCandado(tester, conSesion: true, perfil: temporal),
+        Brightness.light,
+      );
     });
   });
 }

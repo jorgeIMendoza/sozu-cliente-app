@@ -66,7 +66,7 @@ evidencia**: se sube, se ve y ya. No se le inventan campos al cliente.
 | Documento | Campos | Obligatorios |
 |---|---|---|
 | Acta de nacimiento (1), CURP (5) | nombre, CURP, fecha de nacimiento, sexo | los cuatro |
-| CSF (6) | RFC, nombre, nombre comercial, CURP, régimen, CP, calle, núm. ext, núm. int, colonia | RFC, nombre, régimen, CP, calle, colonia |
+| CSF (6) | RFC, nombre, nombre comercial, CURP, régimen, CP, calle, núm. ext, núm. int, colonia, actividad económica | RFC, nombre, régimen, CP, calle, colonia |
 | Domicilio (8), matrimonio (11), identificación (63/4), y todos los de PM | ninguno | - |
 
 Qué bloquea sale de las mismas reglas del back office
@@ -97,10 +97,10 @@ lista sin títulos con la edge function actual. En ese mismo respaldo,
 una sola fila **Identificación oficial** con las dos opciones vigentes: INE
 completo (63) o pasaporte (4).
 
-⚠️ Con la edge function ACTUAL el tipo 63 no existe en su `SLOTS`, así que
-subir INE devuelve `tipo_invalido` y solo el pasaporte funciona. Está mapeado a
-un mensaje que lo dice en vez de a un "intenta de nuevo". Se resuelve al
-desplegar el backend nuevo.
+El tipo 63 ("INE completo (frente y reverso)") ya existe en `tipos_documento` y
+en el `SLOTS` de la edge function desplegada, así que subir INE funciona. El
+mapeo de `tipo_invalido` a un mensaje concreto se queda: si un despliegue vuelve
+a quedar atrás, el cliente lee el motivo en vez de un "intenta de nuevo".
 
 En persona moral, los documentos del representante legal son de **otra
 persona**. Si no está ligada, el grupo se muestra igual pero deshabilitado, con
@@ -116,8 +116,10 @@ por `tipo_id` guarda la CSF del representante en la empresa.
 ## Contrato del backend
 
 Está en `Ejecuciones_manuales/2026-08-07_EF_cliente-expediente.md` (gitignored),
-para el repo `sozu-edge-functions`. La columna que le falta a la base va aparte
-en `2026-08-07_BD_actividad_economica.md` y es opcional.
+para el repo `sozu-edge-functions`. **Ya desplegado**, junto con
+`personas.actividad_economica` y `personas.id_estado_civil`
+(`2026-08-07_BD_actividad_economica.md`): verificado en producción el
+2026-08-10.
 
 Todos los campos nuevos son **aditivos**: sin ellos la pantalla se comporta como
 antes, así que backend y frontend no necesitan desplegarse a la vez. El orden

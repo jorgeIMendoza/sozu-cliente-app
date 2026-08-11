@@ -5,13 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/core/secure_session_storage.dart';
 import 'package:sozu_cliente_app/core/url_strategy.dart';
 import 'package:sozu_cliente_app/shared/providers/theme_provider.dart';
 import 'package:sozu_cliente_app/router.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/features/auth/components/inactivity_watcher.dart';
+import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/widgets/preview_banner.dart';
 import 'package:sozu_cliente_app/widgets/push_registrar.dart';
 import 'package:sozu_cliente_app/widgets/version_gate.dart';
@@ -85,7 +85,7 @@ class SozuApp extends ConsumerWidget {
       // esto `context.s` siempre devolvería la densidad `comfortable`. Por eso
       // envuelve a `VersionGate` y no al revés.
       builder: (context, child) => SozuAdaptiveTokens(
-        child: PortalLightLock(
+        child: AuthAreaLightLock(
           child: VersionGate(
             child: InactivityWatcher(
               child: PushRegistrar(
@@ -99,27 +99,39 @@ class SozuApp extends ConsumerWidget {
   }
 }
 
-/// Fuerza tema claro en el portal web ancho, donde el oscuro NO está listo.
+/// Fuerza tema claro en el área de acceso; dentro manda la preferencia.
 ///
-/// El portal pinta con el shim `PortalColors`, cuyas constantes son claras y no
-/// dependen del tema. En oscuro solo cambiaría lo ya migrado a `context.s`, y el
-/// resultado es texto claro sobre fondos claros. En móvil/angosto no pasa: esas
-/// pantallas ya leen los roles de color, así que ahí el selector sí manda.
+/// Login, recuperación, cambio de contraseña forzado, splash y el gate de correo
+/// son la cara pública del producto y van siempre en claro. El tema guardado (o
+/// `system` por defecto) entra al quedar la sesión dentro del portal, sea como
+/// cliente o como administrador.
 ///
-/// El candado usa `isPortalMode` a propósito, aunque esté deprecado: tiene que
-/// decidir con el MISMO criterio que las 22 pantallas que ramifican por él
-/// (incluido su `kIsWeb`, que deja fuera a una tablet Android ancha). Si el
-/// candado y las pantallas discrepan, salen temas mezclados. Migra cuando ellas
-/// migren a `context.bp`, no antes.
-class PortalLightLock extends StatelessWidget {
+/// El criterio NO es el ancho. Cuando lo era (`isPortalMode`), cruzar el
+/// breakpoint saltaba de claro a oscuro de golpe, y como la condición leía
+/// `MediaQuery` en la raíz, cada pixel de resize reconstruía el árbol completo
+/// con un `ThemeData` nuevo.
+class AuthAreaLightLock extends ConsumerWidget {
   final Widget child;
 
-  const PortalLightLock({super.key, required this.child});
+  const AuthAreaLightLock({super.key, required this.child});
+
+  /// Una sola instancia: un `ThemeData` nuevo por build invalida a todo widget
+  /// que dependa de `Theme.of`.
+  static final ThemeData _claro = sozuLightTheme();
 
   @override
-  Widget build(BuildContext context) {
-    // ignore: deprecated_member_use_from_same_package
-    if (!isPortalMode(context)) return child;
-    return Theme(data: sozuLightTheme(), child: child);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
+    // Mismo criterio que el guard del router: sin sesión, con candado
+    // biométrico, resolviendo la sesión, con la cuenta bloqueada o con el cambio
+    // de contraseña pendiente, el usuario todavía NO entró.
+    final dentro =
+        auth.session != null &&
+        !auth.locked &&
+        !auth.isLoading &&
+        auth.blockedAccess == null &&
+        !auth.mustChangePassword;
+    if (dentro) return child;
+    return Theme(data: _claro, child: child);
   }
 }
