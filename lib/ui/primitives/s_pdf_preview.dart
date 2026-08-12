@@ -63,7 +63,11 @@ class _SPdfPreviewState extends State<SPdfPreview> {
 
   Future<void> _abrir() async {
     try {
-      final doc = await PdfDocument.openData(widget.bytes);
+      // TRAMPA: se abre con una COPIA. En web pdfx entrega los bytes a pdf.js,
+      // que TRANSFIERE el ArrayBuffer al worker y desprende el original: el
+      // Uint8List de quien nos llamó se queda en longitud 0. El síntoma aparece
+      // lejos de aquí, al subir el archivo, que viaja vacío.
+      final doc = await PdfDocument.openData(Uint8List.fromList(widget.bytes));
       if (!mounted) {
         await doc.close();
         return;

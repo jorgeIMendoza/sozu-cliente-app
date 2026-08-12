@@ -431,9 +431,22 @@ class _SDocUploadBodyState extends State<_SDocUploadBody> {
       };
     }
     if (!mounted) return;
+    // Red de seguridad: un archivo vacío nunca sale de aquí. Si el buffer se
+    // quedó sin bytes (en web basta con que alguien lo transfiera a un worker),
+    // el backend responde "no llegó el archivo" y el cliente no entiende nada.
+    final bytes = _bytes;
+    if (bytes == null || bytes.isEmpty) {
+      setState(() {
+        _error = 'El archivo se perdió al prepararlo. Vuelve a seleccionarlo.';
+        _bytes = null;
+        _nombre = null;
+        _analisis = null;
+      });
+      return;
+    }
     Navigator.of(
       context,
-    ).pop((tipoId: tipo, nombre: _nombre!, bytes: _bytes!, campos: out));
+    ).pop((tipoId: tipo, nombre: _nombre!, bytes: bytes, campos: out));
   }
 
   // ── Render ────────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/core/version.dart' show isPreviewBuild;
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/cuenta_bancaria_row.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/expediente_slot_row.dart';
@@ -328,7 +329,13 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
   /// El código va en el texto cuando NO se reconoce: un "intenta de nuevo"
   /// pelón deja al cliente atorado y a quien depura sin nada que buscar en los
   /// logs. Los códigos son los de `cliente-expediente`.
-  String _mensajeDe(ApiError e) => switch (e.code) {
+  /// En build de preview el codigo viaja SIEMPRE en el texto: un 400 puede ser
+  /// cuatro cosas distintas y el mensaje las une, asi que sin esto diagnosticar
+  /// desde un reporte obliga a abrir DevTools.
+  String _mensajeDe(ApiError e) =>
+      isPreviewBuild ? '${_textoDe(e)} [${e.status} ${e.code}]' : _textoDe(e);
+
+  String _textoDe(ApiError e) => switch (e.code) {
     'slot_invalido' =>
       'Ese documento ya no está en tu expediente. Recarga la página e intenta '
           'de nuevo.',
