@@ -11,12 +11,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # El notify de PROD necesita HEAD^1 (tip anterior de main) para
-          # listar a TODOS los autores de PRs del release; depth 1 lo rompe.
-          fetch-depth: 2
-          # Los tags son la fuente de verdad del versionName (ver paso
-          # "Resolver versionName desde tags"). Sin esto el checkout no los baja.
-          fetch-tags: true
+          # Historial completo, por dos motivos:
+          #   · El notify de PROD necesita HEAD^1 (tip anterior de main) para
+          #     listar a TODOS los autores de PRs del release; depth 1 lo rompe.
+          #   · Los tags son la fuente de verdad del versionName. Con un clon
+          #     shallow, `fetch-tags` solo trae los tags que caen dentro de esa
+          #     profundidad: los vX.Y.Z apuntan a commits más viejos, así que no
+          #     llegaba ninguno y el paso "Resolver versionName desde tags"
+          #     imprimía "Sin tags vX.Y.Z" y publicaba el piso del pubspec
+          #     (1.0.0) mientras las tiendas ya iban en 1.0.3.
+          fetch-depth: 0
 
       - uses: subosito/flutter-action@v2
         with:
