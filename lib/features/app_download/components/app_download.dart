@@ -9,6 +9,11 @@ import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 
 const _kQrAsset = 'assets/images/sozu-qr-web.png';
 
+/// Lado del QR en la tarjeta compacta. 88 px es el mínimo al que este código
+/// (37x37 módulos con corrección H) sigue decodificando: verificado con un
+/// decodificador real. Bajarlo lo vuelve inescaneable.
+const double _kQrCardLado = 88;
+
 /// Redirector (Cloudflare Worker) que detecta el SO y manda a la tienda
 /// correcta. Es el MISMO destino que codifica el QR: una sola fuente de verdad.
 ///
@@ -56,12 +61,7 @@ class AppQrPanel extends StatelessWidget {
             borderRadius: BorderRadius.circular(t.radius.md),
             border: Border.all(color: t.color.border),
           ),
-          child: Image.asset(
-            _kQrAsset,
-            width: size,
-            height: size,
-            fit: BoxFit.contain,
-          ),
+          child: _QrImagen(lado: size),
         ),
       ],
     );
@@ -94,12 +94,7 @@ class AppQrCard extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(t.radius.sm),
             ),
-            child: Image.asset(
-              _kQrAsset,
-              width: 88,
-              height: 88,
-              fit: BoxFit.contain,
-            ),
+            child: const _QrImagen(lado: _kQrCardLado),
           ),
           SizedBox(width: t.space.md),
           ConstrainedBox(
@@ -298,6 +293,36 @@ Future<void> openAppStore(
   if (!ok) {
     messenger.showSnackBar(
       const SnackBar(content: Text('No se pudo abrir la descarga.')),
+    );
+  }
+}
+
+/// Pinta el QR decodificándolo al tamaño en que se va a ver.
+///
+/// El asset son 1080 px y la tarjeta lo muestra a 88: reducir 12x al DIBUJAR usa
+/// un filtro bilineal que come módulos, y el resultado no solo se ve borroso —
+/// deja de escanear. Medido con un decodificador, no a ojo. `cacheWidth`/
+/// `cacheHeight` mueven el reescalado al decodificador, que promedia el área.
+///
+/// Se multiplica por el devicePixelRatio para no perder nitidez en pantallas
+/// Retina, con techo en 3: más allá solo se gasta memoria.
+class _QrImagen extends StatelessWidget {
+  final double lado;
+
+  const _QrImagen({required this.lado});
+
+  @override
+  Widget build(BuildContext context) {
+    final dpr = MediaQuery.devicePixelRatioOf(context).clamp(1.0, 3.0);
+    final px = (lado * dpr).round();
+    return Image.asset(
+      _kQrAsset,
+      width: lado,
+      height: lado,
+      fit: BoxFit.contain,
+      cacheWidth: px,
+      cacheHeight: px,
+      filterQuality: FilterQuality.medium,
     );
   }
 }
