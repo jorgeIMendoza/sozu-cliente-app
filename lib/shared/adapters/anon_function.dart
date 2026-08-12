@@ -11,8 +11,7 @@ import 'package:http/http.dart' as http;
 /// Respuesta cruda de una Edge Function llamada sin sesion.
 typedef AnonFunctionResponse = ({int status, Map<String, dynamic> body});
 
-/// Invoca la Edge Function [fn] mandando la llave anonima UNICAMENTE en el
-/// header `apikey`.
+/// Invoca la Edge Function [fn] con la llave anonima en el header `apikey`.
 ///
 /// No usa `functions.invoke` a proposito, por dos motivos:
 ///  1. `invoke` manda la llave anonima en `apikey` Y en `Authorization`. El
@@ -22,23 +21,30 @@ typedef AnonFunctionResponse = ({int status, Map<String, dynamic> body});
 ///     anti-enumeracion de correos) cuando NO reciben `Authorization`: con ese
 ///     header intentan resolver un usuario autenticado y rechazan la peticion.
 ///
+/// [withAuthorization] repite la llave en `Authorization: Bearer`, y hace falta
+/// para las functions que NO estan declaradas publicas en `config.toml`
+/// (`verify_jwt = true`): a esas el gateway les responde 401 si solo reciben
+/// `apikey`. Va apagado por default porque romperia el motivo 2.
+///
 /// Nunca lanza por status != 2xx: devuelve status + cuerpo para que decida el
 /// llamador (el adaptador traduce a `AuthError`/`ApiError` segun su contrato).
 /// Si no hay red, propaga la excepcion de [http.post].
 Future<AnonFunctionResponse> invokeAnonFunction(
   String fn, {
   Map<String, dynamic> body = const {},
+  bool withAuthorization = false,
 }) async {
   final baseUrl = (dotenv.env['SUPABASE_URL'] ?? '').replaceAll(
     RegExp(r'/+$'),
     '',
   );
+  final anonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
   final res = await http.post(
     Uri.parse('$baseUrl/functions/v1/$fn'),
     headers: {
       'Content-Type': 'application/json',
-      // SOLO aqui. Repetirla en Authorization rompe el gateway (ver doc arriba).
-      'apikey': dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+      'apikey': anonKey,
+      if (withAuthorization) 'Authorization': 'Bearer $anonKey',
     },
     body: jsonEncode(body),
   );

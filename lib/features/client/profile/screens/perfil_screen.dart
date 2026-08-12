@@ -584,9 +584,9 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
               ),
 
             // ── Preferencias propias del app ────────────────────────────────
-            // Apariencia solo en la vista móvil/angosta: el portal web ancho va
-            // fijo a claro (ver el candado en main.dart), asi que aqui el
-            // control seria inerte.
+            // Apariencia solo en la vista móvil/angosta: en el portal ancho vive
+            // en el menú del avatar. En web el selector se pinta apagado y con
+            // el motivo, porque el tema está con candado a claro (main.dart).
             _sectionLabel(tone, 'Apariencia'),
             const SCard(child: ThemeSelector()),
 

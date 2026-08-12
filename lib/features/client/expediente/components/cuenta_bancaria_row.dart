@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
-/// Fila "Cuenta bancaria" del grupo fiscal y financiero.
+/// Fila de datos bancarios del expediente: la cuenta Y su carátula, en una
+/// sola unidad.
 ///
 /// No es un documento: no la sirve `cliente-expediente` sino el perfil, y se
-/// captura con un formulario (banco, número, CLABE, titular) en vez de con un
-/// archivo. Vive en el expediente porque para el cliente es un requisito más
-/// de la misma lista.
+/// captura con un formulario (banco, número, CLABE, titular) además del
+/// archivo. La carátula NO tiene fila propia a propósito: sin cuenta no hay a
+/// qué pertenecer, y separarlas pintaba dos renglones para lo mismo con
+/// estatus distintos.
 class CuentaBancariaRow extends StatelessWidget {
   final List<CuentaBancariaPerfil> cuentas;
 
@@ -45,7 +47,7 @@ class CuentaBancariaRow extends StatelessWidget {
     final n = cuentas.length;
     final subtitulo = n > 0
         ? '$n cuenta${n > 1 ? 's' : ''} registrada${n > 1 ? 's' : ''}'
-        : 'Banco, número de cuenta, CLABE y titular';
+        : 'Banco, número de cuenta, CLABE, titular y la carátula del estado';
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -81,7 +83,7 @@ class CuentaBancariaRow extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        'Cuenta bancaria',
+                        'Cuenta bancaria y carátula',
                         style: context.s.text.bodySmall.copyWith(
                           fontWeight: FontWeight.w700,
                           color: tone.fg,

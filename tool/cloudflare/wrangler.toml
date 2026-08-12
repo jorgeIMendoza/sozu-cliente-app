@@ -1,0 +1,35 @@
+# Worker `obtener-clientes-app.sozu.com`: redirector de descarga de la app.
+#
+# El worker ya existe y lleva tiempo corriendo, pero vivía SOLO en el dashboard
+# de Cloudflare: sin copia en git, sin historial de a dónde apuntaba el QR, y una
+# edición o un borrado accidental no dejaban rastro. Esto lo pone bajo control de
+# versiones sin cambiar su comportamiento.
+#
+# `name` tiene que coincidir EXACTAMENTE con el worker que ya existe
+# (`app-sozu-clientes`); si no, el primer deploy crearía un worker nuevo y el
+# dominio seguiría apuntando al viejo.
+#
+# Deploy automático: .github/workflows/deploy-worker-cloudflare.yml, al hacer push
+# a `main` cuando cambia el worker o este archivo.
+#
+# Deploy a mano desde la raíz del repo:
+#   npx wrangler deploy --config tool/cloudflare/wrangler.toml
+# (requiere `npx wrangler login`, que abre el navegador, o CLOUDFLARE_API_TOKEN)
+
+name = "app-sozu-clientes"
+main = "../cloudflare-worker-obtener-clientes-app.js"
+
+# El id de cuenta NO es un secreto: sale en la URL del dashboard. El secreto es
+# el API token, que vive en los secrets del repo.
+account_id = "bece0694e6cbfaa9fa8f7e599b5467ce"
+
+# Fija el comportamiento del runtime. Subirla es un cambio deliberado.
+compatibility_date = "2026-08-11"
+
+# El dominio queda declarado aquí, así que un deploy nunca lo desconecta.
+[[routes]]
+pattern = "obtener-clientes-app.sozu.com"
+custom_domain = true
+
+[observability]
+enabled = true

@@ -172,21 +172,23 @@ Future<T?> showSDocModal<T>(
   required Widget child,
   double maxWidth = 980,
 }) {
+  // TRAMPA: dentro de `builder` se usa SU context, nunca el del llamador. La
+  // hoja vive en otra ruta y se reconstruye por su cuenta; si lee el context de
+  // quien la abrió, al reconstruirse busca un ancestro de un widget ya
+  // desmontado y revienta con "Looking up a deactivated widget's ancestor".
   if (context.bp.hasTwoColumns) {
     return showDialog<T>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _EscCierra(
+      builder: (ctx) => _EscCierra(
         child: Dialog(
           clipBehavior: Clip.antiAlias,
-          insetPadding: EdgeInsets.all(context.s.space.lg),
-          shape: RoundedRectangleBorder(
-            borderRadius: context.s.radius.lgBorder,
-          ),
+          insetPadding: EdgeInsets.all(ctx.s.space.lg),
+          shape: RoundedRectangleBorder(borderRadius: ctx.s.radius.lgBorder),
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: maxWidth,
-              maxHeight: MediaQuery.sizeOf(context).height * 0.86,
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.86,
             ),
             child: child,
           ),
@@ -200,13 +202,13 @@ Future<T?> showSDocModal<T>(
     isDismissible: false,
     enableDrag: false,
     backgroundColor: Colors.transparent,
-    builder: (_) => Padding(
-      padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top + 12),
+    builder: (ctx) => Padding(
+      padding: EdgeInsets.only(top: MediaQuery.paddingOf(ctx).top + 12),
       child: ClipRRect(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(context.s.radius.lg),
+          top: Radius.circular(ctx.s.radius.lg),
         ),
-        child: Material(color: context.s.color.surface, child: child),
+        child: Material(color: ctx.s.color.surface, child: child),
       ),
     ),
   );
@@ -429,9 +431,22 @@ class _SDocUploadBodyState extends State<_SDocUploadBody> {
       };
     }
     if (!mounted) return;
+    // Red de seguridad: un archivo vacío nunca sale de aquí. Si el buffer se
+    // quedó sin bytes (en web basta con que alguien lo transfiera a un worker),
+    // el backend responde "no llegó el archivo" y el cliente no entiende nada.
+    final bytes = _bytes;
+    if (bytes == null || bytes.isEmpty) {
+      setState(() {
+        _error = 'El archivo se perdió al prepararlo. Vuelve a seleccionarlo.';
+        _bytes = null;
+        _nombre = null;
+        _analisis = null;
+      });
+      return;
+    }
     Navigator.of(
       context,
-    ).pop((tipoId: tipo, nombre: _nombre!, bytes: _bytes!, campos: out));
+    ).pop((tipoId: tipo, nombre: _nombre!, bytes: bytes, campos: out));
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
