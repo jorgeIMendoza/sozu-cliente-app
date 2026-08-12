@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:sozu_cliente_app/core/version.dart' show isPreviewBuild;
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/expediente/ports/expediente_port.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
@@ -88,6 +90,7 @@ class ExpedienteAdapter implements ExpedientePort {
     String? slotKey,
     String? hash,
     Map<String, String>? fields,
+    int? docId,
   }) async {
     try {
       final res = await _sb.functions.invoke(
@@ -101,6 +104,7 @@ class ExpedienteAdapter implements ExpedientePort {
           if (slotKey != null) 'key': slotKey,
           if (hash != null) 'hash': hash,
           if (fields != null && fields.isNotEmpty) 'campos': fields,
+          if (docId != null) 'doc_id': docId,
         },
         headers: _headers,
       );
@@ -140,12 +144,24 @@ class ExpedienteAdapter implements ExpedientePort {
     if (details is Map) {
       final reason = details['reason'];
       if (reason is String && reason.isNotEmpty) {
+        _log(e.status, reason);
         return DocumentoInvalidoError(reason);
       }
       if (details['error'] != null) {
-        return ApiError(e.status, details['error'].toString());
+        final code = details['error'].toString();
+        _log(e.status, code);
+        return ApiError(e.status, code);
       }
     }
+    _log(e.status, 'internal_error (sin cuerpo: ${e.details.runtimeType})');
     return ApiError(e.status, 'internal_error');
+  }
+
+  /// Deja el codigo exacto en la consola del navegador. Un 400 puede ser cuatro
+  /// cosas distintas y el mensaje de pantalla las une; sin esto, diagnosticar
+  /// desde un reporte obliga a abrir DevTools y leer la respuesta a mano.
+  /// No lleva PII: solo el estado HTTP y el codigo de error del backend.
+  void _log(int status, String code) {
+    if (isPreviewBuild) debugPrint('[cliente-expediente] $status $code');
   }
 }

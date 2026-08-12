@@ -181,4 +181,42 @@ void main() {
       expect(motivoArchivoInvalido(grande), contains('10 MB'));
     });
   });
+
+  group('slot multiple (anexos)', () {
+    test('lee sus anexos en el orden que manda el backend', () {
+      final exp = _exp({
+        'slots': [
+          {
+            ..._slot('otros', 57, grupo: 'empresa', nombre: 'Otros documentos'),
+            'requerido': false,
+            'multiple': true,
+            'documentos': [
+              {
+                'id': 91,
+                'estatus': 'revision',
+                'fecha': '2026-08-10T10:00:00',
+                'url_firmada': 'https://x/91',
+              },
+              {'id': 90, 'estatus': 'aprobado', 'fecha': '2026-08-01T10:00:00'},
+            ],
+          },
+        ],
+      });
+
+      final slot = exp.slots.single;
+      expect(slot.multiple, isTrue);
+      expect(slot.requerido, isFalse, reason: 'un anexo no bloquea');
+      expect(slot.documentos.map((d) => d.id), [91, 90]);
+      expect(slot.documentos.first.urlFirmada, 'https://x/91');
+      expect(slot.documentos.last.urlFirmada, isNull);
+    });
+
+    test('un slot normal no trae anexos', () {
+      final exp = _exp({
+        'slots': [_slot('curp', 5)],
+      });
+      expect(exp.slots.single.multiple, isFalse);
+      expect(exp.slots.single.documentos, isEmpty);
+    });
+  });
 }
