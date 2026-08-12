@@ -14,7 +14,12 @@ class AuthBrandImage extends StatelessWidget {
 
   /// Ruta del asset. Declarada en `pubspec.yaml`; lo verifica
   /// `test/assets_declarados_test.dart`.
-  static const String assetPath = 'assets/images/bg-sozu.jpg';
+  ///
+  /// El nombre lleva el arte que contiene: al cambiar la imagen se cambia el
+  /// nombre, porque una URL nueva ninguna cache la tiene. Reemplazar el
+  /// contenido dejando el mismo nombre deja a los navegadores que ya la
+  /// guardaron pintando la version vieja.
+  static const String assetPath = 'assets/images/bg-sozu-confianza.jpg';
 
   @override
   Widget build(BuildContext context) {

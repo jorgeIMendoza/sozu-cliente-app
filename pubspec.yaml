@@ -76,8 +76,10 @@ flutter:
     # asset del portal admin (src/assets/sozu-logo-black.png).
     - assets/sozu-logo-black.png
     # Imagen del panel de marca del login (columna izquierda en desktop).
-    # 1403x1403; se recorta con BoxFit.cover.
-    - assets/images/bg-sozu.jpg
+    # 1403x1403; se recorta con BoxFit.cover. El nombre lleva el arte: al
+    # cambiar la imagen se cambia el nombre, porque una URL nueva ninguna
+    # cache la tiene.
+    - assets/images/bg-sozu-confianza.jpg
     # QR para descargar la app (login + modal "Descargar app" del portal web).
     - assets/images/sozu-qr-web.png
 
