@@ -63,9 +63,10 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
       ExpedienteSlot(
         key: _filaKey(slot, a.id),
         tipoId: slot.tipoId,
-        // La descripción ES el nombre de la fila: es lo que distingue este
-        // anexo de los demás. Sin ella queda el del slot, que se repite.
-        nombre: a.descripcion ?? slot.nombre,
+        // El nombre NO cambia: es texto del backend y cabe siempre. Lo que
+        // distingue un anexo de otro va como línea aparte y recortada, porque
+        // es texto libre y puede venir de cualquier largo.
+        nombre: slot.nombre,
         estatus: a.estatus,
         fecha: a.fecha,
         urlFirmada: a.urlFirmada,
@@ -463,6 +464,7 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
                 hijos.add(
                   ExpedienteSlotRow(
                     slot: _filaDeAnexo(slot, anexo),
+                    descripcion: anexo.descripcion,
                     subiendo: _enCurso == _filaKey(slot, anexo.id),
                     bloqueado: _enCurso != null,
                     onSubir: () => _cargar(slot, docId: anexo.id),
