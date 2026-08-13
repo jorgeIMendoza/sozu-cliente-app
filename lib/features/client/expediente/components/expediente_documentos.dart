@@ -40,6 +40,10 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
   /// Fila cuya carga está en curso, por [_filaKey].
   String? _enCurso;
 
+  /// Campo con el que se pide la descripción de un anexo. No es un dato del
+  /// perfil: viaja aparte, en `descripcion`.
+  static const _campoDescripcion = 'descripcion';
+
   /// Identidad de una FILA, no de un slot: un slot múltiple pinta una fila por
   /// anexo y cada una gira su propio indicador.
   static String _filaKey(ExpedienteSlot slot, int? docId) =>
@@ -59,7 +63,9 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
       ExpedienteSlot(
         key: _filaKey(slot, a.id),
         tipoId: slot.tipoId,
-        nombre: slot.nombre,
+        // La descripción ES el nombre de la fila: es lo que distingue este
+        // anexo de los demás. Sin ella queda el del slot, que se repite.
+        nombre: a.descripcion ?? slot.nombre,
         estatus: a.estatus,
         fecha: a.fecha,
         urlFirmada: a.urlFirmada,
@@ -104,6 +110,10 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
 
     setState(() => _enCurso = _filaKey(slot, docId));
     try {
+      // La descripción del anexo NO es un campo del perfil: viaja aparte, y por
+      // eso sale del mapa antes de mandarlo.
+      final delPerfil = Map<String, String>.from(res.campos);
+      final descripcion = delPerfil.remove(_campoDescripcion);
       final subida = await ref
           .read(expedientePortProvider)
           .uploadDocument(
@@ -112,13 +122,14 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
             fileBase64: base64Encode(res.bytes),
             slotKey: slot.key,
             hash: _hashPorArchivo[res.nombre],
-            fields: res.campos,
+            fields: delPerfil,
             docId: docId,
+            descripcion: descripcion,
           );
       _refrescar();
       // Con el backend anterior la extracción ocurre AL SUBIR, no antes: lo que
       // detectó rellena solo lo que el cliente dejó vacío, nunca lo pisa.
-      final campos = _mezclarDetectado(res.campos, subida);
+      final campos = _mezclarDetectado(delPerfil, subida);
       if (campos.isNotEmpty) await _guardarEnPerfil(campos);
       _aviso(
         subida.estatus == 'aprobado'
@@ -152,6 +163,26 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
     String nombre,
     Uint8List bytes,
   ) async {
+    // Un anexo no se analiza: no hay nada que extraerle. Lo único que se le
+    // pide es cómo llamarlo, porque es lo que lo distingue de los otros.
+    if (slot.multiple) {
+      return (
+        campos: const [
+          SDocFieldSpec(
+            key: _campoDescripcion,
+            label: 'Descripción',
+            requerido: true,
+            ayuda:
+                'Cómo distinguirlo de los demás anexos. Ej: "Reforma de '
+                'estatutos 2024".',
+          ),
+        ],
+        aviso: null,
+        tono: SDocTone.info,
+        rechazo: null,
+      );
+    }
+
     final delCatalogo = CamposDocumento.de(tipoId, esMoral: _esMoral);
     final analisis = await ref
         .read(expedientePortProvider)

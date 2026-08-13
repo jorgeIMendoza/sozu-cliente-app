@@ -64,6 +64,7 @@ class FakeExpedientePort implements ExpedientePort {
     String? hash,
     Map<String, String>? fields,
     int? docId,
+    String? descripcion,
   }) async {
     _throwIfFailing('uploadDocument:$typeId:$fileName');
     docIdRecibido = docId;
