@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
@@ -611,8 +612,8 @@ class _BlueInfoBanner extends StatelessWidget {
   }
 }
 
-/// Cuenta bancaria de solo lectura: banco, número enmascarado, titular y
-/// estatus.
+/// Cuenta bancaria: banco, número enmascarado, titular, estatus y las dos
+/// acciones que faltaban, ver la carátula y corregir los datos.
 class _CuentaCard extends StatelessWidget {
   final CuentaBancariaPerfil cuenta;
 
@@ -678,6 +679,28 @@ class _CuentaCard extends StatelessWidget {
             ),
           ),
           SBadge(label: label, tone: badgeTone),
+          SizedBox(width: context.s.space.xs),
+          if (cuenta.evidencia != null)
+            IconButton(
+              tooltip: 'Ver carátula',
+              iconSize: 18,
+              color: tone.fgMuted,
+              icon: const Icon(Icons.visibility_outlined),
+              onPressed: () => openMedia(
+                context,
+                cuenta.evidencia,
+                titulo: 'Carátula · ${cuenta.banco}',
+              ),
+            ),
+          IconButton(
+            tooltip: 'Editar cuenta',
+            iconSize: 18,
+            color: tone.fgMuted,
+            icon: const Icon(Icons.edit_outlined),
+            // Con la cuenta por delante la hoja EDITA; sin ella daba de alta
+            // otra y el cliente terminaba con duplicados.
+            onPressed: () => showCuentaBancariaSheet(context, cuenta: cuenta),
+          ),
         ],
       ),
     );

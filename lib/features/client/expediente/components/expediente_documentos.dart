@@ -470,10 +470,16 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
             hijos.add(
               CuentaBancariaRow(
                 cuentas: cuentas,
-                onAgregar: () => showCuentaBancariaSheet(context),
-                onVer: cuentas.any((c) => c.evidencia != null)
-                    ? widget.onVerCuentas
-                    : null,
+                // Con una cuenta ya registrada el botón EDITA esa, no abre un
+                // alta en blanco: sin esto cada corrección creaba una cuenta
+                // más y el cliente terminaba con duplicados. Con varias, la
+                // lista es el único sitio donde se puede elegir cuál.
+                onAgregar: () => cuentas.length == 1
+                    ? showCuentaBancariaSheet(context, cuenta: cuentas.single)
+                    : cuentas.isEmpty
+                    ? showCuentaBancariaSheet(context)
+                    : widget.onVerCuentas(),
+                onVer: cuentas.isEmpty ? null : widget.onVerCuentas,
               ),
             );
           } else if (hijos.isNotEmpty) {
