@@ -68,9 +68,12 @@ if [ "${BACKEND:-prod}" = "dev" ]; then
     echo "Pidele los valores a quien administra el VPS de functions." >&2
     exit 1
   fi
-  DEV_URL=$(grep -m1 '^SUPABASE_URL=' "$ENV_DEV" | cut -d= -f2-)
-  DEV_KEY=$(grep -m1 '^SUPABASE_ANON_KEY=' "$ENV_DEV" | cut -d= -f2-)
-  DEV_ROL=$(grep -m1 '^CLIENTE_ROL_ID=' "$ENV_DEV" | cut -d= -f2-)
+  # El `|| true` NO sobra: con `set -e`, un grep que no encuentra la clave
+  # devuelve 1 y mata el script en la asignacion. CLIENTE_ROL_ID es opcional,
+  # asi que sin esto un .env.dev valido tumbaba el arranque sin decir por que.
+  DEV_URL=$(grep -m1 '^SUPABASE_URL=' "$ENV_DEV" | cut -d= -f2- || true)
+  DEV_KEY=$(grep -m1 '^SUPABASE_ANON_KEY=' "$ENV_DEV" | cut -d= -f2- || true)
+  DEV_ROL=$(grep -m1 '^CLIENTE_ROL_ID=' "$ENV_DEV" | cut -d= -f2- || true)
   if [ -z "$DEV_URL" ] || [ -z "$DEV_KEY" ]; then
     echo "$ENV_DEV no trae SUPABASE_URL o SUPABASE_ANON_KEY." >&2
     exit 1
