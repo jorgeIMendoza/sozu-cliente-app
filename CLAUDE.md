@@ -23,19 +23,27 @@ de prueba: Chrome).
 - **El `X.Y.Z` NO se sube a mano y el estado vive en los TAGS de git**, no en
   `pubspec.yaml`. Se publica desde `main`, que está protegida (`enforce_admins`,
   review de code owner), así que el CI no puede commitear ahí; los tags sí se
-  pueden pushear. **Los TRES pipelines resuelven la versión con el mismo
-  algoritmo**: `bump_release_version` (codemagic.yaml, tiendas) y el paso
-  "Resolver versionName desde tags" (deploy-web-firebase.yml, web). El primero
-  que corre sobre un HEAD sin tag sube el vigesimal (`tool/bump_version.sh
-  --next`), lo escribe en pubspec/version.dart **solo en el workspace del build**
-  y tagea HEAD; los demás ven el tag y lo reusan. Así web, Android e iOS de una
-  misma tanda anuncian idéntico `X.Y.Z`. El versionCode/CFBundleVersion va por
-  separado, calculado desde cada tienda. Por eso `pubspec.yaml` en el repo se
-  queda atrás: es solo el piso inicial.
-  ⚠️ Hasta el 2026-08-13 la web NO tageaba (solo leía el último tag) y como los
-  workflows de Codemagic se disparan a mano DESPUÉS del merge, la web salía con
-  la versión anterior y ahí se quedaba: web 1.0.3 contra tiendas 1.0.4. Si se
-  vuelve a tocar este paso, la regla es que quien compile primero tagea.
+  pueden pushear. `bump_release_version` (codemagic.yaml) resuelve la versión
+  desde el tag `vX.Y.Z` más alto, la escribe en pubspec/version.dart **solo en el
+  workspace del build** y tagea HEAD. Si HEAD ya trae tag, es la segunda tienda
+  de la misma tanda y reusa la versión: Android e iOS nunca divergen. El
+  versionCode/CFBundleVersion va por separado, calculado desde cada tienda.
+  Por eso `pubspec.yaml` en el repo se queda atrás: es solo el piso inicial.
+- **El contador lo mueve SOLO quien publica a tiendas; la web lo LEE.** La web
+  se despliega en cada merge a `main` y las tiendas una vez por semana: si la
+  web también bumpeara, se adelantaría sin parar y las tiendas nunca la
+  alcanzarían (pasó el 2026-08-13: web 1.0.5 contra Play 1.0.4). El `X.Y.Z`
+  identifica el RELEASE; los builds web intermedios se distinguen por el
+  `-YYMMDD.HHMM` del mismo footer.
+  Para que la web no se quede atrás, `redesplegar_web` (codemagic.yaml) hace
+  `repository_dispatch: tiendas-publicadas` al terminar de publicar a
+  producción, y el deploy web se rehace con el tag recién creado. Es
+  `repository_dispatch` y no `workflow_dispatch` porque al primero le basta el
+  permiso `Contents: write` que el PAT ya tiene para los tags.
+  ⚠️ Si algún día la web vuelve a tagear, se rompe además el fallback de
+  `publicar_version_al_gate` en los workflows de promoción (no compilan, así que
+  toman "el último tag" como la versión publicada) y el aviso in-app apuntaría a
+  una versión que no existe en la tienda.
 - El aviso in-app lo enciende `app_cliente_config.latest_version`, que escribe el
   CI vía la edge function `app-version-publicar` al publicar **a producción**
   (no en Play interno ni TestFlight). Requiere el secret
