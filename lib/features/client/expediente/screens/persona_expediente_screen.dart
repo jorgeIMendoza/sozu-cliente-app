@@ -13,29 +13,39 @@ class PersonaExpedienteScreen extends StatelessWidget {
   final int idPersona;
   final String nombre;
 
-  /// `representante` | `accionista`. Solo para el subtítulo.
+  /// `empresa` | `representante` | `accionista`.
   final String rol;
+
+  /// Solo en la ficha de la empresa: abre sus cuentas bancarias.
+  final VoidCallback? onVerCuentas;
 
   const PersonaExpedienteScreen({
     super.key,
     required this.idPersona,
     required this.nombre,
     required this.rol,
+    this.onVerCuentas,
   });
 
   @override
   Widget build(BuildContext context) {
     return ExpedienteLayout(
       titulo: nombre,
-      descripcion: rol == 'accionista'
-          ? 'Documentos de este accionista. Súbelos en PDF, igual que los tuyos.'
-          : 'Documentos de tu representante legal. Súbelos en PDF, igual que '
-                'los tuyos.',
+      descripcion: switch (rol) {
+        'empresa' =>
+          'Documentos de tu empresa y sus datos bancarios. Súbelos en PDF.',
+        'accionista' =>
+          'Documentos de este accionista. Súbelos en PDF, igual que los tuyos.',
+        _ =>
+          'Documentos de tu representante legal. Súbelos en PDF, igual que los '
+              'tuyos.',
+      },
       onVolver: () => Navigator.of(context).pop(),
       child: ExpedienteDocumentos(
         contexto: idPersona,
-        // La cuenta bancaria es del titular, no de cada persona ligada.
-        onVerCuentas: null,
+        // La cuenta bancaria es de la EMPRESA: se pinta en su ficha, no en la
+        // de un representante ni la de un accionista.
+        onVerCuentas: rol == 'empresa' ? onVerCuentas : null,
       ),
     );
   }

@@ -28,8 +28,11 @@ Future<bool> downloadFile(String url, String filename) async {
 /// nombre [filename] (crea un Blob + anchor `download`). Útil para archivos
 /// generados en el cliente (p. ej. un ZIP de facturas). Devuelve true si se
 /// lanzó la descarga.
-Future<bool> downloadBytes(List<int> bytes, String filename,
-    {String mimeType = 'application/octet-stream'}) async {
+Future<bool> downloadBytes(
+  List<int> bytes,
+  String filename, {
+  String mimeType = 'application/octet-stream',
+}) async {
   try {
     final data = Uint8List.fromList(bytes).toJS;
     final blob = web.Blob(

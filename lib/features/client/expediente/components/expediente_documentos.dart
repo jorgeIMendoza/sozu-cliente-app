@@ -16,6 +16,7 @@ import 'package:sozu_cliente_app/features/client/expediente/ports/expediente_por
 import 'package:sozu_cliente_app/features/client/expediente/providers/expediente_providers.dart';
 import 'package:sozu_cliente_app/features/client/expediente/services/archivo_pdf.dart';
 import 'package:sozu_cliente_app/features/client/expediente/services/campos_documento.dart';
+import 'package:sozu_cliente_app/features/client/expediente/screens/anexos_screen.dart';
 import 'package:sozu_cliente_app/features/client/expediente/screens/persona_expediente_screen.dart';
 import 'package:sozu_cliente_app/features/client/expediente/services/expediente_grupos.dart';
 import 'package:sozu_cliente_app/features/client/profile/components/perfil_sheets.dart'
@@ -36,7 +37,15 @@ class ExpedienteDocumentos extends ConsumerStatefulWidget {
   /// De quién es el expediente. `null` = el del titular.
   final int? contexto;
 
-  const ExpedienteDocumentos({super.key, this.onVerCuentas, this.contexto});
+  /// Pantalla de anexos: pinta SOLO el slot múltiple, con una fila por anexo.
+  final bool? soloAnexos;
+
+  const ExpedienteDocumentos({
+    super.key,
+    this.onVerCuentas,
+    this.contexto,
+    this.soloAnexos,
+  });
 
   @override
   ConsumerState<ExpedienteDocumentos> createState() =>
@@ -506,9 +515,38 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
           hijos.add(SizedBox(height: context.s.space.xs));
 
           for (final slot in grupo.slots) {
+            if (widget.soloAnexos == true && !slot.multiple) continue;
             // Un slot múltiple son varias filas: una por anexo ya subido, más
             // la de agregar otro. Reemplazar dentro de una fila solo toca ese
             // anexo; los demás siguen vigentes.
+            // Los anexos pueden ser diez o mas: no caben como filas sueltas
+            // entre los requisitos. Una tarjeta que abre SU pagina.
+            if (slot.multiple && widget.soloAnexos != true) {
+              hijos.add(
+                ExpedienteFichaCard(
+                  titulo: slot.nombre,
+                  subtitulo: slot.documentos.isEmpty
+                      ? 'Reformas, protocolizaciones y cualquier anexo'
+                      : '${slot.documentos.length} documento'
+                            '${slot.documentos.length == 1 ? "" : "s"}',
+                  icono: Icons.folder_copy_outlined,
+                  total: slot.documentos.length,
+                  aprobados: slot.documentos
+                      .where((d) => d.estatus == 'aprobado')
+                      .length,
+                  onAbrir: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => AnexosScreen(
+                        contexto: data.contexto,
+                        titulo: slot.nombre,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+              hijos.add(SizedBox(height: context.s.space.xs));
+              continue;
+            }
             if (slot.multiple) {
               for (final anexo in slot.documentos) {
                 hijos.add(
@@ -676,6 +714,16 @@ class _PortadaMoral extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // El boton va PRIMERO, antes de las tarjetas: es lo que el cliente
+        // viene a hacer y tiene que verse sin escanear la pagina.
+        ExpedientePersonas(
+          personas: data.personas,
+          contexto: data.contexto,
+          umbral: data.umbralAccionista,
+          onAbrir: onAbrirPersona,
+          soloBoton: true,
+        ),
+        SizedBox(height: t.space.md),
         ExpedienteFichaCard(
           titulo: 'Documentos de la empresa',
           subtitulo: 'Constancia fiscal, acta constitutiva, domicilio y anexos',
@@ -690,6 +738,7 @@ class _PortadaMoral extends StatelessWidget {
           contexto: data.contexto,
           umbral: data.umbralAccionista,
           onAbrir: onAbrirPersona,
+          soloLista: true,
         ),
       ],
     );

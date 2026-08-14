@@ -25,12 +25,20 @@ class ExpedientePersonas extends ConsumerStatefulWidget {
   /// Abre la ficha de esa persona.
   final void Function(ExpedientePersona) onAbrir;
 
+  /// Solo el boton de agregar, para ponerlo arriba de todo.
+  final bool soloBoton;
+
+  /// Solo las tarjetas, porque el boton ya se pinto arriba.
+  final bool soloLista;
+
   const ExpedientePersonas({
     super.key,
     required this.personas,
     required this.contexto,
     required this.umbral,
     required this.onAbrir,
+    this.soloBoton = false,
+    this.soloLista = false,
   });
 
   @override

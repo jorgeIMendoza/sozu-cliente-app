@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdfx/pdfx.dart';
@@ -128,6 +129,10 @@ class _DocViewerScreenState extends State<DocViewerScreen> {
                 errorBuilder: (_, __, ___) => _fallback(tone),
               );
             case _MediaKind.pdf:
+              // En web el iframe del navegador: `pdfx` rasteriza cada
+              // pagina en un canvas y traba la pestana. El documento sigue
+              // dentro de la plataforma, es un embed.
+              if (kIsWeb) return SPdfFrame(url: widget.url);
               return _PdfView(url: widget.url, onError: () {});
             case _MediaKind.xml:
               return _XmlView(url: widget.url, onError: () => _fallback(tone));
