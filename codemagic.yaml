@@ -177,6 +177,45 @@ definitions:
       # de rojo un lanzamiento que sí salió; el UPDATE manual sigue disponible.
       [ "$CODIGO" = "200" ] || echo "AVISO: latest_version no se actualizó. Correr el UPDATE a mano (ver Ejecuciones_manuales)."
 
+  # Re-despliega la web para que herede el X.Y.Z que acaba de salir a tiendas.
+  #
+  # El contador lo mueve SOLO este pipeline (ver `bump_release_version`): la web
+  # se despliega en cada merge a `main` y las tiendas una vez por semana, asi
+  # que si la web tambien bumpeara se adelantaria sin parar. El precio es que la
+  # web se queda con el numero del release anterior hasta el siguiente merge, y
+  # este disparo es lo que lo paga: publicada la tienda, la web se rehace y las
+  # dos anuncian el mismo X.Y.Z.
+  #
+  # `repository_dispatch` y no `workflow_dispatch` a proposito: el primero le
+  # basta el permiso `Contents: write` que el PAT ya tiene para pushear tags; el
+  # segundo exigiria ademas `Actions: write`.
+  #
+  # Va DESPUES de publicar_version_al_gate y con la misma condicion: si la
+  # publicacion no termino bien, no hay version nueva que anunciar en ningun
+  # lado. No aborta nunca: la tienda ya recibio el binario.
+  redesplegar_web: &redesplegar_web
+    name: Re-desplegar la web con la version nueva
+    script: |
+      if [ "${CM_BUILD_STEP_STATUS:-success}" != "success" ]; then
+        echo "La publicación no terminó bien: no se re-despliega la web."
+        exit 0
+      fi
+      if [ -z "${GITHUB_PUSH_TOKEN:-}" ]; then
+        echo "Sin GITHUB_PUSH_TOKEN: se omite (la web tomará la versión en el próximo merge a main)."
+        exit 0
+      fi
+      CODIGO=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+        -H "Authorization: Bearer $GITHUB_PUSH_TOKEN" \
+        -H "Accept: application/vnd.github+json" \
+        https://api.github.com/repos/jorgeIMendoza/sozu-cliente-app/dispatches \
+        -d '{"event_type":"tiendas-publicadas"}')
+      # 204 = aceptado. La API no devuelve cuerpo.
+      if [ "$CODIGO" = "204" ]; then
+        echo "Deploy web disparado (repository_dispatch tiendas-publicadas)."
+      else
+        echo "AVISO: no se pudo disparar el deploy web (HTTP $CODIGO). La web tomará la versión en el próximo merge a main."
+      fi
+
   # Aviso por WhatsApp al terminar (exito o fallo). El telefono lo inyecta el
   # dashboard como WA_PHONE al lanzar el build; sin el, el paso no hace nada.
   # Va en publishing.scripts para que corra tambien cuando el build falla.
@@ -444,6 +483,7 @@ workflows:
     publishing:
       scripts:
         - *publicar_version_al_gate
+        - *redesplegar_web
         - *wa_notify
 
   # Promueve el release del track internal a production en Google Play.
@@ -502,6 +542,7 @@ workflows:
     publishing:
       scripts:
         - *publicar_version_al_gate
+        - *redesplegar_web
         - *wa_notify
 
   # ---------------------------------------------------------------------------
@@ -573,6 +614,7 @@ workflows:
     publishing:
       scripts:
         - *publicar_version_al_gate
+        - *redesplegar_web
         - *wa_notify
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
@@ -656,6 +698,7 @@ workflows:
               --release-type AFTER_APPROVAL \
               --whats-new "$RELEASE_NOTES"
         - *publicar_version_al_gate
+        - *redesplegar_web
         # Al final, para que el aviso refleje el resultado de la publicación
         # y no solo el de la compilación.
         - *wa_notify

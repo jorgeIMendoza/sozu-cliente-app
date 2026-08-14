@@ -4,14 +4,17 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Lo dispara Codemagic al terminar de publicar a las tiendas, para que la web
+  # se re-despliegue y herede el X.Y.Z recien tageado. Sin esto la web se queda
+  # con el numero del release anterior hasta el siguiente merge a `main`.
+  # `repository_dispatch` corre siempre sobre la rama por defecto (`main`), que
+  # es justo lo que se quiere desplegar.
+  repository_dispatch:
+    types: [tiendas-publicadas]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # `contents: write` es para pushear el tag `vX.Y.Z` (ver "Resolver
-    # versionName..."). Los tags no los cubre la proteccion de `main`.
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,46 +49,28 @@ jobs:
       # piso inicial (1.0.0) para siempre. Sin este paso el footer de la web
       # anunciaba 1.0.0 mientras las tiendas iban en 1.0.2.
       #
-      # MISMO algoritmo que `bump_release_version` de codemagic.yaml, a
-      # propósito: el primero de los dos que corre sobre un HEAD sin tag sube el
-      # vigesimal y tagea, y el otro reusa ese tag. Así web, Android e iOS de una
-      # misma tanda anuncian idéntico X.Y.Z.
+      # Aquí NO se sube el vigesimal ni se tagea: el contador lo mueve QUIEN
+      # PUBLICA A LAS TIENDAS (`bump_release_version` en codemagic.yaml). La web
+      # se despliega en cada merge a `main` y las tiendas una vez por semana; si
+      # la web también bumpeara, se adelantaría sin parar y las tiendas nunca la
+      # alcanzarían. El X.Y.Z identifica el RELEASE, y los builds web
+      # intermedios se distinguen por el `-YYMMDD.HHMM` del mismo footer.
       #
-      # Antes la web NO tageaba (sólo leía el último tag) y como los workflows de
-      # Codemagic se disparan a mano DESPUÉS del merge, la web se desplegaba con
-      # la versión anterior y ahí se quedaba hasta el siguiente push: web 1.0.3
-      # contra tiendas 1.0.4. No era una carrera de segundos, era estructural.
+      # Lo que faltaba no era que la web bumpeara, sino que se re-desplegara al
+      # publicar a tiendas: eso lo cubre el trigger `repository_dispatch` de
+      # arriba, que dispara Codemagic cuando el tag nuevo ya existe.
       - name: Resolver versionName desde tags
         run: |
           set -e
           git fetch --tags --force --quiet
           EN_HEAD=$(git tag --points-at HEAD --list 'v[0-9]*' --sort=v:refname | tail -1)
           ULTIMO=$(git tag --list 'v[0-9]*' --sort=v:refname | tail -1)
-          PISO=$(grep -E '^version:' pubspec.yaml | head -1 | sed -E 's/^version:[[:space:]]*//;s/\+.*//')
-          if [ -n "$EN_HEAD" ]; then
-            NAME="${EN_HEAD#v}"
-            echo "HEAD ya está publicado como $EN_HEAD: se reusa $NAME."
-          else
-            BASE="${ULTIMO:-$PISO}"
-            NAME=$(bash tool/bump_version.sh --next "${BASE#v}")
-            echo "Último tag: ${ULTIMO:-ninguno} · piso del pubspec: $PISO · se publica: $NAME"
-            git tag "v$NAME"
-            # Si Codemagic ganó la carrera y ya pusheó el mismo tag, el push es
-            # un no-op; si apunta a otro commit, falla y se reusa el de HEAD en
-            # vez de tumbar el deploy.
-            if git push origin "v$NAME"; then
-              echo "Tag v$NAME apuntando a $(git rev-parse --short HEAD)"
-            else
-              git fetch --tags --force --quiet
-              NAME=$(git tag --points-at HEAD --list 'v[0-9]*' --sort=v:refname | tail -1)
-              NAME="${NAME#v}"
-              echo "No se pudo pushear el tag; se publica el que ya existe en HEAD: ${NAME:-ninguno}"
-            fi
-          fi
+          NAME="${EN_HEAD:-$ULTIMO}"
           if [ -z "$NAME" ]; then
-            echo "Sin versión resoluble: se queda el piso del pubspec."
+            echo "Sin tags vX.Y.Z: se queda el piso del pubspec."
           else
-            bash tool/bump_version.sh --set "$NAME" >/dev/null
+            bash tool/bump_version.sh --set "${NAME#v}" >/dev/null
+            echo "Tag en HEAD: ${EN_HEAD:-ninguno} · último tag: ${ULTIMO:-ninguno} · se publica: ${NAME#v}"
           fi
 
       - name: Build web (versión con hora de México)
@@ -107,20 +92,25 @@ jobs:
       # --- Notificación WhatsApp (mismo sistema que sozu-admin) -------------
       # Requiere el secret FIREBASE_GCP_DEV (service account con lectura de
       # Firestore sozu-admin-dev, donde viven los teléfonos de contributors).
+      #
+      # Se salta en `repository_dispatch`: ese re-deploy no trae código nuevo,
+      # solo re-sella el X.Y.Z que acaban de publicar las tiendas. El notify
+      # lista los autores de los PRs entre HEAD^1 y HEAD, que ahí ya se
+      # avisaron: volvería a mandarles el mismo WhatsApp.
       - name: Autenticar a Google Cloud (Firestore dev)
-        if: always()
+        if: always() && github.event_name != 'repository_dispatch'
         continue-on-error: true
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_GCP_DEV }}
 
       - name: Configurar gcloud (notify)
-        if: always()
+        if: always() && github.event_name != 'repository_dispatch'
         continue-on-error: true
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Notificar deploy listo (WhatsApp)
-        if: always()
+        if: always() && github.event_name != 'repository_dispatch'
         continue-on-error: true
         env:
           ENVIRONMENT: PROD
