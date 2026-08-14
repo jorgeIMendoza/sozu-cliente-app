@@ -196,6 +196,7 @@ void main() {
                 'estatus': 'revision',
                 'fecha': '2026-08-10T10:00:00',
                 'url_firmada': 'https://x/91',
+                'descripcion': 'Reforma de estatutos 2024',
               },
               {'id': 90, 'estatus': 'aprobado', 'fecha': '2026-08-01T10:00:00'},
             ],
@@ -209,6 +210,9 @@ void main() {
       expect(slot.documentos.map((d) => d.id), [91, 90]);
       expect(slot.documentos.first.urlFirmada, 'https://x/91');
       expect(slot.documentos.last.urlFirmada, isNull);
+      // La descripcion es lo que distingue un anexo de otro en la lista.
+      expect(slot.documentos.first.descripcion, 'Reforma de estatutos 2024');
+      expect(slot.documentos.last.descripcion, isNull);
     });
 
     test('un slot normal no trae anexos', () {

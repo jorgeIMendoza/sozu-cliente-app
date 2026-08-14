@@ -23,6 +23,12 @@ class ExpedienteSlotRow extends StatelessWidget {
   /// Abre el documento ya guardado; null si todavía no hay ninguno.
   final VoidCallback? onVer;
 
+  /// Texto libre que escribió el cliente (la descripción de un anexo). Es
+  /// INFORMATIVO: va en su propia línea y recortado, nunca como nombre de la
+  /// fila. El nombre lo manda el backend y es estable; esto puede ser cualquier
+  /// cosa y de cualquier largo.
+  final String? descripcion;
+
   const ExpedienteSlotRow({
     super.key,
     required this.slot,
@@ -30,6 +36,7 @@ class ExpedienteSlotRow extends StatelessWidget {
     required this.bloqueado,
     required this.onSubir,
     this.onVer,
+    this.descripcion,
   });
 
   @override
@@ -117,6 +124,18 @@ class ExpedienteSlotRow extends StatelessWidget {
                           ),
                       ],
                     ),
+                    if (descripcion != null && descripcion!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        descripcion!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.s.text.caption.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: tone.fgMuted,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 2),
                     Text(
                       tieneDoc

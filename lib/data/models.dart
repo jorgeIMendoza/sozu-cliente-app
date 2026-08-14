@@ -1733,11 +1733,15 @@ class ExpedienteAnexo {
   final String? fecha;
   final String? urlFirmada;
 
+  /// Lo que el cliente escribió para distinguir este anexo de los otros.
+  final String? descripcion;
+
   ExpedienteAnexo.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
       estatus = asString(j['estatus'], 'revision'),
       fecha = j['fecha'] as String?,
-      urlFirmada = j['url_firmada'] as String?;
+      urlFirmada = j['url_firmada'] as String?,
+      descripcion = asStringOrNull(j['descripcion']);
 }
 
 class ClienteExpediente {
