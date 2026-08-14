@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:sozu_cliente_app/core/backend_env.dart';
 import 'package:sozu_cliente_app/core/secure_session_storage.dart';
 import 'package:sozu_cliente_app/core/url_strategy.dart';
 import 'package:sozu_cliente_app/shared/providers/theme_provider.dart';
@@ -41,11 +42,11 @@ Future<void> main() async {
   await dotenv.load(fileName: 'assets/env');
   await initializeDateFormatting('es_MX');
 
-  final url = dotenv.env['SUPABASE_URL'];
-  final anonKey = dotenv.env['SUPABASE_ANON_KEY'];
-  if (url == null || anonKey == null) {
+  final url = backendUrl;
+  final anonKey = backendAnonKey;
+  if (url.isEmpty || anonKey.isEmpty) {
     throw StateError(
-      'Faltan SUPABASE_URL o SUPABASE_ANON_KEY. Copia .env.example a .env.',
+      'Faltan SUPABASE_URL o SUPABASE_ANON_KEY. Copia .env.example a assets/env.',
     );
   }
 

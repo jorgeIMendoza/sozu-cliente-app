@@ -22,7 +22,31 @@ typedef ExpedienteUpload = ({
 /// Todos los metodos lanzan [ApiError].
 abstract interface class ExpedientePort {
   /// Slots del expediente con su estatus, agrupados segun el tipo de persona.
-  Future<ClienteExpediente> identityFile();
+  /// Expediente del titular, o el de una persona ligada si va [contexto].
+  Future<ClienteExpediente> identityFile({int? contexto});
+
+  /// Da de alta a un representante legal o a un accionista y lo liga a
+  /// [contexto] (por omision, al titular). [porcentaje] solo aplica a un
+  /// accionista, y el backend exige que pase del umbral.
+  Future<void> addPerson({
+    required String rol,
+    required String nombre,
+    required String tipoPersona,
+    double? porcentaje,
+    int? contexto,
+  });
+
+  /// Corrige nombre o porcentaje de una persona ya ligada.
+  Future<void> editPerson({
+    required int idPersona,
+    String? nombre,
+    double? porcentaje,
+    int? contexto,
+  });
+
+  /// Suelta el vinculo (baja logica). El backend lo rechaza si ya subio
+  /// documentos o si lo ligo el back office.
+  Future<void> removePerson({required int idPersona, int? contexto});
 
   /// Analiza un PDF SIN guardarlo: devuelve el veredicto y los campos que se
   /// pudieron extraer para que el cliente los confirme.

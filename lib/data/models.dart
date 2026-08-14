@@ -1725,6 +1725,47 @@ class ExpedienteSlot {
   });
 }
 
+/// Persona ligada al expediente: un representante legal o un accionista.
+///
+/// Tonta a propósito: no trae documentos. Es la tarjeta, y al abrirla se pide su
+/// expediente con `contexto`.
+class ExpedientePersona {
+  final int idPersona;
+  final String nombre;
+
+  /// `pf` | `pm`. Una PM abre su propia rama: sus documentos de empresa y sus
+  /// propias personas ligadas.
+  final String tipoPersona;
+
+  /// `representante` | `accionista`.
+  final String rol;
+
+  /// Solo accionistas. `null` en un representante.
+  final double? porcentaje;
+
+  final int requeridosTotal;
+  final int requeridosAprobados;
+
+  /// false si ya subió documentos, o si lo ligó el back office: quitarlo dejaría
+  /// huecos que el cliente no puede resolver.
+  final bool puedeEliminar;
+
+  ExpedientePersona.fromJson(Map<String, dynamic> j)
+    : idPersona = asInt(j['id_persona']),
+      nombre = asString(j['nombre'], 'Sin nombre'),
+      tipoPersona = asString(j['tipo_persona'], 'pf'),
+      rol = asString(j['rol'], 'representante'),
+      porcentaje = j['porcentaje'] == null ? null : asDouble(j['porcentaje']),
+      requeridosTotal = asInt(j['requeridos_total']),
+      requeridosAprobados = asInt(j['requeridos_aprobados']),
+      puedeEliminar = j['puede_eliminar'] == true;
+
+  bool get esAccionista => rol == 'accionista';
+  bool get esMoral => tipoPersona == 'pm';
+  bool get completo =>
+      requeridosTotal > 0 && requeridosAprobados >= requeridosTotal;
+}
+
 /// Un anexo de un slot múltiple ("Otros documentos"). Cada uno se ve, se
 /// reemplaza y se verifica por separado.
 class ExpedienteAnexo {
@@ -1760,6 +1801,20 @@ class ClienteExpediente {
   /// Solo en persona moral.
   final ExpedienteRepLegal? repLegal;
 
+  /// De quién es este expediente. El del titular, o el de alguien de su árbol.
+  final int contexto;
+
+  /// Nombre de esa persona, para el encabezado de su pantalla.
+  final String? nombre;
+
+  /// Representantes legales y accionistas ligados. NO traen sus documentos:
+  /// cada uno es una tarjeta y su expediente se pide con su `contexto`.
+  final List<ExpedientePersona> personas;
+
+  /// Porcentaje a partir del cual un accionista necesita expediente. Lo manda
+  /// el backend: es regla de negocio y cambia por país.
+  final double umbralAccionista;
+
   ClienteExpediente.fromJson(Map<String, dynamic> j)
     : slots = ((j['slots'] as List?) ?? [])
           .map((e) => ExpedienteSlot.fromJson(Map<String, dynamic>.from(e)))
@@ -1775,7 +1830,13 @@ class ClienteExpediente {
           ? ExpedienteRepLegal.fromJson(
               Map<String, dynamic>.from(j['rep_legal'] as Map),
             )
-          : null;
+          : null,
+      contexto = asInt(j['contexto']),
+      nombre = asStringOrNull(j['nombre']),
+      personas = ((j['personas'] as List?) ?? [])
+          .map((e) => ExpedientePersona.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      umbralAccionista = asDouble(j['umbral_accionista'] ?? 25);
 
   bool get esMoral => tipoPersona.toLowerCase().startsWith('pm');
 }

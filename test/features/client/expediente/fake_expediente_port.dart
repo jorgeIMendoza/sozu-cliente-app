@@ -30,7 +30,7 @@ class FakeExpedientePort implements ExpedientePort {
   Map<String, dynamic>? analisisJson;
 
   @override
-  Future<ClienteExpediente> identityFile() async {
+  Future<ClienteExpediente> identityFile({int? contexto}) async {
     _throwIfFailing('identityFile');
     return ClienteExpediente.fromJson(
       expedienteJson ??
@@ -42,6 +42,39 @@ class FakeExpedientePort implements ExpedientePort {
           },
     );
   }
+
+  /// Personas dadas de alta, para afirmar sobre ellas en los tests.
+  final List<Map<String, Object?>> altas = [];
+
+  @override
+  Future<void> addPerson({
+    required String rol,
+    required String nombre,
+    required String tipoPersona,
+    double? porcentaje,
+    int? contexto,
+  }) async {
+    _throwIfFailing('addPerson:$rol:$nombre');
+    altas.add({
+      'rol': rol,
+      'nombre': nombre,
+      'tipo': tipoPersona,
+      'porcentaje': porcentaje,
+      'contexto': contexto,
+    });
+  }
+
+  @override
+  Future<void> editPerson({
+    required int idPersona,
+    String? nombre,
+    double? porcentaje,
+    int? contexto,
+  }) async => _throwIfFailing('editPerson:$idPersona');
+
+  @override
+  Future<void> removePerson({required int idPersona, int? contexto}) async =>
+      _throwIfFailing('removePerson:$idPersona');
 
   @override
   Future<AnalisisDocumento?> analyzeDocument({
