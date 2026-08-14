@@ -132,13 +132,52 @@ class _ExpedientePersonasState extends ConsumerState<ExpedientePersonas> {
     );
   }
 
+  /// Tarjeta de una persona ligada. Es la misma ficha que la de la empresa, así
+  /// que hay un solo componente de tarjeta y no dos parecidos.
+  Widget _ficha(ExpedientePersona p) => ExpedienteFichaCard(
+    titulo: p.nombre,
+    subtitulo: [
+      if (p.porcentaje != null)
+        '${p.porcentaje!.toStringAsFixed(p.porcentaje! % 1 == 0 ? 0 : 2)}% de las acciones',
+      if (p.esMoral) 'Empresa' else 'Persona física',
+    ].join(' · '),
+    icono: p.esMoral ? Icons.apartment_outlined : Icons.person_outline,
+    total: p.requeridosTotal,
+    aprobados: p.requeridosAprobados,
+    onAbrir: () => widget.onAbrir(p),
+    accion: p.puedeEliminar
+        ? IconButton(
+            tooltip: 'Quitar',
+            iconSize: 17,
+            color: context.s.color.fgSubtle,
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => _quitar(p),
+          )
+        : null,
+  );
+
   @override
   Widget build(BuildContext context) {
     final t = context.s;
+
+    // El encabezado de la pantalla solo quiere el botón: ahí se ve sin escanear
+    // la página, y las tarjetas van abajo con su título.
+    if (widget.soloBoton) {
+      return SButton(
+        label: 'Agregar persona',
+        icon: Icons.person_add_alt_outlined,
+        loading: _guardando,
+        fullWidth: false,
+        size: SButtonSize.sm,
+        onPressed: _agregar,
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Titulo('Representante legal'),
+        if (_representantes.isNotEmpty || !widget.soloLista)
+          _Titulo('Representante legal'),
         SizedBox(height: t.space.xs),
         if (_representantes.isEmpty)
           _Vacio(
@@ -209,13 +248,17 @@ class _ExpedientePersonasState extends ConsumerState<ExpedientePersonas> {
             SizedBox(height: t.space.xs),
           ],
 
-        SizedBox(height: t.space.sm),
-        SButton.secondary(
-          label: 'Agregar persona',
-          icon: Icons.person_add_alt_outlined,
-          loading: _guardando,
-          onPressed: _agregar,
-        ),
+        // Sin `soloLista` el botón va aquí: es el caso de una empresa anidada,
+        // cuya pantalla no tiene encabezado propio donde ponerlo.
+        if (!widget.soloLista) ...[
+          SizedBox(height: t.space.sm),
+          SButton.secondary(
+            label: 'Agregar persona',
+            icon: Icons.person_add_alt_outlined,
+            loading: _guardando,
+            onPressed: _agregar,
+          ),
+        ],
       ],
     );
   }

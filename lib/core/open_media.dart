@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/features/client/facturacion/screens/doc_viewer_screen.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Abre un documento o imagen.
 ///
@@ -19,6 +20,30 @@ Future<void> openMedia(
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Este documento no tiene un archivo asociado.'),
+      ),
+    );
+    return;
+  }
+  // En escritorio es una MODAL con tope de tamaño: se ve el portal detrás y se
+  // entiende que es una capa, no otra pantalla. A pantalla completa parecía que
+  // la app había navegado a otro sitio.
+  if (context.bp.hasTwoColumns) {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        clipBehavior: Clip.antiAlias,
+        insetPadding: EdgeInsets.symmetric(
+          horizontal: ctx.s.space.xl,
+          vertical: ctx.s.space.lg,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: ctx.s.radius.lgBorder),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 900,
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.85,
+          ),
+          child: DocViewerScreen(url: url, titulo: titulo ?? 'Documento'),
+        ),
       ),
     );
     return;

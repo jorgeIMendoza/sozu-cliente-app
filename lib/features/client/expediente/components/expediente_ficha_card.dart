@@ -101,7 +101,9 @@ class ExpedienteFichaCard extends StatelessWidget {
                       ),
                       SizedBox(width: t.space.xs),
                       Text(
-                        _completo ? 'Completo' : 'Faltan $falta',
+                        total == 0
+                            ? 'Sin cargar'
+                            : (_completo ? 'Completo' : 'Faltan $falta'),
                         style: t.text.overline.copyWith(
                           fontWeight: FontWeight.w700,
                           color: _completo ? tone.primaryHover : tone.fgMuted,
