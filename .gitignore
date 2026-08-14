@@ -46,7 +46,10 @@ app.*.map.json
 
 # Env / secretos - NUNCA commitear
 .env
+# Cualquier variante (assets/env.dev apunta al backend de desarrollo): llevan
+# llaves y NINGUNA entra al repo.
 assets/env
+assets/env.*
 
 # Firebase (cache de deploy local)
 .firebase/
