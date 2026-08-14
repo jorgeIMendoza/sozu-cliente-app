@@ -1,5 +1,7 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'package:sozu_cliente_app/core/backend_env.dart';
+
 import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
 
 /// Quién puede entrar al Portal del Cliente.
@@ -20,9 +22,7 @@ abstract final class PortalAccess {
   /// Getter, no `static final`: una constante perezosa leída antes de
   /// `dotenv.load()` cachearía el default para toda la vida del proceso.
   static int get clientRoleId =>
-      (dotenv.isInitialized
-          ? int.tryParse(dotenv.env['CLIENTE_ROL_ID'] ?? '')
-          : null) ??
+      (dotenv.isInitialized ? int.tryParse(backendClienteRolId) : null) ??
       _defaultClientRoleId;
 
   /// ¿Este perfil puede entrar al portal?

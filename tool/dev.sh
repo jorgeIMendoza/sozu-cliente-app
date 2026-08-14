@@ -40,6 +40,43 @@ if [ ! -f assets/env ]; then
   exit 1
 fi
 
+# --- Backend contra DEV -------------------------------------------------------
+# `assets/env` apunta a PRODUCCION, asi que probar un cambio de edge function
+# obliga a pasarlo por PR -> dev -> main -> deploy. Con BACKEND=dev la app corre
+# contra el ambiente de desarrollo, donde `deploy-dev.yml` publica sola en
+# cuanto algo entra a la rama `dev`: el ciclo baja de horas a un minuto.
+#
+#   BACKEND=dev ./tool/dev.sh
+#
+# Necesita `assets/env.dev` con la URL y la anon key de ese ambiente (mismo
+# formato que `assets/env`, tambien gitignored). El archivo NO se toca: se pasa
+# por --dart-define, asi que no hay riesgo de commitear el de prod cambiado ni
+# de quedarse apuntando a DEV sin darse cuenta.
+DEFINES_ENV=()
+if [ "${BACKEND:-prod}" = "dev" ]; then
+  if [ ! -f assets/env.dev ]; then
+    echo "Falta assets/env.dev con SUPABASE_URL y SUPABASE_ANON_KEY del ambiente DEV." >&2
+    echo "Pidele los valores a quien administra el VPS de functions." >&2
+    exit 1
+  fi
+  DEV_URL=$(grep -m1 '^SUPABASE_URL=' assets/env.dev | cut -d= -f2-)
+  DEV_KEY=$(grep -m1 '^SUPABASE_ANON_KEY=' assets/env.dev | cut -d= -f2-)
+  DEV_ROL=$(grep -m1 '^CLIENTE_ROL_ID=' assets/env.dev | cut -d= -f2-)
+  if [ -z "$DEV_URL" ] || [ -z "$DEV_KEY" ]; then
+    echo "assets/env.dev no trae SUPABASE_URL o SUPABASE_ANON_KEY." >&2
+    exit 1
+  fi
+  DEFINES_ENV=(
+    --dart-define=SUPABASE_URL="$DEV_URL"
+    --dart-define=SUPABASE_ANON_KEY="$DEV_KEY"
+  )
+  # El id del rol Cliente puede no ser 23 fuera de produccion.
+  [ -n "$DEV_ROL" ] && DEFINES_ENV+=(--dart-define=CLIENTE_ROL_ID="$DEV_ROL")
+  echo "⚠️  Backend: DEV ($DEV_URL)"
+else
+  echo "Backend: produccion (assets/env)"
+fi
+
 DEVICE="${1:-web-server}"
 PORT="${PORT:-5000}"
 
@@ -169,6 +206,7 @@ flutter pub get
 COMMON_ARGS=(
   --dart-define=BUILD_TIMESTAMP="$BUILD_TIMESTAMP"
   --dart-define=APP_ENV=dev
+  "${DEFINES_ENV[@]+"${DEFINES_ENV[@]}"}"
 )
 
 # En profile no hay hot reload (el JIT no esta), pero es el UNICO modo en el que
