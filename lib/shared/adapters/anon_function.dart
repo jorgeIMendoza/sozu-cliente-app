@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:sozu_cliente_app/core/backend_env.dart';
 import 'package:http/http.dart' as http;
 
 /// Llamada cruda a una Edge Function SIN sesion, para las pantallas de acceso
@@ -38,11 +38,11 @@ Future<AnonFunctionResponse> invokeAnonFunction(
   bool withAuthorization = false,
   http.Client? client,
 }) async {
-  final baseUrl = (dotenv.env['SUPABASE_URL'] ?? '').replaceAll(
-    RegExp(r'/+$'),
-    '',
-  );
-  final anonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  // La URL y la llave salen de `backendUrl`/`backendAnonKey`, no de dotenv: asi
+  // `BACKEND=dev ./tool/dev.sh` apunta esta llamada al ambiente de desarrollo
+  // igual que al resto de la app.
+  final baseUrl = backendUrl.replaceAll(RegExp(r'/+$'), '');
+  final anonKey = backendAnonKey;
   final uri = Uri.parse('$baseUrl/functions/v1/$fn');
   final headers = {
     'Content-Type': 'application/json',

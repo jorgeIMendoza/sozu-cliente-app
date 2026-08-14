@@ -22,11 +22,11 @@ class ExpedienteAdapter implements ExpedientePort {
       impersonate != null ? {'x-impersonate-id-persona': '$impersonate'} : null;
 
   @override
-  Future<ClienteExpediente> identityFile() async {
+  Future<ClienteExpediente> identityFile({int? contexto}) async {
     try {
       final res = await _sb.functions.invoke(
         'cliente-expediente',
-        body: {'action': 'listar'},
+        body: {'action': 'listar', if (contexto != null) 'contexto': contexto},
         headers: _headers,
       );
       final data = res.data;
@@ -130,6 +130,60 @@ class ExpedienteAdapter implements ExpedientePort {
         );
       }
       throw ApiError(500, 'empty_response');
+    } on FunctionException catch (e) {
+      throw _fallo(e);
+    } on ApiError {
+      rethrow;
+    } catch (_) {
+      throw ApiError(0, 'network_error');
+    }
+  }
+
+  @override
+  Future<void> addPerson({
+    required String rol,
+    required String nombre,
+    required String tipoPersona,
+    double? porcentaje,
+    int? contexto,
+  }) => _mutar({
+    'action': 'alta_persona',
+    'rol': rol,
+    'nombre': nombre,
+    'tipo_persona': tipoPersona,
+    if (porcentaje != null) 'porcentaje': porcentaje,
+    if (contexto != null) 'contexto': contexto,
+  });
+
+  @override
+  Future<void> editPerson({
+    required int idPersona,
+    String? nombre,
+    double? porcentaje,
+    int? contexto,
+  }) => _mutar({
+    'action': 'editar_persona',
+    'id_persona': idPersona,
+    if (nombre != null) 'nombre': nombre,
+    if (porcentaje != null) 'porcentaje': porcentaje,
+    if (contexto != null) 'contexto': contexto,
+  });
+
+  @override
+  Future<void> removePerson({required int idPersona, int? contexto}) => _mutar({
+    'action': 'baja_persona',
+    'id_persona': idPersona,
+    if (contexto != null) 'contexto': contexto,
+  });
+
+  /// Invoca una accion que no devuelve datos y traduce el fallo.
+  Future<void> _mutar(Map<String, dynamic> body) async {
+    try {
+      await _sb.functions.invoke(
+        'cliente-expediente',
+        body: body,
+        headers: _headers,
+      );
     } on FunctionException catch (e) {
       throw _fallo(e);
     } on ApiError {

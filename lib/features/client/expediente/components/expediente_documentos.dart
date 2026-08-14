@@ -9,11 +9,13 @@ import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/version.dart' show isPreviewBuild;
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/cuenta_bancaria_row.dart';
+import 'package:sozu_cliente_app/features/client/expediente/components/expediente_personas.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/expediente_slot_row.dart';
 import 'package:sozu_cliente_app/features/client/expediente/ports/expediente_port.dart';
 import 'package:sozu_cliente_app/features/client/expediente/providers/expediente_providers.dart';
 import 'package:sozu_cliente_app/features/client/expediente/services/archivo_pdf.dart';
 import 'package:sozu_cliente_app/features/client/expediente/services/campos_documento.dart';
+import 'package:sozu_cliente_app/features/client/expediente/screens/persona_expediente_screen.dart';
 import 'package:sozu_cliente_app/features/client/expediente/services/expediente_grupos.dart';
 import 'package:sozu_cliente_app/features/client/profile/components/perfil_sheets.dart'
     show showCuentaBancariaSheet;
@@ -26,10 +28,14 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 ///
 /// La pantalla solo compone; el estado de la subida vive aquí.
 class ExpedienteDocumentos extends ConsumerStatefulWidget {
-  /// Abre la vista de cuentas bancarias del perfil.
-  final VoidCallback onVerCuentas;
+  /// Abre la vista de cuentas bancarias del perfil. `null` en la ficha de una
+  /// persona ligada: la cuenta es del titular, no de cada quien.
+  final VoidCallback? onVerCuentas;
 
-  const ExpedienteDocumentos({super.key, required this.onVerCuentas});
+  /// De quién es el expediente. `null` = el del titular.
+  final int? contexto;
+
+  const ExpedienteDocumentos({super.key, this.onVerCuentas, this.contexto});
 
   @override
   ConsumerState<ExpedienteDocumentos> createState() =>
@@ -386,7 +392,15 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
     _ => 'No se pudo subir el documento (${e.code}). Intenta de nuevo.',
   };
 
-  void _refrescar() => ref.invalidate(identityFileProvider);
+  /// Provider del expediente que se está viendo.
+  ProviderListenable<AsyncValue<ClienteExpediente>> get _fuente =>
+      widget.contexto == null
+      ? identityFileProvider
+      : personaExpedienteProvider(widget.contexto!);
+
+  void _refrescar() => widget.contexto == null
+      ? ref.invalidate(identityFileProvider)
+      : ref.invalidate(personaExpedienteProvider(widget.contexto!));
 
   void _aviso(String mensaje, {bool error = false}) {
     if (!mounted) return;
@@ -402,7 +416,7 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
 
   @override
   Widget build(BuildContext context) {
-    final exp = ref.watch(identityFileProvider);
+    final exp = ref.watch(_fuente);
     final cuentas =
         ref.watch(profileProvider).valueOrNull?.cuentasBancarias ??
         const <CuentaBancariaPerfil>[];
@@ -499,7 +513,9 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
             hijos.add(SizedBox(height: context.s.space.xs));
           }
 
-          if (esFinanciero) {
+          // La cuenta bancaria es del titular: en la ficha de una persona
+          // ligada no se pinta.
+          if (esFinanciero && widget.onVerCuentas != null) {
             hijos.add(
               CuentaBancariaRow(
                 cuentas: cuentas,
@@ -511,13 +527,35 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
                     ? showCuentaBancariaSheet(context, cuenta: cuentas.single)
                     : cuentas.isEmpty
                     ? showCuentaBancariaSheet(context)
-                    : widget.onVerCuentas(),
+                    : widget.onVerCuentas!(),
                 onVer: cuentas.isEmpty ? null : widget.onVerCuentas,
               ),
             );
           } else if (hijos.isNotEmpty) {
             hijos.removeLast(); // separador sobrante tras el último documento
           }
+        }
+
+        // Representantes y accionistas: tarjetas, no documentos. Van al final,
+        // despues de lo de la empresa.
+        if (data.esMoral) {
+          hijos.add(SizedBox(height: context.s.space.lg));
+          hijos.add(
+            ExpedientePersonas(
+              personas: data.personas,
+              contexto: data.contexto,
+              umbral: data.umbralAccionista,
+              onAbrir: (p) => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => PersonaExpedienteScreen(
+                    idPersona: p.idPersona,
+                    nombre: p.nombre,
+                    rol: p.rol,
+                  ),
+                ),
+              ),
+            ),
+          );
         }
 
         return Column(

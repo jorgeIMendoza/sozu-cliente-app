@@ -18,3 +18,12 @@ final expedientePortProvider = Provider<ExpedientePort>((ref) {
 final identityFileProvider = FutureProvider<ClienteExpediente>(
   (ref) => ref.watch(expedientePortProvider).identityFile(),
 );
+
+/// Expediente de una persona ligada (representante o accionista).
+///
+/// Family por `id_persona`: cada ficha se pide y se cachea aparte, y al dar de
+/// alta o subir algo se invalida solo la que cambio.
+final personaExpedienteProvider = FutureProvider.family<ClienteExpediente, int>(
+  (ref, idPersona) =>
+      ref.watch(expedientePortProvider).identityFile(contexto: idPersona),
+);

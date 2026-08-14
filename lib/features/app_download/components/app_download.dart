@@ -300,7 +300,7 @@ Future<void> openAppStore(
 /// Pinta el QR decodificándolo al tamaño en que se va a ver.
 ///
 /// El asset son 1080 px y la tarjeta lo muestra a 88: reducir 12x al DIBUJAR usa
-/// un filtro bilineal que come módulos, y el resultado no solo se ve borroso —
+/// un filtro bilineal que come módulos, y el resultado no solo se ve borroso:
 /// deja de escanear. Medido con un decodificador, no a ojo. `cacheWidth`/
 /// `cacheHeight` mueven el reescalado al decodificador, que promedia el área.
 ///
