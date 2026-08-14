@@ -40,7 +40,8 @@ const List<_PortalNavItemData> _portalNavItems = [
     Icons.bar_chart_outlined,
   ),
   _PortalNavItemData('Facturas', '/facturas', Icons.receipt_long_outlined),
-  _PortalNavItemData('Mis documentos', '/expediente', Icons.badge_outlined),
+  // "Mis documentos" NO va en el menu: vive dentro de Perfil y se llega desde
+  // ahi. Tenerlo en los dos sitios partia el mismo destino en dos caminos.
   _PortalNavItemData('Mantenimientos', '/mantenimientos', Icons.build_outlined),
   _PortalNavItemData(
     'Notificaciones',
