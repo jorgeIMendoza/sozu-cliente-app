@@ -51,18 +51,31 @@ dev_dependencies:
   # y las siluetas blancas del ícono de notificación (ic_stat_sozu).
   image: ^4.5.4
 
-# Config de flutter_launcher_icons. Ícono del launcher = wordmark "sozu" negro
-# sobre blanco, igual que el ícono de la ficha de Play Store. Fuente compuesta
-# por tool/gen_wordmark_icons (assets/sozu-logo-black.png centrado sobre blanco).
+# Config de flutter_launcher_icons. Ícono del launcher = wordmark "sozu
+# CLIENTES" negro sobre el fondo claro de marca. Es lo que distingue esta app de
+# la de agentes en el cajón de aplicaciones: antes las dos traían el mismo
+# archivo (wordmark "sozu" a secas) y no había forma de saber cuál era cuál.
+#
+# Los tres PNG salen de `assets/icon/brand_source.png` (el icono de marca a
+# 512, con esquinas redondeadas y fondo con gradiente); ver `assets/icon/
+# README.md` para regenerarlos.
 flutter_launcher_icons:
+  # Icono legacy de Android y el de iOS. Va FULL-BLEED, sin las esquinas
+  # redondeadas de la fuente: los dos sistemas aplican su propia máscara, y con
+  # las esquinas transparentes iOS (remove_alpha) las pinta de blanco y quedan
+  # picos claros asomando fuera del redondeo del sistema.
   image_path: "assets/icon/ic_launcher_store.png"
   android: "ic_launcher"
   ios: true
   remove_alpha_ios: true
-  # Adaptive icon (Android 8+): fondo BLANCO de marca + wordmark negro recortado
-  # sobre transparente, centrado en la safe zone, para que el launcher muestre
-  # el "sozu" de SOZU (no el logo de Flutter ni el pin).
-  adaptive_icon_background: "#FFFFFF"
+  # Adaptive icon (Android 8+): el launcher compone estas dos capas y recorta
+  # con la forma que tenga configurada (círculo, squircle, ...), asi que el
+  # fondo va como IMAGEN y no como color: el de marca es un gradiente, y un
+  # `#RRGGBB` plano se vería distinto al resto del icono.
+  adaptive_icon_background: "assets/icon/ic_launcher_background.png"
+  # El wordmark, dentro de la safe zone. Escalado por su DIAGONAL: el recorte
+  # del launcher es circular y el wordmark es apaisado, asi que ajustarlo por
+  # el lado mayor deja las puntas fuera del círculo.
   adaptive_icon_foreground: "assets/icon/ic_launcher_foreground.png"
 
 flutter:

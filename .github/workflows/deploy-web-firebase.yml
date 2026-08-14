@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Lo dispara Codemagic al terminar de publicar a las tiendas, para que la web
+  # se re-despliegue y herede el X.Y.Z recien tageado. Sin esto la web se queda
+  # con el numero del release anterior hasta el siguiente merge a `main`.
+  # `repository_dispatch` corre siempre sobre la rama por defecto (`main`), que
+  # es justo lo que se quiere desplegar.
+  repository_dispatch:
+    types: [tiendas-publicadas]
 
 jobs:
   deploy:
@@ -42,12 +49,20 @@ jobs:
       # piso inicial (1.0.0) para siempre. Sin este paso el footer de la web
       # anunciaba 1.0.0 mientras las tiendas iban en 1.0.2.
       #
-      # A diferencia de Codemagic, aquí NO se sube el vigesimal ni se tagea: la
-      # web se despliega desde `main`, o sea código YA publicado. Le toca
-      # anunciar la versión vigente, no inventar la siguiente.
+      # Aquí NO se sube el vigesimal ni se tagea: el contador lo mueve QUIEN
+      # PUBLICA A LAS TIENDAS (`bump_release_version` en codemagic.yaml). La web
+      # se despliega en cada merge a `main` y las tiendas una vez por semana; si
+      # la web también bumpeara, se adelantaría sin parar y las tiendas nunca la
+      # alcanzarían. El X.Y.Z identifica el RELEASE, y los builds web
+      # intermedios se distinguen por el `-YYMMDD.HHMM` del mismo footer.
+      #
+      # Lo que faltaba no era que la web bumpeara, sino que se re-desplegara al
+      # publicar a tiendas: eso lo cubre el trigger `repository_dispatch` de
+      # arriba, que dispara Codemagic cuando el tag nuevo ya existe.
       - name: Resolver versionName desde tags
         run: |
           set -e
+          git fetch --tags --force --quiet
           EN_HEAD=$(git tag --points-at HEAD --list 'v[0-9]*' --sort=v:refname | tail -1)
           ULTIMO=$(git tag --list 'v[0-9]*' --sort=v:refname | tail -1)
           NAME="${EN_HEAD:-$ULTIMO}"
@@ -77,20 +92,25 @@ jobs:
       # --- Notificación WhatsApp (mismo sistema que sozu-admin) -------------
       # Requiere el secret FIREBASE_GCP_DEV (service account con lectura de
       # Firestore sozu-admin-dev, donde viven los teléfonos de contributors).
+      #
+      # Se salta en `repository_dispatch`: ese re-deploy no trae código nuevo,
+      # solo re-sella el X.Y.Z que acaban de publicar las tiendas. El notify
+      # lista los autores de los PRs entre HEAD^1 y HEAD, que ahí ya se
+      # avisaron: volvería a mandarles el mismo WhatsApp.
       - name: Autenticar a Google Cloud (Firestore dev)
-        if: always()
+        if: always() && github.event_name != 'repository_dispatch'
         continue-on-error: true
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_GCP_DEV }}
 
       - name: Configurar gcloud (notify)
-        if: always()
+        if: always() && github.event_name != 'repository_dispatch'
         continue-on-error: true
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Notificar deploy listo (WhatsApp)
-        if: always()
+        if: always() && github.event_name != 'repository_dispatch'
         continue-on-error: true
         env:
           ENVIRONMENT: PROD
