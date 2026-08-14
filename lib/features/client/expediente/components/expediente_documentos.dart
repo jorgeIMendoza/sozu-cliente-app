@@ -9,6 +9,7 @@ import 'package:sozu_cliente_app/core/open_media.dart';
 import 'package:sozu_cliente_app/core/version.dart' show isPreviewBuild;
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/cuenta_bancaria_row.dart';
+import 'package:sozu_cliente_app/features/client/expediente/components/expediente_ficha_card.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/expediente_personas.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/expediente_slot_row.dart';
 import 'package:sozu_cliente_app/features/client/expediente/ports/expediente_port.dart';
@@ -54,6 +55,28 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
   /// anexo y cada una gira su propio indicador.
   static String _filaKey(ExpedienteSlot slot, int? docId) =>
       docId == null ? slot.key : '${slot.key}#$docId';
+
+  /// Abre los documentos de la empresa (y sus datos bancarios), que en persona
+  /// moral no se pintan en la portada.
+  void _abrirEmpresa(ClienteExpediente data) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => PersonaExpedienteScreen(
+        idPersona: data.contexto,
+        nombre: data.nombre ?? 'Documentos de la empresa',
+        rol: 'empresa',
+      ),
+    ),
+  );
+
+  void _abrirPersona(ExpedientePersona p) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => PersonaExpedienteScreen(
+        idPersona: p.idPersona,
+        nombre: p.nombre,
+        rol: p.rol,
+      ),
+    ),
+  );
 
   /// Motivo que comparten TODOS los slots del grupo, o null. Cuando lo
   /// comparten es del grupo entero y se explica una vez, no fila por fila.
@@ -443,6 +466,19 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
           );
         }
 
+        // Persona MORAL en su pantalla principal: solo tarjetas. Los documentos
+        // de la empresa viven en su propia pantalla, igual que los de cada
+        // persona ligada, y asi la vista deja de ser una lista de dieciocho
+        // filas donde todo pesa lo mismo.
+        if (data.esMoral && widget.contexto == null) {
+          return _PortadaMoral(
+            data: data,
+            cuentas: cuentas,
+            onAbrirEmpresa: () => _abrirEmpresa(data),
+            onAbrirPersona: _abrirPersona,
+          );
+        }
+
         final grupos = ExpedienteGrupos.construir(
           data,
           esMoral: ref.watch(profileProvider).valueOrNull?.esMoral ?? false,
@@ -536,24 +572,16 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
           }
         }
 
-        // Representantes y accionistas: tarjetas, no documentos. Van al final,
-        // despues de lo de la empresa.
-        if (data.esMoral) {
+        // Una persona ligada que ES empresa abre su propia rama: sus
+        // documentos arriba y sus personas debajo.
+        if (data.esMoral && widget.contexto != null) {
           hijos.add(SizedBox(height: context.s.space.lg));
           hijos.add(
             ExpedientePersonas(
               personas: data.personas,
               contexto: data.contexto,
               umbral: data.umbralAccionista,
-              onAbrir: (p) => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => PersonaExpedienteScreen(
-                    idPersona: p.idPersona,
-                    nombre: p.nombre,
-                    rol: p.rol,
-                  ),
-                ),
-              ),
+              onAbrir: _abrirPersona,
             ),
           );
         }
@@ -613,6 +641,57 @@ class _AvisoBloqueo extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Portada del expediente de una persona MORAL: solo tarjetas.
+///
+/// Los documentos de la empresa, los de su representante y los de cada
+/// accionista viven cada uno en su pantalla. En una sola lista eran dieciocho
+/// filas donde nada destacaba y el botón de agregar quedaba sepultado al final.
+class _PortadaMoral extends StatelessWidget {
+  final ClienteExpediente data;
+  final List<CuentaBancariaPerfil> cuentas;
+  final VoidCallback onAbrirEmpresa;
+  final void Function(ExpedientePersona) onAbrirPersona;
+
+  const _PortadaMoral({
+    required this.data,
+    required this.cuentas,
+    required this.onAbrirEmpresa,
+    required this.onAbrirPersona,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    final requeridos = data.slots.where((s) => s.requerido).toList();
+    final aprobados = requeridos.where((s) => s.estatus == 'aprobado').length;
+    // La cuenta bancaria es un requisito más de la empresa, así que su avance
+    // cuenta aquí: sin ella el cliente creería que ya terminó.
+    final faltaCuenta =
+        cuentas.isEmpty || cuentas.any((c) => c.evidencia == null);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ExpedienteFichaCard(
+          titulo: 'Documentos de la empresa',
+          subtitulo: 'Constancia fiscal, acta constitutiva, domicilio y anexos',
+          icono: Icons.apartment_outlined,
+          total: requeridos.length + 1,
+          aprobados: aprobados + (faltaCuenta ? 0 : 1),
+          onAbrir: onAbrirEmpresa,
+        ),
+        SizedBox(height: t.space.lg),
+        ExpedientePersonas(
+          personas: data.personas,
+          contexto: data.contexto,
+          umbral: data.umbralAccionista,
+          onAbrir: onAbrirPersona,
+        ),
+      ],
     );
   }
 }
