@@ -185,10 +185,14 @@ Future<T?> showSDocModal<T>(
           clipBehavior: Clip.antiAlias,
           insetPadding: EdgeInsets.all(ctx.s.space.lg),
           shape: RoundedRectangleBorder(borderRadius: ctx.s.radius.lgBorder),
+          // TRAMPA: nada de `IntrinsicHeight` aquí. Mide al hijo dos veces y con
+          // contenido desplazable (el formulario va en un scroll) el costo se
+          // dispara hasta colgar la pestaña. El alto lo da el contenido y el
+          // tope evita que la modal se coma la pantalla.
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: maxWidth,
-              maxHeight: MediaQuery.sizeOf(ctx).height * 0.86,
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.8,
             ),
             child: child,
           ),

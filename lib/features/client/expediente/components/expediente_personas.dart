@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/features/client/expediente/components/expediente_card.dart'
-    show expedienteEstatusStyle;
+import 'package:sozu_cliente_app/features/client/expediente/components/expediente_ficha_card.dart';
 import 'package:sozu_cliente_app/features/client/expediente/providers/expediente_providers.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
@@ -26,12 +25,20 @@ class ExpedientePersonas extends ConsumerStatefulWidget {
   /// Abre la ficha de esa persona.
   final void Function(ExpedientePersona) onAbrir;
 
+  /// Solo el boton de agregar, para ponerlo arriba de todo.
+  final bool soloBoton;
+
+  /// Solo las tarjetas, porque el boton ya se pinto arriba.
+  final bool soloLista;
+
   const ExpedientePersonas({
     super.key,
     required this.personas,
     required this.contexto,
     required this.umbral,
     required this.onAbrir,
+    this.soloBoton = false,
+    this.soloLista = false,
   });
 
   @override
@@ -47,9 +54,10 @@ class _ExpedientePersonasState extends ConsumerState<ExpedientePersonas> {
       widget.personas.where((p) => p.esAccionista).toList();
 
   Future<void> _agregar() async {
-    final alta = await showDialog<_AltaPersona>(
-      context: context,
-      builder: (_) => _AltaPersonaDialog(umbral: widget.umbral),
+    final alta = await showSDocModal<_AltaPersona>(
+      context,
+      child: _AltaPersonaDialog(umbral: widget.umbral),
+      maxWidth: 560,
     );
     if (alta == null || !mounted) return;
 
@@ -124,13 +132,52 @@ class _ExpedientePersonasState extends ConsumerState<ExpedientePersonas> {
     );
   }
 
+  /// Tarjeta de una persona ligada. Es la misma ficha que la de la empresa, así
+  /// que hay un solo componente de tarjeta y no dos parecidos.
+  Widget _ficha(ExpedientePersona p) => ExpedienteFichaCard(
+    titulo: p.nombre,
+    subtitulo: [
+      if (p.porcentaje != null)
+        '${p.porcentaje!.toStringAsFixed(p.porcentaje! % 1 == 0 ? 0 : 2)}% de las acciones',
+      if (p.esMoral) 'Empresa' else 'Persona física',
+    ].join(' · '),
+    icono: p.esMoral ? Icons.apartment_outlined : Icons.person_outline,
+    total: p.requeridosTotal,
+    aprobados: p.requeridosAprobados,
+    onAbrir: () => widget.onAbrir(p),
+    accion: p.puedeEliminar
+        ? IconButton(
+            tooltip: 'Quitar',
+            iconSize: 17,
+            color: context.s.color.fgSubtle,
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => _quitar(p),
+          )
+        : null,
+  );
+
   @override
   Widget build(BuildContext context) {
     final t = context.s;
+
+    // El encabezado de la pantalla solo quiere el botón: ahí se ve sin escanear
+    // la página, y las tarjetas van abajo con su título.
+    if (widget.soloBoton) {
+      return SButton(
+        label: 'Agregar persona',
+        icon: Icons.person_add_alt_outlined,
+        loading: _guardando,
+        fullWidth: false,
+        size: SButtonSize.sm,
+        onPressed: _agregar,
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Titulo('Representante legal'),
+        if (_representantes.isNotEmpty || !widget.soloLista)
+          _Titulo('Representante legal'),
         SizedBox(height: t.space.xs),
         if (_representantes.isEmpty)
           _Vacio(
@@ -138,10 +185,28 @@ class _ExpedientePersonasState extends ConsumerState<ExpedientePersonas> {
           )
         else
           for (final p in _representantes) ...[
-            _PersonaCard(
-              persona: p,
+            ExpedienteFichaCard(
+              titulo: p.nombre,
+              subtitulo: [
+                if (p.porcentaje != null)
+                  '${p.porcentaje!.toStringAsFixed(p.porcentaje! % 1 == 0 ? 0 : 2)}% de las acciones',
+                if (p.esMoral) 'Empresa' else 'Persona física',
+              ].join(' · '),
+              icono: p.esMoral
+                  ? Icons.apartment_outlined
+                  : Icons.person_outline,
+              total: p.requeridosTotal,
+              aprobados: p.requeridosAprobados,
               onAbrir: () => widget.onAbrir(p),
-              onQuitar: p.puedeEliminar ? () => _quitar(p) : null,
+              accion: p.puedeEliminar
+                  ? IconButton(
+                      tooltip: 'Quitar',
+                      iconSize: 17,
+                      color: context.s.color.fgSubtle,
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _quitar(p),
+                    )
+                  : null,
             ),
             SizedBox(height: t.space.xs),
           ],
@@ -157,21 +222,43 @@ class _ExpedientePersonasState extends ConsumerState<ExpedientePersonas> {
           )
         else
           for (final p in _accionistas) ...[
-            _PersonaCard(
-              persona: p,
+            ExpedienteFichaCard(
+              titulo: p.nombre,
+              subtitulo: [
+                if (p.porcentaje != null)
+                  '${p.porcentaje!.toStringAsFixed(p.porcentaje! % 1 == 0 ? 0 : 2)}% de las acciones',
+                if (p.esMoral) 'Empresa' else 'Persona física',
+              ].join(' · '),
+              icono: p.esMoral
+                  ? Icons.apartment_outlined
+                  : Icons.person_outline,
+              total: p.requeridosTotal,
+              aprobados: p.requeridosAprobados,
               onAbrir: () => widget.onAbrir(p),
-              onQuitar: p.puedeEliminar ? () => _quitar(p) : null,
+              accion: p.puedeEliminar
+                  ? IconButton(
+                      tooltip: 'Quitar',
+                      iconSize: 17,
+                      color: context.s.color.fgSubtle,
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _quitar(p),
+                    )
+                  : null,
             ),
             SizedBox(height: t.space.xs),
           ],
 
-        SizedBox(height: t.space.sm),
-        SButton.secondary(
-          label: 'Agregar persona',
-          icon: Icons.person_add_alt_outlined,
-          loading: _guardando,
-          onPressed: _agregar,
-        ),
+        // Sin `soloLista` el botón va aquí: es el caso de una empresa anidada,
+        // cuya pantalla no tiene encabezado propio donde ponerlo.
+        if (!widget.soloLista) ...[
+          SizedBox(height: t.space.sm),
+          SButton.secondary(
+            label: 'Agregar persona',
+            icon: Icons.person_add_alt_outlined,
+            loading: _guardando,
+            onPressed: _agregar,
+          ),
+        ],
       ],
     );
   }
@@ -213,125 +300,6 @@ class _Vacio extends StatelessWidget {
       child: Text(
         'Falta registrar $texto.',
         style: context.s.text.caption.copyWith(color: tone.fgMuted),
-      ),
-    );
-  }
-}
-
-/// Tarjeta de una persona ligada: nombre, rol y cuánto lleva de su expediente.
-class _PersonaCard extends StatelessWidget {
-  final ExpedientePersona persona;
-  final VoidCallback onAbrir;
-  final VoidCallback? onQuitar;
-
-  const _PersonaCard({
-    required this.persona,
-    required this.onAbrir,
-    this.onQuitar,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = context.s.color;
-    final st = expedienteEstatusStyle(
-      persona.completo ? 'aprobado' : 'pendiente',
-      tone,
-    );
-    final falta = persona.requeridosTotal - persona.requeridosAprobados;
-
-    return SPressable(
-      onTap: onAbrir,
-      borderRadius: context.s.radius.smBorder,
-      semanticLabel: 'Ver documentos de ${persona.nombre}',
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: context.s.space.md,
-          vertical: context.s.space.sm,
-        ),
-        decoration: BoxDecoration(
-          border: Border.all(color: tone.border),
-          borderRadius: context.s.radius.smBorder,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: tone.surfaceAlt,
-                borderRadius: context.s.radius.mdBorder,
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                persona.esMoral
-                    ? Icons.apartment_outlined
-                    : Icons.person_outline,
-                size: 17,
-                color: tone.fgMuted,
-              ),
-            ),
-            SizedBox(width: context.s.space.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        persona.nombre,
-                        style: context.s.text.bodySmall.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: tone.fg,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: st.bg,
-                          borderRadius: context.s.radius.fullBorder,
-                        ),
-                        child: Text(
-                          persona.completo ? 'Completo' : 'Faltan $falta',
-                          style: context.s.text.overline.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: st.fg,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    [
-                      if (persona.porcentaje != null)
-                        '${persona.porcentaje!.toStringAsFixed(persona.porcentaje! % 1 == 0 ? 0 : 2)}% de las acciones',
-                      if (persona.esMoral) 'Empresa',
-                    ].join(' · '),
-                    style: context.s.text.caption.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: tone.fgSubtle,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (onQuitar != null)
-              IconButton(
-                tooltip: 'Quitar',
-                iconSize: 17,
-                color: tone.fgSubtle,
-                icon: const Icon(Icons.delete_outline),
-                onPressed: onQuitar,
-              ),
-            Icon(Icons.chevron_right, size: 20, color: tone.fgSubtle),
-          ],
-        ),
       ),
     );
   }
@@ -384,9 +352,16 @@ class _AltaPersonaDialogState extends State<_AltaPersonaDialog> {
   @override
   Widget build(BuildContext context) {
     final t = context.s;
-    return AlertDialog(
-      title: const Text('Agregar persona'),
-      content: Form(
+    // Mismo envoltorio que la hoja de carga de documentos: el sistema ya tiene
+    // una modal y meter un AlertDialog pelon aqui partia la piel en dos.
+    return SDocUploadLayout(
+      titulo: 'Agregar persona',
+      descripcion:
+          'Con el nombre basta para empezar. Sus datos salen de los documentos '
+          'que subas, igual que los tuyos.',
+      etiquetaGuardar: 'Agregar',
+      onGuardar: _guardar,
+      izquierda: Form(
         key: _form,
         child: SingleChildScrollView(
           child: Column(
@@ -456,13 +431,6 @@ class _AltaPersonaDialogState extends State<_AltaPersonaDialog> {
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(onPressed: _guardar, child: const Text('Agregar')),
-      ],
     );
   }
 }
