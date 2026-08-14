@@ -25,6 +25,20 @@ import 'package:sozu_cliente_app/features/client/profile/providers/profile_provi
 import 'package:sozu_cliente_app/shared/api_error.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
+/// Qué pinta [ExpedienteDocumentos].
+enum ExpedienteModo {
+  /// Decide según el tipo de persona: portada de tarjetas en moral, lista
+  /// directa en física.
+  auto,
+
+  /// Solo los documentos de esa persona. Sin tarjetas de gente ligada: esa
+  /// pantalla ya se abrió desde una de ellas.
+  documentos,
+
+  /// Solo los anexos, uno por fila, con su botón de agregar.
+  anexos,
+}
+
 /// Lista de documentos del expediente y todo el flujo de carga:
 /// elegir archivo → analizar → revisar los datos extraídos → subir.
 ///
@@ -37,14 +51,15 @@ class ExpedienteDocumentos extends ConsumerStatefulWidget {
   /// De quién es el expediente. `null` = el del titular.
   final int? contexto;
 
-  /// Pantalla de anexos: pinta SOLO el slot múltiple, con una fila por anexo.
-  final bool? soloAnexos;
+  /// Qué se pinta. Antes eran banderas sueltas que se combinaban solas y
+  /// terminaban duplicando secciones; ahora cada pantalla dice qué es.
+  final ExpedienteModo modo;
 
   const ExpedienteDocumentos({
     super.key,
     this.onVerCuentas,
     this.contexto,
-    this.soloAnexos,
+    this.modo = ExpedienteModo.auto,
   });
 
   @override
@@ -73,7 +88,15 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
         idPersona: data.contexto,
         nombre: data.nombre ?? 'Documentos de la empresa',
         rol: 'empresa',
+        onVerCuentas: widget.onVerCuentas,
       ),
+    ),
+  );
+
+  void _abrirAnexos(ClienteExpediente data) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) =>
+          AnexosScreen(contexto: data.contexto, titulo: 'Otros documentos'),
     ),
   );
 
@@ -479,11 +502,12 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
         // de la empresa viven en su propia pantalla, igual que los de cada
         // persona ligada, y asi la vista deja de ser una lista de dieciocho
         // filas donde todo pesa lo mismo.
-        if (data.esMoral && widget.contexto == null) {
+        if (data.esMoral && widget.modo == ExpedienteModo.auto) {
           return _PortadaMoral(
             data: data,
             cuentas: cuentas,
             onAbrirEmpresa: () => _abrirEmpresa(data),
+            onAbrirAnexos: () => _abrirAnexos(data),
             onAbrirPersona: _abrirPersona,
           );
         }
@@ -497,8 +521,21 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
 
         for (var g = 0; g < grupos.length; g++) {
           final grupo = grupos[g];
-          final esFinanciero = grupo.key == kGrupoFinanciero;
-          if (grupo.slots.isEmpty && !esFinanciero) continue;
+          // La cuenta bancaria solo aplica donde se puede abrir: en la ficha
+          // de un representante o un accionista no existe, y su encabezado se
+          // quedaba colgado sin una sola fila debajo.
+          final esFinanciero =
+              grupo.key == kGrupoFinanciero && widget.onVerCuentas != null;
+          final visibles = widget.modo == ExpedienteModo.anexos
+              ? grupo.slots.where((s) => s.multiple).toList()
+              : grupo.slots
+                    .where(
+                      (s) =>
+                          widget.modo != ExpedienteModo.documentos ||
+                          !s.multiple,
+                    )
+                    .toList();
+          if (visibles.isEmpty && !esFinanciero) continue;
           if (hijos.isNotEmpty) hijos.add(SizedBox(height: context.s.space.lg));
 
           hijos.add(_Encabezado(titulo: grupo.titulo));
@@ -507,21 +544,20 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
           final motivoGrupo =
               grupo.owner == 'rep' && rep != null && rep.bloqueado
               ? rep.motivo
-              : _motivoComun(grupo.slots);
+              : _motivoComun(visibles);
           if (motivoGrupo != null) {
             hijos.add(SizedBox(height: context.s.space.xs));
             hijos.add(_AvisoBloqueo(motivo: motivoGrupo));
           }
           hijos.add(SizedBox(height: context.s.space.xs));
 
-          for (final slot in grupo.slots) {
-            if (widget.soloAnexos == true && !slot.multiple) continue;
+          for (final slot in visibles) {
             // Un slot múltiple son varias filas: una por anexo ya subido, más
             // la de agregar otro. Reemplazar dentro de una fila solo toca ese
             // anexo; los demás siguen vigentes.
             // Los anexos pueden ser diez o mas: no caben como filas sueltas
             // entre los requisitos. Una tarjeta que abre SU pagina.
-            if (slot.multiple && widget.soloAnexos != true) {
+            if (slot.multiple && widget.modo != ExpedienteModo.anexos) {
               hijos.add(
                 ExpedienteFichaCard(
                   titulo: slot.nombre,
@@ -587,9 +623,7 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
             hijos.add(SizedBox(height: context.s.space.xs));
           }
 
-          // La cuenta bancaria es del titular: en la ficha de una persona
-          // ligada no se pinta.
-          if (esFinanciero && widget.onVerCuentas != null) {
+          if (esFinanciero) {
             hijos.add(
               CuentaBancariaRow(
                 cuentas: cuentas,
@@ -608,20 +642,6 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
           } else if (hijos.isNotEmpty) {
             hijos.removeLast(); // separador sobrante tras el último documento
           }
-        }
-
-        // Una persona ligada que ES empresa abre su propia rama: sus
-        // documentos arriba y sus personas debajo.
-        if (data.esMoral && widget.contexto != null) {
-          hijos.add(SizedBox(height: context.s.space.lg));
-          hijos.add(
-            ExpedientePersonas(
-              personas: data.personas,
-              contexto: data.contexto,
-              umbral: data.umbralAccionista,
-              onAbrir: _abrirPersona,
-            ),
-          );
         }
 
         return Column(
@@ -692,38 +712,35 @@ class _PortadaMoral extends StatelessWidget {
   final ClienteExpediente data;
   final List<CuentaBancariaPerfil> cuentas;
   final VoidCallback onAbrirEmpresa;
+  final VoidCallback onAbrirAnexos;
   final void Function(ExpedientePersona) onAbrirPersona;
 
   const _PortadaMoral({
     required this.data,
     required this.cuentas,
     required this.onAbrirEmpresa,
+    required this.onAbrirAnexos,
     required this.onAbrirPersona,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = context.s;
-    final requeridos = data.slots.where((s) => s.requerido).toList();
+    final requeridos = data.slots
+        .where((s) => s.requerido && !s.multiple)
+        .toList();
     final aprobados = requeridos.where((s) => s.estatus == 'aprobado').length;
     // La cuenta bancaria es un requisito más de la empresa, así que su avance
     // cuenta aquí: sin ella el cliente creería que ya terminó.
     final faltaCuenta =
         cuentas.isEmpty || cuentas.any((c) => c.evidencia == null);
+    final anexos = data.slots
+        .where((s) => s.multiple)
+        .fold<int>(0, (n, s) => n + s.documentos.length);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // El boton va PRIMERO, antes de las tarjetas: es lo que el cliente
-        // viene a hacer y tiene que verse sin escanear la pagina.
-        ExpedientePersonas(
-          personas: data.personas,
-          contexto: data.contexto,
-          umbral: data.umbralAccionista,
-          onAbrir: onAbrirPersona,
-          soloBoton: true,
-        ),
-        SizedBox(height: t.space.md),
         ExpedienteFichaCard(
           titulo: 'Documentos de la empresa',
           subtitulo: 'Constancia fiscal, acta constitutiva, domicilio y anexos',
@@ -731,6 +748,17 @@ class _PortadaMoral extends StatelessWidget {
           total: requeridos.length + 1,
           aprobados: aprobados + (faltaCuenta ? 0 : 1),
           onAbrir: onAbrirEmpresa,
+        ),
+        SizedBox(height: t.space.md),
+        ExpedienteFichaCard(
+          titulo: 'Otros documentos',
+          subtitulo: anexos == 0
+              ? 'Reformas, protocolizaciones y cualquier anexo'
+              : '$anexos documento${anexos == 1 ? "" : "s"}',
+          icono: Icons.folder_copy_outlined,
+          total: anexos,
+          aprobados: anexos,
+          onAbrir: onAbrirAnexos,
         ),
         SizedBox(height: t.space.lg),
         ExpedientePersonas(

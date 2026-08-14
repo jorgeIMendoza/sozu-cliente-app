@@ -43,6 +43,7 @@ class PersonaExpedienteScreen extends StatelessWidget {
       onVolver: () => Navigator.of(context).pop(),
       child: ExpedienteDocumentos(
         contexto: idPersona,
+        modo: ExpedienteModo.documentos,
         // La cuenta bancaria es de la EMPRESA: se pinta en su ficha, no en la
         // de un representante ni la de un accionista.
         onVerCuentas: rol == 'empresa' ? onVerCuentas : null,

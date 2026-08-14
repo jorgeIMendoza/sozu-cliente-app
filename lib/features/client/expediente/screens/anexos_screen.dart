@@ -23,6 +23,9 @@ class AnexosScreen extends StatelessWidget {
         'Sube los que te pidan. Ponle a cada uno una descripción para '
         'distinguirlos, y agrega los que necesites.',
     onVolver: () => Navigator.of(context).pop(),
-    child: ExpedienteDocumentos(contexto: contexto, soloAnexos: true),
+    child: ExpedienteDocumentos(
+      contexto: contexto,
+      modo: ExpedienteModo.anexos,
+    ),
   );
 }
