@@ -29,25 +29,30 @@ typedef AnonFunctionResponse = ({int status, Map<String, dynamic> body});
 /// Nunca lanza por status != 2xx: devuelve status + cuerpo para que decida el
 /// llamador (el adaptador traduce a `AuthError`/`ApiError` segun su contrato).
 /// Si no hay red, propaga la excepcion de [http.post].
+///
+/// [client] solo lo usan los tests, para fijar que headers sale cada llamada
+/// sin tocar red; en produccion siempre es null.
 Future<AnonFunctionResponse> invokeAnonFunction(
   String fn, {
   Map<String, dynamic> body = const {},
   bool withAuthorization = false,
+  http.Client? client,
 }) async {
   final baseUrl = (dotenv.env['SUPABASE_URL'] ?? '').replaceAll(
     RegExp(r'/+$'),
     '',
   );
   final anonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
-  final res = await http.post(
-    Uri.parse('$baseUrl/functions/v1/$fn'),
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': anonKey,
-      if (withAuthorization) 'Authorization': 'Bearer $anonKey',
-    },
-    body: jsonEncode(body),
-  );
+  final uri = Uri.parse('$baseUrl/functions/v1/$fn');
+  final headers = {
+    'Content-Type': 'application/json',
+    'apikey': anonKey,
+    if (withAuthorization) 'Authorization': 'Bearer $anonKey',
+  };
+  final payload = jsonEncode(body);
+  final res = client == null
+      ? await http.post(uri, headers: headers, body: payload)
+      : await client.post(uri, headers: headers, body: payload);
   var parsed = const <String, dynamic>{};
   try {
     final decoded = jsonDecode(res.body);

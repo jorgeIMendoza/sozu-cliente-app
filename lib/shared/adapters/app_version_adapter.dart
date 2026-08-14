@@ -1,3 +1,5 @@
+import 'package:http/http.dart' as http;
+
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/shared/adapters/anon_function.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
@@ -6,12 +8,19 @@ import 'package:sozu_cliente_app/shared/ports/app_version_port.dart';
 /// Implementacion actual de [AppVersionPort] sobre la edge function
 /// `cliente-app-version`: la unica frontera donde se conocen sus tipos.
 class AppVersionAdapter implements AppVersionPort {
+  /// Solo para tests: fija los headers de la llamada sin tocar red.
+  final http.Client? client;
+
+  const AppVersionAdapter({this.client});
+
   /// Version minima/sugerida y URLs de tienda.
   ///
   /// Va por [invokeAnonFunction] porque corre sin sesion: el gate decide antes
   /// del login. `withAuthorization` es obligatorio aqui: la function NO esta
   /// declarada publica en `config.toml`, asi que con solo `apikey` el gateway
-  /// responde 401 y el gate se quedaba ciego en cada arranque.
+  /// responde 401 y el gate se quedaba ciego en cada arranque. Lo fija
+  /// `test/shared/app_version_adapter_test.dart`: quitarlo mata el gate ENTERO
+  /// (aviso y forzado) y en silencio, porque el provider degrada a null.
   @override
   Future<AppVersionInfo> version() async {
     final AnonFunctionResponse res;
@@ -19,6 +28,7 @@ class AppVersionAdapter implements AppVersionPort {
       res = await invokeAnonFunction(
         'cliente-app-version',
         withAuthorization: true,
+        client: client,
       );
     } catch (_) {
       throw ApiError(0, 'network_error');

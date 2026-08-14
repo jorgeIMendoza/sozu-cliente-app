@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sozu_cliente_app/data/models.dart';
@@ -31,10 +32,15 @@ final appVersionPortProvider = Provider<AppVersionPort>(
 /// "Version gate" nativo: version minima/sugerida + URLs de store. Ante
 /// cualquier error de red/backend devuelve null => la app NO gatea (nunca
 /// bloquea por fallo).
+///
+/// El fallo se imprime porque tragarlo entero ya costo caro: la 1.0.3 llamaba
+/// a la function sin `Authorization`, el gateway respondia 401 y el gate
+/// quedaba MUDO - ni aviso ni forzado - sin ninguna senal de que estaba roto.
 final appVersionGateProvider = FutureProvider<AppVersionInfo?>((ref) async {
   try {
     return await ref.watch(appVersionPortProvider).version();
-  } catch (_) {
+  } catch (e) {
+    debugPrint('[version-gate] sin config, la app no gatea: $e');
     return null;
   }
 });
