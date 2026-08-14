@@ -54,16 +54,25 @@ fi
 # de quedarse apuntando a DEV sin darse cuenta.
 DEFINES_ENV=()
 if [ "${BACKEND:-prod}" = "dev" ]; then
-  if [ ! -f assets/env.dev ]; then
-    echo "Falta assets/env.dev con SUPABASE_URL y SUPABASE_ANON_KEY del ambiente DEV." >&2
+  # El canonico es `.env.dev` en la raiz, la convencion de siempre. Aqui SI se
+  # puede usar un dotfile: este archivo NO es un asset de Flutter, lo lee bash y
+  # sus valores viajan por --dart-define. (`assets/env`, el de produccion, no
+  # puede llevar punto: Flutter no empaqueta dotfiles y la web release queda en
+  # blanco.) Se aceptan las variantes viejas para no romperle a nadie.
+  ENV_DEV=""
+  for f in .env.dev assets/.env.dev assets/env.dev; do
+    [ -f "$f" ] && ENV_DEV="$f" && break
+  done
+  if [ -z "$ENV_DEV" ]; then
+    echo "Falta .env.dev con SUPABASE_URL y SUPABASE_ANON_KEY del ambiente DEV." >&2
     echo "Pidele los valores a quien administra el VPS de functions." >&2
     exit 1
   fi
-  DEV_URL=$(grep -m1 '^SUPABASE_URL=' assets/env.dev | cut -d= -f2-)
-  DEV_KEY=$(grep -m1 '^SUPABASE_ANON_KEY=' assets/env.dev | cut -d= -f2-)
-  DEV_ROL=$(grep -m1 '^CLIENTE_ROL_ID=' assets/env.dev | cut -d= -f2-)
+  DEV_URL=$(grep -m1 '^SUPABASE_URL=' "$ENV_DEV" | cut -d= -f2-)
+  DEV_KEY=$(grep -m1 '^SUPABASE_ANON_KEY=' "$ENV_DEV" | cut -d= -f2-)
+  DEV_ROL=$(grep -m1 '^CLIENTE_ROL_ID=' "$ENV_DEV" | cut -d= -f2-)
   if [ -z "$DEV_URL" ] || [ -z "$DEV_KEY" ]; then
-    echo "assets/env.dev no trae SUPABASE_URL o SUPABASE_ANON_KEY." >&2
+    echo "$ENV_DEV no trae SUPABASE_URL o SUPABASE_ANON_KEY." >&2
     exit 1
   fi
   DEFINES_ENV=(
