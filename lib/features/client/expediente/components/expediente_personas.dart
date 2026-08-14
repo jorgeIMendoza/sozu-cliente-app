@@ -211,7 +211,7 @@ class _Vacio extends StatelessWidget {
         color: tone.surfaceAlt,
       ),
       child: Text(
-        texto,
+        'Falta registrar $texto.',
         style: context.s.text.caption.copyWith(color: tone.fgMuted),
       ),
     );
