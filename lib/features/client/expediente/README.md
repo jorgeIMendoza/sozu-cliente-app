@@ -147,9 +147,11 @@ muestra cuánto queda disponible y lo valida, pero la regla de verdad es la de
 la edge function: dos pestañas abiertas registran 60% y 60% sin enterarse.
 Contrato en `Ejecuciones_manuales/2026-08-15_EF_alta_persona_datos_minimos.md`.
 
-⚠️ El accionista **no tiene vínculo en la base todavía**: su grupo se pinta con
-el motivo, igual que el del representante legal sin ligar. La tabla va en
-`Ejecuciones_manuales/2026-08-10_BD_personas_relacionadas_expediente.md`.
+El vínculo vive en `personas_relacionadas` (`id_persona` · `id_persona_relacion`
+· `id_tipo_relacion` · `porcentaje`), con un trigger que rechaza los ciclos:
+sin él, dos empresas accionistas la una de la otra cuelgan el recorrido del
+árbol. `tipos_relacion`: Representante Legal = 1, Accionista = 15. Aplicado y
+verificado en producción el 2026-08-15.
 
 ## Anexos: un slot con varios documentos
 
@@ -161,10 +163,9 @@ pantalla pinta **una fila por anexo** más una para agregar otro:
   expira.
 - Ninguno es obligatorio, así que no bloquean el expediente.
 
-Falta la **descripción** de cada anexo: `documentos` no tiene esa columna. Va en
-`Ejecuciones_manuales/2026-08-10_BD_anexos_otros_documentos.md` junto con el tipo
-"Otros documentos" de la categoría "Otro". Mientras, los anexos se distinguen por
-fecha y usan el tipo 57 (reformas).
+La **descripción** de cada anexo es lo que los distingue y viaja aparte de los
+campos del perfil: `documentos.descripcion`, con el tipo 69 ("Otros
+documentos"). Los dos existen en producción, verificado el 2026-08-15.
 
 ## Persona física / persona moral
 
@@ -199,11 +200,11 @@ por `tipo_id` guarda la CSF del representante en la empresa.
 
 ## Contrato del backend
 
-Está en `Ejecuciones_manuales/2026-08-07_EF_cliente-expediente.md` (gitignored),
-para el repo `sozu-edge-functions`. **Ya desplegado**, junto con
-`personas.actividad_economica` y `personas.id_estado_civil`
-(`2026-08-07_BD_actividad_economica.md`): verificado en producción el
-2026-08-10.
+La reescritura v2 de `cliente-expediente` (persona física / moral y la acción
+`analizar`) **ya está desplegada**, junto con `personas.actividad_economica` y
+`personas.id_estado_civil`: verificado en producción el 2026-08-10. Su `.md` de
+ejecución se borró al aplicarse; el contrato vigente es el código de
+`sozu-edge-functions`.
 
 Todos los campos nuevos son **aditivos**: sin ellos la pantalla se comporta como
 antes, así que backend y frontend no necesitan desplegarse a la vez. El orden
