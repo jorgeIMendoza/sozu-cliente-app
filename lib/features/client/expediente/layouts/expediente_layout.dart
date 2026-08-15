@@ -13,6 +13,10 @@ class ExpedienteLayout extends StatelessWidget {
   final String titulo;
   final String descripcion;
   final VoidCallback onVolver;
+
+  /// Accion principal de la pantalla, a la DERECHA del "Volver". Ahi se ve sin
+  /// escanear la pagina; hundida entre las tarjetas hay que buscarla.
+  final Widget? accion;
   final Widget child;
 
   const ExpedienteLayout({
@@ -20,6 +24,7 @@ class ExpedienteLayout extends StatelessWidget {
     required this.titulo,
     required this.descripcion,
     required this.onVolver,
+    this.accion,
     required this.child,
   });
 
@@ -47,20 +52,23 @@ class ExpedienteLayout extends StatelessWidget {
                       context.s.space.xl,
                     ),
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: onVolver,
-                    style: TextButton.styleFrom(
-                      foregroundColor: tone.fgMuted,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      textStyle: context.s.text.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
+                Row(
+                  children: [
+                    TextButton.icon(
+                      onPressed: onVolver,
+                      style: TextButton.styleFrom(
+                        foregroundColor: tone.fgMuted,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        textStyle: context.s.text.bodySmall.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
+                      icon: const Icon(Icons.arrow_back, size: 15),
+                      label: const Text('Volver al Perfil'),
                     ),
-                    icon: const Icon(Icons.arrow_back, size: 15),
-                    label: const Text('Volver al Perfil'),
-                  ),
+                    const Spacer(),
+                    if (accion != null) accion!,
+                  ],
                 ),
                 SizedBox(height: context.s.space.xs),
                 SCard(

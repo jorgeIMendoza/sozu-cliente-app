@@ -13,7 +13,10 @@ Future<bool> downloadFile(String url, String filename) async {
 /// navegador). Devuelve false para que quien la llame recurra a descargar los
 /// archivos originales por su URL. La firma existe para paridad con la versión
 /// web (importación condicional).
-Future<bool> downloadBytes(List<int> bytes, String filename,
-    {String mimeType = 'application/octet-stream'}) async {
+Future<bool> downloadBytes(
+  List<int> bytes,
+  String filename, {
+  String mimeType = 'application/octet-stream',
+}) async {
   return false;
 }

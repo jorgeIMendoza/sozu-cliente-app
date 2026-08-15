@@ -113,10 +113,7 @@ class _ReferralContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (showTitle) ...[
-          Text(
-            '¿Cómo funciona el programa de Embajadores?',
-            style: t.text.h3,
-          ),
+          Text('¿Cómo funciona el programa de Embajadores?', style: t.text.h3),
           SizedBox(height: t.space.xxs),
           Text(
             'Refiere, nosotros vendemos, tú ganas.',
