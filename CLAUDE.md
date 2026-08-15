@@ -307,10 +307,13 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
 
 ## Estructura lib/
 - ui/: design system (tokens + tema + primitivas). Ver sección anterior.
-  22 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
+  23 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
   SSkeleton · SEmptyState · SErrorState · SSectionLabel · SPressable · SStagger ·
   SSearchField · SAutocompleteField · SLogo · SWebSelectable · SDropZone ·
-  SPdfPreview · SDocUpload · SConfirm · SSelectField · SFieldLabel.
+  SPdfPreview · SDocUpload · SConfirm · SSelectField · SFieldLabel · SFormSheet.
+  `SFormSheet` es el chasis de toda modal de captura (encabezado, cuerpo y pie
+  con Cancelar/Guardar); `SDocUploadLayout` es ese chasis con las dos columnas
+  de carga dentro.
   `widgets/common.dart` fue ELIMINADO: sus 8 widgets viven aquí.
   `SDocUpload` es la modal global de carga: tipo, archivo, previsualización y
   los datos extraídos editables. La extracción y la subida las hace quien la

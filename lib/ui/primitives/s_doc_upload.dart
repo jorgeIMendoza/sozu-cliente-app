@@ -3,10 +3,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:sozu_cliente_app/ui/primitives/s_button.dart';
 import 'package:sozu_cliente_app/ui/primitives/s_confirm_dialog.dart';
 import 'package:sozu_cliente_app/ui/primitives/s_drop_zone.dart';
 import 'package:sozu_cliente_app/ui/primitives/s_field_label.dart';
+import 'package:sozu_cliente_app/ui/primitives/s_form_sheet.dart';
 import 'package:sozu_cliente_app/ui/primitives/s_pdf_preview.dart';
 import 'package:sozu_cliente_app/ui/primitives/s_select_field.dart';
 import 'package:sozu_cliente_app/ui/primitives/s_text_field.dart';
@@ -679,8 +679,8 @@ class _SDocUploadBodyState extends State<_SDocUploadBody> {
   }
 }
 
-/// Armazón de una hoja de carga: encabezado, dos columnas (contenido a la
-/// izquierda, previsualización a la derecha) y el pie con Cancelar / Guardar.
+/// Hoja de carga: dos columnas (contenido a la izquierda, previsualización a
+/// la derecha) dentro del chasis de [SFormSheet].
 ///
 /// [showSDocUpload] lo usa para el flujo de extracción, y cualquier hoja que
 /// suba un archivo con su propio formulario lo usa igual (la carátula de una
@@ -728,7 +728,6 @@ class SDocUploadLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = context.s.color;
     final t = context.s;
 
     final columna = SingleChildScrollView(
@@ -743,53 +742,20 @@ class SDocUploadLayout extends StatelessWidget {
           : izquierda,
     );
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            t.space.lg,
-            t.space.md,
-            t.space.md,
-            t.space.md,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      titulo,
-                      style: t.text.bodyLarge.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: tone.fg,
-                      ),
-                    ),
-                    if (descripcion != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        descripcion!,
-                        style: t.text.caption.copyWith(color: tone.fgMuted),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              IconButton(
-                tooltip: 'Cerrar',
-                onPressed: guardando ? null : () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close, size: 20),
-              ),
-            ],
-          ),
-        ),
-        Divider(height: 1, thickness: 1, color: tone.border),
-        if (apilado)
-          Flexible(
-            child: SingleChildScrollView(
+    return SFormSheet(
+      titulo: titulo,
+      descripcion: descripcion,
+      etiquetaGuardar: etiquetaGuardar,
+      etiquetaGuardando: etiquetaGuardando,
+      guardando: guardando,
+      onGuardar: onGuardar,
+      // `cuerpoAlAlto` + `stretch` es lo que da alto a la previsualización: con
+      // restricciones sueltas el visor resuelve a cero y la columna derecha
+      // sale en blanco. Apilado no aplica: ahí la previsualización lleva alto
+      // fijo y el cuerpo crece con su contenido.
+      cuerpoAlAlto: !apilado,
+      cuerpo: apilado
+          ? SingleChildScrollView(
               padding: EdgeInsets.all(t.space.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -801,14 +767,8 @@ class SDocUploadLayout extends StatelessWidget {
                   izquierda,
                 ],
               ),
-            ),
-          )
-        else
-          // `Expanded` + `stretch` es lo que da alto a la previsualización: con
-          // restricciones sueltas el visor resuelve a cero y la columna derecha
-          // sale en blanco.
-          Expanded(
-            child: Row(
+            )
+          : Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(flex: 5, child: columna),
@@ -826,33 +786,6 @@ class SDocUploadLayout extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        Divider(height: 1, thickness: 1, color: tone.border),
-        Padding(
-          padding: EdgeInsets.all(t.space.md),
-          child: Row(
-            children: [
-              Expanded(
-                child: SButton.secondary(
-                  label: 'Cancelar',
-                  onPressed: guardando
-                      ? null
-                      : () => Navigator.of(context).pop(),
-                ),
-              ),
-              SizedBox(width: t.space.sm),
-              Expanded(
-                child: SButton(
-                  label: etiquetaGuardar,
-                  loading: guardando,
-                  loadingLabel: etiquetaGuardando,
-                  onPressed: onGuardar,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
