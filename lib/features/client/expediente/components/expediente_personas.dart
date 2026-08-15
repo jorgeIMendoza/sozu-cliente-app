@@ -404,10 +404,16 @@ class _AltaPersonaDialogState extends State<_AltaPersonaDialog> {
 
   /// Ataja el dedazo, no comprueba que el buzón exista: eso solo lo dice
   /// mandarle un correo.
+  ///
+  /// El patrón es el MISMO del `CHECK` de `personas.email`. Con uno más laxo,
+  /// un correo con acentos pasaba el formulario y moría en el INSERT, donde ya
+  /// no hay un campo al que señalar.
   String? _validarCorreo(String? v) {
     final s = (v ?? '').trim();
     if (s.isEmpty) return 'Escribe su correo';
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$').hasMatch(s)
+    return RegExp(
+          r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
+        ).hasMatch(s)
         ? null
         : 'Correo no válido';
   }
