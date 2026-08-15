@@ -54,6 +54,15 @@ class _ExpedientePersonasState extends ConsumerState<ExpedientePersonas> {
   List<ExpedientePersona> get _accionistas =>
       widget.personas.where((p) => p.esAccionista).toList();
 
+  /// Recarga la lista de quien sea que cuelguen estas personas: el titular, o
+  /// la empresa del árbol cuya ficha se está viendo. Invalidar solo la del
+  /// titular dejaba la portada de una empresa anidada sin la persona que se
+  /// acababa de registrar.
+  void _refrescar() {
+    ref.invalidate(identityFileProvider);
+    ref.invalidate(personaExpedienteProvider(widget.contexto));
+  }
+
   /// Porcentaje de acciones ya repartido. Lo que quede es el techo del
   /// siguiente accionista: entre todos no pueden pasar del 100%.
   double get _porcentajeUsado =>
@@ -82,7 +91,7 @@ class _ExpedientePersonasState extends ConsumerState<ExpedientePersonas> {
             porcentaje: alta.porcentaje,
             contexto: widget.contexto,
           );
-      ref.invalidate(identityFileProvider);
+      _refrescar();
       registrada = true;
     } on DocumentoInvalidoError catch (e) {
       _aviso(e.reason, error: true);
@@ -150,7 +159,7 @@ class _ExpedientePersonasState extends ConsumerState<ExpedientePersonas> {
       await ref
           .read(expedientePortProvider)
           .removePerson(idPersona: p.idPersona, contexto: widget.contexto);
-      ref.invalidate(identityFileProvider);
+      _refrescar();
     } on DocumentoInvalidoError catch (e) {
       _aviso(e.reason, error: true);
     } on ApiError catch (e) {

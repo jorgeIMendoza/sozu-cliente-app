@@ -45,6 +45,7 @@ class ExpedienteScreen extends ConsumerWidget {
             idPersona: p.idPersona,
             nombre: p.nombre,
             rol: p.rol,
+            esMoral: p.esMoral,
           ),
         ),
       );

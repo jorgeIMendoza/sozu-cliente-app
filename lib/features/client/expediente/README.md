@@ -107,6 +107,33 @@ es la misma lista, cambia de quién son.
 El nombre que ve el cliente es el `label` del slot, NO `tipos_documento.nombre`:
 el del catálogo es el nombre legal ("INE completo (frente y reverso)").
 
+### El árbol es recursivo y solo para en una persona física
+
+Una persona ligada que es **empresa** no es una hoja: su pantalla vuelve a ser
+una portada (sus documentos de empresa + su representante legal + sus
+accionistas) y desde ahí se sigue bajando. La rama se detiene en la primera
+persona **física**, que es la que pide beneficiario controlador; parar antes
+deja el expediente incompleto para efectos fiscales.
+
+```
+Titular PM
+├─ Documentos de la empresa · Otros documentos
+├─ Representante legal · Ana (PF)          → sus 6 documentos. Fin de la rama.
+└─ Accionista · Empresa Prueba (PM, 26%)   → OTRA portada
+   ├─ Documentos de la empresa
+   ├─ Representante legal · …              → hasta dar con personas físicas
+   └─ Accionistas · …
+```
+
+Quién decide: `PersonaExpedienteScreen`. Con `rol: 'empresa'` pinta la lista de
+documentos y nada más (sus personas ya salen en la portada desde la que se
+entró); con una PM ligada pinta `ExpedienteModo.auto`, que resuelve a portada.
+
+⚠️ **`esMoral` viaja como parámetro**, desde la tarjeta que abrió la pantalla.
+Antes el tipo salía del PERFIL, o sea del titular: a una persona física colgada
+de una empresa se le pedían documentos de empresa. El mismo parámetro gobierna
+qué campos se le piden al subir un documento.
+
 ### Registrar a una persona no sube nada
 
 El alta (`components/expediente_personas.dart`) pide **nombre, correo y
