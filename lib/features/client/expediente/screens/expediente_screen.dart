@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
+import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/expediente_documentos.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/expediente_personas.dart';
 import 'package:sozu_cliente_app/features/client/expediente/providers/expediente_providers.dart';
 import 'package:sozu_cliente_app/features/client/expediente/layouts/expediente_layout.dart';
+import 'package:sozu_cliente_app/features/client/expediente/screens/persona_expediente_screen.dart';
 import 'package:sozu_cliente_app/features/client/profile/screens/perfil_detalle_screens.dart'
     show PerfilCuentasScreen;
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
@@ -36,6 +38,18 @@ class ExpedienteScreen extends ConsumerWidget {
     }
   }
 
+  void _abrirPersona(BuildContext context, ExpedientePersona p) =>
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PersonaExpedienteScreen(
+            idPersona: p.idPersona,
+            nombre: p.nombre,
+            rol: p.rol,
+            esMoral: p.esMoral,
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // El alta vive en el encabezado, a la derecha del "Volver": es la accion de
@@ -48,7 +62,10 @@ class ExpedienteScreen extends ConsumerWidget {
               personas: exp.personas,
               contexto: exp.contexto,
               umbral: exp.umbralAccionista,
-              onAbrir: (_) {},
+              // Tras el alta se entra directo a subir sus documentos, así que
+              // el botón del encabezado necesita a dónde abrir tanto como las
+              // tarjetas.
+              onAbrir: (p) => _abrirPersona(context, p),
               soloBoton: true,
             )
           : null,

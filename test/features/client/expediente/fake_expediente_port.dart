@@ -46,11 +46,16 @@ class FakeExpedientePort implements ExpedientePort {
   /// Personas dadas de alta, para afirmar sobre ellas en los tests.
   final List<Map<String, Object?>> altas = [];
 
+  /// Id que devuelve [addPerson], como el que manda la edge function.
+  int idAlta = 900;
+
   @override
-  Future<void> addPerson({
+  Future<int?> addPerson({
     required String rol,
     required String nombre,
     required String tipoPersona,
+    required String correo,
+    required String telefono,
     double? porcentaje,
     int? contexto,
   }) async {
@@ -59,9 +64,12 @@ class FakeExpedientePort implements ExpedientePort {
       'rol': rol,
       'nombre': nombre,
       'tipo': tipoPersona,
+      'correo': correo,
+      'telefono': telefono,
       'porcentaje': porcentaje,
       'contexto': contexto,
     });
+    return idAlta;
   }
 
   @override
