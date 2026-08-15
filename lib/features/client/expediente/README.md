@@ -107,6 +107,19 @@ es la misma lista, cambia de quién son.
 El nombre que ve el cliente es el `label` del slot, NO `tipos_documento.nombre`:
 el del catálogo es el nombre legal ("INE completo (frente y reverso)").
 
+### Registrar a una persona no sube nada
+
+El alta (`components/expediente_personas.dart`) pide **nombre, correo y
+teléfono**, y con eso la persona queda creada. No hay zona de carga ni
+previsualización: pedir el PDF ahí obligaba a tenerlo a la mano para poder
+registrar a alguien. Al guardar sale el aviso de que falta su documentación y
+se entra directo a su ficha, que es donde vive la lista de lo que se le pide.
+
+Los porcentajes de los accionistas **no pueden sumar más de 100**. La hoja
+muestra cuánto queda disponible y lo valida, pero la regla de verdad es la de
+la edge function: dos pestañas abiertas registran 60% y 60% sin enterarse.
+Contrato en `Ejecuciones_manuales/2026-08-15_EF_alta_persona_datos_minimos.md`.
+
 ⚠️ El accionista **no tiene vínculo en la base todavía**: su grupo se pinta con
 el motivo, igual que el del representante legal sin ligar. La tabla va en
 `Ejecuciones_manuales/2026-08-10_BD_personas_relacionadas_expediente.md`.
