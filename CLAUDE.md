@@ -266,14 +266,19 @@ aprendía a ignorarlo. `check.sh` imprime el conteo para que una subida se note.
 Al cerrar `PortalColors` hay que quitar el flag en los tres sitios (`check.sh`,
 `.github/workflows/deploy-web-firebase.yml`, `codemagic.yaml`).
 
-⚠️ **`--no-fatal-infos` YA NO cambia el código de salida en este Flutter**:
-`flutter analyze --no-fatal-infos` devuelve **1** aunque solo haya infos
-(comprobado el 2026-08-07 con el árbol limpio en `dev`). Por eso `check.sh`
-marca `✗ analyze encontro errores o warnings` sin que haya ninguno. Es
-preexistente, no lo introduce ningún cambio: para saber si de verdad hay algo
-fatal, `flutter analyze 2>&1 | grep -E '^\s+(error|warning)'`. Arreglar
-`check.sh` (contar errores/warnings en vez de mirar el exit code) es su propio
-commit.
+⚠️ **El grep para contar lo fatal es `(error|warning) •`, NO `^\s+(error|warning)`.**
+El analyzer imprime los **infos con sangría y los warnings sin ella**, así que el
+patrón con `^\s+` los cuenta como cero y deja pasar un build roto. Costó un
+deploy a producción: el CI (`flutter analyze --no-fatal-infos`) falló por dos
+warnings que en local salían como "0 errores/warnings".
+
+```bash
+flutter analyze 2>&1 | grep -E "(error|warning) •"   # lo que de verdad rompe
+```
+
+`--no-fatal-infos` **sí** devuelve 0 cuando solo hay infos (comprobado el
+2026-08-15 reproduciendo el comando del CI). La nota anterior decía lo contrario
+y llevaba a ignorar el exit code, que es justo la señal buena.
 
 ⚠️ **El repo NO está formateado con el formatter actual** (Dart 3.7 cambió a
 "tall style"). Por eso `check.sh` formatea solo los archivos modificados: un

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
-import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/expediente_documentos.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/expediente_personas.dart';
 import 'package:sozu_cliente_app/features/client/expediente/providers/expediente_providers.dart';
