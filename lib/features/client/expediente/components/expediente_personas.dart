@@ -185,29 +185,7 @@ class _ExpedientePersonasState extends ConsumerState<ExpedientePersonas> {
           )
         else
           for (final p in _representantes) ...[
-            ExpedienteFichaCard(
-              titulo: p.nombre,
-              subtitulo: [
-                if (p.porcentaje != null)
-                  '${p.porcentaje!.toStringAsFixed(p.porcentaje! % 1 == 0 ? 0 : 2)}% de las acciones',
-                if (p.esMoral) 'Empresa' else 'Persona física',
-              ].join(' · '),
-              icono: p.esMoral
-                  ? Icons.apartment_outlined
-                  : Icons.person_outline,
-              total: p.requeridosTotal,
-              aprobados: p.requeridosAprobados,
-              onAbrir: () => widget.onAbrir(p),
-              accion: p.puedeEliminar
-                  ? IconButton(
-                      tooltip: 'Quitar',
-                      iconSize: 17,
-                      color: context.s.color.fgSubtle,
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _quitar(p),
-                    )
-                  : null,
-            ),
+            _ficha(p),
             SizedBox(height: t.space.xs),
           ],
 
@@ -222,29 +200,7 @@ class _ExpedientePersonasState extends ConsumerState<ExpedientePersonas> {
           )
         else
           for (final p in _accionistas) ...[
-            ExpedienteFichaCard(
-              titulo: p.nombre,
-              subtitulo: [
-                if (p.porcentaje != null)
-                  '${p.porcentaje!.toStringAsFixed(p.porcentaje! % 1 == 0 ? 0 : 2)}% de las acciones',
-                if (p.esMoral) 'Empresa' else 'Persona física',
-              ].join(' · '),
-              icono: p.esMoral
-                  ? Icons.apartment_outlined
-                  : Icons.person_outline,
-              total: p.requeridosTotal,
-              aprobados: p.requeridosAprobados,
-              onAbrir: () => widget.onAbrir(p),
-              accion: p.puedeEliminar
-                  ? IconButton(
-                      tooltip: 'Quitar',
-                      iconSize: 17,
-                      color: context.s.color.fgSubtle,
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _quitar(p),
-                    )
-                  : null,
-            ),
+            _ficha(p),
             SizedBox(height: t.space.xs),
           ],
 
