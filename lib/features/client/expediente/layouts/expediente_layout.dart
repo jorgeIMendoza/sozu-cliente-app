@@ -17,6 +17,10 @@ class ExpedienteLayout extends StatelessWidget {
   /// Accion principal de la pantalla, a la DERECHA del "Volver". Ahi se ve sin
   /// escanear la pagina; hundida entre las tarjetas hay que buscarla.
   final Widget? accion;
+
+  /// A dónde vuelve. Una ficha del árbol vuelve a la pantalla anterior, no al
+  /// Perfil, y decirle "Volver al Perfil" miente sobre a dónde lleva.
+  final String etiquetaVolver;
   final Widget child;
 
   const ExpedienteLayout({
@@ -25,6 +29,7 @@ class ExpedienteLayout extends StatelessWidget {
     required this.descripcion,
     required this.onVolver,
     this.accion,
+    this.etiquetaVolver = 'Volver al Perfil',
     required this.child,
   });
 
@@ -52,7 +57,13 @@ class ExpedienteLayout extends StatelessWidget {
                       context.s.space.xl,
                     ),
               children: [
-                Row(
+                // Wrap y no Row: en un teléfono el "Volver" y la acción no
+                // caben en la misma línea, y un Row los desbordaba en vez de
+                // bajar la acción al renglón siguiente.
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: context.s.space.xs,
                   children: [
                     TextButton.icon(
                       onPressed: onVolver,
@@ -64,9 +75,8 @@ class ExpedienteLayout extends StatelessWidget {
                         ),
                       ),
                       icon: const Icon(Icons.arrow_back, size: 15),
-                      label: const Text('Volver al Perfil'),
+                      label: Text(etiquetaVolver),
                     ),
-                    const Spacer(),
                     if (accion != null) accion!,
                   ],
                 ),
