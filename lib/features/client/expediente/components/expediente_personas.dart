@@ -178,6 +178,9 @@ class _ExpedientePersonasState extends ConsumerState<ExpedientePersonas> {
     'solo_persona_moral' => 'Esto solo aplica a empresas.',
     'nombre_requerido' => 'Escribe el nombre completo.',
     'correo_invalido' => 'Revisa el correo: no tiene formato válido.',
+    'correo_duplicado' =>
+      'Ese correo ya está registrado con otra persona. Usa otro, o pídele a tu '
+          'asesor que la ligue a tu expediente.',
     'telefono_invalido' => 'Revisa el teléfono: son 10 dígitos.',
     'porcentaje_invalido' => 'El porcentaje debe estar entre 1 y 100.',
     'porcentaje_total' =>
