@@ -28,10 +28,15 @@ abstract interface class ExpedientePort {
   /// Da de alta a un representante legal o a un accionista y lo liga a
   /// [contexto] (por omision, al titular). [porcentaje] solo aplica a un
   /// accionista, y el backend exige que pase del umbral.
-  Future<void> addPerson({
+  ///
+  /// Devuelve el id de la persona creada para poder abrir su expediente sin
+  /// esperar a que la lista se refresque; null si el backend no lo manda.
+  Future<int?> addPerson({
     required String rol,
     required String nombre,
     required String tipoPersona,
+    required String correo,
+    required String telefono,
     double? porcentaje,
     int? contexto,
   });

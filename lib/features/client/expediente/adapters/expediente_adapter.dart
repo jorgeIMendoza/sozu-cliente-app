@@ -140,20 +140,28 @@ class ExpedienteAdapter implements ExpedientePort {
   }
 
   @override
-  Future<void> addPerson({
+  Future<int?> addPerson({
     required String rol,
     required String nombre,
     required String tipoPersona,
+    required String correo,
+    required String telefono,
     double? porcentaje,
     int? contexto,
-  }) => _mutar({
-    'action': 'alta_persona',
-    'rol': rol,
-    'nombre': nombre,
-    'tipo_persona': tipoPersona,
-    if (porcentaje != null) 'porcentaje': porcentaje,
-    if (contexto != null) 'contexto': contexto,
-  });
+  }) async {
+    final data = await _mutar({
+      'action': 'alta_persona',
+      'rol': rol,
+      'nombre': nombre,
+      'tipo_persona': tipoPersona,
+      'correo': correo,
+      'telefono': telefono,
+      if (porcentaje != null) 'porcentaje': porcentaje,
+      if (contexto != null) 'contexto': contexto,
+    });
+    final id = data is Map ? data['id_persona'] : null;
+    return id == null ? null : asInt(id);
+  }
 
   @override
   Future<void> editPerson({
@@ -176,14 +184,16 @@ class ExpedienteAdapter implements ExpedientePort {
     if (contexto != null) 'contexto': contexto,
   });
 
-  /// Invoca una accion que no devuelve datos y traduce el fallo.
-  Future<void> _mutar(Map<String, dynamic> body) async {
+  /// Invoca una accion de escritura y traduce el fallo. Devuelve el cuerpo tal
+  /// cual: la mayoria no lo usa, el alta si (necesita el id que creo).
+  Future<dynamic> _mutar(Map<String, dynamic> body) async {
     try {
-      await _sb.functions.invoke(
+      final res = await _sb.functions.invoke(
         'cliente-expediente',
         body: body,
         headers: _headers,
       );
+      return res.data;
     } on FunctionException catch (e) {
       throw _fallo(e);
     } on ApiError {

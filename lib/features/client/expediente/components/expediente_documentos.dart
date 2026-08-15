@@ -51,6 +51,14 @@ class ExpedienteDocumentos extends ConsumerStatefulWidget {
   /// De quién es el expediente. `null` = el del titular.
   final int? contexto;
 
+  /// Tipo de persona de ESE expediente. `null` = el titular, y entonces sale
+  /// del perfil.
+  ///
+  /// Sin esto, el expediente de un accionista se armaba con el tipo del
+  /// titular: a una persona física colgada de una empresa se le pedían los
+  /// documentos de empresa.
+  final bool? esMoral;
+
   /// Qué se pinta. Antes eran banderas sueltas que se combinaban solas y
   /// terminaban duplicando secciones; ahora cada pantalla dice qué es.
   final ExpedienteModo modo;
@@ -59,6 +67,7 @@ class ExpedienteDocumentos extends ConsumerStatefulWidget {
     super.key,
     this.onVerCuentas,
     this.contexto,
+    this.esMoral,
     this.modo = ExpedienteModo.auto,
   });
 
@@ -88,6 +97,7 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
         idPersona: data.contexto,
         nombre: data.nombre ?? 'Documentos de la empresa',
         rol: 'empresa',
+        esMoral: true,
         onVerCuentas: widget.onVerCuentas,
       ),
     ),
@@ -100,12 +110,16 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
     ),
   );
 
+  /// Abre la ficha de una persona ligada. Si es empresa, su pantalla vuelve a
+  /// ser una portada con SUS personas: así se baja por el árbol hasta dar con
+  /// personas físicas, que es lo que pide beneficiario controlador.
   void _abrirPersona(ExpedientePersona p) => Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => PersonaExpedienteScreen(
         idPersona: p.idPersona,
         nombre: p.nombre,
         rol: p.rol,
+        esMoral: p.esMoral,
       ),
     ),
   );
@@ -209,8 +223,10 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
     }
   }
 
-  /// Persona moral: cambia qué documentos se piden y qué datos aplican.
-  bool get _esMoral => ref.read(profileProvider).valueOrNull?.esMoral ?? false;
+  /// Persona moral: cambia qué documentos se piden y qué datos aplican. De la
+  /// persona de ESTE expediente, que no siempre es el titular.
+  bool get _esMoral =>
+      widget.esMoral ?? ref.read(profileProvider).valueOrNull?.esMoral ?? false;
 
   /// Hash que devolvió `analizar`, por nombre de archivo: viaja de vuelta en
   /// `subir` para que el backend confirme que guarda lo que se revisó.
@@ -502,20 +518,23 @@ class _ExpedienteDocumentosState extends ConsumerState<ExpedienteDocumentos> {
         // de la empresa viven en su propia pantalla, igual que los de cada
         // persona ligada, y asi la vista deja de ser una lista de dieciocho
         // filas donde todo pesa lo mismo.
-        if (data.esMoral && widget.modo == ExpedienteModo.auto) {
+        //
+        // Vale igual para una empresa COLGADA de otra: su pantalla es otra
+        // portada, con sus propias personas, y la rama sigue bajando.
+        if ((data.esMoral || _esMoral) && widget.modo == ExpedienteModo.auto) {
           return _PortadaMoral(
             data: data,
             cuentas: cuentas,
+            // La cuenta bancaria solo cuenta donde se puede abrir: en una
+            // empresa del árbol no hay ninguna que registrar desde aquí.
+            incluyeCuenta: widget.onVerCuentas != null,
             onAbrirEmpresa: () => _abrirEmpresa(data),
             onAbrirAnexos: () => _abrirAnexos(data),
             onAbrirPersona: _abrirPersona,
           );
         }
 
-        final grupos = ExpedienteGrupos.construir(
-          data,
-          esMoral: ref.watch(profileProvider).valueOrNull?.esMoral ?? false,
-        );
+        final grupos = ExpedienteGrupos.construir(data, esMoral: _esMoral);
         final rep = data.repLegal;
         final hijos = <Widget>[];
 
@@ -711,6 +730,10 @@ class _AvisoBloqueo extends StatelessWidget {
 class _PortadaMoral extends StatelessWidget {
   final ClienteExpediente data;
   final List<CuentaBancariaPerfil> cuentas;
+
+  /// La cuenta bancaria cuenta como un requisito más de la empresa. Solo en la
+  /// del titular: las del árbol no registran cuenta desde el portal.
+  final bool incluyeCuenta;
   final VoidCallback onAbrirEmpresa;
   final VoidCallback onAbrirAnexos;
   final void Function(ExpedientePersona) onAbrirPersona;
@@ -718,6 +741,7 @@ class _PortadaMoral extends StatelessWidget {
   const _PortadaMoral({
     required this.data,
     required this.cuentas,
+    required this.incluyeCuenta,
     required this.onAbrirEmpresa,
     required this.onAbrirAnexos,
     required this.onAbrirPersona,
@@ -734,6 +758,7 @@ class _PortadaMoral extends StatelessWidget {
     // cuenta aquí: sin ella el cliente creería que ya terminó.
     final faltaCuenta =
         cuentas.isEmpty || cuentas.any((c) => c.evidencia == null);
+    final extraCuenta = incluyeCuenta ? 1 : 0;
     final anexos = data.slots
         .where((s) => s.multiple)
         .fold<int>(0, (n, s) => n + s.documentos.length);
@@ -745,8 +770,8 @@ class _PortadaMoral extends StatelessWidget {
           titulo: 'Documentos de la empresa',
           subtitulo: 'Constancia fiscal, acta constitutiva, domicilio y anexos',
           icono: Icons.apartment_outlined,
-          total: requeridos.length + 1,
-          aprobados: aprobados + (faltaCuenta ? 0 : 1),
+          total: requeridos.length + extraCuenta,
+          aprobados: aprobados + (faltaCuenta ? 0 : extraCuenta),
           onAbrir: onAbrirEmpresa,
         ),
         SizedBox(height: t.space.md),

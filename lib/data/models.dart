@@ -1760,6 +1760,19 @@ class ExpedientePersona {
       requeridosAprobados = asInt(j['requeridos_aprobados']),
       puedeEliminar = j['puede_eliminar'] == true;
 
+  /// La que acaba de dar de alta el cliente, para abrir su expediente sin
+  /// esperar a que la lista se recargue. Sus contadores llegan en cero porque
+  /// todavia no sube nada.
+  ExpedientePersona.recienCreada({
+    required this.idPersona,
+    required this.nombre,
+    required this.tipoPersona,
+    required this.rol,
+    this.porcentaje,
+  }) : requeridosTotal = 0,
+       requeridosAprobados = 0,
+       puedeEliminar = true;
+
   bool get esAccionista => rol == 'accionista';
   bool get esMoral => tipoPersona == 'pm';
   bool get completo =>
