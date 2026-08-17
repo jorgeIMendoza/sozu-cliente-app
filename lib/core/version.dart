@@ -30,6 +30,17 @@ const String appEnv = String.fromEnvironment(
 
 const bool isPreviewBuild = appEnv != 'prod';
 
+/// Oculta el cintillo de PREVIEW sin dejar de ser un build de preview.
+///
+/// Es flag propia y no `APP_ENV=prod` a propósito: `isPreviewBuild` también
+/// enciende los logs de diagnóstico (ver `expediente_adapter`), y para revisar
+/// diseño en el teléfono se quiere la franja fuera pero los logs dentro.
+///
+/// `SIN_PREVIEW=1 ./tool/dev.sh <device-id>`, o
+/// `--dart-define=HIDE_PREVIEW=true` a mano. Es constante de compilación: para
+/// cambiarla hay que relanzar, no basta con `R`.
+const bool hidePreviewBanner = bool.fromEnvironment('HIDE_PREVIEW');
+
 /// Compara dos versiones SemVer por X.Y.Z (ignora sufijos `-build`/`+meta` y
 /// cualquier caracter no numérico dentro de cada segmento). Web-safe.
 /// Devuelve `<0` si `a<b`, 0 si iguales, `>0` si `a>b`. Segmentos faltantes = 0.

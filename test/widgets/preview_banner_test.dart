@@ -71,4 +71,11 @@ void main() {
     // compila con --dart-define=APP_ENV=prod.
     expect(isPreviewBuild, isTrue);
   });
+
+  test('HIDE_PREVIEW esta apagado salvo que se pida', () {
+    // Es la unica defensa contra que la bandera se quede pegada en un pipeline:
+    // un build de preview SIN cintillo se ve igual que produccion, y ahi es
+    // donde alguien reporta un bug creyendo que prueba lo que no prueba.
+    expect(hidePreviewBanner, isFalse);
+  });
 }

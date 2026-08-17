@@ -22,6 +22,17 @@ Flujo diario. El detalle y el diagnóstico están en `android-usb.md`.
 ./tool/apk.sh            # APK release para el telefono
 ```
 
+Si lo unico que estorba es el cintillo azul de arriba y quieres seguir con hot
+reload, no hace falta compilar release:
+
+```bash
+SIN_PREVIEW=1 ./tool/dev.sh DYLRPNJNIRKNZPRG
+```
+
+Apaga SOLO el cintillo. Sigue siendo build de preview, asi que los logs de
+diagnostico (`isPreviewBuild`) siguen encendidos. Es constante de compilacion:
+para prenderlo o apagarlo hay que relanzar, `R` no basta.
+
 `dev.sh` corre en modo **DEBUG**, y en Flutter web debug compila con DDC sin
 optimizar: es varias veces mas lento que release y el coste escala con el numero
 de widgets, asi que una pantalla densa se siente pesada aunque en produccion vaya

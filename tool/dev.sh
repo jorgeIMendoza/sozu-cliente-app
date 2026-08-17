@@ -5,6 +5,7 @@
 #   PORT=5100 ./tool/dev.sh    -> otro puerto
 #   ./tool/dev.sh <device-id>  -> un dispositivo (ver: flutter devices)
 #   PROFILE=1 ./tool/dev.sh    -> modo PROFILE (para medir rendimiento)
+#   SIN_PREVIEW=1 ./tool/dev.sh-> sin el cintillo azul de PREVIEW arriba
 #
 # OJO CON EL RENDIMIENTO: por defecto esto corre en modo DEBUG, y en Flutter web
 # debug compila con DDC sin optimizar. Es varias veces mas lento que release y el
@@ -220,6 +221,14 @@ COMMON_ARGS=(
   --dart-define=APP_ENV=dev
   "${DEFINES_ENV[@]+"${DEFINES_ENV[@]}"}"
 )
+
+# El cintillo de PREVIEW ocupa alto real y desplaza todo hacia abajo, asi que
+# estorba al revisar diseño en el telefono. Se apaga solo el cintillo: sigue
+# siendo un build de preview, con sus logs de diagnostico.
+if [ -n "${SIN_PREVIEW:-}" ]; then
+  COMMON_ARGS+=(--dart-define=HIDE_PREVIEW=true)
+  echo "==> sin cintillo de PREVIEW (sigue siendo build de preview)"
+fi
 
 # En profile no hay hot reload (el JIT no esta), pero es el UNICO modo en el que
 # los tiempos significan algo.
