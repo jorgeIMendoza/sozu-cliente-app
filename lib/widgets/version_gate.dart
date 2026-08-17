@@ -216,26 +216,26 @@ class _SoftUpdateBanner extends StatelessWidget {
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: c.primaryBorder)),
               ),
+              // En pantallas curvas el borde inferior no siempre trae inset del
+              // sistema, y sin él la franja queda pegada a la curva. `minimum`
+              // es un PISO, no una suma: los teléfonos que sí traen barra de
+              // gestos conservan su inset y no se les añade nada encima.
               child: SafeArea(
                 top: false,
+                minimum: EdgeInsets.only(bottom: t.space.sm),
                 child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: t.space.md,
-                    vertical: t.space.sm,
+                  padding: EdgeInsets.fromLTRB(
+                    t.space.md,
+                    t.space.sm,
+                    t.space.md,
+                    t.space.sm,
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        padding: EdgeInsets.all(t.space.xs),
-                        decoration: BoxDecoration(
-                          color: c.primary,
-                          borderRadius: t.radius.smBorder,
-                        ),
-                        child: Icon(
-                          Icons.system_update_rounded,
-                          size: 18,
-                          color: c.onPrimary,
-                        ),
+                      Icon(
+                        Icons.system_update_rounded,
+                        size: 20,
+                        color: c.primary,
                       ),
                       SizedBox(width: t.space.sm),
                       Expanded(
@@ -245,37 +245,22 @@ class _SoftUpdateBanner extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: t.text.bodySmall.copyWith(
                             color: c.fg,
-                            fontWeight: FontWeight.w600,
                             height: 1.3,
                           ),
                         ),
                       ),
                       SizedBox(width: t.space.sm),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: t.space.sm,
-                          vertical: t.space.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: c.primary,
-                          borderRadius: t.radius.fullBorder,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Actualizar',
-                              style: t.text.label.copyWith(
-                                color: c.onPrimary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              size: 16,
-                              color: c.onPrimary,
-                            ),
-                          ],
+                      // Enlace, no botón: la franja entera ya es el blanco de
+                      // toque, así que una pastilla sólida prometía un segundo
+                      // destino que no existe. Mismo verde subrayado que
+                      // "¿Olvidaste tu contraseña?" y "Regístrala" del login.
+                      Text(
+                        'Actualizar',
+                        style: t.text.label.copyWith(
+                          color: c.primaryHover,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                          decorationColor: c.primaryHover,
                         ),
                       ),
                     ],
