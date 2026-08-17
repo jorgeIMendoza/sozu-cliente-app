@@ -37,15 +37,15 @@ class PasswordRulesChecklist extends StatelessWidget {
       children: [
         for (final r in passwordRules)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
+            padding: EdgeInsets.symmetric(vertical: t.space.xxs),
             child: Row(
               children: [
                 Icon(
                   r.test(value) ? Icons.check_circle : Icons.circle_outlined,
                   size: 16,
-                  color: r.test(value) ? SozuBrand.green500 : tone.fgSubtle,
+                  color: r.test(value) ? tone.positive : tone.fgSubtle,
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: t.space.xs),
                 Text(
                   r.label,
                   style: t.text.caption.copyWith(

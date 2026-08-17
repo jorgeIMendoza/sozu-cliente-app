@@ -28,7 +28,7 @@ class LoginScreen extends ConsumerWidget {
         children: [
           const LoginForm(),
           if (storeButton) ...[
-            const SizedBox(height: 24),
+            context.s.space.gapLg,
             // Las URLs vienen del mismo gate de versión que ya corre pre-login
             // (llave anónima, degrada a null): así iOS se enciende cambiando
             // una fila en la BD, sin recompilar.
