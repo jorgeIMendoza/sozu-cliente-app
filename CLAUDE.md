@@ -403,13 +403,22 @@ dos a la vez, y las cosas que se olvidan).
   restart, `q` salir.
 - Requiere `export PATH="$HOME/flutter/bin:$PATH"` (ya lo hace dev.sh) y el
   archivo `assets/env` (gitignored; copiar de .env.example).
-- **Android en físico (funciona, probado en Oppo CPH2577 / Android 15):**
-  1. En Windows, con `platform-tools` descomprimido, dejar corriendo:
-     `.\adb.exe -a -P 5037 nodaemon server` (el flag `-a` es obligatorio: sin él
-     escucha solo en 127.0.0.1 y WSL no lo alcanza).
-  2. En WSL: `./tool/dev.sh <device-id>` - resuelve el puente solo (IP del host
-     vía `ip route`, valida el puerto 5037 antes de arrancar).
-  - Detalle y diagnóstico: `tool/android-usb.md`.
+- **Android en físico por CABLE (camino probado, Oppo CPH2577 / Android 15):**
+  1. En Windows, PowerShell admin (una vez: `winget install usbipd`):
+     ```powershell
+     usbipd list                            # busca el telefono, copia el BUSID
+     usbipd attach --wsl --busid <BUSID>
+     ```
+  2. En WSL: `./tool/dev.sh DYLRPNJNIRKNZPRG` (el serial NO cambia nunca; el
+     BUSID sí cambia de puerto USB).
+  - `usbipd` pasa el USB al kernel de WSL, así que **`adb` corre local** y los
+    `adb forward` quedan en WSL. Eso es lo que da hot reload.
+  - ⚠️ **El otro camino (`.\adb.exe -a -P 5037 nodaemon server` en Windows y
+    puente desde WSL) instala y lanza la app pero `r`/`R` NO hacen nada**: el
+    `adb forward` al Dart VM service se crea en el host, no en WSL. `dev.sh` lo
+    intenta solo como respaldo. Si vas a iterar diseño, tiene que ser `usbipd`.
+  - Detalle, diagnóstico y la alternativa inalámbrica: `tool/android-usb.md` y
+    `tool/README.md`.
   - APK: `./tool/apk.sh [--debug|--fat|--install]` - lo copia a Descargas de
     Windows. En Oppo hace falta modo USB "Transferir archivos" (no "Solo carga")
     y "Desactivar monitoreo de permisos" en Opciones de desarrollador.
