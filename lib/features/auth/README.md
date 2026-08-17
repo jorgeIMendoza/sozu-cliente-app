@@ -47,12 +47,32 @@ ports/       auth_port.dart          contrato: AuthPort, AuthSession, UserProfil
 adapters/    auth_adapter.dart       implementación actual (único con supabase_flutter)
 providers/   auth_provider.dart      AuthController (estado vivo) + authPortProvider
 services/    biometric_service.dart  huella/Face ID sobre secure storage
+             portal_access.dart      PortalAccess.allows (quién entra al portal)
 screens/     login, forgot_password, change_password (forzado),
              confirmacion_email (aterrizaje del enlace), email_not_confirmed
-components/  login_form, biometric_*, password_rules, inactivity_watcher, auth_*
-layouts/     auth_layout.dart        arma solo el panel de marca (con QR en
-                                     web de escritorio); no recibe `brand`
+components/  login_form · forgot_password_form · change_password_form
+             email_confirmation_status · resend_confirmation_action
+             biometric_setup_sheet · biometric_toggle_card · password_rules
+             inactivity_watcher · auth_alert · auth_header · auth_brand_image
+layouts/     auth_layout.dart        AuthLayout (panel de marca, con QR en web
+                                     de escritorio) + AuthFormBody
 ```
+
+**Las cinco pantallas son composición pura: 0 `setState`, ninguna pasa de 100
+líneas.** El estado y la lógica viven en el componente de `components/`, que es
+quien monta el `AuthFormBody`; la pantalla solo pone el `AuthLayout` alrededor.
+
+```dart
+class ForgotPasswordScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) =>
+      const AuthLayout(child: ForgotPasswordForm());
+}
+```
+
+Que un componente lo use una sola pantalla NO es motivo para dejarlo dentro de
+ella: la regla de "reutilizable por 2+" decide si algo se PARTE en piezas, no
+dónde vive el estado. Una pantalla con `State` propio ya incumple la regla.
 
 Las llamadas SIN sesión (recuperar contraseña, reenviar confirmación, gate de
 versión) van por `shared/adapters/anon_function.dart` y NO por
