@@ -404,13 +404,17 @@ dos a la vez, y las cosas que se olvidan).
 - Requiere `export PATH="$HOME/flutter/bin:$PATH"` (ya lo hace dev.sh) y el
   archivo `assets/env` (gitignored; copiar de .env.example).
 - **Android en físico por CABLE (camino probado, Oppo CPH2577 / Android 15):**
-  1. En Windows, PowerShell admin (una vez: `winget install usbipd`):
+  1. En Windows, PowerShell admin (una vez: `winget install usbipd`). Son TRES
+     pasos: sin `bind`, el `attach` falla con `the device is not shared`.
      ```powershell
      usbipd list                            # busca el telefono, copia el BUSID
-     usbipd attach --wsl --busid <BUSID>
+     usbipd bind   --busid <BUSID>          # persistente, una vez por BUSID
+     usbipd attach --wsl --busid <BUSID>    # cada vez que conectas el cable
      ```
   2. En WSL: `./tool/dev.sh DYLRPNJNIRKNZPRG` (el serial NO cambia nunca; el
-     BUSID sí cambia de puerto USB).
+     BUSID sí cambia de puerto USB, y al cambiar hay que hacer `bind` otra vez).
+     Para saber si llegó: `ls /dev/bus/usb`. Si no existe, el `attach` no surtió
+     efecto y `adb devices` sale vacío aunque el cable esté puesto.
   - `usbipd` pasa el USB al kernel de WSL, así que **`adb` corre local** y los
     `adb forward` quedan en WSL. Eso es lo que da hot reload.
   - ⚠️ **El otro camino (`.\adb.exe -a -P 5037 nodaemon server` en Windows y
