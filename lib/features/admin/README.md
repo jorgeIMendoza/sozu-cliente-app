@@ -53,6 +53,20 @@ layouts/     admin_layout.dart         AdminLayout + AdminScrollArea
   revés (la rueda debe funcionar en los laterales). Las rutas de admin van
   `sinMarco: true` en el router por lo mismo.
 
+## Deuda conocida
+
+La feature está en **0 legacy** de design system y de hexagonal (auditada con el
+grep de `CLAUDE.md`, incluidos los patrones de espaciado y paleta cruda). Lo que
+queda es estructural:
+
+- `screens/announcements_screen.dart` son **1,361 líneas con 33 `setState`**. Por
+  la regla de `CLAUDE.md` una pantalla solo compone: el formulario de alta de
+  aviso y la lista de programados deberían ser dos componentes con estado, y la
+  pantalla el ensamblaje. Es el archivo más grande fuera de `client/properties`.
+- `screens/select_client_screen.dart` (439 líneas, 4 `setState`) tiene el mismo
+  problema en pequeño: los filtros ya salieron a `client_filters.dart`, falta que
+  salga el estado de búsqueda.
+
 ## Cómo agregar funcionalidad
 
 1. Método nuevo de backend: firma en `AdminPort`, implementación en

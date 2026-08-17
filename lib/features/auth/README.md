@@ -29,6 +29,16 @@ Qué no:
   una modal de Perfil que llama al servicio de aquí. Lo visual vive donde
   se usa; auth es dueño del servicio y de la política (`password_rules`).
 - Sin alias ni re-exports de compatibilidad.
+- Sin paleta cruda (`SozuBrand.*`) ni espaciados literales: van los roles
+  (`context.s.color.*`) y la escala (`context.s.space.*`, `gapMd`...).
+
+Las DOS únicas excepciones de `SozuBrand` en toda la app viven aquí y son
+deliberadas; la auditoría las cuenta y no hay que "arreglarlas":
+
+- `auth_brand_image.dart` - el panel de marca es verde en los dos temas a
+  propósito: es superficie de marca, no una superficie temada.
+- `auth_layout.dart` (`_kPrimarySoft`) - está dentro de un `const BoxDecoration`
+  y `context.s` no cabe en una expresión `const`.
 
 ## Estructura
 

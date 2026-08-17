@@ -221,14 +221,39 @@ funcionando y no se tocan salvo para migrarlos**, pero nada nuevo va ahí.
 ### Al cerrar una feature, auditar que no quede legacy
 ```bash
 F=lib/features/auth
-for p in "PortalColors" "isPortalMode" "SozuType\." "Color(0x" "fontSize:" \
-         "circular([0-9]" "EdgeInsets.all([0-9]" "import '\.\./"; do
+for p in "PortalColors" "isPortalMode" "SozuType\." "SozuBrand\." "Color\(0x" \
+         "fontSize:" "circular\([0-9]" \
+         "EdgeInsets\.(all|symmetric|only|fromLTRB)\([a-z]*:? ?[0-9]" \
+         "SizedBox\((height|width): [0-9]" "^import '\.\./"; do
   # -H es obligatorio: sin el prefijo de archivo (p.ej. al auditar UN archivo)
   # la salida es "80:///..." y el filtro de dartdoc no coincide.
-  printf "%-26s %s\n" "$p" "$(grep -rHn "$p" $F --include=*.dart | grep -vE ':[0-9]+: *///' | wc -l)"
+  # -E obliga a escapar los parentesis literales: `Color(0x` sin escapar es un
+  # grupo sin cerrar y grep aborta con "mismatched ( )".
+  printf "  %-56s %s\n" "$p" "$(grep -rHnE "$p" $F --include=*.dart | grep -vE ':[0-9]+: *///' | wc -l)"
 done
 ```
 Todo debe dar 0.
+
+⚠️ **Tres de esos patrones se agregaron el 2026-08-17 porque el grep viejo
+declaraba features "cerradas" que no lo estaban.** No son adorno:
+
+- **`SizedBox\((height|width): [0-9]`** - `SizedBox(height: 24)` es un espaciado
+  crudo igual que `EdgeInsets.all(24)`, y es la forma MÁS común de meter uno en
+  Flutter. El grep viejo no lo veía: 771 en `client`. Los atajos existen desde
+  siempre (`context.s.space.gapMd`, `gapLg`).
+- **`EdgeInsets\.(symmetric|only|fromLTRB)`** - el grep viejo solo miraba
+  `EdgeInsets.all`, así que `EdgeInsets.symmetric(vertical: 12)` pasaba limpio.
+- **`SozuBrand\.`** - es la PALETA CRUDA (`lib/ui/tokens/palette.dart`), la capa
+  de debajo de los roles. Usarla en una pantalla es lo mismo que escribir
+  `Color(0xFF239F71)` pero con nombre bonito, **y no responde al tema**: los
+  roles cambian entre `light` y `dark`, la constante no. 48 sitios fuera de
+  `tokens/`, todos clavados a la paleta clara.
+
+Fuera de `lib/ui/tokens/`, `SozuBrand` solo se justifica en dos sitios y ambos
+están en `auth`: el panel de marca del acceso (`auth_brand_image.dart`, es una
+superficie de marca, verde en los dos temas a propósito) y `_kPrimarySoft` en
+`auth_layout.dart`, que vive dentro de un `const BoxDecoration` y por la trampa
+del `const` no puede leer `context.s`. Cualquier otro uso es deuda.
 
 ## Imports: SIEMPRE `package:`
 ```dart
