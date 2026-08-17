@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -30,7 +32,7 @@ Future<void> main() async {
   // 3.29+ ya lo hace por defecto; esto lo deja explícito y fija el contraste
   // de los íconos (barras transparentes, íconos oscuros/claros según fondo).
   // Los insets los respetan Scaffold + SafeArea en cada pantalla.
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
