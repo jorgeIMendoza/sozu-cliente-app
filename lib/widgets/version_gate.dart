@@ -200,6 +200,11 @@ class _SoftUpdateBanner extends StatelessWidget {
         : 'Nueva versión disponible.';
 
     return Column(
+      // stretch: sin esto la Column se encoge al ancho del contenido y la franja
+      // queda como una pastilla centrada en vez de cruzar la pantalla. Mismo
+      // caso que en `PreviewBanner`; aquí mordió al pasar a texto centrado, que
+      // quitó el `Row` de ancho máximo que lo estiraba de rebote.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(child: child),
         Material(
@@ -207,9 +212,7 @@ class _SoftUpdateBanner extends StatelessWidget {
           // Un solo InkWell sobre toda la franja, sin botones anidados dentro:
           // con varios blancos de toque hay que atinarle a uno, y "Actualizar"
           // como botón aparte compite con el propio aviso. Así cualquier punto
-          // de la franja hace lo mismo y basta un toque. La pastilla verde de
-          // la derecha es SOLO pintura: sin gesto propio, para no partir el
-          // blanco en dos.
+          // de la franja hace lo mismo y basta un toque.
           child: InkWell(
             onTap: () => _openStore(url),
             child: DecoratedBox(
@@ -230,30 +233,45 @@ class _SoftUpdateBanner extends StatelessWidget {
                     t.space.md,
                     t.space.sm,
                   ),
-                  // Mensaje y llamada a la acción en UN solo `Text.rich`, como
-                  // la línea de registro del login: mismo tamaño, misma línea, y
-                  // al no caber se parten juntos en vez de empujarse.
-                  //
-                  // "Actualizar" NO lleva gesto propio: la franja entera ya es
-                  // el blanco de toque. Va subrayado porque es la señal de que
-                  // hay destino, no porque sea un segundo botón.
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: '$msg '),
-                        TextSpan(
-                          text: 'Actualizar',
-                          style: TextStyle(
-                            color: c.primaryPressed,
-                            fontWeight: FontWeight.w600,
-                            decoration: TextDecoration.underline,
-                            decorationColor: c.primaryPressed,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.system_update_rounded,
+                        size: 22,
+                        color: c.primary,
+                      ),
+                      SizedBox(width: t.space.sm),
+                      // Mensaje y llamada a la acción en UN solo `Text.rich`,
+                      // como la línea de registro del login: mismo cuerpo para
+                      // las dos partes y, al no caber, se parten juntos en vez
+                      // de empujarse.
+                      //
+                      // "Actualizar" NO lleva gesto propio: la franja entera ya
+                      // es el blanco de toque. Va subrayado porque es la señal
+                      // de que hay destino, no porque sea un segundo botón.
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(text: '$msg '),
+                              TextSpan(
+                                text: 'Actualizar',
+                                style: TextStyle(
+                                  color: c.primaryPressed,
+                                  fontWeight: FontWeight.w600,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: c.primaryPressed,
+                                ),
+                              ),
+                            ],
+                          ),
+                          style: t.text.body.copyWith(
+                            color: c.fg,
+                            height: 1.35,
                           ),
                         ),
-                      ],
-                    ),
-                    textAlign: TextAlign.center,
-                    style: t.text.bodySmall.copyWith(color: c.fg, height: 1.35),
+                      ),
+                    ],
                   ),
                 ),
               ),

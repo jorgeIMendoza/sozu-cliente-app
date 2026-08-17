@@ -86,6 +86,32 @@ void main() {
       });
     });
 
+    testWidgets('la franja cruza todo el ancho de la pantalla', (tester) async {
+      // Regresion real, y la SEGUNDA vez que muerde (le paso igual a
+      // PreviewBanner): la Column sin `CrossAxisAlignment.stretch` se encoge al
+      // ancho de su hijo, asi que al centrar el texto la franja quedo como una
+      // pastilla en medio con el fondo asomando a los lados.
+      //
+      // OJO: hoy el `Row` interno ya llena el ancho por su cuenta, asi que este
+      // aserto pasa aunque se quite el `stretch` (comprobado). No guarda el
+      // `stretch`: guarda el RESULTADO, y avisa el dia que alguien vuelva a
+      // cambiar el contenido por uno que se encoge.
+      await conPlataforma(TargetPlatform.android, () async {
+        await montar(tester, hayNueva);
+
+        final ancho = tester.getSize(find.byType(MaterialApp)).width;
+        final franja = tester.getSize(
+          find
+              .ancestor(
+                of: find.textContaining('Actualizar'),
+                matching: find.byType(Material),
+              )
+              .first,
+        );
+        expect(franja.width, ancho);
+      });
+    });
+
     testWidgets('no se puede descartar: sin boton de cerrar', (tester) async {
       await conPlataforma(TargetPlatform.android, () async {
         await montar(tester, hayNueva);
