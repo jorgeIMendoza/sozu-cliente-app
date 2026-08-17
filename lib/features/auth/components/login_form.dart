@@ -667,15 +667,17 @@ class _RegistrationLine extends StatelessWidget {
     return Semantics(
       link: true,
       label:
-          'Registrar mi propiedad. Abre el portal de dueños en una ventana '
-          'nueva.',
+          'Registrar una propiedad SOZU comprada a su dueño anterior. Abre el '
+          'portal de dueños en una ventana nueva.',
       // excludeSemantics: sin esto el lector anuncia el label de arriba Y el
       // texto crudo del Text.rich, o sea dos veces lo mismo.
       excludeSemantics: true,
       child: Text.rich(
         TextSpan(
           children: [
-            const TextSpan(text: '¿Ya eres dueño de una propiedad SOZU? '),
+            const TextSpan(
+              text: '¿Compraste tu propiedad SOZU a su dueño anterior? ',
+            ),
             WidgetSpan(
               alignment: PlaceholderAlignment.baseline,
               baseline: TextBaseline.alphabetic,
