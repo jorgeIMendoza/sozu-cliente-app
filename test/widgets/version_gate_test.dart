@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/widgets/version_gate.dart';
 
 /// Monta el gate con la config que devolveria `cliente-app-version`.
@@ -118,7 +119,11 @@ void main() {
         await montar(tester, const AppVersionInfo(forceUpdate: true));
 
         expect(find.text('Actualización requerida'), findsOneWidget);
-        expect(find.widgetWithText(FilledButton, 'Actualizar'), findsOneWidget);
+        // Lo que importa no es qué widget lo pinta, sino que el botón esté y
+        // sea accionable: un forzado sin salida deja al usuario encerrado.
+        final boton = find.widgetWithText(SButton, 'Actualizar');
+        expect(boton, findsOneWidget);
+        expect(tester.widget<SButton>(boton).onPressed, isNotNull);
         // Bloqueante: el contenido de la app no se ve.
         expect(find.text('contenido'), findsNothing);
       });

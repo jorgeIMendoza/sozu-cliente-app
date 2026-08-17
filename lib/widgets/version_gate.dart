@@ -7,6 +7,7 @@ import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/features/app_download/components/app_download.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
+import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// "Version gate" de la app NATIVA (Android/iOS): aviso o forzado de
 /// actualización según lo que entregue la edge function `cliente-app-version`.
@@ -115,7 +116,8 @@ class _ForcedUpdateScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final t = context.s;
+    final c = t.color;
     final url = _destinoDeActualizacion(info);
     final msg = info.updateMessage?.isNotEmpty == true
         ? info.updateMessage!
@@ -124,45 +126,50 @@ class _ForcedUpdateScreen extends StatelessWidget {
     return PopScope(
       canPop: false,
       child: Scaffold(
+        backgroundColor: c.background,
         body: SafeArea(
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 32,
+                padding: EdgeInsets.symmetric(
+                  horizontal: t.space.lg,
+                  vertical: t.space.xl,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.system_update_rounded,
-                      size: 64,
-                      color: theme.colorScheme.primary,
+                    Container(
+                      padding: EdgeInsets.all(t.space.lg),
+                      decoration: BoxDecoration(
+                        color: c.primarySoft,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.system_update_rounded,
+                        size: 40,
+                        color: c.primary,
+                      ),
                     ),
-                    const SizedBox(height: 24),
+                    t.space.gapLg,
                     Text(
                       'Actualización requerida',
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: t.text.h2.copyWith(color: c.fg),
                     ),
-                    const SizedBox(height: 12),
+                    t.space.gapSm,
                     Text(
                       msg,
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium,
+                      style: t.text.body.copyWith(color: c.fgMuted),
                     ),
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: () => _openStore(url),
-                        icon: const Icon(Icons.download_rounded),
-                        label: const Text('Actualizar'),
-                      ),
+                    t.space.gapXl,
+                    SButton(
+                      label: 'Actualizar',
+                      size: SButtonSize.lg,
+                      icon: Icons.download_rounded,
+                      fullWidth: true,
+                      onPressed: () => _openStore(url),
                     ),
                   ],
                 ),
@@ -185,7 +192,8 @@ class _SoftUpdateBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final t = context.s;
+    final c = t.color;
     final url = _destinoDeActualizacion(info);
     final msg = info.updateMessage?.isNotEmpty == true
         ? info.updateMessage!
@@ -195,47 +203,83 @@ class _SoftUpdateBanner extends StatelessWidget {
       children: [
         Expanded(child: child),
         Material(
-          color: theme.colorScheme.secondaryContainer,
+          color: c.primarySoft,
           // Un solo InkWell sobre toda la franja, sin botones anidados dentro:
           // con varios blancos de toque hay que atinarle a uno, y "Actualizar"
           // como botón aparte compite con el propio aviso. Así cualquier punto
-          // de la franja hace lo mismo y basta un toque.
+          // de la franja hace lo mismo y basta un toque. La pastilla verde de
+          // la derecha es SOLO pintura: sin gesto propio, para no partir el
+          // blanco en dos.
           child: InkWell(
             onTap: () => _openStore(url),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.system_update_rounded,
-                      size: 20,
-                      color: theme.colorScheme.onSecondaryContainer,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        msg,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSecondaryContainer,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: c.primaryBorder)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: t.space.md,
+                    vertical: t.space.sm,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(t.space.xs),
+                        decoration: BoxDecoration(
+                          color: c.primary,
+                          borderRadius: t.radius.smBorder,
+                        ),
+                        child: Icon(
+                          Icons.system_update_rounded,
+                          size: 18,
+                          color: c.onPrimary,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Actualizar',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w600,
+                      SizedBox(width: t.space.sm),
+                      Expanded(
+                        child: Text(
+                          msg,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.text.bodySmall.copyWith(
+                            color: c.fg,
+                            fontWeight: FontWeight.w600,
+                            height: 1.3,
+                          ),
+                        ),
                       ),
-                    ),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 20,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ],
+                      SizedBox(width: t.space.sm),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: t.space.sm,
+                          vertical: t.space.xs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: c.primary,
+                          borderRadius: t.radius.fullBorder,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Actualizar',
+                              style: t.text.label.copyWith(
+                                color: c.onPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 16,
+                              color: c.onPrimary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
