@@ -197,13 +197,13 @@ class _SoftUpdateBanner extends StatelessWidget {
     final url = _destinoDeActualizacion(info);
     final msg = info.updateMessage?.isNotEmpty == true
         ? info.updateMessage!
-        : 'Hay una nueva versión disponible.';
+        : 'Nueva versión disponible.';
 
     return Column(
       children: [
         Expanded(child: child),
         Material(
-          color: c.primarySoft,
+          color: c.primarySoftStrong,
           // Un solo InkWell sobre toda la franja, sin botones anidados dentro:
           // con varios blancos de toque hay que atinarle a uno, y "Actualizar"
           // como botón aparte compite con el propio aviso. Así cualquier punto
@@ -230,40 +230,30 @@ class _SoftUpdateBanner extends StatelessWidget {
                     t.space.md,
                     t.space.sm,
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.system_update_rounded,
-                        size: 20,
-                        color: c.primary,
-                      ),
-                      SizedBox(width: t.space.sm),
-                      Expanded(
-                        child: Text(
-                          msg,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.text.bodySmall.copyWith(
-                            color: c.fg,
-                            height: 1.3,
+                  // Mensaje y llamada a la acción en UN solo `Text.rich`, como
+                  // la línea de registro del login: mismo tamaño, misma línea, y
+                  // al no caber se parten juntos en vez de empujarse.
+                  //
+                  // "Actualizar" NO lleva gesto propio: la franja entera ya es
+                  // el blanco de toque. Va subrayado porque es la señal de que
+                  // hay destino, no porque sea un segundo botón.
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: '$msg '),
+                        TextSpan(
+                          text: 'Actualizar',
+                          style: TextStyle(
+                            color: c.primaryPressed,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                            decorationColor: c.primaryPressed,
                           ),
                         ),
-                      ),
-                      SizedBox(width: t.space.sm),
-                      // Enlace, no botón: la franja entera ya es el blanco de
-                      // toque, así que una pastilla sólida prometía un segundo
-                      // destino que no existe. Mismo verde subrayado que
-                      // "¿Olvidaste tu contraseña?" y "Regístrala" del login.
-                      Text(
-                        'Actualizar',
-                        style: t.text.label.copyWith(
-                          color: c.primaryHover,
-                          fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.underline,
-                          decorationColor: c.primaryHover,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                    style: t.text.bodySmall.copyWith(color: c.fg, height: 1.35),
                   ),
                 ),
               ),

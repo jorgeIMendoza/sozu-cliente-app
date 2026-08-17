@@ -52,8 +52,13 @@ void main() {
       await conPlataforma(TargetPlatform.iOS, () async {
         await montar(tester, hayNueva);
 
-        expect(find.text('Hay una nueva versión disponible.'), findsOneWidget);
-        expect(find.text('Actualizar'), findsOneWidget);
+        // `textContaining` y no `text`: mensaje y accion viven en UN solo
+        // `Text.rich`, asi que el texto plano del widget es la frase completa.
+        expect(
+          find.textContaining('Nueva versión disponible.'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Actualizar'), findsOneWidget);
       });
     });
 
@@ -63,25 +68,21 @@ void main() {
       await conPlataforma(TargetPlatform.android, () async {
         await montar(tester, hayNueva);
 
-        for (final etiqueta in [
-          'Hay una nueva versión disponible.',
-          'Actualizar',
-        ]) {
-          final tocable = find.ancestor(
-            of: find.text(etiqueta),
-            matching: find.byType(InkWell),
-          );
-          expect(
-            tocable,
-            findsOneWidget,
-            reason: 'sin InkWell sobre $etiqueta',
-          );
-          expect(tester.widget<InkWell>(tocable.first).onTap, isNotNull);
-        }
+        final tocable = find.ancestor(
+          of: find.textContaining('Actualizar'),
+          matching: find.byType(InkWell),
+        );
+        expect(tocable, findsOneWidget, reason: 'sin InkWell sobre la franja');
+        expect(tester.widget<InkWell>(tocable.first).onTap, isNotNull);
 
         // Un solo InkWell para toda la franja: si hubiera dos, serian dos
         // blancos distintos y volveria el problema de tener que atinarle.
         expect(find.byType(InkWell), findsOneWidget);
+
+        // Y "Actualizar" es un TextSpan del mismo Text que el mensaje, no un
+        // widget aparte: si alguien lo vuelve a sacar a su propio Text es que
+        // le puso caja o gesto, que es justo lo que no debe tener.
+        expect(find.text('Actualizar'), findsNothing);
       });
     });
 
@@ -106,7 +107,7 @@ void main() {
           ),
         );
 
-        expect(find.text('Ya salio'), findsOneWidget);
+        expect(find.textContaining('Ya salio'), findsOneWidget);
       });
     });
   });
@@ -154,7 +155,10 @@ void main() {
         );
 
         expect(find.text('contenido'), findsOneWidget);
-        expect(find.textContaining('nueva versión'), findsNothing);
+        // Con la mayuscula del mensaje real: `textContaining` distingue
+        // mayusculas, asi que en minuscula este aserto pasaba aunque la franja
+        // estuviera ahi y no guardaba nada.
+        expect(find.textContaining('Nueva versión'), findsNothing);
       });
     });
   });
