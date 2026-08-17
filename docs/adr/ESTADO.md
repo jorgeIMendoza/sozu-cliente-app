@@ -19,8 +19,9 @@ leerlo no cuadran, gana el grep.
 | Design system | `lib/ui/` con 5 ejes de token (color, tipografía, espaciado, radio, movimiento) y 25 primitivas exportadas |
 | Temas | exactamente 2: `SozuColorRoles.light` / `.dark` |
 | Features cerradas | `auth` y `admin` - 0 legacy, auditadas. `auth` es la plantilla |
+| Pantallas de `auth` | las 5 son composición pura: 0 `setState`, ninguna pasa de 100 líneas |
 | Puertos y adaptadores | 8 features con `ports/` + `adapters/`; 0 fugas de vendor fuera de un adaptador salvo `core/portal_tracking.dart` |
-| Tests | 0 → 426, en 53 archivos |
+| Tests | 0 → 437, en 55 archivos. Las 5 pantallas de `auth` tienen cobertura |
 | Alias eliminados | `SozuColors`, `SozuTone`, `AuthColors`, `widgets/common.dart` - borrados, no deprecados |
 | Pares móvil/web | 5 de 6 fusionados (ver abajo). `AppCard`, `SectionTitle`, `EmptyCard`, `SozuProgressBar`, `StatusBadge`: 0 usos |
 | Imports | 100% `package:` en `lib/`, lint que lo obliga |
