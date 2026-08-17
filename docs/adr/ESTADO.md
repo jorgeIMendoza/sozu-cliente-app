@@ -57,6 +57,33 @@ Conteo por feature de los 6 patrones legacy (`PortalColors`, `isPortalMode`,
 Totales absolutos: **`PortalColors` 605 referencias**, **`isPortalMode` 34 usos
 en 28 archivos**.
 
+### La deuda que la auditoría vieja no contaba
+
+El grep de cierre se amplió el 2026-08-17 (ver `CLAUDE.md`). Tres patrones que
+antes pasaban limpios:
+
+| Patrón | Total en `lib/` | Qué es |
+|---|---|---|
+| `SizedBox(height/width: N)` | **801** | espaciado crudo; existe `context.s.space.gapMd` desde siempre |
+| `EdgeInsets.symmetric/only/fromLTRB(N)` | **339** | el grep viejo solo miraba `.all` |
+| `SozuBrand.*` fuera de `tokens/` | **48** | paleta cruda: no responde al tema |
+
+Reparto (espaciado + paleta, sumados):
+
+| Carpeta | | | Carpeta | |
+|---|---|---|---|---|
+| `admin` | **0** | | `home` | 83 |
+| `auth` | 3 | (los 3 son correctos, ver su README) | `products` | 110 |
+| `referral` | 1 | | `profile` | 139 |
+| `facturacion` | 5 | | `properties` | **736** |
+| `expediente` | 12 | | `widgets` (legacy) | 42 |
+| `layouts` | 35 | | `ui` | 2 |
+
+Los 48 `SozuBrand` importan más de lo que su número sugiere: parte de lo que
+hoy se le achaca a `PortalColors` al probar el modo oscuro es esto. Un
+`SozuBrand.green600` es un `Color(0xFF1D825D)` con nombre bonito y no cambia
+entre `light` y `dark`.
+
 Los 5 archivos más grandes son todos de `properties` o vecinos suyos, y explican
 por qué esa columna manda:
 
@@ -74,8 +101,9 @@ por qué esa columna manda:
 
 ### 1. Cerrar `features/client/expediente`, `facturacion` y `referral`  (chico)
 
-Entre las tres suman **4 hits legacy**. Es la victoria más barata que queda y
-deja tres features auditadas más, con lo que el patrón de `auth` pasa de ser una
+Con el grep completo suman **22 hits**: 4 de `isPortalMode` y 18 de espaciado
+crudo. Ninguna tiene `PortalColors`. Es la victoria más barata que queda y deja
+tres features auditadas más, con lo que el patrón de `auth` pasa de ser una
 excepción a ser la norma.
 
 ### 2. El sexto par móvil/web: `property_card` / `portal_property_card`
