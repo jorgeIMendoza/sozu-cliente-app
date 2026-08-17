@@ -150,7 +150,9 @@ class AuthFormBody extends StatelessWidget {
     final isCompact = context.bp.isMobile;
     return Padding(
       // Solo horizontal y solo en teléfono: el vertical lo pone AuthLayout.
-      padding: EdgeInsets.symmetric(horizontal: isCompact ? 4 : 0),
+      padding: EdgeInsets.symmetric(
+        horizontal: isCompact ? context.s.space.xxs : 0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: children,
