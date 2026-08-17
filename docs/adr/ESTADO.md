@@ -1,10 +1,14 @@
 # Estado de la migración
 
-Última actualización: 2026-07-30. Rama `refactor/design-system-auth`, **sin push**.
+Última actualización: 2026-08-17. Rama `dev-eddy`, sincronizada con `dev`.
 
 Documento de traspaso: qué está hecho, qué sigue y qué decisiones esperan a
 Eduardo. El "por qué" de cada cosa está en los mensajes de commit y en
 `0001-arquitectura-modular.md`.
+
+Las cifras de este documento se sacan con los greps de la sección
+"Al cerrar una feature, auditar que no quede legacy" de `CLAUDE.md`. Si al
+leerlo no cuadran, gana el grep.
 
 ---
 
@@ -12,125 +16,136 @@ Eduardo. El "por qué" de cada cosa está en los mensajes de commit y en
 
 | | |
 |---|---|
-| Design system | `lib/ui/` con 5 ejes de token (color, tipografía, espaciado, radio, movimiento) y 11 primitivas |
+| Design system | `lib/ui/` con 5 ejes de token (color, tipografía, espaciado, radio, movimiento) y 25 primitivas exportadas |
 | Temas | exactamente 2: `SozuColorRoles.light` / `.dark` |
-| Feature cerrada | `auth` - 0 legacy, auditada. Es la plantilla |
-| Tests | 0 → 199 |
-| Alias eliminados | `SozuColors`, `SozuTone`, `AuthColors` - borrados, no deprecados |
-| Duraciones cocidas de animación | 34 → 0 fuera de `lib/ui/` |
-| Curvas `Curves.linear` implícitas | 20 → 0 |
-| Reduced motion | respetado en todo el sistema (`MediaQuery.disableAnimations`) |
-| Imports | 414 convertidos a `package:`, lint que lo obliga |
+| Features cerradas | `auth` y `admin` - 0 legacy, auditadas. `auth` es la plantilla |
+| Puertos y adaptadores | 8 features con `ports/` + `adapters/`; 0 fugas de vendor fuera de un adaptador salvo `core/portal_tracking.dart` |
+| Tests | 0 → 426, en 53 archivos |
+| Alias eliminados | `SozuColors`, `SozuTone`, `AuthColors`, `widgets/common.dart` - borrados, no deprecados |
+| Pares móvil/web | 5 de 6 fusionados (ver abajo). `AppCard`, `SectionTitle`, `EmptyCard`, `SozuProgressBar`, `StatusBadge`: 0 usos |
+| Imports | 100% `package:` en `lib/`, lint que lo obliga |
+| Guiones largos | 0 en lib, test, docs, yaml |
+| `flutter analyze` | 0 errores, 0 warnings. 684 infos, **todos** `PortalColors` deprecado |
 | Android en físico | funciona (Temurin 21 + SDK 36 + puente de adb) |
+
+`lib/screens/` y `lib/providers/` ya no existen. `lib/widgets/` es lo que queda
+de legacy declarado (7 archivos), más `lib/core/portal_theme.dart`.
+
+---
+
+## La deuda, medida
+
+Conteo por feature de los 6 patrones legacy (`PortalColors`, `isPortalMode`,
+`Color(0x`, `fontSize:`, `circular(N)`, `EdgeInsets.all(N)`):
+
+| Carpeta | Legacy | Nota |
+|---|---|---|
+| `features/auth` | **0** | cerrada, es la plantilla |
+| `features/admin` | **0** | cerrada |
+| `features/client/providers` | **0** | |
+| `features/client/facturacion` | 1 | |
+| `features/client/referral` | 1 | |
+| `features/client/expediente` | 2 | lo más nuevo; nació con el patrón |
+| `features/client/layouts` | 91 | |
+| `features/client/products` | 91 | |
+| `features/client/profile` | 104 | |
+| `features/client/home` | 118 | |
+| `features/client/properties` | **741** | el 60% de toda la deuda |
+| `lib/widgets` (legacy) | 83 | |
+| `lib/core` | 3 | `portal_theme` + `portal_tracking` |
+
+Totales absolutos: **`PortalColors` 605 referencias**, **`isPortalMode` 34 usos
+en 28 archivos**.
+
+Los 5 archivos más grandes son todos de `properties` o vecinos suyos, y explican
+por qué esa columna manda:
+
+| Archivo | Líneas |
+|---|---|
+| `properties/screens/propiedad_detalle_screen.dart` | 3,168 |
+| `properties/screens/estado_cuenta_screen.dart` | 2,622 |
+| `properties/screens/pagos_screen.dart` | 2,373 |
+| `data/models.dart` | 1,949 |
+| `profile/components/perfil_sheets.dart` | 1,687 |
 
 ---
 
 ## Lo que sigue, en orden
 
-### 1. `flutter test` en CI  (~15 min, alto valor)
+### 1. Cerrar `features/client/expediente`, `facturacion` y `referral`  (chico)
 
-Los 8 puntos de `codemagic.yaml` y `.github/workflows/deploy-web-firebase.yml`
-corren **solo `flutter analyze`**. En esta sesión hubo tres casos donde `analyze`
-pasó limpio y el build o los tests fallaron:
+Entre las tres suman **4 hits legacy**. Es la victoria más barata que queda y
+deja tres features auditadas más, con lo que el patrón de `auth` pasa de ser una
+excepción a ser la norma.
 
-- un spread genérico que el analyzer aceptó y el compilador rechazó
-- `context.s` dentro de una expresión `const`
-- un asset usado sin declarar en `pubspec.yaml`
+### 2. El sexto par móvil/web: `property_card` / `portal_property_card`
 
-Es la red que falta antes de tocar 26 archivos en el paso 3.
+Los otros cinco ya se fusionaron. Queda este, que es el que ESTADO marcaba como
+"alto riesgo": `portal_property_card.dart` lo consumen `propiedades_screen` e
+`inicio_screen`. `PortalCard` sobrevive solo dentro de `lib/widgets/portal_widgets.dart`
+(6 usos, todos internos al archivo), así que se muere junto con ese archivo.
 
-### 2. Cerrar los tres cabos de `auth`  (chico)
+### 3. `PortalColors` → `context.s.color`  (el trabajo grande)
 
-Verificados, reales, menores:
-
-- `SLogo.aspectRatio` es API pública que nadie consume.
-- `s_search_field` y `s_autocomplete_field` usan el `InputDecoration` por defecto
-  de Material, **con label flotante** - justo lo que `STextField` documenta como
-  prohibido. Los tres campos de texto de la app no se ven iguales. **Este es el
-  que importa**: es una fractura del design system.
-- `lerpDouble` vive en `radii.dart` pero lo importan `motion.dart` y
-  `spacing.dart` para matemática que no tiene que ver con radios.
-
-Además: `SozuTypeScale.compact` es `static final` mientras `standard` es `const`,
-así que no sirve en contexto `const`.
-
-### 3. Fusionar los 6 pares móvil/web  (el trabajo grande)
-
-Es la fractura que queda: **una misma pantalla tiene dos árboles de widgets**, y
-el interruptor es `isPortalMode(context)` con **40 usos en 26 archivos**.
-
-**Actualización 2026-07-31:** las mitades MÓVIL ya se fusionaron en `lib/ui/`
-(`widgets/common.dart` eliminado, 264 sitios migrados). Lo que queda son las
-mitades `Portal*`, cuyas primitivas ya existen y las contemplan por variantes.
-
-| Móvil | Portal web | Usos | Riesgo |
-|---|---|---|---|
-| `SectionTitle` | `PortalSectionLabel` | 62 | bajo (solo texto) |
-| `EmptyCard` | `PortalEmptyState` | 27 | bajo (ya existe `SEmptyState`) |
-| `SozuProgressBar` | `PortalProgressBar` | 14 | bajo |
-| `StatusBadge` | `PortalStatusChip` | 56 | medio (mapeo estado→color) |
-| `AppCard` | `PortalCard` | 144 | medio-alto |
-| `property_card` | `portal_property_card` | 5 | alto (1,129 líneas) |
-
-Objetivo: un componente con variantes, y el responsive como **valor** en vez de
-rama del árbol.
-
-```dart
-// hoy
-if (isPortalMode(context)) PortalCard(...) else AppCard(...)
-
-// objetivo
-SCard(...)
-final cols = context.responsive(mobile: 1, desktop: 3);
-```
-
-`isPortalMode` debe sobrevivir solo dentro de un `AdaptiveShell`, redefinido por
-**ancho disponible** y no por `kIsWeb`. Eso arregla de paso su defecto actual: una
-tablet Android en horizontal nunca recibe el layout ancho aunque le quede mejor.
-
-Cada par fusionado borra ramas `isPortalMode`, así que el problema de
-`PortalColors` (abajo) se encoge solo.
-
-### 4. `PortalColors`  (último legacy vivo)
-
-**748 referencias, ~137 dentro de expresiones `const`.** Migrar a
-`context.s.color` rompe la const-ness: hay que quitar el `const` caso por caso y
-solo el compilador los localiza con fiabilidad. **No se puede hacer con sed.**
+**605 referencias, ~137 dentro de expresiones `const`.** Migrar rompe la
+const-ness: hay que quitar el `const` caso por caso y solo el compilador los
+localiza con fiabilidad. **No se puede hacer con sed.**
 
 Ya NO es una paleta paralela: cada constante apunta a la rampa unificada y hay
 tests que lo garantizan. Lo que queda es un segundo nombre para lo mismo.
 
-### 5. Plugins que aplican KGP  (deuda con fecha abierta)
+Al llegar a 0:
+- se borra `PortalLightLock` de `main.dart` y el modo oscuro queda global;
+- se quita `--no-fatal-infos` de los tres sitios (`tool/check.sh`,
+  `.github/workflows/deploy-web-firebase.yml`, `codemagic.yaml`);
+- `core/portal_theme.dart` desaparece.
+
+Orden recomendado: por feature, de menor a mayor, cerrando cada una con la
+auditoría. `properties` al final.
+
+### 4. Cabos sueltos de `lib/ui/`  (chicos, verificados)
+
+- `SLogo.aspectRatio` (`s_logo.dart:62`) es API pública que nadie consume.
+- `lerpDouble` vive en `radii.dart` pero lo importan `motion.dart` y
+  `spacing.dart` para matemática que no tiene que ver con radios.
+- `SozuTypeScale.compact` es `static final` mientras `standard` es `const`, así
+  que no sirve en contexto `const` (`typography.dart:213`).
+
+Cerrado desde la revisión anterior: `s_search_field` y `s_autocomplete_field` ya
+componen sobre `STextField`, no sobre un `TextField` con `InputDecoration`. Los
+tres campos de texto de la app se ven iguales.
+
+### 5. `core/portal_tracking.dart` usa el vendor fuera de un adaptador
+
+`SupabaseClient` directo en `core/` (línea 28). Es la única grieta del hexagonal
+en todo el repo. No es un agujero de seguridad (son los 3 RPC `SECURITY DEFINER`
+que usan los demás portales), pero incumple la regla del ADR 0002: se resuelve
+con un `TrackingPort` + adaptador.
+
+### 6. Plugins que aplican KGP  (deuda con fecha abierta)
 
 `flutter run` en Android avisa: `device_info_plus`, `package_info_plus`, `pdfx` y
 `share_plus` aplican el Kotlin Gradle Plugin por su cuenta. Hoy es solo un
-WARNING y compila; versiones futuras de Flutter fallaran.
+WARNING y compila; versiones futuras de Flutter fallarán.
 
-| Plugin | Actual | Ultima | Usado en |
+| Plugin | Actual | Última | Usado en |
 |---|---|---|---|
-| `pdfx` | 2.9.2 | **2.9.2 - ya al dia** | `screens/doc_viewer_screen.dart` |
-| `share_plus` | 10.1.4 | 13.3.0 | `widgets/recibo_pago_sheet.dart:234` |
-| `device_info_plus` | 12.4.0 | 13.2.0 | `core/portal_tracking.dart:81` |
-| `package_info_plus` | 9.0.1 | 10.2.1 | transitivo, via `geolocator_linux` |
+| `pdfx` | 2.9.2 | **2.9.2 - ya al día** | visor de documentos |
+| `share_plus` | 10.1.4 | 13.3.0 | `properties/components/recibo_pago_sheet.dart` |
+| `device_info_plus` | 12.4.0 | 13.2.0 | `core/portal_tracking.dart` |
+| `package_info_plus` | 9.0.1 | 10.2.1 | transitivo, vía `geolocator_linux` |
 
-**`pdfx` no tiene arreglo upstream**: esta en su ultima version, asi que subir los
+**`pdfx` no tiene arreglo upstream**: está en su última versión, así que subir los
 otros tres NO quita el warning. El camino real es reportarlo al plugin o cambiar
 de lector de PDF.
 
-Cuando toque: subir los tres `_plus` es un commit aparte con prueba en fisico.
-`share_plus` 10 -> 13 son tres majors y cambia la API del unico sitio de uso
+Cuando toque: subir los tres `_plus` es un commit aparte con prueba en físico.
+`share_plus` 10 → 13 son tres majors y cambia la API del único sitio de uso
 (`Share.share(texto, subject:)`). Los constraints en `pubspec.yaml` fijan el
-major, asi que hay que ensancharlos a mano; `pub upgrade` solo no los mueve.
+major, así que hay que ensancharlos a mano; `pub upgrade` solo no los mueve.
 
-No esta verificado si esas versiones nuevas ya migraron a Built-in Kotlin - hay
+No está verificado si esas versiones nuevas ya migraron a Built-in Kotlin - hay
 que leer sus changelogs antes de invertir el rato.
-
-### 6. Siguiente feature: `admin`
-
-Después de `auth`. Tiene la mitad de los componentes hechos
-(`features/admin/components/{admin_header_bar,client_filters,client_row}.dart`) y
-`seleccionar_cliente_screen` ya está compuesto, no monolítico.
-`admin_avisos_screen.dart` son 1,126 líneas con 31 `setState`.
 
 ---
 
@@ -146,7 +161,10 @@ Después de `auth`. Tiene la mitad de los componentes hechos
    modificado para evitarlo.
 3. **`avoid_dynamic_calls`**: `models.dart` tiene 95 `dynamic`. Si el lint
    estorba, quitarlo hasta que toque migrar `data/`.
-4. **Push y PR** de `refactor/design-system-auth`.
+
+Resueltas desde la revisión anterior: `flutter test` ya corre en CI, y
+`refactor/design-system-auth` se mergeó hace tiempo (el trabajo va por `dev-eddy`
+→ `dev` → `main`).
 
 ---
 
@@ -163,6 +181,9 @@ Compilan, no dan warning, y el síntoma aparece lejos de la causa:
    de teclado.
 4. **`SizedBox` no puede medir menos que un padre tight.** Por eso
    `SSkeleton.text(width:)` necesita un `Align`.
-5. **`analyze` limpio no prueba que compile.** Pasó tres veces en esta sesión.
+5. **`analyze` limpio no prueba que compile.** Pasó tres veces.
 6. **Cambios en `pubspec.yaml` exigen matar y relanzar `dev.sh`.** Ni `r` ni `R`
    los toman.
+7. **El grep de lo fatal es `(error|warning) •`, no `^\s+(error|warning)`.** El
+   analyzer sangra los infos y NO los warnings, así que el patrón con `^\s+`
+   cuenta cero warnings y deja pasar un build roto. Costó un deploy.

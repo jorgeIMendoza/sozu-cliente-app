@@ -126,10 +126,12 @@ trabaja para el portal cliente; su `src/components/portal/` es legacy.
   (la auditoría los cuenta como legacy); al llegar a 0 usos, el puente se borra.
 - **ÚNICO pendiente de homogeneizar:** `core/portal_theme.dart` (`PortalColors`,
   `isPortalMode()`, `kPortalRadius*`, `kPortalFontFallback` que ya no hace nada).
-  749 referencias, ~137 dentro de expresiones `const`: pasar a `context.s.color`
-  rompe la const-ness y hay que quitar el `const` caso por caso. Requiere
-  compilador, no se puede hacer a ciegas. Tabla de migración campo→rol en el
-  docstring del archivo.
+  605 referencias de `PortalColors` y 34 usos de `isPortalMode` en 28 archivos;
+  ~137 dentro de expresiones `const`: pasar a `context.s.color` rompe la
+  const-ness y hay que quitar el `const` caso por caso. Requiere compilador, no
+  se puede hacer a ciegas. Tabla de migración campo→rol en el docstring del
+  archivo. El reparto por feature está en `docs/adr/ESTADO.md`: `properties`
+  concentra el 60%.
 - `SozuTheme` (ThemeExtension): su campo tipográfico se llama `text`, NO `type`.
   `ThemeExtension.type` es la clave del mapa de extensiones de Material;
   pisarla compila pero rompe `extension<SozuTheme>()` en silencio.
@@ -193,8 +195,8 @@ services/portal_access.dart     PortalAccess.allows (quien entra al portal)
 
 Toda la biometría (huella / Face ID) vive en `auth`: es autenticación. El servicio,
 la oferta post-login y el switch de Perfil son el mismo mecanismo.
-`BiometricToggleCard` lo consume `screens/perfil_screen.dart` (legacy): es API
-pública de la feature, no un motivo para duplicarlo ni dejar un alias.
+`BiometricToggleCard` lo consume `features/client/profile/screens/perfil_screen.dart`:
+es API pública de la feature, no un motivo para duplicarlo ni dejar un alias.
 
 **`features/admin/` está CERRADA** (design system + hexagonal). Detalle y deuda
 pendiente en `lib/features/admin/README.md`.
@@ -260,8 +262,8 @@ El IDE usa el Dart Analysis Server, que lee el **mismo** `analysis_options.yaml`
 por eso `flutter analyze` y el panel de Problems dan idéntico resultado.
 
 `check.sh` y el CI corren `flutter analyze --no-fatal-infos`: **errores y warnings
-son fatales, los infos no**. Hoy hay ~690 infos y todos son la deuda conocida de
-`PortalColors` deprecado; con infos fatales el check salía siempre rojo y se
+son fatales, los infos no**. Hoy hay 684 infos y **todos** son la deuda conocida
+de `PortalColors` deprecado; con infos fatales el check salía siempre rojo y se
 aprendía a ignorarlo. `check.sh` imprime el conteo para que una subida se note.
 Al cerrar `PortalColors` hay que quitar el flag en los tres sitios (`check.sh`,
 `.github/workflows/deploy-web-firebase.yml`, `codemagic.yaml`).
@@ -307,10 +309,11 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
 
 ## Estructura lib/
 - ui/: design system (tokens + tema + primitivas). Ver sección anterior.
-  23 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
+  25 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
   SSkeleton · SEmptyState · SErrorState · SSectionLabel · SPressable · SStagger ·
   SSearchField · SAutocompleteField · SLogo · SWebSelectable · SDropZone ·
-  SPdfPreview · SDocUpload · SConfirm · SSelectField · SFieldLabel · SFormSheet.
+  SPdfPreview · SPdfFrame · SDocUpload · SConfirm · SSelectField · SFieldLabel ·
+  SFormSheet · SChoiceChip.
   `SFormSheet` es el chasis de toda modal de captura (encabezado, cuerpo y pie
   con Cancelar/Guardar); `SDocUploadLayout` es ese chasis con las dos columnas
   de carga dentro.
@@ -320,10 +323,13 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
   abre; el componente no sabe de backend.
 - features/: TODO el código de producto, por feature. `auth/` (cerrada),
   `admin/` (cerrada), `client/` (expediente, facturacion, home, layouts,
-  products, profile, properties, referral, providers).
-- core/: format, secure_session_storage, open_document, file_download,
-  file_drop, version, push_service, portal_tracking, portal_theme (legacy). La
-  biometría salió a `features/auth/`.
+  products, profile, properties, referral, providers), `app_download/` (la
+  landing de descarga del APK, un solo componente).
+- core/: backend_env, format, secure_session_storage, open_document, open_media,
+  media_cache, file_download, file_drop, url_strategy, user_agent/, version,
+  push_service, portal_tracking, portal_theme (legacy). La biometría salió a
+  `features/auth/`. Los pares `*_stub.dart` / `*_web.dart` son los imports
+  condicionales por plataforma.
 - data/: models (DTOs de las 7 functions)
 - shared/: ports + adapters + providers que consumen 2+ features, api_error
 - router.dart: guards + shell 5 tabs + secundarias
