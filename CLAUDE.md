@@ -51,6 +51,18 @@ de prueba: Chrome).
   manual están en
   `Ejecuciones_manuales/2026-08-07_version_gate_latest_por_release.md`.
   `min_version` (forzar) sigue siendo manual a propósito: es decisión de negocio.
+- **Los dos niveles del aviso se comportan distinto a propósito** (`widgets/
+  version_gate.dart`). El SUAVE (`latest_version`) sale una vez al abrir, se
+  puede posponer con "Ahora no" y se calla hasta el día siguiente o hasta que
+  salga una versión posterior; la memoria vive en `shared/providers/
+  update_prompt_provider.dart` (`shared_preferences`, no es dato sensible). El
+  FORZADO (`min_version` / `force_update`) es pantalla completa sin salida.
+  Antes el suave era una franja fija en todas las pantallas sin manera de
+  descartarla: molestaba siempre y aun así no obligaba a nada.
+- **La palanca que mantiene al parque al día es `min_version`, no el aviso.**
+  Dejarlo un par de versiones por detrás de la publicada saca a los muy
+  rezagados sin bloquear a quien va al corriente; el aviso suave se encarga del
+  resto. En WEB nada de esto aplica: se actualiza sola al recargar.
 
 ## Rama de trabajo
 `dev-eddy` es la unica rama de trabajo. De ahi salen los PR hacia `dev`. NO se
@@ -334,11 +346,15 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
 
 ## Estructura lib/
 - ui/: design system (tokens + tema + primitivas). Ver sección anterior.
-  25 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
+  26 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
   SSkeleton · SEmptyState · SErrorState · SSectionLabel · SPressable · SStagger ·
   SSearchField · SAutocompleteField · SLogo · SWebSelectable · SDropZone ·
   SPdfPreview · SPdfFrame · SDocUpload · SConfirm · SSelectField · SFieldLabel ·
-  SFormSheet · SChoiceChip.
+  SFormSheet · SChoiceChip · STabs.
+  `STabs` sustituye al `TabBar` de Material y, sobre todo, **no trae
+  `TabBarView`**: pinta solo la fila de etiquetas y el cuerpo lo pone quien la
+  usa. Un `TabBarView` no tiene alto intrínseco, así que obliga a meter un
+  scroll dentro de cada pestaña, y ahí se pierde el scroll de página completa.
   `SFormSheet` es el chasis de toda modal de captura (encabezado, cuerpo y pie
   con Cancelar/Guardar); `SDocUploadLayout` es ese chasis con las dos columnas
   de carga dentro.
@@ -356,7 +372,10 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
   `features/auth/`. Los pares `*_stub.dart` / `*_web.dart` son los imports
   condicionales por plataforma.
 - data/: models (DTOs de las 7 functions)
-- shared/: ports + adapters + providers que consumen 2+ features, api_error
+- shared/: ports + adapters + providers **y components** que consumen 2+
+  features, api_error. `shared/components/` es para un widget que necesita un
+  provider (por eso no cabe en `ui/`, que no importa riverpod) y que usan dos
+  features o más: hoy `theme_mode_button.dart`.
 - router.dart: guards + shell 5 tabs + secundarias
 - widgets/: LEGACY - portal_widgets, fx, network_image, preview_banner,
   push_registrar, version_gate, whatsapp_icon. La carpeta admin/ salio a
@@ -370,27 +389,36 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
   de pantalla, no
   `kIsWeb`: web en el navegador del celular usa el plazo corto.
 
-## Tema: claro/oscuro SÍ, pero el portal ancho va con candado a claro
-El selector vive en Perfil (`features/client/profile/components/theme_selector.dart`)
-y la preferencia se persiste en `shared/providers/theme_provider.dart`
-(`shared_preferences`; no es dato sensible).
+## Tema: claro/oscuro SÍ; el candado es el ÁREA DE ACCESO, no el ancho
+La preferencia se persiste en `shared/providers/theme_provider.dart`
+(`shared_preferences`; no es dato sensible) y se cambia desde dos sitios:
+
+- **`shared/components/theme_mode_button.dart`** (`ThemeModeButton`) - menú
+  compacto Claro · Oscuro · Sistema. Va en los encabezados; hoy en las dos
+  pantallas de admin. Con "Sistema" activo dice además qué resolvió, porque si
+  no la etiqueta no informa de lo que estás viendo.
+- `features/client/profile/components/theme_selector.dart` - la tarjeta de tres
+  opciones de Perfil.
 
 `main.dart` pasa el `themeMode` del provider Y envuelve el árbol en
-**`PortalLightLock`**, que fuerza claro cuando `isPortalMode(context)` es true
-(web con ancho ≥ `kPortalBreakpoint`). Motivo: el portal pinta con el shim
-`PortalColors`, cuyas constantes son claras y no dependen del tema, así que en
-oscuro solo cambiaría lo ya migrado a `context.s` y sale texto claro sobre
-fondo claro. En móvil/angosto las pantallas sí leen los roles, así que ahí el
-selector manda de verdad.
+**`AuthAreaLightLock`**, que fuerza claro mientras el usuario **todavía no
+entró** (sin sesión, con candado biométrico, resolviendo, con la cuenta
+bloqueada o con el cambio de contraseña pendiente). Es el mismo criterio que el
+guard del router.
 
-El candado usa `isPortalMode` **a propósito aunque esté deprecado**: tiene que
-decidir con el mismo criterio que las 22 pantallas que ramifican por él
-(incluido su `kIsWeb`). Si discrepan, salen temas mezclados. Migra cuando ellas
-migren a `context.bp`.
+⚠️ **El criterio NO es el ancho.** Antes lo era (`PortalLightLock` +
+`isPortalMode`) y tenía dos defectos: cruzar el breakpoint saltaba de claro a
+oscuro de golpe, y como la condición leía `MediaQuery` en la raíz, cada pixel de
+resize reconstruía el árbol completo con un `ThemeData` nuevo. **Consecuencia
+práctica: dentro de la app el tema del usuario manda también en escritorio.**
 
-Al terminar `PortalColors -> context.s.color`, borrar `PortalLightLock` y el
-oscuro queda global. Tests: `test/theme_mode_test.dart`; la rama del portal solo
-se verifica con `flutter test --platform chrome` (en la VM `kIsWeb` es false).
+Dónde funciona de verdad hoy: donde no quede `PortalColors`, que es un shim de
+constantes claras. `auth` y `admin` están en 0, así que ahí el oscuro es real.
+`client` todavía no. Por eso el `ThemeModeButton` se quitó en su momento
+(`e90c9cd`, "quedaban inertes") y por eso ya se pudo devolver a admin.
+
+Al terminar `PortalColors -> context.s.color` el oscuro queda bien en toda la
+app. Tests: `test/theme_mode_test.dart`.
 
 ## Correr
 **Guía completa del flujo diario: `tool/README.md`** (web, móvil inalámbrico, las
