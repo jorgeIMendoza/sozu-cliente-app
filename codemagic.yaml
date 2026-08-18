@@ -375,9 +375,9 @@ workflows:
         # medio. Al cambiar capabilities del App ID hay que regenerar el
         # perfil en Apple y volver a subirlo.
         provisioning_profiles:
-          - reference_name: sozu_cliente_appstore
+          - sozu_cliente_appstore
         certificates:
-          - reference_name: sozu_distribution
+          - sozu_distribution
       flutter: stable
     scripts:
       - *env_setup
@@ -421,9 +421,9 @@ workflows:
         # medio. Al cambiar capabilities del App ID hay que regenerar el
         # perfil en Apple y volver a subirlo.
         provisioning_profiles:
-          - reference_name: sozu_cliente_appstore
+          - sozu_cliente_appstore
         certificates:
-          - reference_name: sozu_distribution
+          - sozu_distribution
       flutter: stable
     scripts:
       - *validar_push_token
@@ -663,9 +663,9 @@ workflows:
         # medio. Al cambiar capabilities del App ID hay que regenerar el
         # perfil en Apple y volver a subirlo.
         provisioning_profiles:
-          - reference_name: sozu_cliente_appstore
+          - sozu_cliente_appstore
         certificates:
-          - reference_name: sozu_distribution
+          - sozu_distribution
       flutter: stable
     scripts:
       - *validar_push_token
