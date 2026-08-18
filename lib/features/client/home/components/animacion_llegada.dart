@@ -7,9 +7,9 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// Variantes de la animación de llegada de notificaciones (configurables por
 /// el admin en "Enviar avisos"; llegan al cliente vía cliente-notificaciones).
 enum AnimacionCampana {
-  sobre('sobre', 'Sobre volador ✉️'),
-  gol('gol', 'Gol ⚽'),
-  cohete('cohete', 'Cohete 🚀');
+  sobre('sobre', 'Sobre volador ${SozuEmoji.sobre}'),
+  gol('gol', 'Gol ${SozuEmoji.balon}'),
+  cohete('cohete', 'Cohete ${SozuEmoji.cohete}');
 
   final String clave;
   final String etiqueta;
@@ -226,7 +226,7 @@ Widget _frameCohete(double v, Offset centro, Offset destino) {
         child: Transform.scale(
           scale: 0.3 + 0.7 * k,
           child: const Text(
-            '🚀',
+            SozuEmoji.cohete,
             style: TextStyle(
               fontSize: 36,
               height: 1,
@@ -279,7 +279,7 @@ Widget _frameCohete(double v, Offset centro, Offset destino) {
             child: Transform.scale(
               scale: escala,
               child: const Text(
-                '🚀',
+                SozuEmoji.cohete,
                 style: TextStyle(
                   fontSize: 36,
                   height: 1,

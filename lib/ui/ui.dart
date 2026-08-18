@@ -36,6 +36,7 @@ library;
 
 // Tokens
 export 'package:sozu_cliente_app/ui/tokens/color_roles.dart';
+export 'package:sozu_cliente_app/ui/tokens/emoji.dart';
 export 'package:sozu_cliente_app/ui/tokens/elevation.dart';
 export 'package:sozu_cliente_app/ui/tokens/motion.dart';
 export 'package:sozu_cliente_app/ui/tokens/palette.dart';
