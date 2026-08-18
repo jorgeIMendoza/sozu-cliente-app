@@ -461,6 +461,8 @@ workflows:
           case "$LATEST" in ''|*[!0-9]*) LATEST="${PROJECT_BUILD_NUMBER:-0}" ;; esac
           IOS_BUILD_NUMBER=$((LATEST + 1))
           echo "App Store Connect: último $LATEST · CFBundleVersion a publicar: $IOS_BUILD_NUMBER"
+          # Lo lee el paso de revision, para no mandar a Apple otro binario.
+          echo "IOS_BUILD_NUMBER=$IOS_BUILD_NUMBER" >> $CM_ENV
           flutter build ipa --release \
             --build-number=$IOS_BUILD_NUMBER \
             --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
@@ -504,8 +506,17 @@ workflows:
           APP_ID=$(app-store-connect apps list \
             --bundle-id-identifier com.sozu.sozuClienteApp --json | jq -r '.[0].id')
           echo "Apple app id: $APP_ID"
+          # `builds list` NO acepta --limit en esta version de la CLI: con el
+          # flag argparse aborta, BUILD_ID queda vacio y submit-to-app-store
+          # recibe "None", que responde un 404 que no dice nada del problema.
           BUILD_ID=$(app-store-connect builds list \
-            --app-id "$APP_ID" --processing-state VALID --limit 1 --json | jq -r '.[0].id')
+            --app-id "$APP_ID" --processing-state VALID --json \
+            | jq -r 'sort_by(.attributes.uploadedDate) | last | .id // empty')
+          if [ -z "$BUILD_ID" ]; then
+            echo "ERROR: no hay ningun build en estado VALID para $APP_ID."
+            echo "Apple tarda minutos en procesar un .ipa: esperar y relanzar."
+            exit 1
+          fi
           echo "Build a promover: $BUILD_ID"
           app-store-connect builds submit-to-app-store "$BUILD_ID" \
             --release-type AFTER_APPROVAL \
@@ -711,6 +722,8 @@ workflows:
           case "$LATEST" in ''|*[!0-9]*) LATEST="${PROJECT_BUILD_NUMBER:-0}" ;; esac
           IOS_BUILD_NUMBER=$((LATEST + 1))
           echo "App Store Connect: último $LATEST · CFBundleVersion a publicar: $IOS_BUILD_NUMBER"
+          # Lo lee el paso de revision, para no mandar a Apple otro binario.
+          echo "IOS_BUILD_NUMBER=$IOS_BUILD_NUMBER" >> $CM_ENV
           flutter build ipa --release \
             --build-number=$IOS_BUILD_NUMBER \
             --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
@@ -731,9 +744,23 @@ workflows:
             set -e
             APP_ID=$(app-store-connect apps list \
               --bundle-id-identifier com.sozu.sozuClienteApp --json | jq -r '.[0].id')
+            # `builds list` NO acepta --limit en esta version de la CLI: con el
+            # flag argparse aborta, BUILD_ID queda vacio y submit-to-app-store
+            # recibe "None", que responde un 404 que no dice nada del problema.
+            # Se filtra por el CFBundleVersion que subio ESTE build: "el ultimo
+            # VALID" puede ser uno anterior si Apple no acabo de procesar el
+            # nuevo, y se mandaria a revision el binario equivocado.
             BUILD_ID=$(app-store-connect builds list \
-              --app-id "$APP_ID" --processing-state VALID --limit 1 --json | jq -r '.[0].id')
-            echo "Enviando build $BUILD_ID a revisión de App Store"
+              --app-id "$APP_ID" --processing-state VALID --json \
+              | jq -r --arg n "$IOS_BUILD_NUMBER" \
+                  '[.[] | select(.attributes.version == $n)] | last | .id // empty')
+            if [ -z "$BUILD_ID" ]; then
+              echo "ERROR: no hay build VALID con CFBundleVersion $IOS_BUILD_NUMBER."
+              echo "Apple tarda minutos en procesar el .ipa. Ya esta subido: cuando"
+              echo "termine, correr ios-appstore para mandarlo a revision."
+              exit 1
+            fi
+            echo "Enviando build $BUILD_ID (CFBundleVersion $IOS_BUILD_NUMBER) a revisión de App Store"
             app-store-connect builds submit-to-app-store "$BUILD_ID" \
               --release-type AFTER_APPROVAL \
               --whats-new "$RELEASE_NOTES"
