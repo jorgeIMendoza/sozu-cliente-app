@@ -66,6 +66,7 @@ export 'package:sozu_cliente_app/ui/primitives/s_select_field.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_section_label.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_skeleton.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_stagger.dart';
+export 'package:sozu_cliente_app/ui/primitives/s_tabs.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_text_field.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_logo.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_web_selectable.dart';

@@ -8,6 +8,7 @@ import 'package:sozu_cliente_app/features/client/home/components/animacion_llega
 import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/features/admin/components/admin_header_bar.dart';
 import 'package:sozu_cliente_app/features/admin/layouts/admin_layout.dart';
+import 'package:sozu_cliente_app/shared/components/theme_mode_button.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Lado del spinner que sustituye al icono mientras se envía o se guarda.
@@ -33,6 +34,9 @@ const IconData _kSingleSelectIcon = Icons.expand_more;
 
 /// Cuántos nombres se enumeran en el resumen antes de cortar con "+N".
 const int _kSummaryMaxNames = 3;
+
+/// Avisos por página en "Avisos recientes".
+const int _kAnnouncementsPerPage = 5;
 
 /// "informativa" -> "Informativa". Los catálogos vienen en minúsculas.
 String _capitalize(String s) =>
@@ -60,10 +64,6 @@ class AnnouncementsScreen extends ConsumerStatefulWidget {
       _AnnouncementsScreenState();
 }
 
-/// Ancho maximo del contenido. El mismo que `select_client_screen`: las dos son
-/// pantallas de admin y no deben medir distinto.
-const double _kMaxWidth = 880;
-
 class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _title = TextEditingController();
@@ -81,6 +81,18 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
   final Set<int> _selectedModels = {};
   final Set<int> _selectedLevels = {};
   final Set<int> _selectedProperties = {};
+
+  /// Pestaña visible. Es estado de la pantalla y no un `TabController` porque
+  /// el cuerpo se pinta en línea: sin `TabBarView` no hay nada que animar.
+  int _tab = 0;
+
+  /// Página de "Avisos recientes", de [_kAnnouncementsPerPage] en
+  /// [_kAnnouncementsPerPage]. Paginado y no scroll infinito a propósito: con
+  /// la lista entera la página crecía sin techo y el formulario de arriba
+  /// quedaba lejísimos. Paginando, el alto de la pantalla no depende de cuántos
+  /// avisos haya.
+  int _announcementsPage = 0;
+
   bool _loadingModels = false;
   bool _loadingLevels = false;
   bool _loadingProperties = false;
@@ -156,6 +168,9 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
       setState(() {
         _announcements = announcements;
         _loadingAnnouncements = false;
+        // Un aviso nuevo entra al principio: quedarse en la página 3 lo
+        // escondería justo cuando el usuario quiere verlo confirmado.
+        _announcementsPage = 0;
       });
     } catch (_) {
       if (mounted) setState(() => _loadingAnnouncements = false);
@@ -419,317 +434,366 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     // ventana mientras el contenido va centrado: el titulo quedaba pegado al
     // borde izquierdo, sin relacion con la columna. Es el motivo por el que
     // existe `AdminHeaderBar`.
-    return DefaultTabController(
-      length: 2,
-      child: AdminLayout.fixed(
-        maxWidth: _kMaxWidth,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AdminHeaderBar(
-              title: 'Enviar avisos',
-              actions: [
-                AdminHeaderAction(
-                  label: 'Volver',
-                  icon: Icons.arrow_back,
-                  onPressed: () => context.pop(),
-                ),
-              ],
-            ),
-            SizedBox(height: t.space.sm),
-            const TabBar(
-              tabs: [
-                Tab(text: 'Nuevo aviso'),
-                Tab(text: 'Configuración'),
-              ],
-            ),
-            SizedBox(height: t.space.md),
-            // `Expanded` + scroll por tab: un `TabBarView` no tiene alto
-            // intrinseco, asi que no cabe en un scroll de pagina. Aqui el
-            // encabezado y los tabs quedan fijos y desplaza el contenido, que es
-            // el patron correcto para una pantalla con pestanas.
-            Expanded(
-              child: TabBarView(
-                children: [_newAnnouncementTab(t), _settingsTab(t)],
+    // Mismo `AdminLayout` que el selector de cliente: UN scroll, el de la
+    // página, que ocupa el viewport completo. Antes usaba `AdminLayout.fixed`
+    // con un `TabBarView` dentro, y como un `TabBarView` no tiene alto
+    // intrínseco cada pestaña cargaba su propio scroll: en escritorio la rueda
+    // solo respondía sobre la columna central. Con `STabs` el cuerpo se pinta
+    // en línea y el scroll vuelve a ser uno solo.
+    return AdminLayout(
+      onRefresh: _loadAnnouncements,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AdminHeaderBar(
+            title: 'Enviar avisos',
+            // Mismo bloque de dos lineas que el selector de cliente: sin
+            // subtitulo el encabezado medía distinto y las acciones caian a otra
+            // altura, asi que las dos pantallas de admin no cuadraban.
+            subtitle: 'A clientes del app · push, correo y WhatsApp',
+            actions: [
+              const ThemeModeButton(),
+              SizedBox(width: t.space.xxs),
+              AdminHeaderAction(
+                label: 'Volver',
+                icon: Icons.arrow_back,
+                onPressed: () => context.pop(),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+          SizedBox(height: t.space.sm),
+          STabs(
+            tabs: const ['Nuevo aviso', 'Configuración'],
+            selected: _tab,
+            onChanged: (i) => setState(() => _tab = i),
+          ),
+          SizedBox(height: t.space.md),
+          if (_tab == 0) _nuevoAvisoLayout(t) else _settingsTab(t),
+        ],
       ),
     );
   }
 
+  /// En escritorio el formulario y los avisos recientes van LADO A LADO; en
+  /// teléfono, uno debajo del otro.
+  ///
+  /// En una sola columna el formulario ocupaba ~800 px de alto y los avisos
+  /// quedaban fuera de pantalla, así que enviar uno y comprobar que salió eran
+  /// dos pantallazos distintos. Al lado se ven a la vez y deja de sobrar la
+  /// mitad derecha de la ventana, que era todo aire.
+  Widget _nuevoAvisoLayout(SozuTheme t) {
+    if (!context.bp.isDesktop) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _newAnnouncementTab(t),
+          SizedBox(height: t.space.lg),
+          _recentAnnouncements(t),
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 3:2 y no mitades: el formulario tiene campos en dos columnas por
+        // dentro y con menos ancho vuelven a apilarse.
+        Expanded(flex: 3, child: _newAnnouncementTab(t)),
+        SizedBox(width: t.space.lg),
+        Expanded(flex: 2, child: _recentAnnouncements(t)),
+      ],
+    );
+  }
+
+  /// Cuerpo de la pestaña, SIN scroll propio: lo pone [AdminLayout]. El
+  /// pull-to-refresh también vive allá arriba, en el scroll de la página.
   Widget _newAnnouncementTab(SozuTheme t) {
     final tone = t.color;
-    return RefreshIndicator(
-      onRefresh: _loadAnnouncements,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Form(
-              key: _formKey,
-              child: SCard(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Form(
+          key: _formKey,
+          child: SCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Sin titulo repetido: la pestaña de arriba ya dice "Nuevo
+                // aviso", y leerlo dos veces en la misma pantalla hacia pensar
+                // que eran dos secciones distintas.
+                // `lg` en los dos campos que son el contenido del aviso; los
+                // seis selectores de abajo van en filas de dos, y ahí manda
+                // `md` (lo mismo que usa `SAutocompleteField`).
+                STextField(
+                  controller: _title,
+                  label: 'Título',
+                  hint: 'Corte de agua programado',
+                  maxLength: 120,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Escribe el título'
+                      : null,
+                ),
+                SizedBox(height: t.space.sm),
+                STextField(
+                  controller: _message,
+                  label: 'Mensaje',
+                  // Caja fija de 6 líneas: `minLines == maxLines`, así que no
+                  // crece al escribir -el formulario no se reacomoda debajo- y
+                  // el texto de más desplaza por dentro.
+                  minLines: 6,
+                  maxLines: 6,
+                  maxLength: 1000,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Escribe el mensaje'
+                      : null,
+                ),
+                SizedBox(height: t.space.sm),
+
+                // Tipo y Categoría describen el aviso, así que van con el
+                // título y el mensaje: debajo de los chips se leían como parte
+                // del grupo "Canales".
+                _twoColumns(
+                  t,
+                  _SelectField(
+                    label: 'Tipo',
+                    value: _type,
+                    options: _types,
+                    onChanged: (v) => setState(() => _type = v ?? _type),
+                  ),
+                  _SelectField(
+                    label: 'Categoría',
+                    value: _category,
+                    options: _categories,
+                    onChanged: (v) =>
+                        setState(() => _category = v ?? _category),
+                  ),
+                ),
+                SizedBox(height: t.space.md),
+
+                const SSectionLabel(text: 'Canales'),
+                Wrap(
+                  spacing: t.space.xs,
+                  runSpacing: t.space.xxs,
+                  children: [
+                    _channelChip(
+                      'push',
+                      'Push (app)',
+                      Icons.notifications_active_outlined,
+                    ),
+                    _channelChip('email', 'Correo', Icons.mail_outline),
+                    _channelChip('wa', 'WhatsApp', Icons.chat_outlined),
+                  ],
+                ),
+                SizedBox(height: t.space.md),
+
+                const SSectionLabel(text: 'Destinatarios'),
+                _twoColumns(
+                  t,
+                  _MultiSelectField(
+                    label: 'Proyectos',
+                    items: _projects,
+                    selected: _selectedProjects,
+                    placeholder: 'Todos los clientes',
+                    onChanged: _onProjectsChanged,
+                  ),
+                  _MultiSelectField(
+                    label: 'Modelos',
+                    items: _models,
+                    selected: _selectedModels,
+                    placeholder: _selectedProjects.isEmpty
+                        ? 'Primero elige proyecto'
+                        : _loadingModels
+                        ? 'Cargando…'
+                        : 'Todos los modelos',
+                    enabled: _selectedProjects.isNotEmpty && !_loadingModels,
+                    onChanged: _onModelsChanged,
+                  ),
+                ),
+                SizedBox(height: t.space.xs),
+                _twoColumns(
+                  t,
+                  _MultiSelectField(
+                    label: 'Niveles',
+                    items: _levels,
+                    selected: _selectedLevels,
+                    placeholder: _selectedProjects.isEmpty
+                        ? 'Primero elige proyecto'
+                        : _loadingLevels
+                        ? 'Cargando…'
+                        : _levels.isEmpty
+                        ? 'Niveles no disponibles'
+                        : 'Todos los niveles',
+                    enabled: _selectedProjects.isNotEmpty && !_loadingLevels,
+                    onChanged: _onLevelsChanged,
+                  ),
+                  _MultiSelectField(
+                    label: 'Propiedades',
+                    items: _properties,
+                    prefix: 'U-',
+                    selected: _selectedProperties,
+                    placeholder: _selectedProjects.isEmpty
+                        ? 'Primero elige proyecto'
+                        : _loadingProperties
+                        ? 'Cargando…'
+                        : 'Todas las propiedades',
+                    enabled:
+                        _selectedProjects.isNotEmpty && !_loadingProperties,
+                    onChanged: (selection) => setState(
+                      () => _selectedProperties
+                        ..clear()
+                        ..addAll(selection),
+                    ),
+                  ),
+                ),
+                SizedBox(height: t.space.xs),
+                Text(
+                  'Destino: $_targetSummary',
+                  style: t.text.caption.copyWith(color: tone.fgMuted),
+                ),
+                SizedBox(height: t.space.md),
+
+                const SSectionLabel(text: 'Programación'),
+                Row(
+                  children: [
+                    Switch(
+                      value: _schedule,
+                      onChanged: (v) => setState(() => _schedule = v),
+                    ),
+                    SizedBox(width: t.space.xxs),
+                    Expanded(
+                      child: Text(
+                        _schedule
+                            ? (_scheduledAt == null
+                                  ? 'Elige fecha y hora'
+                                  : DateFormat(
+                                      'dd/MM/yyyy HH:mm',
+                                    ).format(_scheduledAt!))
+                            : 'Enviar de inmediato',
+                        style: t.text.body.copyWith(color: tone.fg),
+                      ),
+                    ),
+                    if (_schedule)
+                      TextButton.icon(
+                        onPressed: _pickDateTime,
+                        icon: const Icon(Icons.event_outlined, size: 18),
+                        label: const Text('Fecha y hora'),
+                      ),
+                  ],
+                ),
+                SizedBox(height: t.space.sm),
+                // Sin icono: la accion principal la dice el texto, y el
+                // `loading` del propio SButton sustituye al spinner a mano.
+                SButton(
+                  label: _schedule ? 'Programar aviso' : 'Enviar ahora',
+                  size: SButtonSize.lg,
+                  loading: _sending,
+                  loadingLabel: _schedule ? 'Programando...' : 'Enviando...',
+                  onPressed: _sending ? null : _submit,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// "Avisos recientes", paginado. Es una columna aparte porque en escritorio
+  /// va al lado del formulario, no debajo.
+  Widget _recentAnnouncements(SozuTheme t) {
+    final total = _announcements.length;
+    final paginas = (total / _kAnnouncementsPerPage).ceil();
+    final pagina = _announcementsPage.clamp(0, paginas == 0 ? 0 : paginas - 1);
+    final desde = pagina * _kAnnouncementsPerPage;
+    final visibles = _announcements.skip(desde).take(_kAnnouncementsPerPage);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SSectionLabel.heading(
+          icon: Icons.history_outlined,
+          text: 'Avisos recientes',
+          trailing: total > 0
+              ? Text(
+                  '$total en total',
+                  style: t.text.caption.copyWith(color: t.color.fgMuted),
+                )
+              : null,
+        ),
+        if (_loadingAnnouncements)
+          const SSkeleton(height: 80, radius: 16)
+        else if (_announcements.isEmpty)
+          const SEmptyState.card(
+            icon: Icons.campaign_outlined,
+            title: 'Aún no hay avisos',
+          )
+        else ...[
+          for (final a in visibles) ...[
+            _AnnouncementRow(a: a, onCancel: () => _cancel(a)),
+            SizedBox(height: t.space.sm),
+          ],
+          if (paginas > 1)
+            _Paginador(
+              pagina: pagina,
+              paginas: paginas,
+              onCambio: (p) => setState(() => _announcementsPage = p),
+            ),
+        ],
+      ],
+    );
+  }
+
+  /// Cuerpo de la pestaña, SIN scroll propio: lo pone [AdminLayout].
+  Widget _settingsTab(SozuTheme t) {
+    final tone = t.color;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SCard(
+          child: Row(
+            children: [
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Nuevo aviso',
-                      style: t.text.bodyLarge.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: tone.fg,
-                      ),
+                      'Animación al llegar una notificación',
+                      style: t.text.label.copyWith(color: tone.fg),
                     ),
-                    SizedBox(height: t.space.sm),
-                    // `lg` en los dos campos que son el contenido del aviso; los
-                    // seis selectores de abajo van en filas de dos, y ahí manda
-                    // `md` (lo mismo que usa `SAutocompleteField`).
-                    STextField(
-                      controller: _title,
-                      label: 'Título',
-                      hint: 'Corte de agua programado',
-                      maxLength: 120,
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Escribe el título'
-                          : null,
-                    ),
-                    SizedBox(height: t.space.sm),
-                    STextField(
-                      controller: _message,
-                      label: 'Mensaje',
-                      maxLines: 8,
-                      maxLength: 1000,
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Escribe el mensaje'
-                          : null,
-                    ),
-                    SizedBox(height: t.space.sm),
-
-                    // Tipo y Categoría describen el aviso, así que van con el
-                    // título y el mensaje: debajo de los chips se leían como parte
-                    // del grupo "Canales".
-                    _twoColumns(
-                      t,
-                      _SelectField(
-                        label: 'Tipo',
-                        value: _type,
-                        options: _types,
-                        onChanged: (v) => setState(() => _type = v ?? _type),
-                      ),
-                      _SelectField(
-                        label: 'Categoría',
-                        value: _category,
-                        options: _categories,
-                        onChanged: (v) =>
-                            setState(() => _category = v ?? _category),
-                      ),
-                    ),
-                    SizedBox(height: t.space.md),
-
-                    const SSectionLabel(text: 'Canales'),
-                    Wrap(
-                      spacing: t.space.xs,
-                      runSpacing: t.space.xxs,
-                      children: [
-                        _channelChip(
-                          'push',
-                          'Push (app)',
-                          Icons.notifications_active_outlined,
-                        ),
-                        _channelChip('email', 'Correo', Icons.mail_outline),
-                        _channelChip('wa', 'WhatsApp', Icons.chat_outlined),
-                      ],
-                    ),
-                    SizedBox(height: t.space.md),
-
-                    const SSectionLabel(text: 'Destinatarios'),
-                    _twoColumns(
-                      t,
-                      _MultiSelectField(
-                        label: 'Proyectos',
-                        items: _projects,
-                        selected: _selectedProjects,
-                        placeholder: 'Todos los clientes',
-                        onChanged: _onProjectsChanged,
-                      ),
-                      _MultiSelectField(
-                        label: 'Modelos',
-                        items: _models,
-                        selected: _selectedModels,
-                        placeholder: _selectedProjects.isEmpty
-                            ? 'Primero elige proyecto'
-                            : _loadingModels
-                            ? 'Cargando…'
-                            : 'Todos los modelos',
-                        enabled:
-                            _selectedProjects.isNotEmpty && !_loadingModels,
-                        onChanged: _onModelsChanged,
-                      ),
-                    ),
-                    SizedBox(height: t.space.xs),
-                    _twoColumns(
-                      t,
-                      _MultiSelectField(
-                        label: 'Niveles',
-                        items: _levels,
-                        selected: _selectedLevels,
-                        placeholder: _selectedProjects.isEmpty
-                            ? 'Primero elige proyecto'
-                            : _loadingLevels
-                            ? 'Cargando…'
-                            : _levels.isEmpty
-                            ? 'Niveles no disponibles'
-                            : 'Todos los niveles',
-                        enabled:
-                            _selectedProjects.isNotEmpty && !_loadingLevels,
-                        onChanged: _onLevelsChanged,
-                      ),
-                      _MultiSelectField(
-                        label: 'Propiedades',
-                        items: _properties,
-                        prefix: 'U-',
-                        selected: _selectedProperties,
-                        placeholder: _selectedProjects.isEmpty
-                            ? 'Primero elige proyecto'
-                            : _loadingProperties
-                            ? 'Cargando…'
-                            : 'Todas las propiedades',
-                        enabled:
-                            _selectedProjects.isNotEmpty && !_loadingProperties,
-                        onChanged: (selection) => setState(
-                          () => _selectedProperties
-                            ..clear()
-                            ..addAll(selection),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: t.space.xs),
                     Text(
-                      'Destino: $_targetSummary',
+                      'Aplica a todos los clientes (configuración general, '
+                      'no por notificación).',
                       style: t.text.caption.copyWith(color: tone.fgMuted),
-                    ),
-                    SizedBox(height: t.space.md),
-
-                    const SSectionLabel(text: 'Programación'),
-                    Row(
-                      children: [
-                        Switch(
-                          value: _schedule,
-                          onChanged: (v) => setState(() => _schedule = v),
-                        ),
-                        SizedBox(width: t.space.xxs),
-                        Expanded(
-                          child: Text(
-                            _schedule
-                                ? (_scheduledAt == null
-                                      ? 'Elige fecha y hora'
-                                      : DateFormat(
-                                          'dd/MM/yyyy HH:mm',
-                                        ).format(_scheduledAt!))
-                                : 'Enviar de inmediato',
-                            style: t.text.body.copyWith(color: tone.fg),
-                          ),
-                        ),
-                        if (_schedule)
-                          TextButton.icon(
-                            onPressed: _pickDateTime,
-                            icon: const Icon(Icons.event_outlined, size: 18),
-                            label: const Text('Fecha y hora'),
-                          ),
-                      ],
-                    ),
-                    SizedBox(height: t.space.sm),
-                    // Sin icono: la accion principal la dice el texto, y el
-                    // `loading` del propio SButton sustituye al spinner a mano.
-                    SButton(
-                      label: _schedule ? 'Programar aviso' : 'Enviar ahora',
-                      size: SButtonSize.lg,
-                      loading: _sending,
-                      loadingLabel: _schedule
-                          ? 'Programando...'
-                          : 'Enviando...',
-                      onPressed: _sending ? null : _submit,
                     ),
                   ],
                 ),
               ),
-            ),
-
-            const SSectionLabel.heading(
-              icon: Icons.history_outlined,
-              text: 'Avisos recientes',
-            ),
-            if (_loadingAnnouncements)
-              const SSkeleton(height: 80, radius: 16)
-            else if (_announcements.isEmpty)
-              const SEmptyState.card(
-                icon: Icons.campaign_outlined,
-                title: 'Aún no hay avisos',
-              )
-            else
-              for (final a in _announcements) ...[
-                _AnnouncementRow(a: a, onCancel: () => _cancel(a)),
-                SizedBox(height: t.space.sm),
-              ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _settingsTab(SozuTheme t) {
-    final tone = t.color;
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SCard(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Animación al llegar una notificación',
-                        style: t.text.label.copyWith(color: tone.fg),
+              SizedBox(width: t.space.sm),
+              if (_savingBellAnimation)
+                const SizedBox(
+                  width: _kSpinnerSize,
+                  height: _kSpinnerSize,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                )
+              else
+                DropdownButton<String>(
+                  value: _bellAnimation,
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    for (final a in AnimacionCampana.values)
+                      DropdownMenuItem(
+                        value: a.clave,
+                        child: Text(a.etiqueta, style: t.text.label),
                       ),
-                      Text(
-                        'Aplica a todos los clientes (configuración general, '
-                        'no por notificación).',
-                        style: t.text.caption.copyWith(color: tone.fgMuted),
-                      ),
-                    ],
-                  ),
+                  ],
+                  onChanged: _saveBellAnimation,
                 ),
-                SizedBox(width: t.space.sm),
-                if (_savingBellAnimation)
-                  const SizedBox(
-                    width: _kSpinnerSize,
-                    height: _kSpinnerSize,
-                    child: CircularProgressIndicator(strokeWidth: 2.5),
-                  )
-                else
-                  DropdownButton<String>(
-                    value: _bellAnimation,
-                    underline: const SizedBox.shrink(),
-                    items: [
-                      for (final a in AnimacionCampana.values)
-                        DropdownMenuItem(
-                          value: a.clave,
-                          child: Text(a.etiqueta, style: t.text.label),
-                        ),
-                    ],
-                    onChanged: _saveBellAnimation,
-                  ),
-              ],
-            ),
+            ],
           ),
-          SizedBox(height: t.space.sm),
-          // Vista previa en vivo de la animación seleccionada.
-          _AnimationPreview(variant: AnimacionCampana.desde(_bellAnimation)),
-        ],
-      ),
+        ),
+        SizedBox(height: t.space.sm),
+        // Vista previa en vivo de la animación seleccionada.
+        _AnimationPreview(variant: AnimacionCampana.desde(_bellAnimation)),
+      ],
     );
   }
 
@@ -1356,6 +1420,53 @@ class _AnnouncementRow extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Paginador de "Avisos recientes": anterior · "N de M" · siguiente.
+///
+/// Numeros de pagina no: con la lista creciendo sin techo la fila de numeros
+/// crece con ella, y aqui nadie salta a la pagina 7, solo recorre hacia atras.
+class _Paginador extends StatelessWidget {
+  const _Paginador({
+    required this.pagina,
+    required this.paginas,
+    required this.onCambio,
+  });
+
+  final int pagina;
+  final int paginas;
+  final ValueChanged<int> onCambio;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    // `Wrap` y no `Row`: en escritorio esta columna mide ~480 px y los dos
+    // botones mas el contador no caben en una linea. Con Row desbordaba y
+    // Flutter recorta el contenido que sobra.
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: t.space.sm,
+      runSpacing: t.space.xs,
+      children: [
+        SButton.ghost(
+          label: 'Anterior',
+          icon: Icons.chevron_left,
+          // null deshabilita: en la primera pagina no hay a donde ir.
+          onPressed: pagina > 0 ? () => onCambio(pagina - 1) : null,
+        ),
+        Text(
+          '${pagina + 1} de $paginas',
+          style: t.text.caption.copyWith(color: t.color.fgMuted),
+        ),
+        SButton.ghost(
+          label: 'Siguiente',
+          trailingIcon: Icons.chevron_right,
+          onPressed: pagina < paginas - 1 ? () => onCambio(pagina + 1) : null,
+        ),
+      ],
     );
   }
 }

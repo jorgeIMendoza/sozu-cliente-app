@@ -7,6 +7,10 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// [isPreviewBuild] en core/version.dart). Los deploys productivos compilan con
 /// `--dart-define=APP_ENV=prod` y no lo muestran.
 ///
+/// Para revisar diseño sin él, `SIN_PREVIEW=1 ./tool/dev.sh <device-id>`
+/// ([hidePreviewBanner]): la franja desplaza el contenido y estorba al comparar
+/// contra un diseño.
+///
 /// Usa el rol `info` (azul), no `warning` (ámbar): esto no es una advertencia de
 /// que algo esté mal, es un dato de contexto. Reservar el ámbar y el rojo para
 /// lo que de verdad requiere acción es lo que hace que el usuario les crea
@@ -25,7 +29,7 @@ class PreviewBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!isPreviewBuild) return child;
+    if (!isPreviewBuild || hidePreviewBanner) return child;
 
     final t = context.s;
     final c = t.color;

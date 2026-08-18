@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -668,15 +667,15 @@ class _RegistrationLine extends StatelessWidget {
     return Semantics(
       link: true,
       label:
-          'Registrar mi propiedad. Abre el portal de dueños en una ventana '
-          'nueva.',
+          'Registrar una propiedad SOZU comprada a otro dueño, no a SOZU. Abre '
+          'el portal de dueños en una ventana nueva.',
       // excludeSemantics: sin esto el lector anuncia el label de arriba Y el
       // texto crudo del Text.rich, o sea dos veces lo mismo.
       excludeSemantics: true,
       child: Text.rich(
         TextSpan(
           children: [
-            const TextSpan(text: '¿Ya eres dueño de una propiedad SOZU? '),
+            const TextSpan(text: '¿Compraste tu propiedad a otro dueño? '),
             WidgetSpan(
               alignment: PlaceholderAlignment.baseline,
               baseline: TextBaseline.alphabetic,

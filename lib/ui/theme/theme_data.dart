@@ -223,6 +223,17 @@ ThemeData _build(SozuTheme t, Brightness brightness) {
       ),
     ),
 
+    // Sin esto la casilla usa el `colorScheme` que Material deriva del seed, que
+    // NO es el verde de SOZU. Se ve en los selectores multiples de avisos.
+    checkboxTheme: CheckboxThemeData(
+      fillColor: WidgetStateProperty.resolveWith(
+        (st) => st.contains(WidgetState.selected) ? c.primary : c.surface,
+      ),
+      checkColor: WidgetStatePropertyAll(c.onPrimary),
+      side: BorderSide(color: c.border, width: 1.5),
+      shape: RoundedRectangleBorder(borderRadius: t.radius.smBorder),
+    ),
+
     listTileTheme: ListTileThemeData(
       iconColor: c.fgMuted,
       textColor: c.fg,

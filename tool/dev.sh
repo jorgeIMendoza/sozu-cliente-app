@@ -5,6 +5,7 @@
 #   PORT=5100 ./tool/dev.sh    -> otro puerto
 #   ./tool/dev.sh <device-id>  -> un dispositivo (ver: flutter devices)
 #   PROFILE=1 ./tool/dev.sh    -> modo PROFILE (para medir rendimiento)
+#   SIN_PREVIEW=1 ./tool/dev.sh-> sin el cintillo azul de PREVIEW arriba
 #
 # OJO CON EL RENDIMIENTO: por defecto esto corre en modo DEBUG, y en Flutter web
 # debug compila con DDC sin optimizar. Es varias veces mas lento que release y el
@@ -90,6 +91,9 @@ else
 fi
 
 DEVICE="${1:-web-server}"
+# Sin argumento el destino es la web. Se recuerda si hubo argumento para poder
+# avisar cuando hay un movil conectado y aun asi se va a arrancar en web.
+ARGS_DADOS=$#
 PORT="${PORT:-5000}"
 
 # --- Dispositivos fisicos -----------------------------------------------------
@@ -221,6 +225,14 @@ COMMON_ARGS=(
   "${DEFINES_ENV[@]+"${DEFINES_ENV[@]}"}"
 )
 
+# El cintillo de PREVIEW ocupa alto real y desplaza todo hacia abajo, asi que
+# estorba al revisar diseño en el telefono. Se apaga solo el cintillo: sigue
+# siendo un build de preview, con sus logs de diagnostico.
+if [ -n "${SIN_PREVIEW:-}" ]; then
+  COMMON_ARGS+=(--dart-define=HIDE_PREVIEW=true)
+  echo "==> sin cintillo de PREVIEW (sigue siendo build de preview)"
+fi
+
 # En profile no hay hot reload (el JIT no esta), pero es el UNICO modo en el que
 # los tiempos significan algo.
 if [ -n "${PROFILE:-}" ]; then
@@ -229,9 +241,6 @@ if [ -n "${PROFILE:-}" ]; then
 fi
 
 if [ "$DEVICE" = "web-server" ] || [ "$DEVICE" = "chrome" ]; then
-  # 0.0.0.0 para poder abrirlo desde el navegador de Windows y desde el
-  # celular en la misma red (util para probar responsive en fisico).
-  echo "==> http://localhost:$PORT"
   # Para probar en las dos plataformas a la vez, cada una necesita su terminal.
   # El `|| true` es obligatorio: con `set -e`, un grep sin coincidencias (ningun
   # movil conectado) mataba el script ANTES de arrancar flutter run.
@@ -241,10 +250,36 @@ if [ "$DEVICE" = "web-server" ] || [ "$DEVICE" = "chrome" ]; then
     MOVIL="$("$ADB_BIN" devices 2>/dev/null | tail -n +2 \
       | grep "device$" | head -1 | awk '{print $1}' || true)"
   fi
+  # Va ANTES de la comprobacion del puerto: si el puerto esta ocupado se sale,
+  # y lo primero que hay que leer es que el destino no era la web.
   if [ -n "$MOVIL" ]; then
-    echo "==> movil detectado. En OTRA terminal, para probar los dos a la vez:"
-    echo "      ./tool/dev.sh $MOVIL"
+    if [ "$ARGS_DADOS" -eq 0 ]; then
+      # El caso que muerde: se conecta el telefono, se lanza dev.sh a secas y
+      # sale la web. No es un error -es el destino por defecto- pero con el
+      # cable puesto casi nunca es lo que se queria.
+      echo "==> OJO: hay un movil conectado ($MOVIL) y esto va a arrancar en WEB."
+      echo "    Sin argumento, dev.sh usa el servidor web. Para el telefono:"
+      echo "      ./tool/dev.sh $MOVIL"
+    else
+      echo "==> movil detectado. En OTRA terminal, para probar los dos a la vez:"
+      echo "      ./tool/dev.sh $MOVIL"
+    fi
   fi
+
+  # Se comprueba AQUI y no se deja fallar a flutter: `flutter run` tarda casi un
+  # minuto en llegar al bind (pub get + compilar) y entonces escupe un
+  # SocketException con ocho frames de stack que no nombra la causa real, que
+  # casi siempre es otro dev.sh vivo en otra terminal.
+  if ss -lnt 2>/dev/null | awk '{print $4}' | grep -qE "[:.]$PORT\$"; then
+    echo "==> El puerto $PORT ya esta ocupado, seguramente por otro ./tool/dev.sh." >&2
+    echo "    Cierra aquel con 'q' en su terminal, o levanta este en otro puerto:" >&2
+    echo "      PORT=5100 ./tool/dev.sh" >&2
+    exit 1
+  fi
+
+  # 0.0.0.0 para poder abrirlo desde el navegador de Windows y desde el
+  # celular en la misma red (util para probar responsive en fisico).
+  echo "==> http://localhost:$PORT"
 
   # WSL2 esta detras de NAT: escuchar en 0.0.0.0 NO alcanza para que el celular
   # llegue, hace falta un portproxy en Windows. Se imprime el comando exacto en

@@ -49,12 +49,22 @@ instalar de nuevo.
 y los `adb forward` quedan en WSL. Eso es lo que el puente al adb de Windows no
 puede dar. Ventaja sobre el inalámbrico: el serial es fijo y no depende de la red.
 
+Son **tres pasos**, no dos: `attach` sobre un dispositivo que no se ha compartido
+falla con `the device is not shared`. `bind` es el que lo comparte.
+
 ```powershell
-# PowerShell ADMIN, una vez:
+# PowerShell ADMIN, una vez por maquina:
 winget install usbipd
 
-# cada vez que conectas el cable:
+# 1. buscar el telefono y copiar su BUSID (ej. 2-4)
 usbipd list
+
+# 2. compartirlo. Es PERSISTENTE: sobrevive reinicios y desconexiones, asi que
+#    normalmente se hace una sola vez POR BUSID. Si cambias el cable de puerto
+#    USB, el BUSID cambia y hay que volver a hacer bind del nuevo.
+usbipd bind --busid <BUSID>
+
+# 3. pasarlo a WSL. Esto SI es cada vez que conectas el cable.
 usbipd attach --wsl --busid <BUSID>
 ```
 
@@ -62,6 +72,13 @@ usbipd attach --wsl --busid <BUSID>
 # en WSL:
 ./tool/dev.sh DYLRPNJNIRKNZPRG      # el serial no rota
 ```
+
+Para comprobar que llegó, antes de lanzar nada: `ls /dev/bus/usb` en WSL. Si no
+existe el directorio, el `attach` no surtió efecto y `adb devices` va a salir
+vacío por más que el cable esté puesto.
+
+En `usbipd list`, la columna STATE dice en qué paso vas: `Not shared` (falta el
+bind), `Shared` (bind hecho, falta el attach) o `Attached` (ya está en WSL).
 
 ### `no permissions` o `adb devices` vacío
 

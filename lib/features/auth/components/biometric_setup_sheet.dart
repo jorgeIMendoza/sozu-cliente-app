@@ -34,7 +34,9 @@ Future<void> offerBiometricSetup(
     builder: (sheetContext) => Padding(
       padding: EdgeInsets.fromLTRB(
         t.space.lg,
-        t.space.lg + 4,
+        // Arriba un pelo más: la hoja no trae asa, así que sin ese aire el
+        // título queda lamiendo el borde redondeado.
+        t.space.lg + t.space.xxs,
         t.space.lg,
         t.space.lg + MediaQuery.of(sheetContext).padding.bottom,
       ),
