@@ -49,10 +49,25 @@ class AdminHeaderBar extends StatelessWidget {
           titleBlock,
           if (actions.isNotEmpty) ...[
             SizedBox(height: t.space.sm),
-            Wrap(
-              spacing: t.space.xs,
-              runSpacing: t.space.xxs,
-              children: actions,
+            // Alineadas a la DERECHA, igual que en escritorio: ahi las
+            // acciones viven al final de la fila del titulo, y en telefono
+            // colgarlas a la izquierda las hacia parecer parte del subtitulo.
+            //
+            // `Wrap` y no `Row` con scroll: si algun dia no caben, bajan a otra
+            // linea -tambien a la derecha- en vez de esconderse fuera de vista.
+            // El `Align` NO es decorativo: esta Column va con
+            // `crossAxisAlignment.start`, asi que sin el, el `Wrap` se encoge
+            // al ancho de su contenido y `WrapAlignment.end` no tiene contra
+            // que empujar -las acciones quedaban a la izquierda igual.
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: t.space.xs,
+                runSpacing: t.space.xxs,
+                children: actions,
+              ),
             ),
           ],
         ],
