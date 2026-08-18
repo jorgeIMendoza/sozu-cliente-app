@@ -118,15 +118,20 @@ definitions:
         echo "permiso Contents: Read and write. Va en el grupo app_version_gate, cifrado."
         exit 1
       fi
-      CODIGO=$(curl -s -o /dev/null -w '%{http_code}' \
-        -H "Authorization: Bearer $GITHUB_PUSH_TOKEN" \
-        https://api.github.com/repos/jorgeIMendoza/sozu-cliente-app)
-      if [ "$CODIGO" != "200" ]; then
-        echo "ERROR: GITHUB_PUSH_TOKEN no sirve para este repo (HTTP $CODIGO)."
-        echo "Revisar que no haya expirado y que el repo este en su lista de acceso."
+      # Un GET al repo devuelve 200 con permiso de solo LECTURA, asi que no
+      # probaba nada: por eso el 403 seguia saliendo en el paso del tag, que es
+      # justo lo que este check existe para evitar. `git push --dry-run` negocia
+      # con git-receive-pack, que exige escritura, y no crea ninguna ref.
+      if ! git push --dry-run \
+        "https://x-access-token:${GITHUB_PUSH_TOKEN}@github.com/jorgeIMendoza/sozu-cliente-app.git" \
+        "HEAD:refs/tags/__permiso__" >/dev/null 2>&1; then
+        echo "ERROR: GITHUB_PUSH_TOKEN no puede ESCRIBIR en jorgeIMendoza/sozu-cliente-app."
+        echo "Codemagic tiene que pushear el tag vX.Y.Z de la version."
+        echo "El PAT fine-grained necesita Contents: Read and write Y este repo en"
+        echo "su lista de acceso. Un token de solo lectura pasaba el GET de antes."
         exit 1
       fi
-      echo "Token de push OK."
+      echo "Token de push con permiso de escritura OK."
 
   # Enciende el aviso de actualizacion in-app: escribe `latest_version` en
   # `app_cliente_config` via la edge function `app-version-publicar`.
@@ -742,6 +747,13 @@ workflows:
         - name: Enviar a revisión de App Store
           script: |
             set -e
+            # Los publishing.scripts corren tambien cuando el build fallo. Sin esto,
+            # un fallo en cualquier paso anterior imprimia un ERROR sobre App Store
+            # que no tenia nada que ver, tapando la causa real.
+            if [ "${CM_BUILD_STEP_STATUS:-success}" != "success" ]; then
+              echo "El build no termino bien: no hay nada que mandar a revision."
+              exit 0
+            fi
             APP_ID=$(app-store-connect apps list \
               --bundle-id-identifier com.sozu.sozuClienteApp --json | jq -r '.[0].id')
             # `builds list` NO acepta --limit en esta version de la CLI: con el
