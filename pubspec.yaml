@@ -1,7 +1,7 @@
 name: sozu_cliente_app
 description: "SOZU - Portal del Cliente (Flutter multiplataforma)"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.7+1
 
 environment:
   sdk: ^3.12.2
