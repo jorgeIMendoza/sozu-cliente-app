@@ -10,7 +10,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sozu_cliente_app/core/backend_env.dart';
 import 'package:sozu_cliente_app/core/secure_session_storage.dart';
 import 'package:sozu_cliente_app/core/url_strategy.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:sozu_cliente_app/shared/providers/theme_provider.dart';
+import 'package:sozu_cliente_app/shared/providers/update_prompt_provider.dart';
 import 'package:sozu_cliente_app/router.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/features/auth/components/inactivity_watcher.dart';
@@ -64,7 +67,18 @@ Future<void> main() async {
     ),
   );
 
-  runApp(const ProviderScope(child: SozuApp()));
+  // Se resuelve ANTES de arrancar: el aviso de actualización decide si sale en
+  // el primer frame, y leerlo asíncrono ahí dentro lo haría parpadear.
+  final prefs = await SharedPreferences.getInstance();
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        updatePromptStoreProvider.overrideWithValue(UpdatePromptStore(prefs)),
+      ],
+      child: const SozuApp(),
+    ),
+  );
 }
 
 class SozuApp extends ConsumerWidget {

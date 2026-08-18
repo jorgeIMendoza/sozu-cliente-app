@@ -7,6 +7,7 @@ import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/features/app_download/components/app_download.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
+import 'package:sozu_cliente_app/shared/providers/update_prompt_provider.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// "Version gate" de la app NATIVA (Android/iOS): aviso o forzado de
@@ -14,12 +15,20 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 ///
 /// - En WEB no aplica nunca (`kIsWeb`): la web se auto-actualiza por hosting.
 /// - Forzado (bloqueante) si `force_update` o la versión actual < `min_version`.
-/// - Sugerencia (banner descartable) si la versión actual < `latest_version`.
+/// - Sugerencia (aviso descartable) si la versión actual < `latest_version`.
 /// - Ante error/loading (provider null) => deja pasar el `child` sin cambios.
 ///
+/// **Los dos niveles son deliberadamente distintos.** El forzado no tiene
+/// salida: es la palanca de negocio (`min_version`) para sacar del campo a los
+/// muy rezagados. El suave sale UNA vez, se puede posponer y se calla hasta el
+/// día siguiente o hasta que haya una versión más nueva
+/// ([UpdatePromptStore]). Antes era una franja fija en todas las pantallas sin
+/// manera de descartarla: lo peor de los dos mundos, molestaba siempre y no
+/// obligaba a nada.
+///
 /// Nota: se monta como `builder:` del MaterialApp.router, ARRIBA del Navigator.
-/// Por eso el aviso soft es un banner en el árbol (no `showDialog`, que
-/// requeriría un Navigator ancestro que aquí no existe).
+/// Por eso el aviso se pinta como capa en el árbol y no con `showDialog`, que
+/// requeriría un Navigator ancestro que aquí no existe.
 class VersionGate extends ConsumerWidget {
   final Widget child;
 
@@ -41,7 +50,9 @@ class VersionGate extends ConsumerWidget {
 
     final latest = info.latestVersion;
     final suggest = latest != null && compareSemver(appVersionBase, latest) < 0;
-    if (suggest) return _SoftUpdateBanner(info: info, child: child);
+    if (suggest) {
+      return _SoftUpdatePrompt(info: info, latest: latest, child: child);
+    }
 
     return child;
   }
@@ -182,95 +193,118 @@ class _ForcedUpdateScreen extends StatelessWidget {
   }
 }
 
-/// Franja de aviso sobre el `child` normal: hay versión nueva y se puede
-/// actualizar. No se descarta - toda ella es un solo destino, la tienda.
-class _SoftUpdateBanner extends StatelessWidget {
+/// Aviso de versión nueva: capa modal sobre la app, con salida.
+///
+/// Sale al abrir y solo si [UpdatePromptStore] lo permite. "Ahora no" lo calla
+/// hasta el día siguiente o hasta que salga una versión posterior; no lo apaga
+/// para siempre, que es lo que haría inútil el aviso.
+///
+/// Capa en el árbol y no `showDialog`: aquí no hay Navigator ancestro.
+class _SoftUpdatePrompt extends ConsumerStatefulWidget {
+  const _SoftUpdatePrompt({
+    required this.info,
+    required this.latest,
+    required this.child,
+  });
+
   final AppVersionInfo info;
+  final String latest;
   final Widget child;
 
-  const _SoftUpdateBanner({required this.info, required this.child});
+  @override
+  ConsumerState<_SoftUpdatePrompt> createState() => _SoftUpdatePromptState();
+}
+
+class _SoftUpdatePromptState extends ConsumerState<_SoftUpdatePrompt> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _visible = _debeSalir();
+  }
+
+  @override
+  void didUpdateWidget(_SoftUpdatePrompt old) {
+    super.didUpdateWidget(old);
+    // Si el backend publica una version posterior con la app abierta, el aviso
+    // tiene que volver: sin esto `_visible` se decidia solo en el primer
+    // montaje y posponer una version callaba tambien a la siguiente hasta
+    // reiniciar la app.
+    if (old.latest != widget.latest) {
+      setState(() => _visible = _debeSalir());
+    }
+  }
+
+  bool _debeSalir() => ref
+      .read(updatePromptStoreProvider)
+      .shouldPrompt(widget.latest, today: DateTime.now());
+
+  Future<void> _ahoraNo() async {
+    setState(() => _visible = false);
+    await ref
+        .read(updatePromptStoreProvider)
+        .snooze(widget.latest, today: DateTime.now());
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (!_visible) return widget.child;
+
     final t = context.s;
     final c = t.color;
-    final url = _destinoDeActualizacion(info);
-    final msg = info.updateMessage?.isNotEmpty == true
-        ? info.updateMessage!
-        : 'Nueva versión disponible.';
+    final url = _destinoDeActualizacion(widget.info);
+    final msg = widget.info.updateMessage?.isNotEmpty == true
+        ? widget.info.updateMessage!
+        : 'Ya está disponible una versión nueva de la app, con las últimas '
+              'mejoras y correcciones.';
 
-    return Column(
-      // stretch: sin esto la Column se encoge al ancho del contenido y la franja
-      // queda como una pastilla centrada en vez de cruzar la pantalla. Mismo
-      // caso que en `PreviewBanner`; aquí mordió al pasar a texto centrado, que
-      // quitó el `Row` de ancho máximo que lo estiraba de rebote.
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Stack(
       children: [
-        Expanded(child: child),
-        Material(
-          color: c.primarySoftStrong,
-          // Un solo InkWell sobre toda la franja, sin botones anidados dentro:
-          // con varios blancos de toque hay que atinarle a uno, y "Actualizar"
-          // como botón aparte compite con el propio aviso. Así cualquier punto
-          // de la franja hace lo mismo y basta un toque.
-          child: InkWell(
-            onTap: () => _openStore(url),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: c.primaryBorder)),
-              ),
-              // En pantallas curvas el borde inferior no siempre trae inset del
-              // sistema, y sin él la franja queda pegada a la curva. `minimum`
-              // es un PISO, no una suma: los teléfonos que sí traen barra de
-              // gestos conservan su inset y no se les añade nada encima.
-              child: SafeArea(
-                top: false,
-                minimum: EdgeInsets.only(bottom: t.space.sm),
+        widget.child,
+        // El velo aísla el aviso del fondo y ademas se come los toques: sin el,
+        // se puede seguir usando la app por debajo con el aviso encima.
+        ModalBarrier(color: c.overlay, dismissible: false),
+        Center(
+          child: Padding(
+            padding: EdgeInsets.all(t.space.lg),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: Material(
+                color: c.surface,
+                borderRadius: t.radius.lgBorder,
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    t.space.md,
-                    t.space.sm,
-                    t.space.md,
-                    t.space.sm,
-                  ),
-                  child: Row(
+                  padding: EdgeInsets.all(t.space.lg),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Icon(
                         Icons.system_update_rounded,
-                        size: 22,
+                        size: 40,
                         color: c.primary,
                       ),
-                      SizedBox(width: t.space.sm),
-                      // Mensaje y llamada a la acción en UN solo `Text.rich`,
-                      // como la línea de registro del login: mismo cuerpo para
-                      // las dos partes y, al no caber, se parten juntos en vez
-                      // de empujarse.
-                      //
-                      // "Actualizar" NO lleva gesto propio: la franja entera ya
-                      // es el blanco de toque. Va subrayado porque es la señal
-                      // de que hay destino, no porque sea un segundo botón.
-                      Expanded(
-                        child: Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(text: '$msg '),
-                              TextSpan(
-                                text: 'Actualizar',
-                                style: TextStyle(
-                                  color: c.primaryPressed,
-                                  fontWeight: FontWeight.w600,
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: c.primaryPressed,
-                                ),
-                              ),
-                            ],
-                          ),
-                          style: t.text.body.copyWith(
-                            color: c.fg,
-                            height: 1.35,
-                          ),
-                        ),
+                      t.space.gapMd,
+                      Text(
+                        'Hay una versión nueva',
+                        textAlign: TextAlign.center,
+                        style: t.text.h3.copyWith(color: c.fg),
                       ),
+                      t.space.gapXs,
+                      Text(
+                        msg,
+                        textAlign: TextAlign.center,
+                        style: t.text.body.copyWith(color: c.fgMuted),
+                      ),
+                      t.space.gapLg,
+                      SButton(
+                        label: 'Actualizar',
+                        size: SButtonSize.lg,
+                        icon: Icons.download_rounded,
+                        onPressed: () => _openStore(url),
+                      ),
+                      t.space.gapXs,
+                      SButton.ghost(label: 'Ahora no', onPressed: _ahoraNo),
                     ],
                   ),
                 ),
