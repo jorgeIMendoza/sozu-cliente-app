@@ -40,7 +40,7 @@ de prueba: Chrome).
   producción, y el deploy web se rehace con el tag recién creado. Es
   `repository_dispatch` y no `workflow_dispatch` porque al primero le basta el
   permiso `Contents: write` que el PAT ya tiene para los tags.
-  ⚠️ Si algún día la web vuelve a tagear, se rompe además el fallback de
+  WARN: Si algún día la web vuelve a tagear, se rompe además el fallback de
   `publicar_version_al_gate` en los workflows de promoción (no compilan, así que
   toman "el último tag" como la versión publicada) y el aviso in-app apuntaría a
   una versión que no existe en la tienda.
@@ -82,7 +82,7 @@ llega como `es_comprador` en el RPC del perfil). El rol dice para que se
 contrato a la persona, no si compro: hay 8 internos (agentes, etc.) que son
 clientes de SOZU.
 
-⚠️ **El gate esta DUPLICADO y los dos lados se cambian juntos.** El de verdad es
+WARN: **El gate esta DUPLICADO y los dos lados se cambian juntos.** El de verdad es
 `_shared/cliente.ts` -> `authClient()` en `sozu-edge-functions`: si el frontend
 deja pasar y el backend no, el usuario entra y recibe **403 en cada pantalla**.
 `PortalAccess.allows` es el espejo del gate del backend, y `test/features/auth/
@@ -246,7 +246,7 @@ done
 ```
 Todo debe dar 0.
 
-⚠️ **Tres de esos patrones se agregaron el 2026-08-17 porque el grep viejo
+WARN: **Tres de esos patrones se agregaron el 2026-08-17 porque el grep viejo
 declaraba features "cerradas" que no lo estaban.** No son adorno:
 
 - **`SizedBox\((height|width): [0-9]`** - `SizedBox(height: 24)` es un espaciado
@@ -269,8 +269,8 @@ del `const` no puede leer `context.s`. Cualquier otro uso es deuda.
 
 ## Imports: SIEMPRE `package:`
 ```dart
-import 'package:sozu_cliente_app/ui/ui.dart';   // ✅ el equivalente de @/ui en TS
-import '../../../../ui/ui.dart';                 // ❌
+import 'package:sozu_cliente_app/ui/ui.dart';   // OK: el equivalente de @/ui en TS
+import '../../../../ui/ui.dart';                 // MAL
 ```
 Dart no permite alias arbitrarios (no existe `@/ui`), pero los imports `package:`
 cumplen la misma función: la ruta no depende de dónde está el archivo, así que
@@ -293,7 +293,7 @@ Equivalencias con Cursor/VS Code:
 |---|---|
 | `dart format` | Format Document (Shift+Alt+F) |
 | `flutter analyze` | panel de Problems |
-| `dart fix --apply` | los Quick Fix (💡) en lote |
+| `dart fix --apply` | los Quick Fix en lote |
 
 El IDE usa el Dart Analysis Server, que lee el **mismo** `analysis_options.yaml`;
 por eso `flutter analyze` y el panel de Problems dan idéntico resultado.
@@ -305,7 +305,7 @@ aprendía a ignorarlo. `check.sh` imprime el conteo para que una subida se note.
 Al cerrar `PortalColors` hay que quitar el flag en los tres sitios (`check.sh`,
 `.github/workflows/deploy-web-firebase.yml`, `codemagic.yaml`).
 
-⚠️ **El grep para contar lo fatal es `(error|warning) •`, NO `^\s+(error|warning)`.**
+WARN: **El grep para contar lo fatal es `(error|warning) •`, NO `^\s+(error|warning)`.**
 El analyzer imprime los **infos con sangría y los warnings sin ella**, así que el
 patrón con `^\s+` los cuenta como cero y deja pasar un build roto. Costó un
 deploy a producción: el CI (`flutter analyze --no-fatal-infos`) falló por dos
@@ -319,7 +319,7 @@ flutter analyze 2>&1 | grep -E "(error|warning) •"   # lo que de verdad rompe
 2026-08-15 reproduciendo el comando del CI). La nota anterior decía lo contrario
 y llevaba a ignorar el exit code, que es justo la señal buena.
 
-⚠️ **El repo NO está formateado con el formatter actual** (Dart 3.7 cambió a
+WARN: **El repo NO está formateado con el formatter actual** (Dart 3.7 cambió a
 "tall style"). Por eso `check.sh` formatea solo los archivos modificados: un
 `dart format .` reescribe medio archivo ajeno. Cuando se haga, que sea un commit
 que **solo** sea formato.
@@ -406,7 +406,7 @@ entró** (sin sesión, con candado biométrico, resolviendo, con la cuenta
 bloqueada o con el cambio de contraseña pendiente). Es el mismo criterio que el
 guard del router.
 
-⚠️ **El criterio NO es el ancho.** Antes lo era (`PortalLightLock` +
+WARN: **El criterio NO es el ancho.** Antes lo era (`PortalLightLock` +
 `isPortalMode`) y tenía dos defectos: cruzar el breakpoint saltaba de claro a
 oscuro de golpe, y como la condición leía `MediaQuery` en la raíz, cada pixel de
 resize reconstruía el árbol completo con un `ThemeData` nuevo. **Consecuencia
@@ -445,7 +445,7 @@ dos a la vez, y las cosas que se olvidan).
      efecto y `adb devices` sale vacío aunque el cable esté puesto.
   - `usbipd` pasa el USB al kernel de WSL, así que **`adb` corre local** y los
     `adb forward` quedan en WSL. Eso es lo que da hot reload.
-  - ⚠️ **El otro camino (`.\adb.exe -a -P 5037 nodaemon server` en Windows y
+  - WARN: **El otro camino (`.\adb.exe -a -P 5037 nodaemon server` en Windows y
     puente desde WSL) instala y lanza la app pero `r`/`R` NO hacen nada**: el
     `adb forward` al Dart VM service se crea en el host, no en WSL. `dev.sh` lo
     intenta solo como respaldo. Si vas a iterar diseño, tiene que ser `usbipd`.
@@ -470,6 +470,48 @@ dos a la vez, y las cosas que se olvidan).
   - Un bloque `///` de más de 10 líneas es señal de que sobra. Los de clase
     pueden llegar a ~15 si documentan la API de un componente global.
   - Se aplica a código NUEVO. El legacy se poda al migrarlo, no antes.
+
+  **El filtro, para decidir en el momento:** si el comentario explica lo que el
+  código YA dice, sobra. Si explica por qué se eligió esto en vez de aquello, va
+  al commit. Solo se queda si alguien que edite esa línea rompería algo sin
+  saberlo. Un comentario que narra la historia del archivo ("antes eran 480
+  líneas con...") es deuda: envejece, nadie lo actualiza y estorba al leer.
+
+  Al cerrar una feature se audita igual que el legacy visual:
+
+  ```bash
+  F=lib/features/auth
+  # Densidad. Un componente por encima de ~15% casi siempre esta narrando.
+  # OJO: en un `port` el contrato ES la documentacion y 40% es correcto.
+  for f in $(find $F -name '*.dart'); do
+    t=$(wc -l < $f); c=$(grep -cE '^\s*(///|//)' $f)
+    printf "%-46s %4s lin  %3s%%\n" "$(basename $f)" "$t" "$((c*100/t))"
+  done
+  # Bloques largos: >10 en un miembro, >15 en una clase de `ui/`.
+  for f in $(find $F -name '*.dart'); do
+    awk -v F="$f" '/^\s*(\/\/\/|\/\/)/{n++; if(n==1)s=NR; next}
+                   {if(n>10) print F":"s"  ("n" lineas)"; n=0}' $f
+  done
+  ```
+- **CERO emoji en el repo**, salvo los del diccionario. Ni en comentarios, ni en
+  dartdoc, ni en READMEs, ni en la salida de `tool/*.sh`, ni en los workflows.
+  En su lugar, etiqueta en MAYUSCULAS al principio: `WARN:`, `ERROR:`, `INFO:`,
+  `OK:`, `FAIL:`. Se buscan con grep, no dependen de la fuente del terminal y no
+  se rompen al copiar y pegar; un icono no cumple ninguna de las tres.
+  - La ÚNICA excepción es el emoji que la app **pinta** como contenido, y vive
+    centralizado en **`lib/ui/tokens/emoji.dart`** (`SozuEmoji`). Se usa desde
+    ahí, nunca en literal: así cambiarlo en un sitio lo cambia en todos. Hoy
+    lo consumen `animacion_llegada`, `como_llegar_screen` y
+    `pago_final_screen`, los tres vía `SozuEmoji.*`. En el propio diccionario
+    van como escapes (`'\u{1F680}'`), así que el repo entero queda en ASCII.
+  - En tablas de estado usar la palabra (`OK`, `MAL`, `VERDE`, `AMBAR`, `ROJO`),
+    sin dos puntos: ahí es una celda, no el prefijo de una frase.
+  - Verificar antes de commitear:
+  ```bash
+  grep -rlP '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}\x{2B00}-\x{2BFF}]' . \
+       --exclude-dir=.git --exclude-dir=build --exclude-dir=.dart_tool
+  ```
+  Debe salir VACIO, sin excepciones.
 - **NUNCA guiones medios largos.** Solo el guion normal `-`. Prohibidos `—` (em
   dash) y `–` (en dash) en código, comentarios, docs, strings de UI y mensajes de
   commit. Como separador en texto visible se usa `·` (punto medio) o `-`.

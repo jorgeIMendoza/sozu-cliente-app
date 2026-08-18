@@ -17,32 +17,11 @@ import 'package:sozu_cliente_app/shared/components/theme_mode_button.dart';
 import 'package:sozu_cliente_app/features/admin/components/client_row.dart';
 import 'package:sozu_cliente_app/features/admin/components/client_filters.dart';
 
-/// Selector de cliente para administradores de la app. El admin elige un
-/// cliente y navega el portal viendo sus datos.
+/// Selector de cliente para administradores: elige uno y navega el portal
+/// viendo sus datos. Sirve en web y en móvil.
 ///
-/// Sirve en web Y en móvil: es el destino post-login de cualquier rol con
-/// `canManageClientApp`, sin importar la plataforma. Los filtros se apilan en
-/// pantalla angosta (`ClientFilters`).
-///
-/// Al filtrar por Proyecto + Unidad (número de propiedad) se muestran SOLO los
-/// dueños de esa unidad: "Copropietarios (N)", o "Dueño de la propiedad" si es
-/// uno. Sin filtro, se busca por nombre o correo.
-///
-/// ## Estructura
-///
-/// Esta pantalla **solo compone y orquesta**: lee providers, mantiene el estado
-/// de los filtros y decide qué mostrar. Todo lo visual vive en componentes:
-///
-/// * [AdminHeaderBar] / [AdminHeaderAction] - encabezado y acciones
-/// * [ClientFilters] - Proyecto + Unidad
-/// * [SSearchField] - buscador
-/// * [ClientRow] - fila de cliente
-/// * [SSectionLabel] - encabezado de grupo
-/// * [SEmptyState] - vacíos e instrucciones
-///
-/// Antes eran ~480 líneas con seis `Widget _algo(SozuColorRoles tone)` privados
-/// pasándose el tema a mano, estilos de texto cocidos a mano y el layout
-/// mezclado con la lógica de filtrado.
+/// Con Proyecto + Unidad se listan solo los dueños de esa unidad; sin filtro se
+/// busca por nombre o correo. Los filtros viven en `clientFiltersProvider`.
 class SelectClientScreen extends ConsumerStatefulWidget {
   const SelectClientScreen({super.key});
 

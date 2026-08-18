@@ -2,34 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
-/// Ancho del campo Unidad en la fila de escritorio. No es un token de
-/// espaciado: es el ancho de un control de 3-4 dígitos, y dejarlo `Expanded`
-/// le robaba la mitad del ancho al nombre del proyecto.
+/// Ancho del campo Unidad en escritorio. No es espaciado: es el ancho de un
+/// control de 3-4 dígitos.
 const double _unitFieldWidth = 150;
 
-/// Filtros "Ver como" del selector de super admin: Proyecto + Unidad.
+/// Filtros "Ver como" del selector: Proyecto + Unidad. Componente tonto: recibe
+/// valores y avisa por callbacks, no lee providers.
 ///
-/// Componente **tonto**: recibe el catálogo de proyectos y los valores actuales,
-/// y avisa por callbacks. No lee providers.
+/// Proyecto se busca escribiendo ([SAutocompleteField]), no se despliega: el
+/// catálogo tiene ~20 entradas. En teléfono los dos campos se apilan.
 ///
-/// **Proyecto se busca escribiendo, no se despliega.** Antes era un
-/// `DropdownButtonFormField` que volcaba el catálogo entero: veinte entradas
-/// -varias con nombres que no son proyectos inmobiliarios, ver nota abajo- en un
-/// menú donde había que cazar la correcta. Ahora se escriben dos letras y se
-/// filtra. Ver [SAutocompleteField].
-///
-/// Responsive: en teléfono los dos campos se apilan. En `Row` con la Unidad fija
-/// en 150 px, a 360 px de ancho el nombre del proyecto se truncaba siempre.
-///
-/// ---
-///
-/// **Nota sobre el catálogo:** los proyectos vienen de la edge function
-/// `admin-avisos-app` (action `catalogos`), que es el catálogo de **avisos** - no
-/// está acotado a proyectos inmobiliarios, así que trae entradas como "Productos"
-/// o "Mutuo Vive" que no aplican a "Ver como". Este componente NO las filtra por
-/// nombre a propósito: una lista negra hardcodeada se desincroniza en cuanto
-/// alguien agrega una entrada nueva y esconde el problema real, que es de datos.
-/// Solicitud de cambio en `Ejecuciones_manuales/`.
+/// El catálogo llega de `admin-avisos-app` (action `catalogos`), que es el de
+/// AVISOS, así que trae entradas que no son proyectos inmobiliarios. NO se
+/// filtran por nombre aquí: es un problema de datos y hay una solicitud de
+/// cambio pendiente (ver `docs/adr/ESTADO.md`).
 class ClientFilters extends StatelessWidget {
   const ClientFilters({
     super.key,

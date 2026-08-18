@@ -2,16 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/ui/ui.dart';
 
-/// Encabezado del área de super admin: título, subtítulo y acciones.
-///
-/// Sustituye al `AppBar` en esta pantalla. Motivo: el `AppBar` ocupa el ancho
-/// completo de la ventana mientras el content va centrado con `max-width`, así
-/// que en escritorio el título quedaba pegado al borde izquierdo y las acciones
-/// al derecho, sin relación con la columna de content. Al vivir dentro del
-/// mismo contenedor, todo comparte el mismo eje.
-///
-/// En teléfono las acciones bajan a una segunda línea con `Wrap` en vez de
-/// competir por el ancho del título.
+/// Encabezado del área de super admin: título, subtítulo y acciones a la
+/// derecha. Sustituye al `AppBar`, que ocupa el ancho de la ventana mientras el
+/// contenido va centrado y por eso no comparte eje con él.
 class AdminHeaderBar extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -49,16 +42,9 @@ class AdminHeaderBar extends StatelessWidget {
           titleBlock,
           if (actions.isNotEmpty) ...[
             SizedBox(height: t.space.sm),
-            // Alineadas a la DERECHA, igual que en escritorio: ahi las
-            // acciones viven al final de la fila del titulo, y en telefono
-            // colgarlas a la izquierda las hacia parecer parte del subtitulo.
-            //
-            // `Wrap` y no `Row` con scroll: si algun dia no caben, bajan a otra
-            // linea -tambien a la derecha- en vez de esconderse fuera de vista.
-            // El `Align` NO es decorativo: esta Column va con
-            // `crossAxisAlignment.start`, asi que sin el, el `Wrap` se encoge
-            // al ancho de su contenido y `WrapAlignment.end` no tiene contra
-            // que empujar -las acciones quedaban a la izquierda igual.
+            // WARN: El `Align` no es decorativo: esta Column va con
+            // `crossAxisAlignment.start`, asi que sin el el `Wrap` se encoge al
+            // ancho de su contenido y `WrapAlignment.end` no empuja nada.
             Align(
               alignment: Alignment.centerRight,
               child: Wrap(
@@ -85,25 +71,20 @@ class AdminHeaderBar extends StatelessWidget {
   }
 }
 
-/// Alto de todos los controles del encabezado. El selector de tema es un
-/// cuadrado de 36 px, así que los botones de texto se fijan al mismo alto: con el
-/// alto por defecto de `TextButton` el hover quedaba visiblemente más bajo que el
-/// del icono, al lado.
+/// Alto de todos los controles del encabezado, para que sus hovers midan igual
+/// (el selector de tema es un cuadrado de 36 px).
 const double kAdminHeaderControlHeight = 36;
 
-/// Acción de texto del encabezado. Existe para que la pantalla no repita el
-/// mismo `TextButton` con su estilo de texto y su color a mano cuatro veces.
+/// Acción de texto del encabezado.
 class AdminHeaderAction extends StatelessWidget {
   final String label;
   final IconData? icon;
   final VoidCallback onPressed;
 
-  /// `false` lo pinta en gris secundario (acciones que no deben competir con la
-  /// principal).
+  /// `false` lo pinta en gris secundario.
   final bool isPrimary;
 
-  /// Acción destructiva: se pinta en rojo. Para "Cerrar sesión", donde el gris
-  /// no distinguía salir de la sesión de una acción secundaria cualquiera.
+  /// Acción destructiva: se pinta en rojo.
   final bool isDanger;
 
   const AdminHeaderAction({
@@ -122,9 +103,8 @@ class AdminHeaderAction extends StatelessWidget {
         ? t.color.danger
         : (isPrimary ? t.color.primaryHover : t.color.fgMuted);
     final textStyle = t.text.label.copyWith(color: color);
-    // El hover cubre exactamente el control: `minimumSize` fija el alto y
-    // `tapTargetSize.shrinkWrap` quita el relleno invisible que Material añade
-    // alrededor y que hacía que el area pintada no coincidiera con la visible.
+    // `tapTargetSize.shrinkWrap` quita el relleno invisible de Material, que
+    // hacia que el area pintada del hover no coincidiera con la visible.
     var style = TextButton.styleFrom(
       minimumSize: const Size(0, kAdminHeaderControlHeight),
       padding: EdgeInsets.symmetric(horizontal: t.space.sm),
@@ -132,8 +112,8 @@ class AdminHeaderAction extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: t.radius.mdBorder),
     );
     if (isDanger) {
-      // Sin esto el overlay de una acción destructiva sale gris (el default de
-      // Material) y el hover no se lee como destructivo.
+      // Sin esto el overlay sale gris (default de Material) y el hover no se
+      // lee como destructivo.
       style = style.copyWith(
         overlayColor: WidgetStateProperty<Color?>.fromMap({
           WidgetState.pressed: t.color.dangerSoftStrong,

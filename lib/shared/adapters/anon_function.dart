@@ -12,26 +12,16 @@ import 'package:http/http.dart' as http;
 typedef AnonFunctionResponse = ({int status, Map<String, dynamic> body});
 
 /// Invoca la Edge Function [fn] con la llave anonima en el header `apikey`.
+/// Devuelve status + cuerpo sin lanzar; traducir el error es del llamador.
 ///
-/// No usa `functions.invoke` a proposito, por dos motivos:
-///  1. `invoke` manda la llave anonima en `apikey` Y en `Authorization`. El
-///     gateway nuevo de Supabase (llaves `sb_`) compara los dos headers y
-///     responde 401 "Conflicting API keys" ANTES de ejecutar la funcion.
-///  2. Las funciones de acceso solo entran en su "modo publico" (self-service,
-///     anti-enumeracion de correos) cuando NO reciben `Authorization`: con ese
-///     header intentan resolver un usuario autenticado y rechazan la peticion.
+/// WARN: NO cambiar por `functions.invoke`. Manda la llave en `apikey` Y en
+/// `Authorization`, y eso rompe dos cosas: el gateway nuevo responde 401
+/// "Conflicting API keys", y las functions de acceso salen de su modo publico
+/// (anti-enumeracion de correos) en cuanto ven `Authorization`.
 ///
-/// [withAuthorization] repite la llave en `Authorization: Bearer`, y hace falta
-/// para las functions que NO estan declaradas publicas en `config.toml`
-/// (`verify_jwt = true`): a esas el gateway les responde 401 si solo reciben
-/// `apikey`. Va apagado por default porque romperia el motivo 2.
-///
-/// Nunca lanza por status != 2xx: devuelve status + cuerpo para que decida el
-/// llamador (el adaptador traduce a `AuthError`/`ApiError` segun su contrato).
-/// Si no hay red, propaga la excepcion de [http.post].
-///
-/// [client] solo lo usan los tests, para fijar que headers sale cada llamada
-/// sin tocar red; en produccion siempre es null.
+/// [withAuthorization] repite la llave en `Authorization: Bearer` para las
+/// functions con `verify_jwt = true`. Apagado por default: rompe lo anterior.
+/// [client] solo lo usan los tests.
 Future<AnonFunctionResponse> invokeAnonFunction(
   String fn, {
   Map<String, dynamic> body = const {},

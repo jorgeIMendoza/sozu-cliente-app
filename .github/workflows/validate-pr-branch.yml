@@ -11,8 +11,8 @@ jobs:
       - name: Check if PR is from dev branch
         run: |
           if [[ "${{ github.head_ref }}" != "dev" ]]; then
-            echo "❌ Error: Solo se permiten PRs desde la rama dev hacia main"
+            echo "ERROR: Solo se permiten PRs desde la rama dev hacia main"
             echo "PR creado desde: ${{ github.head_ref }}"
             exit 1
           fi
-          echo "✅ PR válido desde rama dev"
+          echo "OK: PR válido desde rama dev"
