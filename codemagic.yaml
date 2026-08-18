@@ -239,6 +239,14 @@ definitions:
       MENSAJE="Build de $CM_PROJECT_NAME ($CM_BRANCH) $RESULTADO: $FCI_WORKFLOW_ID. Ver: https://codemagic.io/app/$FCI_PROJECT_ID/build/$FCI_BUILD_ID"
       curl -s -X POST "https://automatizacion-n8n.fbqqbe.easypanel.host/webhook/manda_notificacion"         -H "apikey: 80FA62E3FD0C-4477-8B31-8A2CD6AF7B57"         -H "Content-Type: application/json"         -d "$(jq -n --arg tel "+521$WA_PHONE" --arg msg "$MENSAJE"               '{tipo:"wa", telefono:$tel, mensajeWA:$msg, instanciaWA:"Pruebas de todo"}')"         && echo "Aviso enviado a $WA_PHONE"
 
+  # Escribe /Users/builder/export_options.plist, que es lo que consume
+  # `flutter build ipa --export-options-plist`. Con firma automatica lo
+  # corria Codemagic; con firma manual (ver `ios_signing`) hay que llamarlo,
+  # o el build muere con "property list does not exist" DESPUES de compilar.
+  ios_use_profiles: &ios_use_profiles
+    name: Aplicar perfiles de firma al proyecto Xcode
+    script: xcode-project use-profiles
+
   # Keystore subido desde el dashboard (variables cifradas del grupo
   # android_signing_custom). Reconstruye el .jks y exporta las CM_KEYSTORE_*
   # que lee build.gradle.kts. Si sigue en PENDIENTE, aborta con mensaje claro.
@@ -387,6 +395,7 @@ workflows:
           flutter pub get
           flutter analyze --no-fatal-infos
           flutter test
+      - *ios_use_profiles
       - name: Build IPA firmado
         script: |
           flutter build ipa --release \
@@ -435,6 +444,7 @@ workflows:
           flutter analyze --no-fatal-infos
           flutter test
       - *bump_release_version
+      - *ios_use_profiles
       - name: Build IPA firmado
         script: |
           # CFBundleVersion (build number interno) desde App Store Connect:
@@ -684,6 +694,7 @@ workflows:
           flutter analyze --no-fatal-infos
           flutter test
       - *bump_release_version
+      - *ios_use_profiles
       - name: Build IPA firmado
         script: |
           # CFBundleVersion (build number interno) desde App Store Connect:
