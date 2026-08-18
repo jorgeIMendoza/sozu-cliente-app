@@ -7,11 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/admin/providers/admin_providers.dart';
+import 'package:sozu_cliente_app/features/admin/providers/client_filters_provider.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 // Import directo mientras el export de la primitiva no está en ui/ui.dart.
 import 'package:sozu_cliente_app/features/admin/components/admin_header_bar.dart';
 import 'package:sozu_cliente_app/features/admin/layouts/admin_layout.dart';
+import 'package:sozu_cliente_app/shared/components/theme_mode_button.dart';
 import 'package:sozu_cliente_app/features/admin/components/client_row.dart';
 import 'package:sozu_cliente_app/features/admin/components/client_filters.dart';
 
@@ -55,9 +57,18 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   final _unit = TextEditingController();
   Timer? _debounce;
 
-  String _query = '';
-  int? _projectId;
-  String _unitQuery = '';
+  /// Los filtros viven en `clientFiltersProvider`, no aquí: así sobreviven a
+  /// salir del selector y volver. Los `TextEditingController` SÍ son locales
+  /// (son del widget de texto), y se siembran con lo que el store recuerda.
+  ClientFiltersController get _filters => ref.read(clientFiltersProvider);
+
+  @override
+  void initState() {
+    super.initState();
+    final f = _filters;
+    _search.text = f.query;
+    _unit.text = f.unit;
+  }
 
   @override
   void dispose() {
@@ -67,26 +78,38 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
     super.dispose();
   }
 
-  bool get _queryTooShort => _query.trim().length < _minQueryLength;
+  bool get _queryTooShort =>
+      ref.watch(clientFiltersProvider).query.trim().length < _minQueryLength;
 
-  bool get _isPropertyFilterActive =>
-      _projectId != null && _unitQuery.isNotEmpty;
+  bool get _isPropertyFilterActive {
+    final f = ref.watch(clientFiltersProvider);
+    return f.projectId != null && f.unit.isNotEmpty;
+  }
 
   void _onUnitChanged(String v) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
-      if (mounted) setState(() => _unitQuery = v.trim());
+      if (mounted) _filters.setUnit(v.trim());
     });
   }
 
   void _clearUnit() {
     _debounce?.cancel();
     _unit.clear();
-    setState(() => _unitQuery = '');
+    _filters.setUnit('');
+  }
+
+  /// Botón global: deja los tres filtros en blanco de un toque. Antes había que
+  /// vaciar el buscador, quitar el proyecto y borrar la unidad por separado.
+  void _clearAll() {
+    _debounce?.cancel();
+    _search.clear();
+    _unit.clear();
+    _filters.clear();
   }
 
   List<AdminCliente> _filterBy(List<AdminCliente> clients) {
-    final q = _query.trim().toLowerCase();
+    final q = ref.read(clientFiltersProvider).query.trim().toLowerCase();
     if (q.length < _minQueryLength) return const [];
     return clients
         .where(
@@ -106,12 +129,9 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   Widget build(BuildContext context) {
     final t = context.s;
     final auth = ref.watch(authProvider);
-    final imp = ref.watch(impersonationProvider);
+    final filtros = ref.watch(clientFiltersProvider);
 
     return AdminLayout(
-      // 880 y no el default: con el encabezado y las acciones dentro del mismo
-      // contenedor, menos ancho aprieta la fila de acciones.
-      maxWidth: 880,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -121,20 +141,23 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
                 'Acceso administrador · '
                 '${auth.profile?.displayName ?? auth.profile?.email ?? ''}',
             actions: [
+              const ThemeModeButton(),
+              SizedBox(width: t.space.xxs),
               AdminHeaderAction(
                 label: 'Enviar avisos',
                 icon: Icons.campaign_outlined,
                 onPressed: () => context.push('/admin-avisos'),
               ),
-              if (imp.active)
-                AdminHeaderAction(
-                  label: 'Volver al portal',
-                  onPressed: () => context.go('/inicio'),
-                ),
               AdminHeaderAction(
                 label: 'Cerrar sesión',
                 isDanger: true,
-                onPressed: () => ref.read(authProvider).signOut(),
+                onPressed: () {
+                  // Los filtros son contexto de trabajo de ESTA sesión: si no
+                  // se limpian, el siguiente admin que entre en la misma
+                  // máquina hereda el proyecto y la unidad del anterior.
+                  _clearAll();
+                  ref.read(authProvider).signOut();
+                },
               ),
             ],
           ),
@@ -143,13 +166,16 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
             projects:
                 ref.watch(adminProjectsProvider).asData?.value ??
                 const <CatalogoItem>[],
-            projectId: _projectId,
-            onProjectChanged: (v) => setState(() => _projectId = v),
+            projectId: filtros.projectId,
+            onProjectChanged: filtros.setProjectId,
             unitController: _unit,
             onUnitChanged: _onUnitChanged,
             onUnitCleared: _clearUnit,
             searchController: _search,
-            onQueryChanged: (v) => setState(() => _query = v),
+            onQueryChanged: filtros.setQuery,
+            // Solo cuando hay algo puesto: un "Limpiar" permanente sobre un
+            // formulario vacio es ruido, y ensena a ignorarlo.
+            onClearAll: filtros.isDirty ? _clearAll : null,
           ),
           SizedBox(height: t.space.md),
           _results(),
@@ -208,7 +234,9 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
           return SEmptyState(
             icon: Icons.search_off_outlined,
             title: 'Sin resultados',
-            message: 'No encontramos clientes para "$_query".',
+            message:
+                'No encontramos clientes para '
+                '"${ref.read(clientFiltersProvider).query}".',
           );
         }
         return _ClientList(clients: items, onTap: _viewAs);
@@ -220,8 +248,9 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   /// filtro Proyecto + Unidad está activo.
   List<Widget> _ownersSection() {
     final t = context.s;
+    final f = ref.watch(clientFiltersProvider);
     final owners = ref.watch(
-      adminOwnersProvider((projectId: _projectId!, propertyNumber: _unitQuery)),
+      adminOwnersProvider((projectId: f.projectId!, propertyNumber: f.unit)),
     );
 
     return owners.when(
@@ -292,6 +321,9 @@ class _FiltersPanel extends StatelessWidget {
   final TextEditingController searchController;
   final ValueChanged<String> onQueryChanged;
 
+  /// null = no hay nada que limpiar, y el boton no se pinta.
+  final VoidCallback? onClearAll;
+
   const _FiltersPanel({
     required this.projects,
     required this.projectId,
@@ -301,6 +333,7 @@ class _FiltersPanel extends StatelessWidget {
     required this.onUnitCleared,
     required this.searchController,
     required this.onQueryChanged,
+    required this.onClearAll,
   });
 
   @override
@@ -331,6 +364,17 @@ class _FiltersPanel extends StatelessWidget {
             autofocus: context.bp.isDesktop,
             onChanged: onQueryChanged,
           ),
+          if (onClearAll != null) ...[
+            SizedBox(height: t.space.xs),
+            Align(
+              alignment: Alignment.centerRight,
+              child: SButton.link(
+                label: 'Limpiar filtros',
+                icon: Icons.filter_alt_off_outlined,
+                onPressed: onClearAll,
+              ),
+            ),
+          ],
         ],
       ),
     );

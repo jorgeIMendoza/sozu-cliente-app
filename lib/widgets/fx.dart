@@ -198,11 +198,20 @@ bool isDesktop(BuildContext context) =>
 
 /// Contenedor responsive para pantallas secundarias: limita el ancho de
 /// lectura en desktop; en móvil no altera nada.
+///
+/// El tope es [kSozuContentMaxWidth] (`max-w-7xl` de Tailwind, 1280): el MISMO
+/// que usan el shell del portal y `AdminLayout`. Antes eran 900 aquí, 1100 en
+/// `ContentFrame` y 1280 en el shell, así que la columna de contenido cambiaba
+/// de ancho al navegar entre pantallas de la misma app.
 class WebFrame extends StatelessWidget {
   final Widget child;
   final double maxWidth;
 
-  const WebFrame({super.key, required this.child, this.maxWidth = 900});
+  const WebFrame({
+    super.key,
+    required this.child,
+    this.maxWidth = kSozuContentMaxWidth,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -221,11 +230,16 @@ class WebFrame extends StatelessWidget {
 }
 
 /// Centra el contenido de un tab con max-width de lectura en desktop.
+/// Mismo tope que [WebFrame]: [kSozuContentMaxWidth].
 class ContentFrame extends StatelessWidget {
   final Widget child;
   final double maxWidth;
 
-  const ContentFrame({super.key, required this.child, this.maxWidth = 1100});
+  const ContentFrame({
+    super.key,
+    required this.child,
+    this.maxWidth = kSozuContentMaxWidth,
+  });
 
   @override
   Widget build(BuildContext context) {

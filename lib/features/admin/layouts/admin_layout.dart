@@ -17,7 +17,7 @@ class AdminScrollArea extends StatelessWidget {
   const AdminScrollArea({
     super.key,
     required this.child,
-    this.maxWidth = 1100,
+    this.maxWidth = kSozuContentMaxWidth,
     this.onRefresh,
   });
 
@@ -56,6 +56,14 @@ class AdminScrollArea extends StatelessWidget {
 
 /// Pantalla completa de super admin: fondo de página + [AdminScrollArea].
 ///
+/// **Es el ÚNICO layout de la feature y no tiene variantes.** Hubo una,
+/// `AdminLayout.fixed`, sin scroll de página, para la pantalla de avisos: su
+/// `TabBarView` no tiene alto intrínseco y no cabía dentro de un scroll. El
+/// resultado era que las dos pantallas de admin se desplazaban distinto y en
+/// avisos la rueda del ratón solo respondía sobre la columna central. Se quitó
+/// junto con el `TabBarView`: hoy las pestañas son [STabs], que solo pinta la
+/// fila de etiquetas y deja el cuerpo en linea (ver `ui/primitives/s_tabs.dart`).
+///
 /// `resizeToAvoidBottomInset: false` a propósito: con el resize, en un teléfono
 /// el encabezado y los filtros no caben en lo que queda y el contenido desborda
 /// ("BOTTOM OVERFLOWED BY N PIXELS"). Aquí se escribe arriba y los resultados van
@@ -64,31 +72,16 @@ class AdminLayout extends StatelessWidget {
   const AdminLayout({
     super.key,
     required this.child,
-    this.maxWidth = 1100,
+    this.maxWidth = kSozuContentMaxWidth,
     this.onRefresh,
-  }) : _scrolls = true;
+  });
 
   final Widget child;
   final double maxWidth;
   final Future<void> Function()? onRefresh;
 
-  /// false = el contenido trae su propio scroll (ver [AdminLayout.fixed]).
-  final bool _scrolls;
-
-  /// Variante SIN scroll de pagina, para pantallas que desplazan por dentro (una
-  /// con pestanas: el `TabBarView` no tiene alto intrinseco, asi que no cabe en
-  /// un scroll, y el encabezado debe quedarse fijo). Mismo fondo, mismo ancho
-  /// maximo y mismo gutter que [AdminLayout].
-  const AdminLayout.fixed({
-    super.key,
-    required this.child,
-    this.maxWidth = 1100,
-  }) : onRefresh = null,
-       _scrolls = false;
-
   @override
   Widget build(BuildContext context) {
-    if (!_scrolls) return _fixed(context);
     return Scaffold(
       // `background`, no `surface`: el fondo de página es un nivel por DEBAJO de
       // las tarjetas. Usar surface aplanaba todo en un solo tono.
@@ -99,34 +92,6 @@ class AdminLayout extends StatelessWidget {
           maxWidth: maxWidth,
           onRefresh: onRefresh,
           child: child,
-        ),
-      ),
-    );
-  }
-
-  /// Cuerpo de [AdminLayout.fixed]: mismo fondo, gutter y ancho maximo, pero sin
-  /// scroll propio.
-  Widget _fixed(BuildContext context) {
-    final t = context.s;
-    final gutter = context.responsive(mobile: t.space.md, desktop: t.space.lg);
-    // Mismo criterio que en `AdminScrollArea`: menos aire arriba en telefono,
-    // donde el SafeArea ya aparto del status bar.
-    final topGutter = context.responsive(
-      mobile: t.space.xs,
-      desktop: t.space.lg,
-    );
-    return Scaffold(
-      backgroundColor: t.color.background,
-      resizeToAvoidBottomInset: false,
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(gutter, topGutter, gutter, gutter),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxWidth),
-              child: child,
-            ),
-          ),
         ),
       ),
     );

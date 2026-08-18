@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:sozu_cliente_app/features/auth/components/auth_alert.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
+import 'package:sozu_cliente_app/features/auth/components/resend_confirmation_action.dart';
 import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
@@ -18,58 +18,22 @@ const emailNotConfirmedPath = '/confirma-tu-correo';
 /// hace `signOut()` y deja el correo en `AuthController.blockedEmail`, así que
 /// esta pantalla no puede releer el perfil ("Ya confirmé mi correo" no aplica) y
 /// devuelve al login para que el usuario entre de nuevo.
-class EmailNotConfirmedScreen extends ConsumerStatefulWidget {
+class EmailNotConfirmedScreen extends ConsumerWidget {
   const EmailNotConfirmedScreen({super.key});
 
   @override
-  ConsumerState<EmailNotConfirmedScreen> createState() =>
-      _EmailNotConfirmedScreenState();
-}
-
-class _EmailNotConfirmedScreenState
-    extends ConsumerState<EmailNotConfirmedScreen> {
-  bool _sending = false;
-  bool _sent = false;
-  String? _message;
-  bool _messageIsError = false;
-
-  void _backToLogin() {
-    // Limpiar primero: el router mantiene esta pantalla mientras el bloqueo
-    // esté puesto.
-    ref.read(authProvider).clearAccessBlock();
-    if (mounted) context.go('/login');
-  }
-
-  Future<void> _resend(String email) async {
-    setState(() {
-      _sending = true;
-      _message = null;
-    });
-
-    String? error;
-    try {
-      await ref.read(authProvider).resendEmailConfirmation(email);
-    } catch (e) {
-      error = AuthController.resendConfirmationErrorMessage(e);
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _sending = false;
-      _sent = error == null;
-      _messageIsError = error != null;
-      _message =
-          error ??
-          'Te enviamos un correo nuevo. Revisa tu bandeja de entrada y la '
-              'carpeta de spam.';
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.s;
     final c = t.color;
     final email = ref.watch(authProvider).blockedEmail;
+    final hayCorreo = email != null && email.isNotEmpty;
+
+    void backToLogin() {
+      // Limpiar primero: el router mantiene esta pantalla mientras el bloqueo
+      // esté puesto.
+      ref.read(authProvider).clearAccessBlock();
+      context.go('/login');
+    }
 
     return AuthLayout(
       child: AuthFormBody(
@@ -81,12 +45,12 @@ class _EmailNotConfirmedScreenState
           const AuthTitle('Confirma tu correo'),
           SizedBox(height: t.space.sm),
           AuthSubtitle(
-            email == null || email.isEmpty
-                ? 'Para entrar necesitas verificar tu correo. Abre el enlace '
-                      'que te enviamos y vuelve a iniciar sesión.'
-                : 'Para entrar necesitas verificar $email. Abre el enlace que '
+            hayCorreo
+                ? 'Para entrar necesitas verificar $email. Abre el enlace que '
                       'te enviamos por correo; si ya no lo tienes, pide uno '
-                      'nuevo aquí.',
+                      'nuevo aquí.'
+                : 'Para entrar necesitas verificar tu correo. Abre el enlace '
+                      'que te enviamos y vuelve a iniciar sesión.',
           ),
           SizedBox(height: t.space.md),
           Container(
@@ -114,28 +78,7 @@ class _EmailNotConfirmedScreenState
             ),
           ),
 
-          if (_message != null) ...[
-            SizedBox(height: t.space.md),
-            AuthAlert(
-              kind: _messageIsError ? AuthAlertKind.error : AuthAlertKind.info,
-              icon: _messageIsError
-                  ? Icons.error_outline
-                  : Icons.check_circle_outline,
-              message: _message!,
-            ),
-          ],
-
-          if (email != null && email.isNotEmpty && !_sent) ...[
-            SizedBox(height: t.space.md),
-            SButton(
-              label: 'Reenviar correo de confirmación',
-              size: SButtonSize.lg,
-              icon: Icons.forward_to_inbox,
-              loading: _sending,
-              loadingLabel: 'Enviando...',
-              onPressed: _sending ? null : () => _resend(email),
-            ),
-          ],
+          if (hayCorreo) ResendConfirmationAction(email: email),
 
           SizedBox(height: t.space.md),
           Center(
@@ -144,7 +87,7 @@ class _EmailNotConfirmedScreenState
               icon: Icons.arrow_back,
               // Navega a otra pantalla: se anuncia como enlace, no como botón.
               isNavigation: true,
-              onPressed: _backToLogin,
+              onPressed: backToLogin,
             ),
           ),
         ],

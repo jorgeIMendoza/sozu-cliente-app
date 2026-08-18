@@ -22,6 +22,17 @@ Flujo diario. El detalle y el diagnóstico están en `android-usb.md`.
 ./tool/apk.sh            # APK release para el telefono
 ```
 
+Si lo unico que estorba es el cintillo azul de arriba y quieres seguir con hot
+reload, no hace falta compilar release:
+
+```bash
+SIN_PREVIEW=1 ./tool/dev.sh DYLRPNJNIRKNZPRG
+```
+
+Apaga SOLO el cintillo. Sigue siendo build de preview, asi que los logs de
+diagnostico (`isPreviewBuild`) siguen encendidos. Es constante de compilacion:
+para prenderlo o apagarlo hay que relanzar, `R` no basta.
+
 `dev.sh` corre en modo **DEBUG**, y en Flutter web debug compila con DDC sin
 optimizar: es varias veces mas lento que release y el coste escala con el numero
 de widgets, asi que una pantalla densa se siente pesada aunque en produccion vaya
@@ -51,20 +62,25 @@ PowerShell **admin**: `winget install usbipd`
 
 ### Cada vez que conectas el cable
 
-PowerShell **admin** en Windows:
+PowerShell **admin** en Windows. Son **tres pasos**: sin el `bind`, el `attach`
+falla con `the device is not shared`.
 
 ```powershell
 usbipd list                            # busca tu telefono, copia el BUSID
-usbipd attach --wsl --busid <BUSID>
+usbipd bind   --busid <BUSID>          # comparte: persistente, una vez por BUSID
+usbipd attach --wsl --busid <BUSID>    # pasa a WSL: cada vez que conectas
 ```
 
 En WSL:
 
 ```bash
+ls /dev/bus/usb                        # si no existe, el attach no surtio efecto
 ./tool/dev.sh DYLRPNJNIRKNZPRG
 ```
 
-Y ya. El serial no cambia nunca; el BUSID sí puede cambiar de puerto USB.
+Y ya. El serial no cambia nunca; el BUSID sí puede cambiar de puerto USB, y si
+cambia hay que volver a hacer `bind` del nuevo. La columna STATE de
+`usbipd list` dice en qué paso vas: `Not shared` / `Shared` / `Attached`.
 
 **Si `adb devices` sale vacío o dice `no permissions`, no hagas nada a mano:**
 `dev.sh` lo resuelve solo. El nodo USB queda `root:adbusers 0660` por las reglas
