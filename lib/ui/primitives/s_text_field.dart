@@ -61,6 +61,7 @@ class STextField extends StatefulWidget {
     this.onChanged,
     this.onSubmitted,
     this.maxLines = 1,
+    this.minLines,
     this.maxLength,
     this.size = STextFieldSize.lg,
     this.focusNode,
@@ -97,7 +98,8 @@ class STextField extends StatefulWidget {
        suffix = null,
        readOnly = false,
        keyboardType = null,
-       maxLines = 1;
+       maxLines = 1,
+       minLines = null;
 
   final TextEditingController controller;
 
@@ -141,6 +143,12 @@ class STextField extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final int maxLines;
+
+  /// Alto MÍNIMO en líneas. Con `minLines == maxLines` la caja no crece ni se
+  /// encoge: siempre mide lo mismo y el texto de más desplaza por dentro. Es lo
+  /// que evita que un formulario se reacomode mientras se escribe.
+  final int? minLines;
+
   final int? maxLength;
   final STextFieldSize size;
 
@@ -355,6 +363,7 @@ class _STextFieldState extends State<STextField> {
       onFieldSubmitted: widget.onSubmitted,
       textInputAction: widget.textInputAction,
       maxLines: widget.maxLines,
+      minLines: widget.minLines,
       maxLength: widget.maxLength,
       inputFormatters: widget.inputFormatters,
       textCapitalization: widget.textCapitalization,
