@@ -386,7 +386,7 @@ class _PagoFinalScreenState extends ConsumerState<PagoFinalScreen> {
     const SizedBox(height: 16),
     Center(
       child: Text(
-        'Unidad liquidada 🎉',
+        'Unidad liquidada ${SozuEmoji.festejo}',
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 20,

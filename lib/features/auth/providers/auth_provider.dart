@@ -149,17 +149,11 @@ class AuthController extends ChangeNotifier {
     return profile;
   }
 
-  /// Gate de acceso sobre el perfil ya cargado: cuenta desactivada primero,
-  /// correo sin confirmar después (`debe_cambiar_password` lo maneja el router
-  /// al final, ya con la sesión aceptada). Si la cuenta no puede entrar cierra
-  /// la sesión y deja registrado el motivo en [blockedAccess].
+  /// Gate sobre el perfil cargado: cuenta desactivada, luego correo sin
+  /// confirmar. Si no puede entrar cierra sesión y deja el motivo en
+  /// [blockedAccess].
   ///
-  /// Devuelve null cuando el acceso es válido, o cuando no hay perfil que
-  /// evaluar: un perfil ausente (RPC caída, sin fila en `usuarios`) ya lo
-  /// rechazan las pantallas de acceso por su cuenta.
-  ///
-  /// Los defaults tolerantes de [UserProfile] hacen que este gate sea inocuo
-  /// mientras la migración de `email_confirmado` no esté desplegada.
+  /// Devuelve null si el acceso es válido o si no hay perfil que evaluar.
   Future<AccessBlock?> applyAccessGates() async {
     final p = profile;
     if (p == null) return null;

@@ -37,16 +37,8 @@ class _InactivityWatcherState extends ConsumerState<InactivityWatcher>
     WidgetsBinding.instance.addObserver(this);
   }
 
-  /// Plazo de inactividad vigente.
-  ///
-  /// Un teléfono se guarda en el bolsillo y se pierde: plazo corto. Un
-  /// escritorio está en un espacio controlado y cortar la sesión cada 5 minutos
-  /// hace que el usuario tenga que reautenticarse a media tarea, que es la vía
-  /// rápida a que alguien apunte la contraseña en un post-it.
-  ///
-  /// El criterio es el FORMATO, no la plataforma: web abierta en el navegador
-  /// del celular debe usar el plazo corto, y para eso se mide el lado menor de
-  /// la pantalla en vez de confiar en `kIsWeb`.
+  /// Plazo vigente. El criterio es el FORMATO de pantalla y no `kIsWeb`: la web
+  /// abierta en el navegador del celular debe usar el plazo corto.
   Duration get _currentTimeout {
     final isPhone = kIsWeb
         ? MediaQuery.sizeOf(context).shortestSide < 600

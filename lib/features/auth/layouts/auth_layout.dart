@@ -4,22 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:sozu_cliente_app/features/auth/components/auth_brand_image.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
-/// Andamio de las pantallas de acceso (login / recuperar / cambio forzado).
-/// Impone tema, scroll y breakpoints sobre el mismo contenido:
-///
-/// * < 1024 px: una columna sobre el fondo con degradado radial verde.
-/// * >= 1024 px: doble columna - marca izquierda (55%), formulario derecha
-///   (45%).
-///
-/// El scroll es de toda la página: si el contenido cabe queda centrado.
-/// Breakpoints: los del design system (`context.bp`), nunca unos propios.
+/// Andamio de las pantallas de acceso: impone tema claro, scroll de página y
+/// breakpoints. Bajo 1024 px una columna sobre degradado radial; encima, marca
+/// (55%) y formulario (45%).
 class AuthLayout extends StatefulWidget {
   const AuthLayout({super.key, required this.child});
 
   /// Contenido de la columna del formulario.
   final Widget child;
-
-  /// Panel decorativo de la columna izquierda en el layout partido.
 
   @override
   State<AuthLayout> createState() => _AuthLayoutState();
@@ -117,13 +109,9 @@ class _AuthLayoutState extends State<AuthLayout> {
 // Colores del acceso
 // ---------------------------------------------------------------------------
 //
-// OJO: no cambiar por `context.s.color`. Leer un campo de un objeto `const` NO
-// es una expresión constante en Dart, así que dentro de un
-// `const BoxDecoration` falla con "Not a constant expression"; solo sirven las
-// constantes crudas.
-//
-// Equivalencias: `_kSurface` == `SozuColorRoles.light.surface`,
-// `_kPrimarySoft` == `SozuColorRoles.light.primarySoft`.
+// WARN: No cambiar por `context.s.color`: leer un campo de un objeto `const` no es
+// expresión constante, y dentro de un `const BoxDecoration` falla. Equivalen a
+// `SozuColorRoles.light.surface` y `.primarySoft`.
 
 const Color _kSurface = SozuNeutral.n0;
 const Color _kPrimarySoft = SozuBrand.soft06;

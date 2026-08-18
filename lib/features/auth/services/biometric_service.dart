@@ -24,22 +24,14 @@ enum BiometricLoginResult {
   networkError,
 }
 
-/// Login biométrico (huella / Face ID) - SOLO móvil; en web todo devuelve
-/// false y no se toca secure storage.
+/// Login biométrico (huella / Face ID). SOLO móvil: en web todo devuelve false
+/// y no se toca secure storage.
 ///
-/// La huella NUNCA sale del teléfono: `local_auth` solo le pregunta al sistema
-/// "¿es el usuario enrolado?" y recibe sí o no. Lo que este servicio guarda es
-/// el refresh token de Supabase, así que la biometría es un candado local sobre
-/// una sesión ya autenticada, no una identificación contra el servidor.
+/// Candado LOCAL sobre una sesión ya autenticada: guarda el refresh token en
+/// Keystore/Keychain bajo una key que sobrevive al `signOut`.
 ///
-/// Guarda el refresh token en secure storage (Keystore/Keychain) bajo una key
-/// propia, separada de la sesión que persiste SecureSessionStorage (esa se
-/// borra en signOut; esta sobrevive para poder re-entrar con biometría).
-///
-/// IMPORTANTE - rotación: el backend invalida el refresh token anterior en
-/// cada refresh, por lo que hay que re-guardar el token nuevo tras cada
-/// cambio de sesión (el AuthController llama a [persistSession] desde su
-/// listener de sessionChanges) y tras cada [signIn] exitoso.
+/// WARN: El backend ROTA el refresh token en cada refresh: hay que re-guardarlo
+/// tras cada cambio de sesión ([persistSession]) y tras cada [signIn].
 class BiometricService {
   BiometricService._();
   static final BiometricService instance = BiometricService._();

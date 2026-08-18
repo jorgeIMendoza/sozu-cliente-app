@@ -13,9 +13,27 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// Modo de viaje para la ruta, trazada con OSRM (servidores públicos de
 /// FOSSGIS/OpenStreetMap, sin API key).
 enum _TravelMode {
-  caminar('A pie', Icons.directions_walk, '🚶', 'routed-foot', 'walking'),
-  bici('En bici', Icons.directions_bike, '🚴', 'routed-bike', 'cycling'),
-  auto('En auto', Icons.directions_car, '🚗', 'routed-car', 'driving');
+  caminar(
+    'A pie',
+    Icons.directions_walk,
+    SozuEmoji.aPie,
+    'routed-foot',
+    'walking',
+  ),
+  bici(
+    'En bici',
+    Icons.directions_bike,
+    SozuEmoji.bici,
+    'routed-bike',
+    'cycling',
+  ),
+  auto(
+    'En auto',
+    Icons.directions_car,
+    SozuEmoji.auto,
+    'routed-car',
+    'driving',
+  );
 
   final String label;
   final IconData icon;

@@ -7,15 +7,10 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Card de Perfil con el interruptor de acceso por huella / Face ID.
 ///
-/// Se llamaba `BiometricSettingTile`: "tile" es jerga de Material (una fila de
-/// lista) y no decía ni que fuera una card ni que llevara un interruptor.
-/// Autocontenida: se oculta (SizedBox.shrink) si el dispositivo no soporta
-/// biometría (web incluido). Al activar pide autenticar y guarda el refresh
-/// token de la sesión ACTUAL; al desactivar borra token + flag.
+/// Autocontenida: se oculta si el dispositivo no soporta biometría (web
+/// incluido). Al activar guarda el refresh token de la sesión actual.
 ///
-/// API PÚBLICA de la feature `auth`: vive aquí porque la biometría es de auth,
-/// pero la consume `screens/perfil_screen.dart`, que es de otra pantalla. Se usa
-/// tal cual, sin alias ni copia.
+/// API pública de `auth`, aunque la consuma una pantalla de `client`.
 class BiometricToggleCard extends ConsumerStatefulWidget {
   const BiometricToggleCard({super.key});
 

@@ -144,18 +144,11 @@ class AuthAdapter implements AuthPort {
     await _postAnon(_resendConfirmationFunction, email);
   }
 
-  /// POST crudo a una función de acceso (sin sesión) con el correo en el
-  /// cuerpo, traduciendo el resultado al contrato de [AuthPort]. Devuelve el
-  /// cuerpo ya decodificado; un status de error sale por excepción.
+  /// POST a una función de acceso (sin sesión) con el correo en el cuerpo. Va
+  /// por `invokeAnonFunction` y no por `functions.invoke`; el motivo está ahí.
   ///
-  /// NO usa `functions.invoke`: ese cliente manda la llave anónima en `apikey`
-  /// Y en `Authorization`, y el gateway nuevo (llaves `sb_`) responde 401
-  /// "Conflicting API keys" antes de ejecutar la función. Además, con
-  /// `Authorization` presente estas funciones salen de su modo público
-  /// (self-service) e intentan resolver un usuario autenticado.
-  ///
-  /// Las dos responden 200 genérico exista o no la cuenta (anti-enumeración de
-  /// correos): un status de error aquí es fallo REAL de servidor.
+  /// Responden 200 genérico exista o no la cuenta, así que un status de error
+  /// aquí es fallo REAL de servidor.
   Future<Map<String, dynamic>> _postAnon(String fn, String email) async {
     final AnonFunctionResponse res;
     try {

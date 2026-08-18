@@ -29,6 +29,6 @@ Verificación que importa: componer background + foreground y recortar en
 círculo. Las esquinas del wordmark deben quedar dentro de un radio del 33% del
 lienzo. Si se salen, el launcher corta letras.
 
-⚠️ Los assets de esta carpeta son lo ÚNICO que distingue esta app de la de
+WARN: Los assets de esta carpeta son lo ÚNICO que distingue esta app de la de
 agentes en el cajón de aplicaciones. Hasta el 2026-08-14 los dos repos traían
 archivos idénticos (bytes iguales) y las dos apps se veían exactamente igual.
