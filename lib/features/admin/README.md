@@ -33,11 +33,13 @@ Qué no:
 ```text
 ports/       admin_port.dart           contrato (12 métodos)
 adapters/    admin_adapter.dart        implementación actual (único con supabase_flutter)
-providers/   admin_providers.dart      adminPortProvider + 3 FutureProviders
+providers/   admin_providers.dart      adminPortProvider + 5 FutureProviders
              impersonation_provider.dart  contexto "Ver como"
              client_filters_provider.dart filtros del selector, fuera del State
 screens/     select_client_screen, announcements_screen
-components/  admin_header_bar, client_filters, client_row
+components/  admin_header_bar · client_filters · client_row
+             announcement_form · recent_announcements
+             bell_animation_settings · catalog_select_fields
 layouts/     admin_layout.dart         AdminLayout + AdminScrollArea (sin variantes)
 ```
 
@@ -110,22 +112,31 @@ es constante. Al recargar vuelve a la pagina 1: un aviso nuevo entra al
 principio y quedarse en la pagina 3 lo escondia justo cuando se quiere ver
 confirmado.
 
+## Las pantallas solo componen
+
+Igual que en `auth`. `announcements_screen` eran **1,472 líneas con 35
+`setState`**; hoy son **115** y el único `setState` que queda es el índice de
+pestaña, que es composición -qué se pinta- y no lógica.
+
+| Componente | Qué carga |
+|---|---|
+| `announcement_form` | contenido, canales, destino en cascada y programación |
+| `recent_announcements` | lista paginada y cancelar programados |
+| `bell_animation_settings` | animación de la campana, con vista previa |
+| `catalog_select_fields` | `SelectField` y `MultiSelectField`, usados por el alta |
+
+**Lo que hizo posible el corte fueron dos providers nuevos**, no mover código:
+`adminAnnouncementsProvider` y `adminBellAnimationProvider`. El formulario y la
+lista de recientes se hablaban por estar en el mismo `State` (`_submit` llamaba
+a `_loadAnnouncements`). Ahora el formulario hace `ref.invalidate` al enviar y
+la lista se entera sola: ninguno de los dos conoce al otro.
+
+WARN: La lista NO se pide desde `initState`. `RecentAnnouncements` observa el
+provider y se resuelve solo; además `ref.read` antes de que `initState` termine
+revienta con "dependOnInheritedWidgetOfExactType called before initState
+completed".
+
 ## Deuda conocida
-
-La feature está en **0 legacy** de design system y de hexagonal (auditada con el
-grep de `CLAUDE.md`, incluidos los patrones de espaciado y paleta cruda). Lo que
-queda es estructural:
-
-- `screens/announcements_screen.dart` son **~1,350 líneas con 33 `setState`**.
-  Por la regla de `CLAUDE.md` una pantalla solo compone: el formulario de alta de
-  aviso y la lista de programados deberían ser dos componentes con estado, y la
-  pantalla el ensamblaje. Es el archivo más grande fuera de `client/properties`.
-  Es lo mismo que ya se hizo en `auth`, a diez veces el tamaño.
-- `screens/select_client_screen.dart` son 492 líneas, pero ya con **0
-  `setState`**: el estado de los filtros salió a `client_filters_provider` y lo
-  único que queda dentro son los `TextEditingController` y el debounce, que son
-  del widget de texto. Lo que falta ahí es partir la pantalla en componentes,
-  no sacarle estado.
 
 ## Cómo agregar funcionalidad
 
