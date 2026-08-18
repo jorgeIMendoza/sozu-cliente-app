@@ -10,7 +10,12 @@
 # 1. Android: keystore subido en Codemagic → Code signing identities, con
 #    reference name "sozu_keystore" (Codemagic puede generarlo).
 # 2. iOS: integración App Store Connect (API key) con nombre
-#    "sozu_app_store_connect" + certificados automáticos.
+#    "sozu_app_store_connect" (la usan la subida a TestFlight/App Store
+#    y las llamadas a `app-store-connect`, NO la firma).
+# 3. iOS firma MANUAL: en Code signing identities subir el .p12 con
+#    reference name "sozu_distribution" (compartido por las dos apps: el
+#    certificado es de la cuenta) y el .mobileprovision de App Store con
+#    reference name "sozu_cliente_appstore".
 # ---------------------------------------------------------------------------
 
 definitions:
@@ -363,8 +368,16 @@ workflows:
       vars:
         <<: *supabase_env
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.sozu.sozuClienteApp
+        # Firma MANUAL a proposito: la automatica resolvia certificado y
+        # perfil por la App Store Connect API y devolvia "No matching
+        # profiles found" con los dos ya creados en Apple. Aqui se usan
+        # los archivos subidos a Code signing identities, sin API de por
+        # medio. Al cambiar capabilities del App ID hay que regenerar el
+        # perfil en Apple y volver a subirlo.
+        provisioning_profiles:
+          - reference_name: sozu_cliente_appstore
+        certificates:
+          - reference_name: sozu_distribution
       flutter: stable
     scripts:
       - *env_setup
@@ -401,8 +414,16 @@ workflows:
       vars:
         <<: *supabase_env
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.sozu.sozuClienteApp
+        # Firma MANUAL a proposito: la automatica resolvia certificado y
+        # perfil por la App Store Connect API y devolvia "No matching
+        # profiles found" con los dos ya creados en Apple. Aqui se usan
+        # los archivos subidos a Code signing identities, sin API de por
+        # medio. Al cambiar capabilities del App ID hay que regenerar el
+        # perfil en Apple y volver a subirlo.
+        provisioning_profiles:
+          - reference_name: sozu_cliente_appstore
+        certificates:
+          - reference_name: sozu_distribution
       flutter: stable
     scripts:
       - *validar_push_token
@@ -635,8 +656,16 @@ workflows:
       vars:
         <<: *supabase_env
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.sozu.sozuClienteApp
+        # Firma MANUAL a proposito: la automatica resolvia certificado y
+        # perfil por la App Store Connect API y devolvia "No matching
+        # profiles found" con los dos ya creados en Apple. Aqui se usan
+        # los archivos subidos a Code signing identities, sin API de por
+        # medio. Al cambiar capabilities del App ID hay que regenerar el
+        # perfil en Apple y volver a subirlo.
+        provisioning_profiles:
+          - reference_name: sozu_cliente_appstore
+        certificates:
+          - reference_name: sozu_distribution
       flutter: stable
     scripts:
       - *validar_push_token
