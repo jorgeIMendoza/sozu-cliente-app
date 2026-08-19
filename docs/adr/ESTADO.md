@@ -23,12 +23,12 @@ leerlo no cuadran, gana el grep.
 | Shell del cliente | UNO solo (`ClientShell`), decide por ancho y no por plataforma |
 | Pantallas de `auth` | las 5 son composición pura: 0 `setState`, ninguna pasa de 100 líneas |
 | Puertos y adaptadores | 8 features con `ports/` + `adapters/`; 0 fugas de vendor fuera de un adaptador salvo `core/portal_tracking.dart` |
-| Tests | 0 → 492, en 64 archivos. Las 5 pantallas de `auth` y las 2 de `admin` tienen cobertura |
+| Tests | 0 → 493, en 64 archivos. Las 5 pantallas de `auth` y las 2 de `admin` tienen cobertura |
 | Alias eliminados | `SozuColors`, `SozuTone`, `AuthColors`, `widgets/common.dart` - borrados, no deprecados |
 | Pares móvil/web | 5 de 6 fusionados (ver abajo). `AppCard`, `SectionTitle`, `EmptyCard`, `SozuProgressBar`, `StatusBadge`: 0 usos |
 | Imports | 100% `package:` en `lib/`, lint que lo obliga |
 | Guiones largos | 0 en lib, test, docs, yaml |
-| `flutter analyze` | 0 errores, 0 warnings. 683 infos, **todos** `PortalColors` deprecado |
+| `flutter analyze` | 0 errores, 0 warnings. 674 infos, **todos** `PortalColors` deprecado |
 | Android en físico | funciona (Temurin 21 + SDK 36 + puente de adb) |
 
 `lib/screens/` y `lib/providers/` ya no existen. `lib/widgets/` es lo que queda
@@ -49,7 +49,7 @@ Conteo por feature de los 6 patrones legacy (`PortalColors`, `isPortalMode`,
 | `features/client/facturacion` | 1 | |
 | `features/client/referral` | 1 | |
 | `features/client/expediente` | 2 | lo más nuevo; nació con el patrón |
-| `features/client/layouts` | 91 | |
+| `features/client/layouts` | 62 | el shell ya unificado; le quedan 26 `PortalColors` | |
 | `features/client/products` | 91 | |
 | `features/client/profile` | 104 | |
 | `features/client/home` | 118 | |
@@ -57,8 +57,8 @@ Conteo por feature de los 6 patrones legacy (`PortalColors`, `isPortalMode`,
 | `lib/widgets` (legacy) | 83 | |
 | `lib/core` | 3 | `portal_theme` + `portal_tracking` |
 
-Totales absolutos: **`PortalColors` 605 referencias**, **`isPortalMode` 34 usos
-en 28 archivos**.
+Totales absolutos: **`PortalColors` ~580 referencias**, **`isPortalMode` 31
+usos**.
 
 ### La deuda que la auditoría vieja no contaba
 
@@ -101,6 +101,19 @@ por qué esa columna manda:
 ---
 
 ## Lo que sigue, en orden
+
+### 0. EMPEZAR AQUI: el color del shell del cliente  (acotado, alto impacto)
+
+`features/client/layouts/client_shell.dart` tiene **26 `PortalColors`** y un
+`Theme(data: sozuLightTheme())` en `_ConSidebar`. Al migrarlos y quitar ese
+`Theme`, **todo el marco** -barra lateral, superior e inferior- responde al
+tema del usuario.
+
+Es el punto de entrada correcto porque el shell ya esta unificado: era codigo
+repartido en tres widgets y ahora es uno solo, asi que se migra una vez.
+
+Despues caen los otros tres `Theme` de deuda (ver 4b). Las pantallas van
+detras, por feature, de menor a mayor.
 
 ### 1. Cerrar `features/client/expediente`, `facturacion` y `referral`  (chico)
 
