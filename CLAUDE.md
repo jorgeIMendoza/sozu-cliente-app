@@ -549,11 +549,17 @@ dos a la vez, y las cosas que se olvidan).
   Única excepción: estas dos líneas, que tienen que nombrar los caracteres.
   Verificar antes de commitear:
   ```bash
-  grep -rP '[\x{2014}\x{2013}]' --include="*.dart" --include="*.md" \
-       --include="*.yaml" --include="*.html" lib test docs *.md *.yaml \
-    | grep -v '^CLAUDE.md'
+  grep -rlP '[\x{2014}\x{2013}]' . \
+       --exclude-dir=.git --exclude-dir=build --exclude-dir=.dart_tool \
+    | grep -v 'CLAUDE.md'
   ```
   Debe salir vacío.
+
+  WARN: **barrer el repo entero, no una lista de extensiones.** El grep anterior
+  nombraba `*.dart`, `*.md`, `*.yaml` y `*.html` sobre `lib test docs`, así que
+  no miraba `.yml` (los workflows son `.yml`, no `.yaml`), ni `.github/`, ni
+  `tool/`, ni `.js`. Tres guiones largos entraron por ahí desde `dev` sin que
+  nada los viera.
 - La versión WEB debe ser RESPONSIVE (móvil/tablet/desktop): contenido con
   max-width centrado en pantallas anchas (WebFrame), FittedBox/Wrap para
   cifras. Probar en Chrome ancho + ventana angosta + iPhone Safari.

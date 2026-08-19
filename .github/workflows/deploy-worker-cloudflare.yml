@@ -5,7 +5,7 @@ name: Deploy Worker de descarga (Cloudflare)
 # en el dashboard: así el archivo en git ES lo que está corriendo, y un cambio de
 # package o de id de App Store queda en el historial.
 #
-# Solo corre cuando cambia el worker o su config — un deploy web no tiene por qué
+# Solo corre cuando cambia el worker o su config: un deploy web no tiene por que
 # tocar el redirector.
 on:
   push:
