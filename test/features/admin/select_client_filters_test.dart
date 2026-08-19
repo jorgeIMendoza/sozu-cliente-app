@@ -197,4 +197,98 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('abrir el selector NO descarga clientes', (tester) async {
+    // Antes la pantalla bajaba el padron entero al construirse (630 filas en
+    // produccion) para mostrar, como mucho, una pantalla.
+    final port = FakeAdminPort();
+    await pump(tester, port: port);
+
+    expect(port.log, isNot(contains('searchClients')));
+    expect(port.log, isNot(contains('clients')));
+
+    // Una letra tampoco: el minimo son dos.
+    await tester.enterText(find.byType(TextField).last, 'a');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(port.log, isNot(contains('searchClients')));
+
+    await tester.enterText(find.byType(TextField).last, 'al');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(port.log, contains('searchClients'));
+  });
+
+  testWidgets('la busqueda del servidor ignora acentos', (tester) async {
+    // En produccion la mitad de los nombres llevan acento: "hernandez" tecleado
+    // sin acento encontraba 9 de 20. La regla vive en Postgres (unaccent), no
+    // en Dart; el doble la emula para fijar el contrato.
+    final port = FakeAdminPort()
+      ..storedClients = [
+        {
+          'id_persona': 1,
+          'nombre': 'Alonso Hernández Cedillo',
+          'email': 'a@x.com',
+        },
+        {
+          'id_persona': 2,
+          'nombre': 'Dante Hernandez Mejia',
+          'email': 'd@x.com',
+        },
+        {'id_persona': 3, 'nombre': 'Bruno Pérez', 'email': 'b@x.com'},
+      ];
+    await pump(tester, port: port);
+
+    await tester.enterText(find.byType(TextField).last, 'hernandez');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Alonso Hernández Cedillo'), findsOneWidget);
+    expect(find.text('Dante Hernandez Mejia'), findsOneWidget);
+    expect(find.text('Bruno Pérez'), findsNothing);
+  });
+
+  testWidgets('el total sale del servidor, no de lo que se pinto', (
+    tester,
+  ) async {
+    // El servidor manda 50 filas y dice que hay 300. Contar lo recibido diria
+    // "50 de 50" y el admin creeria que ya los vio todos.
+    final port = FakeAdminPort()
+      ..storedClients = [
+        for (var i = 0; i < 300; i++)
+          {
+            'id_persona': i,
+            'nombre': 'Cliente Marino $i',
+            'email': 'm$i@x.com',
+          },
+      ];
+    await pump(tester, port: port);
+
+    await tester.enterText(find.byType(TextField).last, 'marino');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ClientRow), findsNWidgets(50));
+    expect(
+      find.text('Mostrando 50 de 300. Escribe más para afinar la búsqueda.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('sin la accion en el backend, filtra en memoria y sigue viva', (
+    tester,
+  ) async {
+    // Backend viejo: ignora la accion que no conoce y devuelve el padron sin
+    // `total`. Es lo que permite desplegar app y Edge Function en cualquier
+    // orden, asi que la degradacion se prueba, no se supone.
+    final port = FakeAdminPort()..serverSearch = false;
+    await pump(tester, port: port);
+
+    await tester.enterText(find.byType(TextField).last, 'bruno');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bruno Pérez'), findsOneWidget);
+    expect(find.text('Alex Hernández'), findsNothing);
+  });
 }

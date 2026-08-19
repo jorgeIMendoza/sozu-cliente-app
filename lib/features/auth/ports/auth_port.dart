@@ -99,8 +99,12 @@ abstract interface class AuthPort {
   /// Cambios de sesion: login, cierre y rotacion de token. Emite null al cerrar.
   Stream<AuthSession?> get sessionChanges;
 
-  /// Perfil del usuario autenticado, o null si no hay fila para su identidad.
-  /// No lanza: cualquier fallo se reporta como null.
+  /// Perfil del usuario autenticado, o null si NO hay fila para su identidad.
+  ///
+  /// Lanza [AuthError] si la lectura FALLO (red, RPC caida, sesion revocada).
+  /// "No hay perfil" y "no se pudo leer" llevan a decisiones opuestas y el
+  /// llamador tiene que distinguirlas: con las dos como null, el login cerraba
+  /// la sesion de clientes legitimos y les decia "contrasena incorrecta".
   Future<UserProfile?> profile();
 
   /// Entra con correo y contrasena. Lanza [AuthError] con la causa traducida.

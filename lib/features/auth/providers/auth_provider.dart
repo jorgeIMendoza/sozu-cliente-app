@@ -32,6 +32,21 @@ enum AccessBlock {
   emailNotConfirmed,
 }
 
+/// Desenlace de la ultima lectura del perfil. Son TRES estados, no dos: quien
+/// decide accesos no puede tratar igual "esta cuenta no tiene fila" y "no se
+/// pudo leer".
+enum ProfileLoad {
+  /// Llego fila: [AuthController.profile] no es null.
+  loaded,
+
+  /// El RPC respondio sin filas para esta identidad.
+  notFound,
+
+  /// La lectura fallo (red, RPC caida, sesion revocada). NO es evidencia contra
+  /// la cuenta: nada de cerrar sesion ni apagar la biometria por esto.
+  failed,
+}
+
 /// Texto que se muestra al usuario para cada motivo de bloqueo.
 String accessBlockMessage(AccessBlock reason) => switch (reason) {
   AccessBlock.deactivated =>
@@ -71,6 +86,10 @@ class AuthController extends ChangeNotifier {
   /// confirmar). El router lo lee para llevar a la pantalla que corresponde y
   /// el login para explicar el rechazo. Se limpia al reintentar el acceso.
   AccessBlock? blockedAccess;
+
+  /// Desenlace de la ultima lectura del perfil. Se consulta junto con [profile]:
+  /// `profile == null` a secas no distingue una cuenta sin fila de un RPC caido.
+  ProfileLoad profileLoad = ProfileLoad.notFound;
 
   /// Correo de la cuenta bloqueada. La sesión ya no existe cuando se muestra la
   /// pantalla de confirmación, así que se conserva aquí para poder reenviar el
@@ -120,6 +139,7 @@ class AuthController extends ChangeNotifier {
       }
       if (next == null) {
         profile = null;
+        profileLoad = ProfileLoad.notFound;
         _profileForUserId = null;
         _profileReady = true;
         notifyListeners();
@@ -135,18 +155,30 @@ class AuthController extends ChangeNotifier {
   Future<void> _loadProfileFor(String userId) async {
     _profileReady = false;
     notifyListeners();
-    await refreshProfile();
-    _profileForUserId = userId;
+    final load = await refreshProfile();
+    // Solo se marca como resuelto si de verdad llego el perfil: cachear un
+    // fallo de lectura deja al usuario sin perfil hasta el siguiente login.
+    if (load == ProfileLoad.loaded) _profileForUserId = userId;
     _profileReady = true;
     notifyListeners();
   }
 
-  /// Lee el perfil vía el puerto (rol + flag de cambio de contraseña).
-  Future<UserProfile?> refreshProfile() async {
-    profile = await _port.profile();
+  /// Lee el perfil vía el puerto (rol + flag de cambio de contraseña) y deja el
+  /// desenlace en [profileLoad].
+  ///
+  /// No propaga el fallo: lo reporta como [ProfileLoad.failed] con `profile` en
+  /// null. Quien decide accesos DEBE mirar el desenlace, no solo `profile`.
+  Future<ProfileLoad> refreshProfile() async {
+    try {
+      profile = await _port.profile();
+      profileLoad = profile == null ? ProfileLoad.notFound : ProfileLoad.loaded;
+    } on AuthError {
+      profile = null;
+      profileLoad = ProfileLoad.failed;
+    }
     if (profile != null) _profileForUserId = session?.userId;
     notifyListeners();
-    return profile;
+    return profileLoad;
   }
 
   /// Gate sobre el perfil cargado: cuenta desactivada, luego correo sin
@@ -362,6 +394,7 @@ class AuthController extends ChangeNotifier {
     }
     locked = false;
     profile = null;
+    profileLoad = ProfileLoad.notFound;
     // La sesión se limpia AQUÍ y no solo en el listener: en el arranque en frío
     // el gate puede cerrar la sesión antes de que `_sub` exista, y con `session`
     // desactualizada el router creería que sigue habiendo sesión válida.
@@ -383,6 +416,7 @@ class AuthController extends ChangeNotifier {
       await BiometricService.instance.lock();
       locked = true;
       profile = null;
+      profileLoad = ProfileLoad.notFound;
       _profileForUserId = null;
       notifyListeners();
       return;

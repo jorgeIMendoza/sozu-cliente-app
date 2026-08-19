@@ -48,6 +48,23 @@ class AdminAdapter implements AdminPort {
   Future<AdminClientes> clients() async =>
       AdminClientes.fromJson(await _invoke('admin-clientes'));
 
+  @override
+  Future<AdminClientes> searchClients({
+    required String query,
+    int limit = 50,
+    int offset = 0,
+  }) async => AdminClientes.fromJson(
+    await _invoke(
+      'admin-clientes',
+      body: {
+        'action': 'buscar',
+        'q': query,
+        'limite': limit,
+        'desplazamiento': offset,
+      },
+    ),
+  );
+
   /// Con un backend sin action=propietarios la respuesta trae {clientes} y
   /// esto devuelve lista vacia (degrada sin romperse), como pide el puerto.
   @override

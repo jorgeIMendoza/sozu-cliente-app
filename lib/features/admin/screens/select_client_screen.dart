@@ -37,11 +37,11 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   /// lista entera, y el campo se siente trabado mientras se escribe.
   static const _typingPause = Duration(milliseconds: 350);
 
-  /// Techo de filas pintadas. La lista NO tiene scroll propio (lo da
-  /// [AdminLayout]), asi que el `ListView` va con `shrinkWrap` y construye
-  /// TODAS las filas de golpe: dos letras comunes casan 500+ clientes. Nadie
-  /// recorre 500 resultados, asi que se pintan los primeros y se pide afinar.
-  static const _maxResults = 50;
+  /// Techo de filas pintadas, y tambien lo que se le pide al servidor. La
+  /// lista NO tiene scroll propio (lo da [AdminLayout]), asi que el `ListView`
+  /// va con `shrinkWrap` y construye TODAS las filas de golpe: dos letras
+  /// comunes casan 500+ clientes. Nadie recorre 500 resultados.
+  static const _maxResults = kAdminClientSearchPageSize;
 
   final _search = TextEditingController();
   final _unit = TextEditingController();
@@ -72,9 +72,6 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
     _unit.dispose();
     super.dispose();
   }
-
-  bool get _queryTooShort =>
-      ref.watch(clientFiltersProvider).query.trim().length < _minQueryLength;
 
   bool get _isPropertyFilterActive {
     final f = ref.watch(clientFiltersProvider);
@@ -119,14 +116,18 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
     _filters.clear();
   }
 
-  List<AdminCliente> _filterBy(List<AdminCliente> clients) {
-    final q = ref.read(clientFiltersProvider).query.trim().toLowerCase();
-    if (q.length < _minQueryLength) return const [];
+  /// Filtrado en memoria, SOLO para un backend que todavia no busca (respuesta
+  /// sin `total`). No normaliza acentos a proposito: esa regla vive ahora en
+  /// Postgres y duplicarla aqui es como se desincronizan las reglas. Mientras
+  /// este camino este activo, "Hernandez" no encuentra "Hernández", y eso es
+  /// exactamente lo que arregla desplegar el backend.
+  List<AdminCliente> _filtrarEnMemoria(List<AdminCliente> clients, String q) {
+    final needle = q.toLowerCase();
     return clients
         .where(
           (c) =>
-              c.nombre.toLowerCase().contains(q) ||
-              (c.email ?? '').toLowerCase().contains(q),
+              c.nombre.toLowerCase().contains(needle) ||
+              (c.email ?? '').toLowerCase().contains(needle),
         )
         .toList();
   }
@@ -203,7 +204,6 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   /// El contenido NO trae scroll propio: el de la página lo da [AdminLayout].
   /// Por eso las listas van como `Column` y no como `ListView`.
   Widget _results() {
-    final clients = ref.watch(adminClientsProvider);
     final t = context.s;
 
     // Con el filtro Proyecto + Unidad activo solo se muestran los dueños de esa
@@ -217,57 +217,70 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
       );
     }
 
-    return clients.when(
-      loading: () => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < 4; i++) ...[
-            const _ClientRowSkeleton(),
-            SizedBox(height: t.space.xs),
-          ],
-        ],
-      ),
-      error: (_, __) => SErrorState(
-        title: 'No pudimos cargar la lista de clientes',
-        onRetry: () => ref.invalidate(adminClientsProvider),
-      ),
-      data: (data) {
-        final items = _filterBy(data.clientes);
-        if (_queryTooShort) {
-          return const SEmptyState(
-            icon: Icons.person_search_outlined,
-            title: 'Busca un cliente',
-            message:
-                'Escribe al menos $_minQueryLength letras del nombre o '
-                'correo, o filtra por proyecto y unidad.',
-          );
-        }
-        if (items.isEmpty) {
-          return SEmptyState(
-            icon: Icons.search_off_outlined,
-            title: 'Sin resultados',
-            message:
-                'No encontramos clientes para '
-                '"${ref.read(clientFiltersProvider).query}".',
-          );
-        }
-        // Se corta AQUI y no en `_filterBy`: el total es lo que hace honesta la
-        // nota, y cortando antes no se sabria cuantos quedaron fuera.
-        if (items.length <= _maxResults) {
-          return _ClientList(clients: items, onTap: _viewAs);
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _ClientList(clients: items.sublist(0, _maxResults), onTap: _viewAs),
-            _InlineNote(
-              'Mostrando $_maxResults de ${items.length}. '
-              'Escribe más para afinar la búsqueda.',
-            ),
-          ],
+    // La consulta se lee ANTES de observar la busqueda: por debajo del minimo
+    // no se observa nada, y abrir el selector deja de costar una descarga.
+    final query = ref.watch(clientFiltersProvider).query.trim();
+    if (query.length < _minQueryLength) {
+      return const SEmptyState(
+        icon: Icons.person_search_outlined,
+        title: 'Busca un cliente',
+        message:
+            'Escribe al menos $_minQueryLength letras del nombre o '
+            'correo, o filtra por proyecto y unidad.',
+      );
+    }
+
+    return ref
+        .watch(adminClientSearchProvider(query))
+        .when(
+          loading: () => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < 4; i++) ...[
+                const _ClientRowSkeleton(),
+                SizedBox(height: t.space.xs),
+              ],
+            ],
+          ),
+          error: (_, __) => SErrorState(
+            title: 'No pudimos cargar la lista de clientes',
+            onRetry: () => ref.invalidate(adminClientSearchProvider(query)),
+          ),
+          data: (pagina) {
+            // `total` en null = backend que todavia no busca: mando el padron
+            // entero y el filtrado toca aqui. Con backend nuevo la pagina ya
+            // viene filtrada y acotada, y `sublist` no recorta nada.
+            final coincidencias = pagina.total == null
+                ? _filtrarEnMemoria(pagina.clientes, query)
+                : pagina.clientes;
+            final total = pagina.total ?? coincidencias.length;
+
+            if (coincidencias.isEmpty) {
+              return SEmptyState(
+                icon: Icons.search_off_outlined,
+                title: 'Sin resultados',
+                message: 'No encontramos clientes para "$query".',
+              );
+            }
+
+            final mostrados = coincidencias.length > _maxResults
+                ? coincidencias.sublist(0, _maxResults)
+                : coincidencias;
+            if (mostrados.length >= total) {
+              return _ClientList(clients: mostrados, onTap: _viewAs);
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _ClientList(clients: mostrados, onTap: _viewAs),
+                _InlineNote(
+                  'Mostrando ${mostrados.length} de $total. '
+                  'Escribe más para afinar la búsqueda.',
+                ),
+              ],
+            );
+          },
         );
-      },
-    );
   }
 
   /// Sección "Copropietarios (N)" / "Dueño de la propiedad", solo cuando el

@@ -10,6 +10,18 @@ abstract interface class AdminPort {
   /// Clientes disponibles para el selector de impersonacion.
   Future<AdminClientes> clients();
 
+  /// Padron impersonable buscado EN EL SERVIDOR: ignora acentos y devuelve una
+  /// pagina mas el total de coincidencias.
+  ///
+  /// Contra un backend que todavia no la soporta cae a la lista completa y
+  /// `AdminClientes.total` llega en `null`; quien llama filtra entonces en
+  /// memoria. Por eso no hace falta desplegar app y backend a la vez.
+  Future<AdminClientes> searchClients({
+    required String query,
+    int limit,
+    int offset,
+  });
+
   /// Duenos y copropietarios de una unidad, para el filtro "Ver como".
   /// Lista vacia si el backend todavia no soporta la consulta.
   Future<List<AdminCliente>> owners({
