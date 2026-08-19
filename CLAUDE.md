@@ -524,6 +524,24 @@ dos a la vez, y las cosas que se olvidan).
                    {if(n>10) print F":"s"  ("n" lineas)"; n=0}' $f
   done
   ```
+- **Fuera de Dart la regla NO es la misma, y a proposito.** El filtro de fondo
+  se mantiene -si el comentario repite lo que el codigo dice, sobra- pero el
+  limite de 1-3 lineas es de dartdoc y no aplica igual:
+
+  | Sitio | Cabecera | Cuerpo |
+  |---|---|---|
+  | `tool/*.sh` | LARGA y obligatoria: **es el `--help`** | como en Dart |
+  | `codemagic.yaml`, `.github/workflows/` | larga: el pipeline no se deduce leyendolo | como en Dart |
+  | `ios/`, `android/` | NO se documentan: son generados | solo lo que agregamos nosotros |
+
+  WARN: **no recortes la cabecera de un script.** `check.sh --help` imprime
+  literalmente sus lineas 2-17 (`sed -n '2,17p' "$0"`) y `apk.sh` las 2-10.
+  Podarlas no es limpiar: rompe el `--help`. Si cambia el uso, se cambian las
+  dos cosas a la vez.
+
+  En `ios/` y `android/` casi todo lleva "Generated file. Do not edit.": no se
+  toca ni se comenta. Lo unico nuestro son los entitlements, `Info.plist` y el
+  `build.gradle`, y ahi vale el mismo criterio que en Dart.
 - **CERO emoji en el repo**, salvo los del diccionario. Ni en comentarios, ni en
   dartdoc, ni en READMEs, ni en la salida de `tool/*.sh`, ni en los workflows.
   En su lugar, etiqueta en MAYUSCULAS al principio: `WARN:`, `ERROR:`, `INFO:`,
