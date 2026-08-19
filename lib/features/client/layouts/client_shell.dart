@@ -617,29 +617,27 @@ class ImpersonationBanner extends ConsumerWidget {
         child: Padding(
           padding: EdgeInsets.symmetric(
             horizontal: t.space.md,
-            vertical: t.space.xs,
+            vertical: t.space.xxs,
           ),
           child: Row(
             children: [
-              Icon(Icons.visibility_outlined, size: 18, color: c.primaryHover),
-              SizedBox(width: t.space.xs),
+              Icon(Icons.visibility_outlined, size: 14, color: c.fgMuted),
+              SizedBox(width: t.space.xxs),
               Expanded(
                 child: Text(
                   'Viendo como: $nombre',
                   overflow: TextOverflow.ellipsis,
-                  style: t.text.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: c.primaryHover,
-                  ),
+                  style: t.text.caption.copyWith(color: c.fgMuted),
                 ),
               ),
               SButton.link(
                 label: 'Cambiar cliente',
+                size: SButtonSize.sm,
                 onPressed: () => context.go('/seleccionar-cliente'),
               ),
-              SizedBox(width: t.space.xs),
               SButton.link(
                 label: 'Salir',
+                size: SButtonSize.sm,
                 onPressed: () => ref.read(impersonationProvider).clear(),
               ),
             ],
