@@ -4,10 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
-import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
-import 'package:sozu_cliente_app/features/client/providers/client_providers.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/app_download/components/app_download.dart';
 import 'package:sozu_cliente_app/features/client/home/components/notification_bell.dart';
@@ -209,66 +207,21 @@ class _PortalSidebar extends ConsumerWidget {
 
   const _PortalSidebar({required this.currentPath});
 
-  Future<void> _confirmarSalir(BuildContext context, WidgetRef ref) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cerrar sesión'),
-        content: const Text('¿Seguro que quieres salir?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Cerrar sesión',
-              style: TextStyle(color: PortalColors.destructive),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) {
-      // Igual que el perfil: con biometría solo bloquea; si no, signOut real.
-      await ref.read(authProvider).lockOrSignOut();
-      // Limpia la impersonación y la caché de datos del cliente para que la
-      // próxima sesión (otro cliente) no herede el resumen/perfil del anterior.
-      ref.read(impersonationProvider).clear();
-      invalidateAllData(ref);
-      if (context.mounted) context.go('/login');
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authProvider);
-    final imp = ref.watch(impersonationProvider);
-    final impersonando = auth.isSuperAdmin && imp.active;
     final noLeidas =
         ref.watch(notificationsProvider).valueOrNull?.noLeidas ?? 0;
-    final nombre =
-        auth.profile?.displayName ?? auth.profile?.email ?? 'Usuario';
     const navItems = _portalNavItems;
 
     return Container(
-      width: kPortalSidebarWidth,
-      decoration: const BoxDecoration(
-        color: PortalColors.surface,
-        border: Border(right: BorderSide(color: PortalColors.border, width: 1)),
-      ),
+      width: kSozuSidebarWidth,
+      color: PortalColors.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ---- Brand: logo + "PORTAL DEL CLIENTE" ----
           Container(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-            decoration: const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: PortalColors.borderSoft, width: 1),
-              ),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -309,101 +262,6 @@ class _PortalSidebar extends ConsumerWidget {
                     ),
                 ],
               ),
-            ),
-          ),
-          // ---- Footer: usuario + acciones + versión ----
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-            decoration: const BoxDecoration(
-              border: Border(
-                top: BorderSide(color: PortalColors.borderSoft, width: 1),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (impersonando) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: PortalColors.primarySoft6,
-                      borderRadius: BorderRadius.circular(kPortalRadiusSm),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.visibility_outlined,
-                          size: 14,
-                          color: PortalColors.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Viendo como: ${imp.clientName ?? 'Cliente'}',
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: PortalColors.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 4),
-                _SidebarProfileButton(
-                  nombre: nombre,
-                  rol: auth.profile?.roleName ?? 'Cliente',
-                  onTap: () => context.go('/perfil'),
-                ),
-                const SizedBox(height: 4),
-                if (impersonando)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _FooterActionButton(
-                          icon: Icons.arrow_back,
-                          label: 'Regresar',
-                          destructive: false,
-                          // Limpiar la impersonación regresa al selector.
-                          onTap: () => ref.read(impersonationProvider).clear(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _FooterActionButton(
-                          icon: Icons.logout,
-                          label: 'Cerrar sesión',
-                          destructive: true,
-                          onTap: () => _confirmarSalir(context, ref),
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  _FooterActionButton(
-                    icon: Icons.logout,
-                    label: 'Cerrar sesión',
-                    destructive: true,
-                    onTap: () => _confirmarSalir(context, ref),
-                  ),
-                const SizedBox(height: 8),
-                Text(
-                  appVersionLabel,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontFamily: 'monospace',
-                    color: PortalColors.mutedForeground.withValues(alpha: .4),
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -744,72 +602,45 @@ class _PortalAvatar extends StatelessWidget {
 }
 
 class ImpersonationBanner extends ConsumerWidget {
-  final String nombre;
+  const ImpersonationBanner({super.key, required this.nombre});
 
-  const ImpersonationBanner({required this.nombre});
+  final String nombre;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tone = context.s.color;
-    final admin = ref.watch(authProvider).profile;
-    final adminNombre = admin?.displayName ?? admin?.email ?? '';
+    final t = context.s;
+    final c = t.color;
     return Material(
-      color: tone.primarySoft,
+      color: c.primarySoft,
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: EdgeInsets.symmetric(
+            horizontal: t.space.md,
+            vertical: t.space.xs,
+          ),
           child: Row(
             children: [
-              Icon(
-                Icons.admin_panel_settings_outlined,
-                size: 18,
-                color: tone.primaryHover,
-              ),
-              const SizedBox(width: 8),
+              Icon(Icons.visibility_outlined, size: 18, color: c.primaryHover),
+              SizedBox(width: t.space.xs),
               Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text:
-                            'Super admin'
-                            '${adminNombre.isEmpty ? '' : ' ($adminNombre)'}',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const TextSpan(text: '  ·  '),
-                      TextSpan(text: 'Viendo como: $nombre'),
-                    ],
-                  ),
+                child: Text(
+                  'Viendo como: $nombre',
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: t.text.bodySmall.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: tone.primaryHover,
+                    color: c.primaryHover,
                   ),
                 ),
               ),
-              TextButton(
+              SButton.link(
+                label: 'Cambiar cliente',
                 onPressed: () => context.go('/seleccionar-cliente'),
-                child: Text(
-                  'Cambiar cliente',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: tone.primaryHover,
-                  ),
-                ),
               ),
-              TextButton(
+              SizedBox(width: t.space.xs),
+              SButton.link(
+                label: 'Salir',
                 onPressed: () => ref.read(impersonationProvider).clear(),
-                child: Text(
-                  'Salir',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: tone.primaryHover,
-                  ),
-                ),
               ),
             ],
           ),

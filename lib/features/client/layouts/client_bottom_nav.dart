@@ -199,6 +199,3 @@ class _NavBarItem extends StatelessWidget {
     );
   }
 }
-
-/// Franja de impersonación: "Super admin {admin} · Viendo como: {cliente}"
-/// + cambiar / salir.
