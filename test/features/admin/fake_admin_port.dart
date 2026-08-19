@@ -15,6 +15,13 @@ class FakeAdminPort implements AdminPort {
   /// marca cancelado.
   final List<AvisoApp> storedAnnouncements = [];
 
+  /// Clientes que devuelve [clients]. Se sobreescribe para probar listas
+  /// largas (el selector corta la lista pintada a partir de cierto tamano).
+  List<Map<String, dynamic>> storedClients = [
+    {'id_persona': 7, 'nombre': 'Alex Hernández', 'email': 'alex@x.com'},
+    {'id_persona': 8, 'nombre': 'Bruno Pérez', 'email': 'bruno@x.com'},
+  ];
+
   String storedAnimation = 'gol';
   int _nextId = 1;
 
@@ -31,12 +38,7 @@ class FakeAdminPort implements AdminPort {
   @override
   Future<AdminClientes> clients() async {
     _throwIfFailing('clients');
-    return AdminClientes.fromJson({
-      'clientes': [
-        {'id_persona': 7, 'nombre': 'Alex Hernández', 'email': 'alex@x.com'},
-        {'id_persona': 8, 'nombre': 'Bruno Pérez', 'email': 'bruno@x.com'},
-      ],
-    });
+    return AdminClientes.fromJson({'clientes': storedClients});
   }
 
   @override

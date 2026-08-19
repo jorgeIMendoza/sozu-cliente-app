@@ -37,6 +37,12 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   /// lista entera, y el campo se siente trabado mientras se escribe.
   static const _typingPause = Duration(milliseconds: 350);
 
+  /// Techo de filas pintadas. La lista NO tiene scroll propio (lo da
+  /// [AdminLayout]), asi que el `ListView` va con `shrinkWrap` y construye
+  /// TODAS las filas de golpe: dos letras comunes casan 500+ clientes. Nadie
+  /// recorre 500 resultados, asi que se pintan los primeros y se pide afinar.
+  static const _maxResults = 50;
+
   final _search = TextEditingController();
   final _unit = TextEditingController();
 
@@ -245,7 +251,21 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
                 '"${ref.read(clientFiltersProvider).query}".',
           );
         }
-        return _ClientList(clients: items, onTap: _viewAs);
+        // Se corta AQUI y no en `_filterBy`: el total es lo que hace honesta la
+        // nota, y cortando antes no se sabria cuantos quedaron fuera.
+        if (items.length <= _maxResults) {
+          return _ClientList(clients: items, onTap: _viewAs);
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _ClientList(clients: items.sublist(0, _maxResults), onTap: _viewAs),
+            _InlineNote(
+              'Mostrando $_maxResults de ${items.length}. '
+              'Escribe más para afinar la búsqueda.',
+            ),
+          ],
+        );
       },
     );
   }

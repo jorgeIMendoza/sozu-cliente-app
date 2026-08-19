@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sozu_cliente_app/features/admin/components/client_row.dart';
 import 'package:sozu_cliente_app/features/admin/providers/admin_providers.dart';
 import 'package:sozu_cliente_app/features/admin/providers/client_filters_provider.dart';
 import 'package:sozu_cliente_app/features/admin/screens/select_client_screen.dart';
@@ -29,7 +30,7 @@ void main() {
   late ProviderContainer container;
   late GoRouter router;
 
-  Future<void> pump(WidgetTester tester) async {
+  Future<void> pump(WidgetTester tester, {FakeAdminPort? port}) async {
     tester.view.physicalSize = const Size(1280, 1400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -37,7 +38,7 @@ void main() {
     container = ProviderContainer(
       overrides: [
         authPortProvider.overrideWithValue(FakeAuthPort()),
-        adminPortProvider.overrideWithValue(FakeAdminPort()),
+        adminPortProvider.overrideWithValue(port ?? FakeAdminPort()),
       ],
     );
     addTearDown(container.dispose);
@@ -167,5 +168,33 @@ void main() {
     await tester.pump();
     expect(container.read(clientFiltersProvider).query, '');
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('con cientos de coincidencias solo pinta las primeras', (
+    tester,
+  ) async {
+    // La lista no tiene scroll propio (lo da AdminLayout), asi que el ListView
+    // va con shrinkWrap y construye TODAS las filas: dos letras comunes casan
+    // 500+ clientes en produccion y la pantalla se traba.
+    final port = FakeAdminPort()
+      ..storedClients = [
+        for (var i = 0; i < 60; i++)
+          {
+            'id_persona': i,
+            'nombre': 'Cliente Marino $i',
+            'email': 'marino$i@x.com',
+          },
+      ];
+    await pump(tester, port: port);
+
+    await tester.enterText(find.byType(TextField).last, 'marino');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ClientRow), findsNWidgets(50));
+    expect(
+      find.text('Mostrando 50 de 60. Escribe más para afinar la búsqueda.'),
+      findsOneWidget,
+    );
   });
 }
