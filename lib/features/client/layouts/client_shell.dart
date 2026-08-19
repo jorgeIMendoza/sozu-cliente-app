@@ -601,13 +601,13 @@ class _PortalAvatar extends StatelessWidget {
   }
 }
 
-class ImpersonationBanner extends ConsumerWidget {
+class ImpersonationBanner extends StatelessWidget {
   const ImpersonationBanner({super.key, required this.nombre});
 
   final String nombre;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final t = context.s;
     final c = t.color;
     return Material(
@@ -630,15 +630,26 @@ class ImpersonationBanner extends ConsumerWidget {
                   style: t.text.caption.copyWith(color: c.fgMuted),
                 ),
               ),
-              SButton.link(
-                label: 'Cambiar cliente',
-                size: SButtonSize.sm,
-                onPressed: () => context.go('/seleccionar-cliente'),
-              ),
-              SButton.link(
-                label: 'Salir',
-                size: SButtonSize.sm,
-                onPressed: () => ref.read(impersonationProvider).clear(),
+              // `SPressable` y no `SButton.link`: hasta en `sm` el enlace usa
+              // `bodySmall`, mas grande que el `caption` de al lado. Aqui hace
+              // falta que los dos midan igual.
+              SPressable(
+                onTap: () => context.go('/seleccionar-cliente'),
+                semanticLabel: 'Cambiar de cliente',
+                borderRadius: t.radius.smBorder,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: t.space.xs,
+                    vertical: t.space.xxs,
+                  ),
+                  child: Text(
+                    'Cambiar cliente',
+                    style: t.text.caption.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: c.primaryHover,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
