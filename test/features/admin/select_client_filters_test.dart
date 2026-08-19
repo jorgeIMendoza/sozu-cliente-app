@@ -135,4 +135,37 @@ void main() {
 
     expect(container.read(clientFiltersProvider).isDirty, isFalse);
   });
+
+  testWidgets('la busqueda espera a que dejes de escribir', (tester) async {
+    // Sin debounce cada tecla filtraba los 600+ clientes y reconstruia la lista
+    // entera, y el campo se sentia trabado mientras se escribia.
+    await pump(tester);
+
+    await tester.enterText(find.byType(TextField).last, 'ale');
+    // `pumpAndSettle` NO sirve para esperar el debounce: adelanta el reloj solo
+    // mientras haya frames agendados, y un `Timer` pelado no agenda ninguno.
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(container.read(clientFiltersProvider).query, '');
+
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(container.read(clientFiltersProvider).query, 'ale');
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('la X del buscador limpia sin esperar el debounce', (
+    tester,
+  ) async {
+    // El usuario ya decidio: esperar la pausa solo deja la lista vieja en
+    // pantalla un rato mas.
+    await pump(tester);
+    await tester.enterText(find.byType(TextField).last, 'alex');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(container.read(clientFiltersProvider).query, 'alex');
+
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.clear));
+    await tester.pump();
+    expect(container.read(clientFiltersProvider).query, '');
+    await tester.pumpAndSettle();
+  });
 }

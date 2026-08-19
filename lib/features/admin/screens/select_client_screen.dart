@@ -32,9 +32,18 @@ class SelectClientScreen extends ConsumerStatefulWidget {
 class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   static const _minQueryLength = 2;
 
+  /// Cuanto se espera a que el usuario deje de teclear antes de tocar el store.
+  /// Sin esto cada letra vuelve a filtrar los 600+ clientes y reconstruye la
+  /// lista entera, y el campo se siente trabado mientras se escribe.
+  static const _typingPause = Duration(milliseconds: 350);
+
   final _search = TextEditingController();
   final _unit = TextEditingController();
-  Timer? _debounce;
+
+  /// Un temporizador por campo: con uno solo, teclear en Unidad cancelaba el
+  /// debounce pendiente de Cliente y esa busqueda no llegaba a ejecutarse.
+  Timer? _queryDebounce;
+  Timer? _unitDebounce;
 
   /// Los filtros viven en `clientFiltersProvider`, no aquí: así sobreviven a
   /// salir del selector y volver. Los `TextEditingController` SÍ son locales
@@ -51,7 +60,8 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    _queryDebounce?.cancel();
+    _unitDebounce?.cancel();
     _search.dispose();
     _unit.dispose();
     super.dispose();
@@ -65,15 +75,30 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
     return f.projectId != null && f.unit.isNotEmpty;
   }
 
+  void _onQueryChanged(String v) {
+    _queryDebounce?.cancel();
+    _queryDebounce = Timer(_typingPause, () {
+      if (mounted) _filters.setQuery(v);
+    });
+  }
+
+  /// Vaciar es inmediato: el usuario ya decidio, esperar el debounce solo deja
+  /// la lista vieja en pantalla un rato mas.
+  void _clearQuery() {
+    _queryDebounce?.cancel();
+    _search.clear();
+    _filters.setQuery('');
+  }
+
   void _onUnitChanged(String v) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () {
+    _unitDebounce?.cancel();
+    _unitDebounce = Timer(_typingPause, () {
       if (mounted) _filters.setUnit(v.trim());
     });
   }
 
   void _clearUnit() {
-    _debounce?.cancel();
+    _unitDebounce?.cancel();
     _unit.clear();
     _filters.setUnit('');
   }
@@ -81,7 +106,8 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   /// Botón global: deja los tres filtros en blanco de un toque. Antes había que
   /// vaciar el buscador, quitar el proyecto y borrar la unidad por separado.
   void _clearAll() {
-    _debounce?.cancel();
+    _queryDebounce?.cancel();
+    _unitDebounce?.cancel();
     _search.clear();
     _unit.clear();
     _filters.clear();
@@ -151,7 +177,8 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
             onUnitChanged: _onUnitChanged,
             onUnitCleared: _clearUnit,
             searchController: _search,
-            onQueryChanged: filtros.setQuery,
+            onQueryChanged: _onQueryChanged,
+            onQueryCleared: _clearQuery,
             // Solo cuando hay algo puesto: un "Limpiar" permanente sobre un
             // formulario vacio es ruido, y ensena a ignorarlo.
             onClearAll: filtros.isDirty ? _clearAll : null,
@@ -300,6 +327,9 @@ class _FiltersPanel extends StatelessWidget {
   final TextEditingController searchController;
   final ValueChanged<String> onQueryChanged;
 
+  /// La X del buscador: no pasa por el debounce de [onQueryChanged].
+  final VoidCallback onQueryCleared;
+
   /// null = no hay nada que limpiar, y el boton no se pinta.
   final VoidCallback? onClearAll;
 
@@ -312,6 +342,7 @@ class _FiltersPanel extends StatelessWidget {
     required this.onUnitCleared,
     required this.searchController,
     required this.onQueryChanged,
+    required this.onQueryCleared,
     required this.onClearAll,
   });
 
@@ -342,6 +373,7 @@ class _FiltersPanel extends StatelessWidget {
             // media pantalla antes de que el usuario pida escribir.
             autofocus: context.bp.isDesktop,
             onChanged: onQueryChanged,
+            onCleared: onQueryCleared,
           ),
           if (onClearAll != null) ...[
             SizedBox(height: t.space.xs),
