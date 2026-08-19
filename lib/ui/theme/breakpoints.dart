@@ -42,8 +42,10 @@ const double kSozuDesktopMin = 1024;
 // Medidas del shell ancho
 // ---------------------------------------------------------------------------
 
-/// Ancho de la sidebar fija (`w-64`).
-const double kSozuSidebarWidth = 256;
+/// Ancho de la barra lateral fija (`w-60`). Entre los 256 originales, que le
+/// robaban aire a la columna de contenido, y los 224 que dejaban las etiquetas
+/// apretadas contra el borde.
+const double kSozuSidebarWidth = 240;
 
 /// Alto de la topbar (`h-16`).
 const double kSozuTopBarHeight = 64;

@@ -1,6 +1,6 @@
 # Estado de la migración
 
-Última actualización: 2026-08-17. Rama `dev-eddy`, sincronizada con `dev`.
+Última actualización: 2026-08-18. Rama `dev-eddy`, sincronizada con `dev`.
 
 Documento de traspaso: qué está hecho, qué sigue y qué decisiones esperan a
 Eduardo. El "por qué" de cada cosa está en los mensajes de commit y en
@@ -16,17 +16,19 @@ leerlo no cuadran, gana el grep.
 
 | | |
 |---|---|
-| Design system | `lib/ui/` con 5 ejes de token (color, tipografía, espaciado, radio, movimiento) y 25 primitivas exportadas |
+| Design system | `lib/ui/` con 5 ejes de token (color, tipografía, espaciado, radio, movimiento) y 26 primitivas exportadas, más `SozuEmoji` |
+| Reglas escritas | dartdoc conciso, cero emoji y nombres por alcance, las tres con su grep en `CLAUDE.md` |
 | Temas | exactamente 2: `SozuColorRoles.light` / `.dark` |
 | Features cerradas | `auth` y `admin` - 0 legacy, auditadas. `auth` es la plantilla |
+| Shell del cliente | UNO solo (`ClientShell`), decide por ancho y no por plataforma |
 | Pantallas de `auth` | las 5 son composición pura: 0 `setState`, ninguna pasa de 100 líneas |
 | Puertos y adaptadores | 8 features con `ports/` + `adapters/`; 0 fugas de vendor fuera de un adaptador salvo `core/portal_tracking.dart` |
-| Tests | 0 → 437, en 55 archivos. Las 5 pantallas de `auth` tienen cobertura |
+| Tests | 0 → 493, en 64 archivos. Las 5 pantallas de `auth` y las 2 de `admin` tienen cobertura |
 | Alias eliminados | `SozuColors`, `SozuTone`, `AuthColors`, `widgets/common.dart` - borrados, no deprecados |
 | Pares móvil/web | 5 de 6 fusionados (ver abajo). `AppCard`, `SectionTitle`, `EmptyCard`, `SozuProgressBar`, `StatusBadge`: 0 usos |
 | Imports | 100% `package:` en `lib/`, lint que lo obliga |
 | Guiones largos | 0 en lib, test, docs, yaml |
-| `flutter analyze` | 0 errores, 0 warnings. 684 infos, **todos** `PortalColors` deprecado |
+| `flutter analyze` | 0 errores, 0 warnings. 674 infos, **todos** `PortalColors` deprecado |
 | Android en físico | funciona (Temurin 21 + SDK 36 + puente de adb) |
 
 `lib/screens/` y `lib/providers/` ya no existen. `lib/widgets/` es lo que queda
@@ -47,7 +49,7 @@ Conteo por feature de los 6 patrones legacy (`PortalColors`, `isPortalMode`,
 | `features/client/facturacion` | 1 | |
 | `features/client/referral` | 1 | |
 | `features/client/expediente` | 2 | lo más nuevo; nació con el patrón |
-| `features/client/layouts` | 91 | |
+| `features/client/layouts` | 62 | el shell ya unificado; le quedan 26 `PortalColors` | |
 | `features/client/products` | 91 | |
 | `features/client/profile` | 104 | |
 | `features/client/home` | 118 | |
@@ -55,8 +57,8 @@ Conteo por feature de los 6 patrones legacy (`PortalColors`, `isPortalMode`,
 | `lib/widgets` (legacy) | 83 | |
 | `lib/core` | 3 | `portal_theme` + `portal_tracking` |
 
-Totales absolutos: **`PortalColors` 605 referencias**, **`isPortalMode` 34 usos
-en 28 archivos**.
+Totales absolutos: **`PortalColors` ~580 referencias**, **`isPortalMode` 31
+usos**.
 
 ### La deuda que la auditoría vieja no contaba
 
@@ -100,6 +102,19 @@ por qué esa columna manda:
 
 ## Lo que sigue, en orden
 
+### 0. EMPEZAR AQUI: el color del shell del cliente  (acotado, alto impacto)
+
+`features/client/layouts/client_shell.dart` tiene **26 `PortalColors`** y un
+`Theme(data: sozuLightTheme())` en `_ConSidebar`. Al migrarlos y quitar ese
+`Theme`, **todo el marco** -barra lateral, superior e inferior- responde al
+tema del usuario.
+
+Es el punto de entrada correcto porque el shell ya esta unificado: era codigo
+repartido en tres widgets y ahora es uno solo, asi que se migra una vez.
+
+Despues caen los otros tres `Theme` de deuda (ver 4b). Las pantallas van
+detras, por feature, de menor a mayor.
+
 ### 1. Cerrar `features/client/expediente`, `facturacion` y `referral`  (chico)
 
 Con el grep completo suman **22 hits**: 4 de `isPortalMode` y 18 de espaciado
@@ -124,7 +139,8 @@ Ya NO es una paleta paralela: cada constante apunta a la rampa unificada y hay
 tests que lo garantizan. Lo que queda es un segundo nombre para lo mismo.
 
 Al llegar a 0:
-- se borra `PortalLightLock` de `main.dart` y el modo oscuro queda global;
+- caen los cuatro `Theme(sozuLightTheme())` de deuda (ver 4b) y el oscuro queda
+  global; `LightThemeLock` se queda, que es el candado legitimo del acceso;
 - se quita `--no-fatal-infos` de los tres sitios (`tool/check.sh`,
   `.github/workflows/deploy-web-firebase.yml`, `codemagic.yaml`);
 - `core/portal_theme.dart` desaparece.
@@ -143,6 +159,22 @@ auditoría. `properties` al final.
 Cerrado desde la revisión anterior: `s_search_field` y `s_autocomplete_field` ya
 componen sobre `STextField`, no sobre un `TextField` con `InputDecoration`. Los
 tres campos de texto de la app se ven iguales.
+
+### 4b. El modo oscuro NO se desbloquea solo migrando `PortalColors`
+
+Hay **cuatro `Theme(data: sozuLightTheme())` explícitos** que lo pisan aunque
+los tokens estén migrados:
+
+| Archivo | Veredicto |
+|---|---|
+| `features/client/layouts/client_shell.dart` | deuda: cae al migrar los 34 `PortalColors` del shell |
+| `client/properties/screens/pagar_screen.dart` | deuda |
+| `client/properties/screens/pago_final_screen.dart` | deuda |
+| `client/properties/components/credito_hipotecario_drawer.dart` | deuda |
+| `features/auth/layouts/auth_layout.dart` | CORRECTO: el acceso va claro a propósito |
+
+`LightThemeLock` (antes `AuthAreaLightLock`, en `shared/components/`) es el
+único candado legítimo: fuerza claro mientras el usuario no ha entrado.
 
 ### 5. `core/portal_tracking.dart` usa el vendor fuera de un adaptador
 

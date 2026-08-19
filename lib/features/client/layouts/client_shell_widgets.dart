@@ -27,11 +27,11 @@ String _initialsOf(String? nombre) {
 }
 
 /// Avatar circular con las iniciales del nombre.
-class PortalAvatarCircle extends StatelessWidget {
+class ClientAvatarCircle extends StatelessWidget {
   final String? nombre;
   final double size;
 
-  const PortalAvatarCircle({super.key, required this.nombre, this.size = 32});
+  const ClientAvatarCircle({super.key, required this.nombre, this.size = 32});
 
   @override
   Widget build(BuildContext context) {
@@ -62,14 +62,14 @@ class PortalAvatarCircle extends StatelessWidget {
 /// Campo de búsqueda de la topbar. Con ≥2 caracteres despliega hasta 4
 /// propiedades (filtro client-side sobre [propertiesProvider]) más los atajos
 /// "Mi expediente" e "Historial de pagos".
-class PortalTopBarSearch extends ConsumerStatefulWidget {
-  const PortalTopBarSearch({super.key});
+class ClientTopBarSearch extends ConsumerStatefulWidget {
+  const ClientTopBarSearch({super.key});
 
   @override
-  ConsumerState<PortalTopBarSearch> createState() => _PortalTopBarSearchState();
+  ConsumerState<ClientTopBarSearch> createState() => _PortalTopBarSearchState();
 }
 
-class _PortalTopBarSearchState extends ConsumerState<PortalTopBarSearch> {
+class _PortalTopBarSearchState extends ConsumerState<ClientTopBarSearch> {
   static const double _kWidth = 260;
 
   final TextEditingController _controller = TextEditingController();
@@ -338,16 +338,16 @@ class _SearchResultRowState extends State<_SearchResultRow> {
 
 /// Avatar de la topbar con popover: nombre, rol, teléfono ([profileProvider]),
 /// "Ver perfil" y "Cerrar sesión".
-class PortalTopBarAvatarMenu extends ConsumerStatefulWidget {
-  const PortalTopBarAvatarMenu({super.key});
+class ClientTopBarAvatarMenu extends ConsumerStatefulWidget {
+  const ClientTopBarAvatarMenu({super.key});
 
   @override
-  ConsumerState<PortalTopBarAvatarMenu> createState() =>
+  ConsumerState<ClientTopBarAvatarMenu> createState() =>
       _PortalTopBarAvatarMenuState();
 }
 
 class _PortalTopBarAvatarMenuState
-    extends ConsumerState<PortalTopBarAvatarMenu> {
+    extends ConsumerState<ClientTopBarAvatarMenu> {
   final LayerLink _link = LayerLink();
   final OverlayPortalController _overlay = OverlayPortalController();
 
@@ -403,7 +403,7 @@ class _PortalTopBarAvatarMenuState
         child: InkWell(
           onTap: _overlay.toggle,
           borderRadius: BorderRadius.circular(999),
-          child: PortalAvatarCircle(nombre: nombre, size: 32),
+          child: ClientAvatarCircle(nombre: nombre, size: 32),
         ),
       ),
     );
@@ -467,7 +467,7 @@ class _PortalTopBarAvatarMenuState
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          PortalAvatarCircle(nombre: nombre, size: 36),
+                          ClientAvatarCircle(nombre: nombre, size: 36),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(

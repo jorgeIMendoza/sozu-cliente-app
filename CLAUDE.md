@@ -267,6 +267,37 @@ superficie de marca, verde en los dos temas a propósito) y `_kPrimarySoft` en
 `auth_layout.dart`, que vive dentro de un `const BoxDecoration` y por la trampa
 del `const` no puede leer `context.s`. Cualquier otro uso es deuda.
 
+## Nombres: el alcance manda
+Un nombre dice QUE es y DONDE vive. Si el archivo esta fuera de una feature, su
+nombre no puede llevar el prefijo de una.
+
+| Capa | Puede llevar prefijo de feature | Convencion |
+|---|---|---|
+| `ui/` | NO | primitivas `s_*.dart` / `S*`; tokens `Sozu*` |
+| `core/` | NO | por su funcion: `format`, `version`, `push_service` |
+| `shared/` | NO | por su rol: `LightThemeLock`, `ThemeModeButton` |
+| `features/<f>/` | SI | `ClientShell`, `AdminLayout`, `AuthPort` |
+| `tool/`, raiz | NO | por lo que hacen: `check.sh`, `dev.sh`, `apk.sh` |
+
+- **El nombre del archivo y su clase principal se corresponden.** Si el archivo
+  se llama `portal_shell.dart` y dentro vive `ClientShell`, uno de los dos
+  miente. Al renombrar una clase se renombra el archivo en el mismo commit.
+- **PROHIBIDO el vendor** (ver seccion de puertos): ni `supabase` ni ningun
+  proveedor en archivos, clases ni identificadores.
+- **Un nombre global no se ata a quien lo usa hoy.** `LightThemeLock` se llamo
+  `AuthAreaLightLock` y vivia en `main.dart`: el prefijo hacia pensar que era de
+  `auth` y no lo es, y el nombre no decia que cambia el TEMA, que es lo unico
+  que hace.
+
+WARN: **"Portal" significa DOS cosas y solo una es correcta.**
+- El PRODUCTO ("Portal del Cliente"): `PortalAccess`, `PortalTracking`, el
+  titulo del `MaterialApp`. Correcto, se queda.
+- El MODO legacy de web ancha: `isPortalMode`, `_PortalAwareFrame`,
+  `PortalColors`. Es deuda y cae con la migracion; **nada nuevo se llama asi**.
+
+En `features/client/` el prefijo correcto es `Client*` (`ClientShell`,
+`ClientBottomNav`, `ClientTopBar`), no `Portal*`.
+
 ## Imports: SIEMPRE `package:`
 ```dart
 import 'package:sozu_cliente_app/ui/ui.dart';   // OK: el equivalente de @/ui en TS
@@ -518,11 +549,17 @@ dos a la vez, y las cosas que se olvidan).
   Única excepción: estas dos líneas, que tienen que nombrar los caracteres.
   Verificar antes de commitear:
   ```bash
-  grep -rP '[\x{2014}\x{2013}]' --include="*.dart" --include="*.md" \
-       --include="*.yaml" --include="*.html" lib test docs *.md *.yaml \
-    | grep -v '^CLAUDE.md'
+  grep -rlP '[\x{2014}\x{2013}]' . \
+       --exclude-dir=.git --exclude-dir=build --exclude-dir=.dart_tool \
+    | grep -v 'CLAUDE.md'
   ```
   Debe salir vacío.
+
+  WARN: **barrer el repo entero, no una lista de extensiones.** El grep anterior
+  nombraba `*.dart`, `*.md`, `*.yaml` y `*.html` sobre `lib test docs`, así que
+  no miraba `.yml` (los workflows son `.yml`, no `.yaml`), ni `.github/`, ni
+  `tool/`, ni `.js`. Tres guiones largos entraron por ahí desde `dev` sin que
+  nada los viera.
 - La versión WEB debe ser RESPONSIVE (móvil/tablet/desktop): contenido con
   max-width centrado en pantallas anchas (WebFrame), FittedBox/Wrap para
   cifras. Probar en Chrome ancho + ventana angosta + iPhone Safari.

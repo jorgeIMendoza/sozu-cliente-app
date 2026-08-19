@@ -72,6 +72,37 @@ void main() {
     expect(isPreviewBuild, isTrue);
   });
 
+  testWidgets('no deja el inset superior para que otro lo sume otra vez', (
+    tester,
+  ) async {
+    // Con el cintillo puesto, el hijo NO debe volver a ver el inset del status
+    // bar: si lo ve, cualquier `SafeArea` de mas abajo (la franja de "Viendo
+    // como") lo suma otra vez y queda caida a media pantalla.
+    tester.view.physicalSize = const Size(390, 900);
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.padding = const FakeViewPadding(top: 48);
+    addTearDown(tester.view.reset);
+
+    late EdgeInsets vistoPorElHijo;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: sozuLightTheme(),
+        builder: (context, child) =>
+            SozuAdaptiveTokens(child: child ?? const SizedBox()),
+        home: PreviewBanner(
+          child: Builder(
+            builder: (context) {
+              vistoPorElHijo = MediaQuery.paddingOf(context);
+              return const SizedBox();
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(vistoPorElHijo.top, 0);
+  });
+
   test('HIDE_PREVIEW esta apagado salvo que se pida', () {
     // Es la unica defensa contra que la bandera se quede pegada en un pipeline:
     // un build de preview SIN cintillo se ve igual que produccion, y ahi es

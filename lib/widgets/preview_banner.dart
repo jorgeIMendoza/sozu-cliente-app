@@ -68,7 +68,17 @@ class PreviewBanner extends StatelessWidget {
             ),
           ),
         ),
-        Expanded(child: child),
+        // WARN: `removeTop` no es opcional. El `SafeArea` de arriba consume el
+        // inset para SU franja, pero el hijo lo seguiria viendo entero y
+        // cualquier `SafeArea` de mas abajo -la franja de "Viendo como"- lo
+        // sumaria otra vez, dejandola caida a media pantalla.
+        Expanded(
+          child: MediaQuery.removePadding(
+            context: context,
+            removeTop: true,
+            child: child,
+          ),
+        ),
       ],
     );
   }

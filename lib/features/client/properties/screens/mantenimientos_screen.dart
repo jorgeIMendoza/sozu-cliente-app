@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/features/client/layouts/portal_top_bar.dart';
+import 'package:sozu_cliente_app/features/client/layouts/client_top_bar.dart';
 import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
@@ -113,7 +113,7 @@ class MantenimientosScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: const PortalTopBar(title: 'Mantenimientos'),
+      appBar: const ClientTopBar(title: 'Mantenimientos'),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(propertiesProvider);
