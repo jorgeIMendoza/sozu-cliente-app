@@ -137,6 +137,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (loc == emailNotConfirmedPath) return '/login';
         return inAuthArea ? null : '/login';
       }
+      // Sesión viva pero SIN perfil: no sacar al usuario del área de acceso. El
+      // login que no pudo leer el perfil deja la sesión abierta a propósito (un
+      // fallo de red no es motivo para revocarla), y sin esta regla el redirect
+      // se lo llevaba a /inicio junto con el mensaje que explica el fallo.
+      if (auth.profile == null && inAuthArea) return null;
       if (auth.mustChangePassword) {
         return loc == '/change-password' ? null : '/change-password';
       }
