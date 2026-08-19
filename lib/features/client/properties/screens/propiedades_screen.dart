@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/features/client/layouts/portal_top_bar.dart';
+import 'package:sozu_cliente_app/features/client/layouts/client_top_bar.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/portal_property_card.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/property_card.dart';
 import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
@@ -175,7 +175,7 @@ class _PropiedadesScreenState extends ConsumerState<PropiedadesScreen> {
     }
 
     return Scaffold(
-      appBar: const PortalTopBar(title: 'Propiedades'),
+      appBar: const ClientTopBar(title: 'Propiedades'),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(propertiesProvider);

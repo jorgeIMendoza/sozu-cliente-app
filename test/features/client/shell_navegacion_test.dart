@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/layouts/client_bottom_nav.dart';
-import 'package:sozu_cliente_app/features/client/layouts/portal_shell.dart';
+import 'package:sozu_cliente_app/features/client/layouts/client_shell.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 import '../auth/fake_auth_port.dart';

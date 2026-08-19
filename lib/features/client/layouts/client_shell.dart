@@ -12,7 +12,7 @@ import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider
 import 'package:sozu_cliente_app/features/app_download/components/app_download.dart';
 import 'package:sozu_cliente_app/features/client/home/components/notification_bell.dart';
 import 'package:sozu_cliente_app/features/client/layouts/client_bottom_nav.dart';
-import 'package:sozu_cliente_app/features/client/layouts/portal_shell_widgets.dart';
+import 'package:sozu_cliente_app/features/client/layouts/client_shell_widgets.dart';
 // Botón "Referir" oculto por ahora (a petición); restaurar junto con su uso.
 // import 'package:sozu_cliente_app/features/client/referral/components/referral_action.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
@@ -699,7 +699,7 @@ class _PortalShellTopBar extends StatelessWidget {
       ),
       child: const Row(
         children: [
-          PortalTopBarSearch(),
+          ClientTopBarSearch(),
           Spacer(),
           // "Descargar app" solo en web: en la app nativa no aplica.
           if (kIsWeb) ...[AppDownloadButton(), SizedBox(width: 12)],
@@ -707,7 +707,7 @@ class _PortalShellTopBar extends StatelessWidget {
           // ReferralButton(), SizedBox(width: 12),
           NotificationBell(),
           SizedBox(width: 8),
-          PortalTopBarAvatarMenu(),
+          ClientTopBarAvatarMenu(),
         ],
       ),
     );

@@ -29,7 +29,7 @@ import 'package:sozu_cliente_app/features/client/properties/screens/propiedades_
 import 'package:sozu_cliente_app/features/admin/screens/select_client_screen.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/features/client/home/components/notificaciones_fx.dart';
-import 'package:sozu_cliente_app/features/client/layouts/portal_shell.dart';
+import 'package:sozu_cliente_app/features/client/layouts/client_shell.dart';
 
 /// Página secundaria con la transición del design system
 /// ([sozuPageTransition]: fade + escala en escritorio, fade + deslizamiento en

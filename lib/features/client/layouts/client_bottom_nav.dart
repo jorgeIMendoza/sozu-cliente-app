@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/features/client/home/components/notificaciones_fx.dart';
-import 'package:sozu_cliente_app/features/client/layouts/portal_shell.dart';
+import 'package:sozu_cliente_app/features/client/layouts/client_shell.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Barra inferior flotante del cliente (móvil): tarjeta redondeada con sombra

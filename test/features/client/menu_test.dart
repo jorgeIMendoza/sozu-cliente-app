@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sozu_cliente_app/features/client/layouts/portal_shell.dart';
+import 'package:sozu_cliente_app/features/client/layouts/client_shell.dart';
 
 /// El menú del portal vive en CÓDIGO, no en la BD: `cliente-menu` existe pero
 /// su menú padre está apagado, así que devolvía cero ítems y encenderlo

@@ -8,10 +8,10 @@ import 'package:sozu_cliente_app/features/client/home/components/notification_be
 // import 'package:sozu_cliente_app/features/client/referral/components/referral_action.dart';
 
 /// Encabezado de sección: título + campana con contador de no leídas.
-class PortalTopBar extends StatelessWidget implements PreferredSizeWidget {
+class ClientTopBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
 
-  const PortalTopBar({super.key, required this.title});
+  const ClientTopBar({super.key, required this.title});
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
