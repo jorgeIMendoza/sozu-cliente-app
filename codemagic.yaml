@@ -10,7 +10,12 @@
 # 1. Android: keystore subido en Codemagic → Code signing identities, con
 #    reference name "sozu_keystore" (Codemagic puede generarlo).
 # 2. iOS: integración App Store Connect (API key) con nombre
-#    "sozu_app_store_connect" + certificados automáticos.
+#    "sozu_app_store_connect" (la usan la subida a TestFlight/App Store
+#    y las llamadas a `app-store-connect`, NO la firma).
+# 3. iOS firma MANUAL: en Code signing identities subir el .p12 con
+#    reference name "sozu_distribution" (compartido por las dos apps: el
+#    certificado es de la cuenta) y el .mobileprovision de App Store con
+#    reference name "sozu_cliente_appstore".
 # ---------------------------------------------------------------------------
 
 definitions:
@@ -113,15 +118,20 @@ definitions:
         echo "permiso Contents: Read and write. Va en el grupo app_version_gate, cifrado."
         exit 1
       fi
-      CODIGO=$(curl -s -o /dev/null -w '%{http_code}' \
-        -H "Authorization: Bearer $GITHUB_PUSH_TOKEN" \
-        https://api.github.com/repos/jorgeIMendoza/sozu-cliente-app)
-      if [ "$CODIGO" != "200" ]; then
-        echo "ERROR: GITHUB_PUSH_TOKEN no sirve para este repo (HTTP $CODIGO)."
-        echo "Revisar que no haya expirado y que el repo este en su lista de acceso."
+      # Un GET al repo devuelve 200 con permiso de solo LECTURA, asi que no
+      # probaba nada: por eso el 403 seguia saliendo en el paso del tag, que es
+      # justo lo que este check existe para evitar. `git push --dry-run` negocia
+      # con git-receive-pack, que exige escritura, y no crea ninguna ref.
+      if ! git push --dry-run \
+        "https://x-access-token:${GITHUB_PUSH_TOKEN}@github.com/jorgeIMendoza/sozu-cliente-app.git" \
+        "HEAD:refs/tags/__permiso__" >/dev/null 2>&1; then
+        echo "ERROR: GITHUB_PUSH_TOKEN no puede ESCRIBIR en jorgeIMendoza/sozu-cliente-app."
+        echo "Codemagic tiene que pushear el tag vX.Y.Z de la version."
+        echo "El PAT fine-grained necesita Contents: Read and write Y este repo en"
+        echo "su lista de acceso. Un token de solo lectura pasaba el GET de antes."
         exit 1
       fi
-      echo "Token de push OK."
+      echo "Token de push con permiso de escritura OK."
 
   # Enciende el aviso de actualizacion in-app: escribe `latest_version` en
   # `app_cliente_config` via la edge function `app-version-publicar`.
@@ -233,6 +243,14 @@ definitions:
       fi
       MENSAJE="Build de $CM_PROJECT_NAME ($CM_BRANCH) $RESULTADO: $FCI_WORKFLOW_ID. Ver: https://codemagic.io/app/$FCI_PROJECT_ID/build/$FCI_BUILD_ID"
       curl -s -X POST "https://automatizacion-n8n.fbqqbe.easypanel.host/webhook/manda_notificacion"         -H "apikey: 80FA62E3FD0C-4477-8B31-8A2CD6AF7B57"         -H "Content-Type: application/json"         -d "$(jq -n --arg tel "+521$WA_PHONE" --arg msg "$MENSAJE"               '{tipo:"wa", telefono:$tel, mensajeWA:$msg, instanciaWA:"Pruebas de todo"}')"         && echo "Aviso enviado a $WA_PHONE"
+
+  # Escribe /Users/builder/export_options.plist, que es lo que consume
+  # `flutter build ipa --export-options-plist`. Con firma automatica lo
+  # corria Codemagic; con firma manual (ver `ios_signing`) hay que llamarlo,
+  # o el build muere con "property list does not exist" DESPUES de compilar.
+  ios_use_profiles: &ios_use_profiles
+    name: Aplicar perfiles de firma al proyecto Xcode
+    script: xcode-project use-profiles
 
   # Keystore subido desde el dashboard (variables cifradas del grupo
   # android_signing_custom). Reconstruye el .jks y exporta las CM_KEYSTORE_*
@@ -363,8 +381,16 @@ workflows:
       vars:
         <<: *supabase_env
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.sozu.sozuClienteApp
+        # Firma MANUAL a proposito: la automatica resolvia certificado y
+        # perfil por la App Store Connect API y devolvia "No matching
+        # profiles found" con los dos ya creados en Apple. Aqui se usan
+        # los archivos subidos a Code signing identities, sin API de por
+        # medio. Al cambiar capabilities del App ID hay que regenerar el
+        # perfil en Apple y volver a subirlo.
+        provisioning_profiles:
+          - sozu_cliente_appstore
+        certificates:
+          - sozu_distribution
       flutter: stable
     scripts:
       - *env_setup
@@ -374,6 +400,7 @@ workflows:
           flutter pub get
           flutter analyze --no-fatal-infos
           flutter test
+      - *ios_use_profiles
       - name: Build IPA firmado
         script: |
           flutter build ipa --release \
@@ -401,8 +428,16 @@ workflows:
       vars:
         <<: *supabase_env
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.sozu.sozuClienteApp
+        # Firma MANUAL a proposito: la automatica resolvia certificado y
+        # perfil por la App Store Connect API y devolvia "No matching
+        # profiles found" con los dos ya creados en Apple. Aqui se usan
+        # los archivos subidos a Code signing identities, sin API de por
+        # medio. Al cambiar capabilities del App ID hay que regenerar el
+        # perfil en Apple y volver a subirlo.
+        provisioning_profiles:
+          - sozu_cliente_appstore
+        certificates:
+          - sozu_distribution
       flutter: stable
     scripts:
       - *validar_push_token
@@ -414,6 +449,7 @@ workflows:
           flutter analyze --no-fatal-infos
           flutter test
       - *bump_release_version
+      - *ios_use_profiles
       - name: Build IPA firmado
         script: |
           # CFBundleVersion (build number interno) desde App Store Connect:
@@ -430,6 +466,8 @@ workflows:
           case "$LATEST" in ''|*[!0-9]*) LATEST="${PROJECT_BUILD_NUMBER:-0}" ;; esac
           IOS_BUILD_NUMBER=$((LATEST + 1))
           echo "App Store Connect: último $LATEST · CFBundleVersion a publicar: $IOS_BUILD_NUMBER"
+          # Lo lee el paso de revision, para no mandar a Apple otro binario.
+          echo "IOS_BUILD_NUMBER=$IOS_BUILD_NUMBER" >> $CM_ENV
           flutter build ipa --release \
             --build-number=$IOS_BUILD_NUMBER \
             --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
@@ -473,11 +511,21 @@ workflows:
           APP_ID=$(app-store-connect apps list \
             --bundle-id-identifier com.sozu.sozuClienteApp --json | jq -r '.[0].id')
           echo "Apple app id: $APP_ID"
+          # `builds list` NO acepta --limit en esta version de la CLI: con el
+          # flag argparse aborta, BUILD_ID queda vacio y submit-to-app-store
+          # recibe "None", que responde un 404 que no dice nada del problema.
           BUILD_ID=$(app-store-connect builds list \
-            --app-id "$APP_ID" --processing-state VALID --limit 1 --json | jq -r '.[0].id')
+            --app-id "$APP_ID" --processing-state VALID --json \
+            | jq -r 'sort_by(.attributes.uploadedDate) | last | .id // empty')
+          if [ -z "$BUILD_ID" ]; then
+            echo "ERROR: no hay ningun build en estado VALID para $APP_ID."
+            echo "Apple tarda minutos en procesar un .ipa: esperar y relanzar."
+            exit 1
+          fi
           echo "Build a promover: $BUILD_ID"
           app-store-connect builds submit-to-app-store "$BUILD_ID" \
             --release-type AFTER_APPROVAL \
+            --copyright "$(date +%Y) Real Estate Ventures SA de CV" \
             --whats-new "$RELEASE_NOTES"
 
     publishing:
@@ -635,8 +683,16 @@ workflows:
       vars:
         <<: *supabase_env
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.sozu.sozuClienteApp
+        # Firma MANUAL a proposito: la automatica resolvia certificado y
+        # perfil por la App Store Connect API y devolvia "No matching
+        # profiles found" con los dos ya creados en Apple. Aqui se usan
+        # los archivos subidos a Code signing identities, sin API de por
+        # medio. Al cambiar capabilities del App ID hay que regenerar el
+        # perfil en Apple y volver a subirlo.
+        provisioning_profiles:
+          - sozu_cliente_appstore
+        certificates:
+          - sozu_distribution
       flutter: stable
     scripts:
       - *validar_push_token
@@ -655,6 +711,7 @@ workflows:
           flutter analyze --no-fatal-infos
           flutter test
       - *bump_release_version
+      - *ios_use_profiles
       - name: Build IPA firmado
         script: |
           # CFBundleVersion (build number interno) desde App Store Connect:
@@ -671,6 +728,8 @@ workflows:
           case "$LATEST" in ''|*[!0-9]*) LATEST="${PROJECT_BUILD_NUMBER:-0}" ;; esac
           IOS_BUILD_NUMBER=$((LATEST + 1))
           echo "App Store Connect: último $LATEST · CFBundleVersion a publicar: $IOS_BUILD_NUMBER"
+          # Lo lee el paso de revision, para no mandar a Apple otro binario.
+          echo "IOS_BUILD_NUMBER=$IOS_BUILD_NUMBER" >> $CM_ENV
           flutter build ipa --release \
             --build-number=$IOS_BUILD_NUMBER \
             --dart-define=BUILD_TIMESTAMP=$BUILD_TIMESTAMP \
@@ -689,13 +748,35 @@ workflows:
         - name: Enviar a revisión de App Store
           script: |
             set -e
+            # Los publishing.scripts corren tambien cuando el build fallo. Sin esto,
+            # un fallo en cualquier paso anterior imprimia un ERROR sobre App Store
+            # que no tenia nada que ver, tapando la causa real.
+            if [ "${CM_BUILD_STEP_STATUS:-success}" != "success" ]; then
+              echo "El build no termino bien: no hay nada que mandar a revision."
+              exit 0
+            fi
             APP_ID=$(app-store-connect apps list \
               --bundle-id-identifier com.sozu.sozuClienteApp --json | jq -r '.[0].id')
+            # `builds list` NO acepta --limit en esta version de la CLI: con el
+            # flag argparse aborta, BUILD_ID queda vacio y submit-to-app-store
+            # recibe "None", que responde un 404 que no dice nada del problema.
+            # Se filtra por el CFBundleVersion que subio ESTE build: "el ultimo
+            # VALID" puede ser uno anterior si Apple no acabo de procesar el
+            # nuevo, y se mandaria a revision el binario equivocado.
             BUILD_ID=$(app-store-connect builds list \
-              --app-id "$APP_ID" --processing-state VALID --limit 1 --json | jq -r '.[0].id')
-            echo "Enviando build $BUILD_ID a revisión de App Store"
+              --app-id "$APP_ID" --processing-state VALID --json \
+              | jq -r --arg n "$IOS_BUILD_NUMBER" \
+                  '[.[] | select(.attributes.version == $n)] | last | .id // empty')
+            if [ -z "$BUILD_ID" ]; then
+              echo "ERROR: no hay build VALID con CFBundleVersion $IOS_BUILD_NUMBER."
+              echo "Apple tarda minutos en procesar el .ipa. Ya esta subido: cuando"
+              echo "termine, correr ios-appstore para mandarlo a revision."
+              exit 1
+            fi
+            echo "Enviando build $BUILD_ID (CFBundleVersion $IOS_BUILD_NUMBER) a revisión de App Store"
             app-store-connect builds submit-to-app-store "$BUILD_ID" \
               --release-type AFTER_APPROVAL \
+              --copyright "$(date +%Y) Real Estate Ventures SA de CV" \
               --whats-new "$RELEASE_NOTES"
         - *publicar_version_al_gate
         - *redesplegar_web
