@@ -31,8 +31,8 @@ for a in "$@"; do
 done
 
 log() { printf '\033[1;36m▶ %s\033[0m\n' "$1"; }
-ok()  { printf '\033[1;32m✓ %s\033[0m\n' "$1"; }
-die() { printf '\033[1;31m✗ %s\033[0m\n' "$1" >&2; exit 1; }
+ok()  { printf '\033[1;32mOK   %s\033[0m\n' "$1"; }
+die() { printf '\033[1;31mFAIL %s\033[0m\n' "$1" >&2; exit 1; }
 
 [ -f assets/env ] || die "Falta assets/env. Copia .env.example."
 command -v flutter >/dev/null || die "flutter no esta en el PATH"

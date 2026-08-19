@@ -85,7 +85,7 @@ if [ "${BACKEND:-prod}" = "dev" ]; then
   )
   # El id del rol Cliente puede no ser 23 fuera de produccion.
   [ -n "$DEV_ROL" ] && DEFINES_ENV+=(--dart-define=CLIENTE_ROL_ID="$DEV_ROL")
-  echo "⚠️  Backend: DEV ($DEV_URL)"
+  echo "WARN: Backend: DEV ($DEV_URL)"
 else
   echo "Backend: produccion (assets/env)"
 fi

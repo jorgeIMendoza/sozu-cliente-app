@@ -17,8 +17,8 @@ TMP="${TMPDIR:-/tmp}/temurin-dl"
 mkdir -p "$TMP"
 
 log() { printf '\033[1;36m▶ %s\033[0m\n' "$1"; }
-ok()  { printf '\033[1;32m✓ %s\033[0m\n' "$1"; }
-die() { printf '\033[1;31m✗ %s\033[0m\n' "$1" >&2; exit 1; }
+ok()  { printf '\033[1;32mOK   %s\033[0m\n' "$1"; }
+die() { printf '\033[1;31mFAIL %s\033[0m\n' "$1" >&2; exit 1; }
 
 if [ -x "$DEST/bin/java" ]; then
   ok "ya instalado: $("$DEST/bin/java" -version 2>&1 | head -1)"

@@ -129,7 +129,7 @@ Quién decide: `PersonaExpedienteScreen`. Con `rol: 'empresa'` pinta la lista de
 documentos y nada más (sus personas ya salen en la portada desde la que se
 entró); con una PM ligada pinta `ExpedienteModo.auto`, que resuelve a portada.
 
-⚠️ **`esMoral` viaja como parámetro**, desde la tarjeta que abrió la pantalla.
+WARN: **`esMoral` viaja como parámetro**, desde la tarjeta que abrió la pantalla.
 Antes el tipo salía del PERFIL, o sea del titular: a una persona física colgada
 de una empresa se le pedían documentos de empresa. El mismo parámetro gobierna
 qué campos se le piden al subir un documento.

@@ -4,16 +4,11 @@ import 'package:sozu_cliente_app/ui/primitives/s_pressable.dart';
 import 'package:sozu_cliente_app/ui/theme/breakpoints.dart';
 import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 
-/// Pestañas de sección: fila de etiquetas con subrayado en la activa.
+/// Pestañas de sección: fila de etiquetas con subrayado en la activa. El
+/// cuerpo lo pinta quien la usa.
 ///
-/// Sustituye al `TabBar` de Material, que pinta con `colorScheme` y no con los
-/// roles de SOZU. Y sobre todo NO trae `TabBarView`: el cuerpo lo pone quien la
-/// usa, así que la página conserva UN solo scroll. Un `TabBarView` no tiene alto
-/// intrínseco, así que obliga a meter el scroll dentro de cada pestaña y ahí es
-/// donde se pierde el desplazamiento de página completa en escritorio.
-///
-/// En teléfono las pestañas se reparten el ancho; en escritorio se ajustan a su
-/// texto y quedan a la izquierda, alineadas con la columna de contenido.
+/// WARN: NO uses `TabBarView` con esto. No tiene alto intrínseco, así que obliga a
+/// meter un scroll dentro de cada pestaña y la página pierde su scroll único.
 class STabs extends StatelessWidget {
   const STabs({
     super.key,
@@ -22,7 +17,7 @@ class STabs extends StatelessWidget {
     required this.onChanged,
   });
 
-  /// Etiquetas, en orden. El índice es la identidad de la pestaña.
+  /// Etiquetas en orden; el índice identifica la pestaña.
   final List<String> tabs;
 
   final int selected;
@@ -52,8 +47,6 @@ class STabs extends StatelessWidget {
     ];
 
     return DecoratedBox(
-      // La línea corre por debajo de TODA la fila, no solo bajo las pestañas:
-      // es lo que las ata al contenido en vez de dejarlas flotando.
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: t.color.border)),
       ),
@@ -78,8 +71,6 @@ class _Tab extends StatelessWidget {
       onTap: onTap,
       semanticLabel: label,
       borderRadius: t.radius.smBorder,
-      // Sin hundido: una pestaña no es un botón, y el subrayado ya da el
-      // acuse del cambio.
       pressScale: false,
       child: AnimatedContainer(
         duration: t.motion.fast,
@@ -89,8 +80,6 @@ class _Tab extends StatelessWidget {
           vertical: t.space.sm,
         ),
         decoration: BoxDecoration(
-          // 2 px, no un borde de 1: bajo la línea gris de la fila un pelo más
-          // grueso es lo que se lee como "esta es la activa".
           border: Border(
             bottom: BorderSide(
               color: activa ? c.primary : Colors.transparent,

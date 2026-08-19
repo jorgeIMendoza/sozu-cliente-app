@@ -11,11 +11,11 @@
 
 | Fase | Estado |
 |---|---|
-| 0 - red de seguridad | 🟡 parcial: `test/ui/tokens_test.dart` (20 tests). Faltan lints estrictos y `flutter test` en CI |
-| 1 - cerrar la capa de datos | ⬜ pendiente |
-| **2 - unificar tokens** | 🟢 **hecho** (sin `tokens.json`: los tokens son Dart const, ver §5) |
-| 3 - un solo design system | ⬜ pendiente (primitivas) |
-| 4 - features | ⬜ pendiente |
+| 0 - red de seguridad | AMBAR parcial: `test/ui/tokens_test.dart` (20 tests). Faltan lints estrictos y `flutter test` en CI |
+| 1 - cerrar la capa de datos | [ ] pendiente |
+| **2 - unificar tokens** | VERDE **hecho** (sin `tokens.json`: los tokens son Dart const, ver §5) |
+| 3 - un solo design system | [ ] pendiente (primitivas) |
+| 4 - features | [ ] pendiente |
 
 Lo entregado en la Fase 2: `lib/ui/` con 27 roles semánticos, escalas de radio /
 espaciado / tipografía / elevación, breakpoints con `context.responsive`,
@@ -176,12 +176,12 @@ Dentro de cada feature, tres carpetas y solo las que se ganen:
 ### 3.1 Regla de dependencias (única, y verificada por el compilador)
 
 ```
-apps/cliente/features  →  sozu_ui, sozu_core, sozu_api        ✅
-sozu_ui                →  sozu_tokens, sozu_core              ✅
-sozu_api               →  sozu_core                           ✅
-sozu_ui                →  sozu_api | riverpod | supabase      ❌ ROMPE EL BUILD
-sozu_core              →  flutter/material                     ❌ (solo dart:*/foundation)
-features/X             →  features/Y                           ❌ (via lint)
+apps/cliente/features  →  sozu_ui, sozu_core, sozu_api        OK
+sozu_ui                →  sozu_tokens, sozu_core              OK
+sozu_api               →  sozu_core                           OK
+sozu_ui                →  sozu_api | riverpod | supabase      MAL - ROMPE EL BUILD
+sozu_core              →  flutter/material                     MAL (solo dart:*/foundation)
+features/X             →  features/Y                           MAL (via lint)
 ```
 
 Esta es la separación UI ↔ lógica de negocio de la que hablamos. No es una
@@ -327,32 +327,32 @@ Neta: **rampa neutra = gray (portal gana) · estructura de roles + dark = SozuTo
 
 ### 6.2 Tabla
 
-Leyenda: 🟢 sin colisión · 🟡 colisión cosmética (hex casi igual) · 🔴 colisión
-real (decisión de diseño) · ➕ rol nuevo que solo existía en un lado.
+Leyenda: VERDE sin colisión · AMBAR colisión cosmética (hex casi igual) · ROJO colisión
+real (decisión de diseño) · + rol nuevo que solo existía en un lado.
 
 | Rol nuevo | `SozuTone.light` | `PortalColors` | **Elegido (light)** | **dark** | |
 |---|---|---|---|---|---|
-| `surface` | `Colors.white` | `surface` #FFFFFF | **#FFFFFF** | `slate800`→`#1A1D21` | 🟢 |
-| `surfaceAlt` | `slate50` #F8FAFC | `mutedHover` #F8F9FA | **#F8F9FA** | `#22262B` | 🟡 |
-| `background` | `slate50` #F8FAFC | `background` #F9FAFB | **#F9FAFB** | `#101215` | 🟡 |
-| `muted` | - | `muted` #F3F4F6 | **#F3F4F6** | `#2A2F35` | ➕ hovers, pista de progress |
-| `border` | `slate200` #E2E8F0 | `border` #E5E7EB | **#E5E7EB** | `#2E343B` | 🟡 |
-| `borderSoft` | - | `borderSoft` #E9EEF4 | **#E9EEF4** | `#272C32` | ➕ topbar, secciones sidebar |
-| `fg` | `slate900` #0F172A | `foreground` #14161A | **#14161A** | `#F3F4F6` | 🔴 azulado vs neutro → neutro |
-| `fgMuted` | `slate600` #475569 | `mutedForeground` #6B7280 | **#6B7280** | `#9BA1AB` | 🔴 **230 usos**, el rol más usado |
-| `fgSubtle` | `slate400` #94A3B8 | `textMuted` #9BA1AB | **#9BA1AB** | `#6B7280` | 🟡 |
-| `primary` | `emerald500` #239F71 | `primary` #239F71 | **#239F71** | #239F71 | 🟢 ya unificado en `brand.dart` |
-| `primaryHover` | `primaryDark` #1D825D | `primaryHover` #1D825D | **#1D825D** | `green400` #2ED195 | 🟢 |
-| `primaryPressed` | `emerald700` #166448 | - | **#166448** | #1D825D | ➕ |
-| `primarySoft` | `emerald50` #EEFBF7 | `primarySoft6` #F2F9F7 | **escalera ↓** | `#0B3B30` | 🔴 ver §6.3 |
-| `primaryBorder` | - | `primaryBorder30` #BDE2D4 | **#BDE2D4** | `#2A5A48` | ➕ 16 usos |
-| `positive` | `emerald600` #1D825D | *(usa `primary`)* | **#1D825D** | `#2ED195` | 🔴 ver §6.4 |
-| `warning` | `amber500` #F59E0B | `warning` #F59E0B | **#F59E0B** | #F59E0B | 🟢 idéntico |
-| `warningSoft` | `amber50` #FFFBEB | `warningSoft10` #FEF5E7 | **#FEF5E7** | `#3B2F0B` | 🟡 |
-| `warningSoftStrong` | - | `warningSoft15` #FEF1DA | **#FEF1DA** | `#4A3A0D` | ➕ |
-| `danger` | `rose600` #E11D48 | `destructive` #EF4444 | **#EF4444** | `#F87171` | 🔴 rose vs red → **red** |
-| `dangerSoft` | - | `destructiveSoft10` #FDECEC | **#FDECEC** | `#3A1F1F` | ➕ |
-| `dangerSoftStrong` | - | `destructiveSoft15` #FDE3E3 | **#FDE3E3** | `#4A2626` | ➕ |
+| `surface` | `Colors.white` | `surface` #FFFFFF | **#FFFFFF** | `slate800`→`#1A1D21` | VERDE |
+| `surfaceAlt` | `slate50` #F8FAFC | `mutedHover` #F8F9FA | **#F8F9FA** | `#22262B` | AMBAR |
+| `background` | `slate50` #F8FAFC | `background` #F9FAFB | **#F9FAFB** | `#101215` | AMBAR |
+| `muted` | - | `muted` #F3F4F6 | **#F3F4F6** | `#2A2F35` | + hovers, pista de progress |
+| `border` | `slate200` #E2E8F0 | `border` #E5E7EB | **#E5E7EB** | `#2E343B` | AMBAR |
+| `borderSoft` | - | `borderSoft` #E9EEF4 | **#E9EEF4** | `#272C32` | + topbar, secciones sidebar |
+| `fg` | `slate900` #0F172A | `foreground` #14161A | **#14161A** | `#F3F4F6` | ROJO: azulado vs neutro → neutro |
+| `fgMuted` | `slate600` #475569 | `mutedForeground` #6B7280 | **#6B7280** | `#9BA1AB` | ROJO: **230 usos**, el rol más usado |
+| `fgSubtle` | `slate400` #94A3B8 | `textMuted` #9BA1AB | **#9BA1AB** | `#6B7280` | AMBAR |
+| `primary` | `emerald500` #239F71 | `primary` #239F71 | **#239F71** | #239F71 | VERDE: ya unificado en `brand.dart` |
+| `primaryHover` | `primaryDark` #1D825D | `primaryHover` #1D825D | **#1D825D** | `green400` #2ED195 | VERDE |
+| `primaryPressed` | `emerald700` #166448 | - | **#166448** | #1D825D | + |
+| `primarySoft` | `emerald50` #EEFBF7 | `primarySoft6` #F2F9F7 | **escalera ↓** | `#0B3B30` | ROJO: ver §6.3 |
+| `primaryBorder` | - | `primaryBorder30` #BDE2D4 | **#BDE2D4** | `#2A5A48` | + 16 usos |
+| `positive` | `emerald600` #1D825D | *(usa `primary`)* | **#1D825D** | `#2ED195` | ROJO: ver §6.4 |
+| `warning` | `amber500` #F59E0B | `warning` #F59E0B | **#F59E0B** | #F59E0B | VERDE: idéntico |
+| `warningSoft` | `amber50` #FFFBEB | `warningSoft10` #FEF5E7 | **#FEF5E7** | `#3B2F0B` | AMBAR |
+| `warningSoftStrong` | - | `warningSoft15` #FEF1DA | **#FEF1DA** | `#4A3A0D` | + |
+| `danger` | `rose600` #E11D48 | `destructive` #EF4444 | **#EF4444** | `#F87171` | ROJO: rose vs red → **red** |
+| `dangerSoft` | - | `destructiveSoft10` #FDECEC | **#FDECEC** | `#3A1F1F` | + |
+| `dangerSoftStrong` | - | `destructiveSoft15` #FDE3E3 | **#FDE3E3** | `#4A2626` | + |
 
 > **Los hex de la columna `dark` son propuesta, no decisión.** Los valores light
 > salen de código existente (uno de los dos sistemas); los dark hay que

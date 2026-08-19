@@ -147,12 +147,12 @@ Sticky, `bg-card border-b border-border`, tres franjas:
 
 | Elemento | Cliente final | Admin impersonando |
 |---|---|---|
-| Sidebar completa + nav | ✔ | ✔ |
-| Footer: "Cerrar sesión" solo | ✔ | - |
-| Footer: "Regresar" + "Cerrar sesión" | - | ✔ |
-| Buscador global | ✔ | ✔ |
-| Selector "Ver como" | ✖ (oculto por `puede_impersonar`) | ✔ |
-| Campana + avatar/popover | ✔ | ✔ |
+| Sidebar completa + nav | OK | OK |
+| Footer: "Cerrar sesión" solo | OK | - |
+| Footer: "Regresar" + "Cerrar sesión" | - | OK |
+| Buscador global | OK | OK |
+| Selector "Ver como" | FAIL: (oculto por `puede_impersonar`) | OK |
+| Campana + avatar/popover | OK | OK |
 
 Para la app Flutter del cliente: **replicar todo excepto el selector "Ver como" y el botón
 "Regresar"** (son exclusivos del admin en sozu-admin).

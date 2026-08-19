@@ -28,3 +28,14 @@ final adminOwnersProvider = FutureProvider.autoDispose
           .watch(adminPortProvider)
           .owners(projectId: q.projectId, propertyNumber: q.propertyNumber),
     );
+
+/// Avisos ya creados (enviados, programados, cancelados). El alta lo invalida
+/// al enviar; la lista de recientes lo observa.
+final adminAnnouncementsProvider = FutureProvider<List<AvisoApp>>(
+  (ref) => ref.watch(adminPortProvider).announcements(),
+);
+
+/// Animacion de la campana del cliente (configuracion general, no por aviso).
+final adminBellAnimationProvider = FutureProvider<String>(
+  (ref) => ref.watch(adminPortProvider).bellAnimation(),
+);
