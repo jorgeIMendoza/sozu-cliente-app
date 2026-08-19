@@ -11,6 +11,7 @@ import 'package:sozu_cliente_app/features/client/providers/client_providers.dart
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/app_download/components/app_download.dart';
 import 'package:sozu_cliente_app/features/client/home/components/notification_bell.dart';
+import 'package:sozu_cliente_app/features/client/layouts/client_bottom_nav.dart';
 import 'package:sozu_cliente_app/features/client/layouts/portal_shell_widgets.dart';
 // Botón "Referir" oculto por ahora (a petición); restaurar junto con su uso.
 // import 'package:sozu_cliente_app/features/client/referral/components/referral_action.dart';
@@ -93,78 +94,110 @@ String _shortName(String? nombre) {
   return '${words.substring(0, 22)}…';
 }
 
-/// Envuelve una pantalla del cliente con [PortalShell] SOLO en modo portal;
-/// en cualquier otro caso devuelve el hijo tal cual (layout móvil intacto).
-class PortalShellWrapper extends StatelessWidget {
-  final String currentPath;
-  final Widget child;
-
-  const PortalShellWrapper({
+/// Chrome de navegacion del cliente: UNO solo para las dos anchuras.
+///
+/// Con sidebar (>=1024) monta barra lateral y superior; sin el, la barra
+/// inferior flotante. Antes eran tres widgets distintos elegidos en tres
+/// sitios y con dos criterios: `isPortalMode` miraba plataforma Y ancho,
+/// `isDesktop` solo ancho. Por eso una tablet Android ancha recibia el layout
+/// de telefono.
+///
+/// El criterio ahora es `context.bp`: espacio disponible, nunca `kIsWeb`.
+class ClientShell extends ConsumerWidget {
+  const ClientShell({
     super.key,
     required this.currentPath,
     required this.child,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    if (!isPortalMode(context)) return child;
-    return PortalShell(currentPath: currentPath, child: child);
-  }
-}
-
-/// Sidebar de 256px + topbar de 64px + contenido centrado a 1280.
-class PortalShell extends ConsumerWidget {
   final String currentPath;
   final Widget child;
-
-  const PortalShell({
-    super.key,
-    required this.currentPath,
-    required this.child,
-  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // El portal es solo claro (.inmob-portal nunca aplica .dark): en modo
-    // portal se fuerza el tema claro también en el contenido.
-    return Theme(
-      data: sozuLightTheme(),
-      child: Material(
-        color: PortalColors.background,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _PortalSidebar(currentPath: currentPath),
-            Expanded(
-              child: Column(
-                children: [
-                  const _PortalShellTopBar(),
-                  Expanded(
-                    child: ColoredBox(
-                      color: PortalColors.background,
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: kPortalContentMaxWidth,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: kPortalContentGutter,
-                            ),
-                            child: child,
-                          ),
+    final auth = ref.watch(authProvider);
+    final imp = ref.watch(impersonationProvider);
+    // La franja cubre TODAS las pantallas del cliente, no solo las pestanas:
+    // antes se perdia al entrar a una secundaria y el admin dejaba de ver que
+    // seguia viendo como otro.
+    final banner = auth.isSuperAdmin && imp.active
+        ? ImpersonationBanner(nombre: imp.clientName ?? 'Cliente')
+        : null;
+
+    final cuerpo = context.bp.hasSidebar
+        ? _ConSidebar(currentPath: currentPath, child: child)
+        : _ConBarraInferior(currentPath: currentPath, child: child);
+
+    if (banner == null) return cuerpo;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        banner,
+        Expanded(child: cuerpo),
+      ],
+    );
+  }
+}
+
+/// Ancho: barra lateral + superior, contenido acotado y centrado.
+class _ConSidebar extends StatelessWidget {
+  const _ConSidebar({required this.currentPath, required this.child});
+
+  final String currentPath;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return Material(
+      color: PortalColors.background,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _PortalSidebar(currentPath: currentPath),
+          Expanded(
+            child: Column(
+              children: [
+                const _PortalShellTopBar(),
+                Expanded(
+                  child: ColoredBox(
+                    color: PortalColors.background,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: kSozuContentMaxWidth,
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: t.space.lg),
+                          child: child,
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+}
+
+/// Angosto: la barra inferior flotante sobre TODAS las pantallas, pestanas y
+/// secundarias, para que el menu nunca desaparezca.
+class _ConBarraInferior extends StatelessWidget {
+  const _ConBarraInferior({required this.currentPath, required this.child});
+
+  final String currentPath;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: context.s.color.background,
+    body: child,
+    bottomNavigationBar: ClientBottomNav(currentPath: currentPath),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -709,3 +742,81 @@ class _PortalAvatar extends StatelessWidget {
     );
   }
 }
+
+class ImpersonationBanner extends ConsumerWidget {
+  final String nombre;
+
+  const ImpersonationBanner({required this.nombre});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tone = context.s.color;
+    final admin = ref.watch(authProvider).profile;
+    final adminNombre = admin?.displayName ?? admin?.email ?? '';
+    return Material(
+      color: tone.primarySoft,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Row(
+            children: [
+              Icon(
+                Icons.admin_panel_settings_outlined,
+                size: 18,
+                color: tone.primaryHover,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text:
+                            'Super admin'
+                            '${adminNombre.isEmpty ? '' : ' ($adminNombre)'}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const TextSpan(text: '  ·  '),
+                      TextSpan(text: 'Viendo como: $nombre'),
+                    ],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: tone.primaryHover,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.go('/seleccionar-cliente'),
+                child: Text(
+                  'Cambiar cliente',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: tone.primaryHover,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => ref.read(impersonationProvider).clear(),
+                child: Text(
+                  'Salir',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: tone.primaryHover,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Barra lateral de escritorio: wordmark SOZU + navegación.

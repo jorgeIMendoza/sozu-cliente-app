@@ -10,7 +10,7 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 /// el móvil en oscuro por horario.
 ///
 /// Solo manda dentro del portal: el área de acceso va con candado a claro
-/// (`AuthAreaLightLock` en main.dart).
+/// (`LightThemeLock`).
 class ThemeSelector extends ConsumerWidget {
   const ThemeSelector({super.key});
 
