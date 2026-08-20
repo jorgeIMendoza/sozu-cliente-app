@@ -488,10 +488,10 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                       ),
                     ),
                     if (_schedule)
-                      TextButton.icon(
+                      SButton.ghost(
+                        label: 'Fecha y hora',
+                        icon: Icons.event_outlined,
                         onPressed: _pickDateTime,
-                        icon: const Icon(Icons.event_outlined, size: 18),
-                        label: const Text('Fecha y hora'),
                       ),
                   ],
                 ),

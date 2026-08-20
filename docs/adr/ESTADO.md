@@ -1,6 +1,6 @@
 # Estado de la migración
 
-Última actualización: 2026-08-18. Rama `dev-eddy`, sincronizada con `dev`.
+Última actualización: 2026-08-20. Rama `dev-eddy`, sincronizada con `dev`.
 
 Documento de traspaso: qué está hecho, qué sigue y qué decisiones esperan a
 Eduardo. El "por qué" de cada cosa está en los mensajes de commit y en
@@ -23,12 +23,14 @@ leerlo no cuadran, gana el grep.
 | Shell del cliente | UNO solo (`ClientShell`), decide por ancho y no por plataforma |
 | Pantallas de `auth` | las 5 son composición pura: 0 `setState`, ninguna pasa de 100 líneas |
 | Puertos y adaptadores | 8 features con `ports/` + `adapters/`; 0 fugas de vendor fuera de un adaptador salvo `core/portal_tracking.dart` |
-| Tests | 0 → 493, en 64 archivos. Las 5 pantallas de `auth` y las 2 de `admin` tienen cobertura |
+| Tests | 0 → 507, en 65 archivos. Las 5 pantallas de `auth` y las 2 de `admin` tienen cobertura |
 | Alias eliminados | `SozuColors`, `SozuTone`, `AuthColors`, `widgets/common.dart` - borrados, no deprecados |
 | Pares móvil/web | 5 de 6 fusionados (ver abajo). `AppCard`, `SectionTitle`, `EmptyCard`, `SozuProgressBar`, `StatusBadge`: 0 usos |
 | Imports | 100% `package:` en `lib/`, lint que lo obliga |
 | Guiones largos | 0 en lib, test, docs, yaml |
 | `flutter analyze` | 0 errores, 0 warnings. 674 infos, **todos** `PortalColors` deprecado |
+| Buscador de clientes | busca en el SERVIDOR e ignora acentos (`admin_clientes_buscar`); en produccion desde el 2026-08-19 |
+| Botones de Material | 0 en `auth`; en `admin` solo `AdminHeaderAction` (ver abajo). Patron agregado al grep de cierre |
 | Android en físico | funciona (Temurin 21 + SDK 36 + puente de adb) |
 
 `lib/screens/` y `lib/providers/` ya no existen. `lib/widgets/` es lo que queda
@@ -43,8 +45,8 @@ Conteo por feature de los 6 patrones legacy (`PortalColors`, `isPortalMode`,
 
 | Carpeta | Legacy | Nota |
 |---|---|---|
-| `features/auth` | **0** | cerrada, es la plantilla |
-| `features/admin` | **0** | cerrada |
+| `features/auth` | **0** | cerrada y re-auditada el 2026-08-20 contra el codigo |
+| `features/admin` | **0** | cerrada y re-auditada el 2026-08-20 contra el codigo |
 | `features/client/providers` | **0** | |
 | `features/client/facturacion` | 1 | |
 | `features/client/referral` | 1 | |
@@ -57,8 +59,27 @@ Conteo por feature de los 6 patrones legacy (`PortalColors`, `isPortalMode`,
 | `lib/widgets` (legacy) | 83 | |
 | `lib/core` | 3 | `portal_theme` + `portal_tracking` |
 
-Totales absolutos: **`PortalColors` ~580 referencias**, **`isPortalMode` 31
-usos**.
+Totales absolutos (medidos el 2026-08-20): **`PortalColors` 601 referencias**,
+**`isPortalMode` 36 usos**, **`SozuBrand` 63 fuera de `tokens/`**. Subieron
+respecto al 2026-08-18 porque entro codigo por `dev`; el grep manda sobre esta
+tabla.
+
+### Botones de Material, la deuda que nadie contaba
+
+`(Filled|Text|Elevated|Outlined)Button` se salta `SButton` sin escribir un solo
+numero crudo, asi que ningun otro patron del grep lo veia. Medido el 2026-08-20:
+
+| Carpeta | | |
+|---|---|---|
+| `auth` | **0** | corregido el 2026-08-20 |
+| `admin` | 3 | los tres de `AdminHeaderAction`, a proposito (ver abajo) |
+| `client` | 35 | sin tocar |
+
+`AdminHeaderAction` reimplementa lo que `SButton.ghost` y `.danger` ya hacen,
+pero mide 36 px y el design system dice que por debajo de 44 solo en barras
+densas de escritorio; estas pantallas tambien se usan en telefono. Consolidarlo
+exige decidir antes ese alto: pasarlo a `SButtonSize.sm` solo mudaria la
+violacion adentro de la primitiva.
 
 ### La deuda que la auditoría vieja no contaba
 
