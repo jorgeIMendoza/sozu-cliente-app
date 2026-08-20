@@ -32,9 +32,24 @@ class SelectClientScreen extends ConsumerStatefulWidget {
 class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   static const _minQueryLength = 2;
 
+  /// Cuanto se espera a que el usuario deje de teclear antes de tocar el store.
+  /// Sin esto cada letra vuelve a filtrar los 600+ clientes y reconstruye la
+  /// lista entera, y el campo se siente trabado mientras se escribe.
+  static const _typingPause = Duration(milliseconds: 350);
+
+  /// Techo de filas pintadas, y tambien lo que se le pide al servidor. La
+  /// lista NO tiene scroll propio (lo da [AdminLayout]), asi que el `ListView`
+  /// va con `shrinkWrap` y construye TODAS las filas de golpe: dos letras
+  /// comunes casan 500+ clientes. Nadie recorre 500 resultados.
+  static const _maxResults = kAdminClientSearchPageSize;
+
   final _search = TextEditingController();
   final _unit = TextEditingController();
-  Timer? _debounce;
+
+  /// Un temporizador por campo: con uno solo, teclear en Unidad cancelaba el
+  /// debounce pendiente de Cliente y esa busqueda no llegaba a ejecutarse.
+  Timer? _queryDebounce;
+  Timer? _unitDebounce;
 
   /// Los filtros viven en `clientFiltersProvider`, no aquí: así sobreviven a
   /// salir del selector y volver. Los `TextEditingController` SÍ son locales
@@ -51,29 +66,42 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    _queryDebounce?.cancel();
+    _unitDebounce?.cancel();
     _search.dispose();
     _unit.dispose();
     super.dispose();
   }
-
-  bool get _queryTooShort =>
-      ref.watch(clientFiltersProvider).query.trim().length < _minQueryLength;
 
   bool get _isPropertyFilterActive {
     final f = ref.watch(clientFiltersProvider);
     return f.projectId != null && f.unit.isNotEmpty;
   }
 
+  void _onQueryChanged(String v) {
+    _queryDebounce?.cancel();
+    _queryDebounce = Timer(_typingPause, () {
+      if (mounted) _filters.setQuery(v);
+    });
+  }
+
+  /// Vaciar es inmediato: el usuario ya decidio, esperar el debounce solo deja
+  /// la lista vieja en pantalla un rato mas.
+  void _clearQuery() {
+    _queryDebounce?.cancel();
+    _search.clear();
+    _filters.setQuery('');
+  }
+
   void _onUnitChanged(String v) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () {
+    _unitDebounce?.cancel();
+    _unitDebounce = Timer(_typingPause, () {
       if (mounted) _filters.setUnit(v.trim());
     });
   }
 
   void _clearUnit() {
-    _debounce?.cancel();
+    _unitDebounce?.cancel();
     _unit.clear();
     _filters.setUnit('');
   }
@@ -81,20 +109,25 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   /// Botón global: deja los tres filtros en blanco de un toque. Antes había que
   /// vaciar el buscador, quitar el proyecto y borrar la unidad por separado.
   void _clearAll() {
-    _debounce?.cancel();
+    _queryDebounce?.cancel();
+    _unitDebounce?.cancel();
     _search.clear();
     _unit.clear();
     _filters.clear();
   }
 
-  List<AdminCliente> _filterBy(List<AdminCliente> clients) {
-    final q = ref.read(clientFiltersProvider).query.trim().toLowerCase();
-    if (q.length < _minQueryLength) return const [];
+  /// Filtrado en memoria, SOLO para un backend que todavia no busca (respuesta
+  /// sin `total`). No normaliza acentos a proposito: esa regla vive ahora en
+  /// Postgres y duplicarla aqui es como se desincronizan las reglas. Mientras
+  /// este camino este activo, "Hernandez" no encuentra "Hernández", y eso es
+  /// exactamente lo que arregla desplegar el backend.
+  List<AdminCliente> _filtrarEnMemoria(List<AdminCliente> clients, String q) {
+    final needle = q.toLowerCase();
     return clients
         .where(
           (c) =>
-              c.nombre.toLowerCase().contains(q) ||
-              (c.email ?? '').toLowerCase().contains(q),
+              c.nombre.toLowerCase().contains(needle) ||
+              (c.email ?? '').toLowerCase().contains(needle),
         )
         .toList();
   }
@@ -151,7 +184,8 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
             onUnitChanged: _onUnitChanged,
             onUnitCleared: _clearUnit,
             searchController: _search,
-            onQueryChanged: filtros.setQuery,
+            onQueryChanged: _onQueryChanged,
+            onQueryCleared: _clearQuery,
             // Solo cuando hay algo puesto: un "Limpiar" permanente sobre un
             // formulario vacio es ruido, y ensena a ignorarlo.
             onClearAll: filtros.isDirty ? _clearAll : null,
@@ -170,7 +204,6 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
   /// El contenido NO trae scroll propio: el de la página lo da [AdminLayout].
   /// Por eso las listas van como `Column` y no como `ListView`.
   Widget _results() {
-    final clients = ref.watch(adminClientsProvider);
     final t = context.s;
 
     // Con el filtro Proyecto + Unidad activo solo se muestran los dueños de esa
@@ -184,43 +217,70 @@ class _SelectClientScreenState extends ConsumerState<SelectClientScreen> {
       );
     }
 
-    return clients.when(
-      loading: () => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < 4; i++) ...[
-            const _ClientRowSkeleton(),
-            SizedBox(height: t.space.xs),
-          ],
-        ],
-      ),
-      error: (_, __) => SErrorState(
-        title: 'No pudimos cargar la lista de clientes',
-        onRetry: () => ref.invalidate(adminClientsProvider),
-      ),
-      data: (data) {
-        final items = _filterBy(data.clientes);
-        if (_queryTooShort) {
-          return const SEmptyState(
-            icon: Icons.person_search_outlined,
-            title: 'Busca un cliente',
-            message:
-                'Escribe al menos $_minQueryLength letras del nombre o '
-                'correo, o filtra por proyecto y unidad.',
-          );
-        }
-        if (items.isEmpty) {
-          return SEmptyState(
-            icon: Icons.search_off_outlined,
-            title: 'Sin resultados',
-            message:
-                'No encontramos clientes para '
-                '"${ref.read(clientFiltersProvider).query}".',
-          );
-        }
-        return _ClientList(clients: items, onTap: _viewAs);
-      },
-    );
+    // La consulta se lee ANTES de observar la busqueda: por debajo del minimo
+    // no se observa nada, y abrir el selector deja de costar una descarga.
+    final query = ref.watch(clientFiltersProvider).query.trim();
+    if (query.length < _minQueryLength) {
+      return const SEmptyState(
+        icon: Icons.person_search_outlined,
+        title: 'Busca un cliente',
+        message:
+            'Escribe al menos $_minQueryLength letras del nombre o '
+            'correo, o filtra por proyecto y unidad.',
+      );
+    }
+
+    return ref
+        .watch(adminClientSearchProvider(query))
+        .when(
+          loading: () => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < 4; i++) ...[
+                const _ClientRowSkeleton(),
+                SizedBox(height: t.space.xs),
+              ],
+            ],
+          ),
+          error: (_, __) => SErrorState(
+            title: 'No pudimos cargar la lista de clientes',
+            onRetry: () => ref.invalidate(adminClientSearchProvider(query)),
+          ),
+          data: (pagina) {
+            // `total` en null = backend que todavia no busca: mando el padron
+            // entero y el filtrado toca aqui. Con backend nuevo la pagina ya
+            // viene filtrada y acotada, y `sublist` no recorta nada.
+            final coincidencias = pagina.total == null
+                ? _filtrarEnMemoria(pagina.clientes, query)
+                : pagina.clientes;
+            final total = pagina.total ?? coincidencias.length;
+
+            if (coincidencias.isEmpty) {
+              return SEmptyState(
+                icon: Icons.search_off_outlined,
+                title: 'Sin resultados',
+                message: 'No encontramos clientes para "$query".',
+              );
+            }
+
+            final mostrados = coincidencias.length > _maxResults
+                ? coincidencias.sublist(0, _maxResults)
+                : coincidencias;
+            if (mostrados.length >= total) {
+              return _ClientList(clients: mostrados, onTap: _viewAs);
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _ClientList(clients: mostrados, onTap: _viewAs),
+                _InlineNote(
+                  'Mostrando ${mostrados.length} de $total. '
+                  'Escribe más para afinar la búsqueda.',
+                ),
+              ],
+            );
+          },
+        );
   }
 
   /// Sección "Copropietarios (N)" / "Dueño de la propiedad", solo cuando el
@@ -300,6 +360,9 @@ class _FiltersPanel extends StatelessWidget {
   final TextEditingController searchController;
   final ValueChanged<String> onQueryChanged;
 
+  /// La X del buscador: no pasa por el debounce de [onQueryChanged].
+  final VoidCallback onQueryCleared;
+
   /// null = no hay nada que limpiar, y el boton no se pinta.
   final VoidCallback? onClearAll;
 
@@ -312,6 +375,7 @@ class _FiltersPanel extends StatelessWidget {
     required this.onUnitCleared,
     required this.searchController,
     required this.onQueryChanged,
+    required this.onQueryCleared,
     required this.onClearAll,
   });
 
@@ -342,6 +406,7 @@ class _FiltersPanel extends StatelessWidget {
             // media pantalla antes de que el usuario pida escribir.
             autofocus: context.bp.isDesktop,
             onChanged: onQueryChanged,
+            onCleared: onQueryCleared,
           ),
           if (onClearAll != null) ...[
             SizedBox(height: t.space.xs),

@@ -1585,10 +1585,20 @@ class AdminCliente {
 class AdminClientes {
   final List<AdminCliente> clientes;
 
+  /// Coincidencias TOTALES en el servidor, no las de esta pagina.
+  ///
+  /// `null` significa que el backend no busca todavia y mando el padron
+  /// entero: es la senal de que hay que filtrar en el cliente. Por eso es
+  /// nullable y no 0, que seria un total legitimo.
+  final int? total;
+
   AdminClientes.fromJson(Map<String, dynamic> j)
     : clientes = ((j['clientes'] as List?) ?? [])
           .map((e) => AdminCliente.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+          .toList(),
+      total = j['total'] == null ? null : asInt(j['total']);
+
+  const AdminClientes({required this.clientes, this.total});
 }
 
 // ─── cliente-expediente ──────────────────────────────────────────────────────

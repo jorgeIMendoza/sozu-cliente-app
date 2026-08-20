@@ -22,38 +22,52 @@ class AuthAdapter implements AuthPort {
 
   @override
   Future<UserProfile?> profile() async {
+    final List<dynamic> rows;
     try {
       final data = await _sb.rpc('get_current_user_profile');
-      final rows = data is List ? data : [data];
-      if (rows.isEmpty || rows.first == null) return null;
-      final row = Map<String, dynamic>.from(rows.first as Map);
-      // Mapper key-del-backend -> campo del dominio: las keys son del RPC y se
-      // quedan en espanol; si el backend cambia una, se toca esta linea.
-      return UserProfile(
-        displayName: row['nombre'] as String?,
-        email: row['email'] as String?,
-        roleName: row['rol_nombre'] as String?,
-        roleId: row['rol_id'] is int
-            ? row['rol_id'] as int
-            : int.tryParse('${row['rol_id']}'),
-        // Ausente hasta que el RPC agregue la columna: se lee como false y el
-        // acceso queda igual que antes (solo rol Cliente).
-        isBuyer: row['es_comprador'] == true,
-        personId: row['id_persona'] is int
-            ? row['id_persona'] as int
-            : int.tryParse('${row['id_persona']}'),
-        requiresPasswordChange: row['debe_cambiar_password'] == true,
-        canManageClientApp: row['administrar_app_clientes'] == true,
-        // Defaults TOLERANTES: mientras la migracion que agrega estas columnas
-        // no este desplegada el RPC no las devuelve (llegan null) y nadie debe
-        // quedar bloqueado por eso. `!= false` = "true salvo negativa expresa".
-        isActive: row['activo'] != false,
-        isEmailConfirmed: row['email_confirmado'] != false,
-        requiresEmailConfirmation: row['requiere_confirmacion_email'] == true,
-      );
+      rows = data is List ? data : [data];
+    } on PostgrestException catch (e) {
+      throw AuthError(_profileFailure(e));
     } catch (_) {
-      return null;
+      // Sin respuesta del RPC no hubo servidor: fue la red.
+      throw AuthError(AuthFailure.network);
     }
+    // El mapeo va FUERA del try: un error aqui es un bug de este archivo y
+    // disfrazarlo de fallo de red lo esconde.
+    if (rows.isEmpty || rows.first == null) return null;
+    final row = Map<String, dynamic>.from(rows.first as Map);
+    // Mapper key-del-backend -> campo del dominio: las keys son del RPC y se
+    // quedan en espanol; si el backend cambia una, se toca esta linea.
+    return UserProfile(
+      displayName: row['nombre'] as String?,
+      email: row['email'] as String?,
+      roleName: row['rol_nombre'] as String?,
+      roleId: row['rol_id'] is int
+          ? row['rol_id'] as int
+          : int.tryParse('${row['rol_id']}'),
+      // Ausente hasta que el RPC agregue la columna: se lee como false y el
+      // acceso queda igual que antes (solo rol Cliente).
+      isBuyer: row['es_comprador'] == true,
+      personId: row['id_persona'] is int
+          ? row['id_persona'] as int
+          : int.tryParse('${row['id_persona']}'),
+      requiresPasswordChange: row['debe_cambiar_password'] == true,
+      canManageClientApp: row['administrar_app_clientes'] == true,
+      // Defaults TOLERANTES: mientras la migracion que agrega estas columnas
+      // no este desplegada el RPC no las devuelve (llegan null) y nadie debe
+      // quedar bloqueado por eso. `!= false` = "true salvo negativa expresa".
+      isActive: row['activo'] != false,
+      isEmailConfirmed: row['email_confirmado'] != false,
+      requiresEmailConfirmation: row['requiere_confirmacion_email'] == true,
+    );
+  }
+
+  /// Traduce el rechazo del RPC del perfil. Ninguno de los dos casos dice nada
+  /// sobre la cuenta: son fallos de la LECTURA.
+  static AuthFailure _profileFailure(PostgrestException e) {
+    final status = int.tryParse(e.code ?? '') ?? 0;
+    if (status == 401 || status == 403) return AuthFailure.sessionRevoked;
+    return AuthFailure.unknown;
   }
 
   @override

@@ -15,6 +15,17 @@ class FakeAdminPort implements AdminPort {
   /// marca cancelado.
   final List<AvisoApp> storedAnnouncements = [];
 
+  /// Clientes que devuelve [clients]. Se sobreescribe para probar listas
+  /// largas (el selector corta la lista pintada a partir de cierto tamano).
+  List<Map<String, dynamic>> storedClients = [
+    {'id_persona': 7, 'nombre': 'Alex Hernández', 'email': 'alex@x.com'},
+    {'id_persona': 8, 'nombre': 'Bruno Pérez', 'email': 'bruno@x.com'},
+  ];
+
+  /// `false` emula un backend SIN la accion `buscar`: devuelve el padron
+  /// entero y sin `total`, que es como degrada la app hasta que se despliega.
+  bool serverSearch = true;
+
   String storedAnimation = 'gol';
   int _nextId = 1;
 
@@ -31,12 +42,44 @@ class FakeAdminPort implements AdminPort {
   @override
   Future<AdminClientes> clients() async {
     _throwIfFailing('clients');
-    return AdminClientes.fromJson({
-      'clientes': [
-        {'id_persona': 7, 'nombre': 'Alex Hernández', 'email': 'alex@x.com'},
-        {'id_persona': 8, 'nombre': 'Bruno Pérez', 'email': 'bruno@x.com'},
-      ],
-    });
+    return AdminClientes.fromJson({'clientes': storedClients});
+  }
+
+  /// Quita acentos como lo hace `unaccent` en Postgres. Aqui SI se duplica la
+  /// regla a proposito: el doble existe para emular el contrato del servidor,
+  /// y sin esto ninguna prueba fija que la busqueda los ignora.
+  static String _sinAcentos(String v) {
+    const con = 'áéíóúüñÁÉÍÓÚÜÑ';
+    const sin = 'aeiouunAEIOUUN';
+    final b = StringBuffer();
+    for (final ch in v.split('')) {
+      final i = con.indexOf(ch);
+      b.write(i < 0 ? ch : sin[i]);
+    }
+    return b.toString().toLowerCase();
+  }
+
+  @override
+  Future<AdminClientes> searchClients({
+    required String query,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    _throwIfFailing('searchClients');
+    // Backend viejo: ignora la accion que no conoce y cae a la lista completa.
+    if (!serverSearch) {
+      return AdminClientes.fromJson({'clientes': storedClients});
+    }
+    final needle = _sinAcentos(query.trim());
+    final casan = storedClients.where((c) {
+      final nombre = _sinAcentos((c['nombre'] ?? '').toString());
+      final email = _sinAcentos((c['email'] ?? '').toString());
+      return needle.isEmpty ||
+          nombre.contains(needle) ||
+          email.contains(needle);
+    }).toList();
+    final pagina = casan.skip(offset).take(limit).toList();
+    return AdminClientes.fromJson({'clientes': pagina, 'total': casan.length});
   }
 
   @override

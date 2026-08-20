@@ -10,9 +10,31 @@ import 'package:sozu_cliente_app/features/admin/ports/admin_port.dart';
 final adminPortProvider = Provider<AdminPort>((ref) => AdminAdapter());
 
 /// Clientes para el selector de impersonación (no depende del target).
+///
+/// Trae el padrón COMPLETO. Lo usa el camino heredado; la pantalla busca con
+/// [adminClientSearchProvider], que no baja nada hasta que hay texto.
 final adminClientsProvider = FutureProvider<AdminClientes>(
   (ref) => ref.watch(adminPortProvider).clients(),
 );
+
+/// Cuántas filas pide el selector por página. Es también el techo de filas que
+/// pinta: la lista no tiene scroll propio (lo da `AdminLayout`), así que
+/// construye todas las que reciba.
+const int kAdminClientSearchPageSize = 50;
+
+/// Búsqueda de clientes contra el servidor, con la consulta como clave.
+///
+/// `autoDispose` a propósito: cada texto tecleado es una clave distinta y sin
+/// esto la caché crece con cada letra durante toda la sesión.
+///
+/// La pantalla NO lo observa por debajo del mínimo de letras, así que abrir el
+/// selector ya no dispara ninguna descarga.
+final adminClientSearchProvider = FutureProvider.autoDispose
+    .family<AdminClientes, String>(
+      (ref, query) => ref
+          .watch(adminPortProvider)
+          .searchClients(query: query, limit: kAdminClientSearchPageSize),
+    );
 
 /// Proyectos SOZU para el filtro "Ver como" del selector de impersonación
 /// (mismo catálogo que los avisos: proyectos activos comercializados).

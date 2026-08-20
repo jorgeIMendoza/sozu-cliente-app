@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/features/auth/components/login_form.dart';
+import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
+import 'package:sozu_cliente_app/shared/api_error.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 import 'fake_auth_port.dart';
@@ -19,6 +21,14 @@ import 'fake_auth_port.dart';
 /// se anuncia como botón ni pinta ripple. Encenderlo tampoco concede nada por sí
 /// solo - quien decide es `canManageClientApp` del perfil.
 void main() {
+  /// Perfil de un cliente con acceso al portal (rol 23 en producción).
+  const clientProfile = UserProfile(
+    displayName: 'Cliente de Prueba',
+    email: 'cliente@sozu.com',
+    roleName: 'Cliente',
+    roleId: 23,
+  );
+
   /// Margen sobre el umbral real del gesto (1.5 s).
   const holdWithMargin = Duration(milliseconds: 1600);
 
@@ -53,6 +63,7 @@ void main() {
   Future<void> pumpLoginForm(
     WidgetTester tester, {
     Size size = const Size(390, 900),
+    FakeAuthPort? port,
   }) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = size;
@@ -60,7 +71,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [authPortProvider.overrideWithValue(FakeAuthPort())],
+        overrides: [authPortProvider.overrideWithValue(port ?? FakeAuthPort())],
         child: MaterialApp(
           theme: sozuLightTheme(),
           builder: (context, child) =>
@@ -359,6 +370,73 @@ void main() {
     expect(find.text(badgeLabel), findsOneWidget);
     expect(find.text(biometricLabel), findsNothing);
     expect(prompts.value, 1, reason: 'sostener el sello no pide la huella');
+  });
+
+  // -------------------------------------------------------------------------
+  // Perfil ilegible: la credencial NO está en duda
+  // -------------------------------------------------------------------------
+
+  /// Teclea unas credenciales válidas y toca "Iniciar sesión".
+  Future<void> submitValidCredentials(WidgetTester tester) async {
+    await tester.enterText(
+      find.byType(TextFormField).first,
+      'cliente@sozu.com',
+    );
+    await tester.enterText(find.byType(TextFormField).last, 'secreta123');
+    // Por el botón, no por el texto: el título de la pantalla dice lo mismo.
+    await tester.tap(find.widgetWithText(SButton, 'Iniciar sesión'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+    'perfil ilegible tras un login válido: NO dice contraseña incorrecta ni '
+    'cierra la sesión',
+    (tester) async {
+      mockBiometricsEnabled(enabled: false);
+      final port = FakeAuthPort(profileRow: clientProfile)
+        ..profileFailure = AuthFailure.network;
+      await pumpLoginForm(tester, port: port);
+
+      await submitValidCredentials(tester);
+
+      expect(
+        find.text('No pudimos verificar tu cuenta. Intenta de nuevo.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('incorrectos'), findsNothing);
+      // La sesión se queda viva: un fallo de red no es motivo para revocarla.
+      expect(port.log, isNot(contains('signOut')));
+    },
+  );
+
+  testWidgets('sin fila de perfil: manda a soporte, no a cambiar contraseña', (
+    tester,
+  ) async {
+    mockBiometricsEnabled(enabled: false);
+    final port = FakeAuthPort(); // autentica, pero el RPC no devuelve fila
+    await pumpLoginForm(tester, port: port);
+
+    await submitValidCredentials(tester);
+
+    expect(find.textContaining('contacta a soporte'), findsOneWidget);
+    expect(find.textContaining('incorrectos'), findsNothing);
+    expect(port.log, contains('signOut'));
+  });
+
+  testWidgets('perfil leído sin acceso al portal: mensaje genérico', (
+    tester,
+  ) async {
+    mockBiometricsEnabled(enabled: false);
+    // Rol interno sin compra: perfil leído que SÍ dice que no entra.
+    final port = FakeAuthPort(
+      profileRow: const UserProfile(roleId: 4, roleName: 'Agente'),
+    );
+    await pumpLoginForm(tester, port: port);
+
+    await submitValidCredentials(tester);
+
+    expect(find.text('Correo o contraseña incorrectos.'), findsOneWidget);
+    expect(port.log, contains('signOut'));
   });
 }
 
