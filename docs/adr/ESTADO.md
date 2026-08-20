@@ -23,7 +23,7 @@ leerlo no cuadran, gana el grep.
 | Shell del cliente | UNO solo (`ClientShell`), decide por ancho y no por plataforma |
 | Pantallas de `auth` | las 5 son composición pura: 0 `setState`, ninguna pasa de 100 líneas |
 | Pantallas de `admin` | las 2 tambien: `select_client_screen` paso de 527 a 64 lineas al salir `ClientSelector` |
-| Puertos y adaptadores | 8 features con `ports/` + `adapters/`; 0 fugas de vendor fuera de un adaptador salvo `core/portal_tracking.dart` |
+| Puertos y adaptadores | **0 fugas de vendor fuera de un adaptador.** `portal_tracking` cerro la ultima el 2026-08-20 (`TrackingPort` + `TrackingAdapter`) |
 | Tests | 0 → 507, en 65 archivos. Las 5 pantallas de `auth` y las 2 de `admin` tienen cobertura |
 | Alias eliminados | `SozuColors`, `SozuTone`, `AuthColors`, `widgets/common.dart` - borrados, no deprecados |
 | Pares móvil/web | 5 de 6 fusionados (ver abajo). `AppCard`, `SectionTitle`, `EmptyCard`, `SozuProgressBar`, `StatusBadge`: 0 usos |
@@ -103,10 +103,11 @@ Lo que queda fuera de `client` esta atado a su migracion y cae con ella:
 `portal_theme` es el shim de `PortalColors`, `lib/widgets/` son los 7 archivos
 legacy declarados, y el `isPortalMode` del router es el modo ancho legacy.
 
-La UNICA pieza independiente que sigue abierta es `core/portal_tracking.dart`
-(ver punto 5): usa `SupabaseClient` directo en `core/`, la unica grieta del
-hexagonal en todo el repo. No depende de `client` y se puede cerrar cuando se
-quiera.
+`core/portal_tracking.dart` **ya se cerro** el 2026-08-20: el vendor vive ahora
+en `shared/adapters/tracking_adapter.dart` y el hexagonal no tiene grietas. Con
+puerto se pudo doblar, y hay dos pruebas que antes no eran posibles (que la
+medicion cierra ANTES del signOut, y que cerrar sin sesion abierta no llama al
+puerto). El inventario de `core/` con su agrupacion esta en `lib/core/README.md`.
 
 Notas sobre el vendor en `core/`, para no re-auditarlas cada vez:
 `backend_env.dart` nombra `SUPABASE_URL` y `SUPABASE_ANON_KEY` porque son los
@@ -231,12 +232,10 @@ los tokens estén migrados:
 `LightThemeLock` (antes `AuthAreaLightLock`, en `shared/components/`) es el
 único candado legítimo: fuerza claro mientras el usuario no ha entrado.
 
-### 5. `core/portal_tracking.dart` usa el vendor fuera de un adaptador
+### 5. ~~`core/portal_tracking.dart` usa el vendor fuera de un adaptador~~ HECHO
 
-`SupabaseClient` directo en `core/` (línea 28). Es la única grieta del hexagonal
-en todo el repo. No es un agujero de seguridad (son los 3 RPC `SECURITY DEFINER`
-que usan los demás portales), pero incumple la regla del ADR 0002: se resuelve
-con un `TrackingPort` + adaptador.
+Cerrado el 2026-08-20. `TrackingPort` en `shared/ports/`, `TrackingAdapter` en
+`shared/adapters/`. Era la unica grieta del hexagonal en todo el repo.
 
 ### 6. Plugins que aplican KGP  (deuda con fecha abierta)
 

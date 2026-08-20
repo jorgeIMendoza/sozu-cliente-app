@@ -407,11 +407,13 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
   `admin/` (cerrada), `client/` (expediente, facturacion, home, layouts,
   products, profile, properties, referral, providers), `app_download/` (la
   landing de descarga del APK, un solo componente).
-- core/: backend_env, format, secure_session_storage, open_document, open_media,
-  media_cache, file_download, file_drop, url_strategy, user_agent/, version,
-  push_service, portal_tracking, portal_theme (legacy). La biometría salió a
-  `features/auth/`. Los pares `*_stub.dart` / `*_web.dart` son los imports
-  condicionales por plataforma.
+- core/: infraestructura transversal. **Inventario agrupado y por que cada cosa
+  esta ahi: `lib/core/README.md`.** 21 archivos que son 10 conceptos, porque
+  cuatro son tercias `x` + `x_stub` + `x_web` (imports condicionales por
+  plataforma, no duplicacion). El unico legacy es `portal_theme`.
+  WARN: `browser_ua_*` se llamaba `user_agent/` y se renombro el 2026-08-20: en
+  este sistema "agente" es un ROL de negocio (portal agentes, `authAgente`), asi
+  que el nombre se leia como algo de ese rol y no como la cabecera HTTP.
 - data/: models (DTOs de las 7 functions)
 - shared/: ports + adapters + providers **y components** que consumen 2+
   features, api_error. `shared/components/` es para un widget que necesita un
