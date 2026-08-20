@@ -12,7 +12,7 @@ import 'package:sozu_cliente_app/features/auth/services/portal_access.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
 
 /// Estado de sesión/JWT + perfil (espejo de src/providers/AuthProvider.tsx).
-/// - Todo acceso al backend va por [AuthPort]; este archivo no conoce al proveedor.
+/// - Todo acceso al backend va por [AuthPort]; este archivo no conoce Supabase.
 /// - `mustChangePassword` fuerza el cambio de contraseña temporal.
 /// - El listener de sessionChanges solo actualiza la sesión; el perfil se
 ///   carga aparte (mismo patrón anti-deadlock que el app RN).

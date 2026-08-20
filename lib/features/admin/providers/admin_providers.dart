@@ -9,20 +9,26 @@ import 'package:sozu_cliente_app/features/admin/ports/admin_port.dart';
 /// (`overrideWithValue`), así que main.dart no necesita wiring propio.
 final adminPortProvider = Provider<AdminPort>((ref) => AdminAdapter());
 
-/// Padrón COMPLETO. Camino heredado: la pantalla busca con
-/// [adminClientSearchProvider].
+/// Clientes para el selector de impersonación (no depende del target).
+///
+/// Trae el padrón COMPLETO. Lo usa el camino heredado; la pantalla busca con
+/// [adminClientSearchProvider], que no baja nada hasta que hay texto.
 final adminClientsProvider = FutureProvider<AdminClientes>(
   (ref) => ref.watch(adminPortProvider).clients(),
 );
 
-/// Filas por página, y también el techo que pinta la pantalla: la lista no
-/// tiene scroll propio y construye todas las que reciba.
+/// Cuántas filas pide el selector por página. Es también el techo de filas que
+/// pinta: la lista no tiene scroll propio (lo da `AdminLayout`), así que
+/// construye todas las que reciba.
 const int kAdminClientSearchPageSize = 50;
 
 /// Búsqueda de clientes contra el servidor, con la consulta como clave.
 ///
-/// `autoDispose` porque cada texto tecleado es una clave distinta: sin él la
-/// caché crece con cada letra durante toda la sesión.
+/// `autoDispose` a propósito: cada texto tecleado es una clave distinta y sin
+/// esto la caché crece con cada letra durante toda la sesión.
+///
+/// La pantalla NO lo observa por debajo del mínimo de letras, así que abrir el
+/// selector ya no dispara ninguna descarga.
 final adminClientSearchProvider = FutureProvider.autoDispose
     .family<AdminClientes, String>(
       (ref, query) => ref

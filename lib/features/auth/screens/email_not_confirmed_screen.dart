@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:sozu_cliente_app/features/auth/components/auth_logo.dart';
-import 'package:sozu_cliente_app/features/auth/components/auth_subtitle.dart';
-import 'package:sozu_cliente_app/features/auth/components/auth_title.dart';
+import 'package:sozu_cliente_app/features/auth/components/auth_header.dart';
 import 'package:sozu_cliente_app/features/auth/components/resend_confirmation_action.dart';
 import 'package:sozu_cliente_app/features/auth/layouts/auth_layout.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
