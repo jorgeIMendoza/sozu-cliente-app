@@ -15,6 +15,10 @@ class FakeAuthPort implements AuthPort {
   /// Lo que devuelve [profile]; null simula "sin fila para su identidad".
   UserProfile? profileRow;
 
+  /// Con esto puesto, [profile] LANZA en cada llamada: simula el RPC caído o la
+  /// red muerta, que es distinto de "sin fila". No se consume.
+  AuthFailure? profileFailure;
+
   /// Fallo forzado de la PRÓXIMA operación de sesión; se consume al usarse.
   AuthFailure? nextFailure;
 
@@ -56,6 +60,8 @@ class FakeAuthPort implements AuthPort {
   @override
   Future<UserProfile?> profile() async {
     log.add('profile');
+    final failure = profileFailure;
+    if (failure != null) throw AuthError(failure);
     return profileRow;
   }
 

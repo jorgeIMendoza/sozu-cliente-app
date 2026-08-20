@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +16,16 @@ import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/auth/screens/email_not_confirmed_screen.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+/// La lectura del perfil falló (red, RPC caída): la credencial no está en duda,
+/// así que el mensaje NO puede hablar de contraseñas.
+const _errorPerfilNoLeido = 'No pudimos verificar tu cuenta. Intenta de nuevo.';
+
+/// El perfil se leyó y no hay fila para esta identidad: no es un problema de
+/// credenciales y reintentar no lo arregla, hace falta soporte.
+const _errorPerfilSinFila =
+    'No pudimos verificar tu cuenta. Si el problema continúa, contacta a '
+    'soporte.';
 
 /// Formulario de acceso: correo + contraseña, biometría y la navegación
 /// posterior al login. Concentra el estado y la lógica del acceso.
@@ -170,7 +180,20 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     }
 
     try {
-      final profile = await auth.refreshProfile();
+      final load = await auth.refreshProfile();
+      // No se pudo LEER el perfil (red, RPC caida): eso no dice nada de esta
+      // cuenta. La sesion se queda viva y el usuario reintenta; el router lo
+      // deja en /login mientras no haya perfil.
+      if (load == ProfileLoad.failed) {
+        auth.authFlowInProgress = false;
+        if (!mounted) return;
+        setState(() {
+          _formError = _errorPerfilNoLeido;
+          _isSubmitting = false;
+        });
+        return;
+      }
+      final profile = auth.profile;
       // Gate de cuenta ANTES del acceso administrador: una cuenta dada de baja
       // (o de un rol de portal con el correo sin confirmar) no entra por
       // ninguna de las dos puertas. El gate ya cerró la sesión.
@@ -193,13 +216,27 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       final isAdminAccess =
           _isAdminMode && (profile?.canManageClientApp ?? false);
       if (!PortalAccess.allows(profile) && !isAdminAccess) {
-        // Ni usuario del portal (rol Cliente o comprador) ni administrador de
-        // la app: mensaje genérico para no revelar cuentas existentes.
+        // Sin fila de perfil no hay nada que juzgar: la credencial era buena y
+        // decir "incorrectos" manda al usuario a cambiar una contraseña que
+        // nunca estuvo mal (fue el bug del 2026-08-19). Con perfil leído sí es
+        // una cuenta sin acceso, y ahí el mensaje se mantiene genérico para no
+        // revelar qué cuentas existen.
+        final leido = load == ProfileLoad.loaded;
+        if (leido) {
+          // Único rastro de por qué se cerró la sesión. Rol y bandera, nunca
+          // correo: no se loguea PII.
+          debugPrint(
+            '[login] sin acceso al portal: rol=${profile?.roleId} '
+            'comprador=${profile?.isBuyer} admin=$_isAdminMode',
+          );
+        }
         await auth.signOut();
         auth.authFlowInProgress = false;
         if (!mounted) return;
         setState(() {
-          _formError = 'Correo o contraseña incorrectos.';
+          _formError = leido
+              ? 'Correo o contraseña incorrectos.'
+              : _errorPerfilSinFila;
           _isSubmitting = false;
         });
         return;
@@ -235,7 +272,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       auth.authFlowInProgress = false;
       if (!mounted) return;
       setState(() {
-        _formError = 'No pudimos verificar tu cuenta. Intenta de nuevo.';
+        _formError = _errorPerfilNoLeido;
         _isSubmitting = false;
       });
     }
@@ -307,7 +344,19 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       return;
     }
     try {
-      final profile = await auth.refreshProfile();
+      final load = await auth.refreshProfile();
+      // Fallo de LECTURA: no se cierra sesión ni se toca el enrolamiento. Aquí
+      // se le borraba la huella a un cliente legítimo por un fallo de red.
+      if (load == ProfileLoad.failed) {
+        auth.authFlowInProgress = false;
+        if (!mounted) return;
+        setState(() {
+          _isBiometricRunning = false;
+          _formError = _errorPerfilNoLeido;
+        });
+        return;
+      }
+      final profile = auth.profile;
       // Mismo gate que el login por contraseña: la huella no puede saltárselo.
       final block = await auth.applyAccessGates();
       if (block != null) {
@@ -327,19 +376,28 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         return;
       }
       if (!PortalAccess.allows(profile)) {
-        // Enrolamiento viejo de una cuenta no-cliente: se apaga aquí. Dejarlo
-        // activo daría acceso a la consola de administración con solo la huella
-        // del teléfono.
-        await BiometricService.instance.disable();
-        await auth.signOut();
+        // El enrolamiento se apaga SOLO con perfil leído que dice que la cuenta
+        // no es de cliente: dejarlo activo daría acceso a la consola de
+        // administración con solo la huella del teléfono. Sin fila que lo diga
+        // no hay evidencia contra la cuenta, así que se conserva.
+        // Sin fila tampoco se cierra la sesión: el signOut revoca en el
+        // servidor y con eso muere el refresh token guardado, así que el acceso
+        // rápido pediría contraseña aunque el problema fuera del backend. El
+        // router deja al usuario en /login mientras no haya perfil.
+        final leido = load == ProfileLoad.loaded;
+        if (leido) {
+          await BiometricService.instance.disable();
+          await auth.signOut();
+        }
         auth.authFlowInProgress = false;
         if (!mounted) return;
         setState(() {
           _isBiometricRunning = false;
-          _isBiometricAvailable = false;
-          _formError =
-              'El acceso con huella es solo para clientes. Entra con tu correo '
-              'y contraseña.';
+          _isBiometricAvailable = !leido;
+          _formError = leido
+              ? 'El acceso con huella es solo para clientes. Entra con tu '
+                    'correo y contraseña.'
+              : _errorPerfilSinFila;
         });
         return;
       }
@@ -354,7 +412,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       if (!mounted) return;
       setState(() {
         _isBiometricRunning = false;
-        _formError = 'No pudimos verificar tu cuenta. Intenta de nuevo.';
+        _formError = _errorPerfilNoLeido;
       });
     }
   }

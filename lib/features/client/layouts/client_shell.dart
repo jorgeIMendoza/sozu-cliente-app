@@ -4,14 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/core/portal_theme.dart';
-import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/home/providers/home_providers.dart';
-import 'package:sozu_cliente_app/features/client/providers/client_providers.dart';
 import 'package:sozu_cliente_app/features/admin/providers/impersonation_provider.dart';
 import 'package:sozu_cliente_app/features/app_download/components/app_download.dart';
 import 'package:sozu_cliente_app/features/client/home/components/notification_bell.dart';
-import 'package:sozu_cliente_app/features/client/layouts/portal_shell_widgets.dart';
+import 'package:sozu_cliente_app/features/client/layouts/client_bottom_nav.dart';
+import 'package:sozu_cliente_app/features/client/layouts/client_shell_widgets.dart';
 // Botón "Referir" oculto por ahora (a petición); restaurar junto con su uso.
 // import 'package:sozu_cliente_app/features/client/referral/components/referral_action.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
@@ -93,78 +92,110 @@ String _shortName(String? nombre) {
   return '${words.substring(0, 22)}…';
 }
 
-/// Envuelve una pantalla del cliente con [PortalShell] SOLO en modo portal;
-/// en cualquier otro caso devuelve el hijo tal cual (layout móvil intacto).
-class PortalShellWrapper extends StatelessWidget {
-  final String currentPath;
-  final Widget child;
-
-  const PortalShellWrapper({
+/// Chrome de navegacion del cliente: UNO solo para las dos anchuras.
+///
+/// Con sidebar (>=1024) monta barra lateral y superior; sin el, la barra
+/// inferior flotante. Antes eran tres widgets distintos elegidos en tres
+/// sitios y con dos criterios: `isPortalMode` miraba plataforma Y ancho,
+/// `isDesktop` solo ancho. Por eso una tablet Android ancha recibia el layout
+/// de telefono.
+///
+/// El criterio ahora es `context.bp`: espacio disponible, nunca `kIsWeb`.
+class ClientShell extends ConsumerWidget {
+  const ClientShell({
     super.key,
     required this.currentPath,
     required this.child,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    if (!isPortalMode(context)) return child;
-    return PortalShell(currentPath: currentPath, child: child);
-  }
-}
-
-/// Sidebar de 256px + topbar de 64px + contenido centrado a 1280.
-class PortalShell extends ConsumerWidget {
   final String currentPath;
   final Widget child;
-
-  const PortalShell({
-    super.key,
-    required this.currentPath,
-    required this.child,
-  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // El portal es solo claro (.inmob-portal nunca aplica .dark): en modo
-    // portal se fuerza el tema claro también en el contenido.
-    return Theme(
-      data: sozuLightTheme(),
-      child: Material(
-        color: PortalColors.background,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _PortalSidebar(currentPath: currentPath),
-            Expanded(
-              child: Column(
-                children: [
-                  const _PortalShellTopBar(),
-                  Expanded(
-                    child: ColoredBox(
-                      color: PortalColors.background,
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: kPortalContentMaxWidth,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: kPortalContentGutter,
-                            ),
-                            child: child,
-                          ),
+    final auth = ref.watch(authProvider);
+    final imp = ref.watch(impersonationProvider);
+    // La franja cubre TODAS las pantallas del cliente, no solo las pestanas:
+    // antes se perdia al entrar a una secundaria y el admin dejaba de ver que
+    // seguia viendo como otro.
+    final banner = auth.isSuperAdmin && imp.active
+        ? ImpersonationBanner(nombre: imp.clientName ?? 'Cliente')
+        : null;
+
+    final cuerpo = context.bp.hasSidebar
+        ? _ConSidebar(currentPath: currentPath, child: child)
+        : _ConBarraInferior(currentPath: currentPath, child: child);
+
+    if (banner == null) return cuerpo;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        banner,
+        Expanded(child: cuerpo),
+      ],
+    );
+  }
+}
+
+/// Ancho: barra lateral + superior, contenido acotado y centrado.
+class _ConSidebar extends StatelessWidget {
+  const _ConSidebar({required this.currentPath, required this.child});
+
+  final String currentPath;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return Material(
+      color: PortalColors.background,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _PortalSidebar(currentPath: currentPath),
+          Expanded(
+            child: Column(
+              children: [
+                const _PortalShellTopBar(),
+                Expanded(
+                  child: ColoredBox(
+                    color: PortalColors.background,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: kSozuContentMaxWidth,
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: t.space.lg),
+                          child: child,
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+}
+
+/// Angosto: la barra inferior flotante sobre TODAS las pantallas, pestanas y
+/// secundarias, para que el menu nunca desaparezca.
+class _ConBarraInferior extends StatelessWidget {
+  const _ConBarraInferior({required this.currentPath, required this.child});
+
+  final String currentPath;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: context.s.color.background,
+    body: child,
+    bottomNavigationBar: ClientBottomNav(currentPath: currentPath),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -176,66 +207,21 @@ class _PortalSidebar extends ConsumerWidget {
 
   const _PortalSidebar({required this.currentPath});
 
-  Future<void> _confirmarSalir(BuildContext context, WidgetRef ref) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cerrar sesión'),
-        content: const Text('¿Seguro que quieres salir?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Cerrar sesión',
-              style: TextStyle(color: PortalColors.destructive),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) {
-      // Igual que el perfil: con biometría solo bloquea; si no, signOut real.
-      await ref.read(authProvider).lockOrSignOut();
-      // Limpia la impersonación y la caché de datos del cliente para que la
-      // próxima sesión (otro cliente) no herede el resumen/perfil del anterior.
-      ref.read(impersonationProvider).clear();
-      invalidateAllData(ref);
-      if (context.mounted) context.go('/login');
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authProvider);
-    final imp = ref.watch(impersonationProvider);
-    final impersonando = auth.isSuperAdmin && imp.active;
     final noLeidas =
         ref.watch(notificationsProvider).valueOrNull?.noLeidas ?? 0;
-    final nombre =
-        auth.profile?.displayName ?? auth.profile?.email ?? 'Usuario';
     const navItems = _portalNavItems;
 
     return Container(
-      width: kPortalSidebarWidth,
-      decoration: const BoxDecoration(
-        color: PortalColors.surface,
-        border: Border(right: BorderSide(color: PortalColors.border, width: 1)),
-      ),
+      width: kSozuSidebarWidth,
+      color: PortalColors.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ---- Brand: logo + "PORTAL DEL CLIENTE" ----
           Container(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-            decoration: const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: PortalColors.borderSoft, width: 1),
-              ),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -276,101 +262,6 @@ class _PortalSidebar extends ConsumerWidget {
                     ),
                 ],
               ),
-            ),
-          ),
-          // ---- Footer: usuario + acciones + versión ----
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-            decoration: const BoxDecoration(
-              border: Border(
-                top: BorderSide(color: PortalColors.borderSoft, width: 1),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (impersonando) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: PortalColors.primarySoft6,
-                      borderRadius: BorderRadius.circular(kPortalRadiusSm),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.visibility_outlined,
-                          size: 14,
-                          color: PortalColors.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Viendo como: ${imp.clientName ?? 'Cliente'}',
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: PortalColors.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 4),
-                _SidebarProfileButton(
-                  nombre: nombre,
-                  rol: auth.profile?.roleName ?? 'Cliente',
-                  onTap: () => context.go('/perfil'),
-                ),
-                const SizedBox(height: 4),
-                if (impersonando)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _FooterActionButton(
-                          icon: Icons.arrow_back,
-                          label: 'Regresar',
-                          destructive: false,
-                          // Limpiar la impersonación regresa al selector.
-                          onTap: () => ref.read(impersonationProvider).clear(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _FooterActionButton(
-                          icon: Icons.logout,
-                          label: 'Cerrar sesión',
-                          destructive: true,
-                          onTap: () => _confirmarSalir(context, ref),
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  _FooterActionButton(
-                    icon: Icons.logout,
-                    label: 'Cerrar sesión',
-                    destructive: true,
-                    onTap: () => _confirmarSalir(context, ref),
-                  ),
-                const SizedBox(height: 8),
-                Text(
-                  appVersionLabel,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontFamily: 'monospace',
-                    color: PortalColors.mutedForeground.withValues(alpha: .4),
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -666,7 +557,7 @@ class _PortalShellTopBar extends StatelessWidget {
       ),
       child: const Row(
         children: [
-          PortalTopBarSearch(),
+          ClientTopBarSearch(),
           Spacer(),
           // "Descargar app" solo en web: en la app nativa no aplica.
           if (kIsWeb) ...[AppDownloadButton(), SizedBox(width: 12)],
@@ -674,7 +565,7 @@ class _PortalShellTopBar extends StatelessWidget {
           // ReferralButton(), SizedBox(width: 12),
           NotificationBell(),
           SizedBox(width: 8),
-          PortalTopBarAvatarMenu(),
+          ClientTopBarAvatarMenu(),
         ],
       ),
     );
@@ -709,3 +600,63 @@ class _PortalAvatar extends StatelessWidget {
     );
   }
 }
+
+class ImpersonationBanner extends StatelessWidget {
+  const ImpersonationBanner({super.key, required this.nombre});
+
+  final String nombre;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    final c = t.color;
+    return Material(
+      color: c.primarySoft,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: t.space.md,
+            vertical: t.space.xxs,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.visibility_outlined, size: 14, color: c.fgMuted),
+              SizedBox(width: t.space.xxs),
+              Expanded(
+                child: Text(
+                  'Viendo como: $nombre',
+                  overflow: TextOverflow.ellipsis,
+                  style: t.text.caption.copyWith(color: c.fgMuted),
+                ),
+              ),
+              // `SPressable` y no `SButton.link`: hasta en `sm` el enlace usa
+              // `bodySmall`, mas grande que el `caption` de al lado. Aqui hace
+              // falta que los dos midan igual.
+              SPressable(
+                onTap: () => context.go('/seleccionar-cliente'),
+                semanticLabel: 'Cambiar de cliente',
+                borderRadius: t.radius.smBorder,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: t.space.xs,
+                    vertical: t.space.xxs,
+                  ),
+                  child: Text(
+                    'Cambiar cliente',
+                    style: t.text.caption.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: c.primaryHover,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Barra lateral de escritorio: wordmark SOZU + navegación.

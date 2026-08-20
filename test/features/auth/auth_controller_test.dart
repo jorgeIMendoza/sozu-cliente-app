@@ -252,6 +252,70 @@ void main() {
     expect(controller.profile, isNull);
   });
 
+  // ---------------------------------------------------------------------------
+  // Lectura del perfil: "no hay fila" y "no se pudo leer" son distintos
+  // ---------------------------------------------------------------------------
+
+  test('perfil leído: profileLoad es loaded y la sesión entra', () async {
+    final port = FakeAuthPort(profileRow: clientProfile);
+    final controller = await makeController(port);
+
+    await controller.signIn('cliente@sozu.com', 'secreta123');
+    await pumpEventQueue();
+
+    expect(controller.profileLoad, ProfileLoad.loaded);
+    expect(controller.profile, isNotNull);
+  });
+
+  test('sin fila para la identidad: notFound, no failed', () async {
+    final port = FakeAuthPort();
+    final controller = await makeController(port);
+
+    await controller.signIn('cliente@sozu.com', 'secreta123');
+    await pumpEventQueue();
+
+    expect(controller.profileLoad, ProfileLoad.notFound);
+    expect(controller.profile, isNull);
+  });
+
+  test('un fallo de lectura del perfil NO se confunde con perfil ausente y NO '
+      'cierra la sesión', () async {
+    final port = FakeAuthPort(profileRow: clientProfile)
+      ..profileFailure = AuthFailure.network;
+    final controller = await makeController(port);
+
+    await controller.signIn('cliente@sozu.com', 'secreta123');
+    await pumpEventQueue();
+
+    // La credencial era buena: la sesión sigue viva y el motivo es el fallo
+    // de lectura, no una cuenta sin perfil.
+    expect(controller.profileLoad, ProfileLoad.failed);
+    expect(controller.profile, isNull);
+    expect(controller.session?.userId, 'user-de-prueba');
+    expect(port.log, isNot(contains('signOut')));
+  });
+
+  test(
+    'un fallo de lectura no se cachea: la siguiente sesión reintenta',
+    () async {
+      final port = FakeAuthPort(profileRow: clientProfile)
+        ..profileFailure = AuthFailure.network;
+      final controller = await makeController(port);
+      await controller.signIn('cliente@sozu.com', 'secreta123');
+      await pumpEventQueue();
+      expect(controller.profileLoad, ProfileLoad.failed);
+
+      port.profileFailure = null;
+      port.emitSession(
+        AuthSession(userId: 'user-de-prueba', email: 'cliente@sozu.com'),
+      );
+      await pumpEventQueue();
+
+      expect(controller.profileLoad, ProfileLoad.loaded);
+      expect(controller.profile?.roleName, 'Cliente');
+    },
+  );
+
   test('signOut revoca en el servidor vía el puerto', () async {
     final port = FakeAuthPort(profileRow: clientProfile);
     final controller = await makeController(port);

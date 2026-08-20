@@ -23,8 +23,8 @@
 # resolver `google-github-actions/auth` tumbó el job entero en la fase de setup
 # (antes de cualquier step, así que `continue-on-error` no sirvió de nada) y el
 # merge a dev de un PR no notificó a nadie. Ahora el token de Google se pide
-# firmando un JWT con openssl — solo curl, jq y openssl, ya presentes en el
-# runner — y un fallo al resolver teléfonos no puede impedir el aviso al admin.
+# firmando un JWT con openssl (solo curl, jq y openssl, ya presentes en el
+# runner), y un fallo al resolver telefonos no puede impedir el aviso al admin.
 
 name: Notificar PR (WhatsApp)
 

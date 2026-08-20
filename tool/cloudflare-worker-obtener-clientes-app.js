@@ -1,4 +1,4 @@
-// Cloudflare Worker — redirección a tienda según sistema operativo.
+// Cloudflare Worker: redireccion a tienda segun sistema operativo.
 // Sirve también la landing de escritorio, así no hay que hospedar nada aparte.
 //
 // Worker: app-sozu-clientes · dominio: obtener-clientes-app.sozu.com

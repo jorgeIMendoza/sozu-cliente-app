@@ -43,6 +43,9 @@ components/  admin_header_bar · client_filters · client_row
 layouts/     admin_layout.dart         AdminLayout + AdminScrollArea (sin variantes)
 ```
 
+Los nombres siguen la regla de alcance de `CLAUDE.md`: dentro de una feature el
+prefijo es el suyo (`Admin*`); lo global va por su rol.
+
 ## Funcionamiento
 
 - Selector: busca por nombre/correo o filtra por proyecto y unidad; al
@@ -99,12 +102,10 @@ contenido y `WrapAlignment.end` no tiene contra que empujar.
 
 ## Aire en escritorio
 
-`announcements_screen` va a `maxWidth: 1240` y **no** a los 880 del selector.
-No es una discrepancia: alli el contenido es UNA columna (buscador y lista) y
-estirarla solo alarga las lineas; aqui son DOS, formulario y avisos recientes en
-`Row` con flex 3:2. Con 880 cada una quedaba en ~430 px y los campos internos se
-apilaban igual que en telefono. **La homologacion es de layout y de scroll, no
-de pixeles.** En movil las dos columnas se apilan.
+Las dos pantallas usan el mismo `kSozuContentMaxWidth` (1280, el `max-w-7xl` de
+Tailwind). En avisos el formulario y los avisos recientes van en `Row` con flex
+3:2 -y no a mitades, porque los campos del formulario van en dos columnas por
+dentro y con menos ancho se apilan-. En movil las dos columnas se apilan.
 
 "Avisos recientes" va paginado de 5 en 5 (`_kAnnouncementsPerPage`). Con la
 lista entera el alto de la pagina dependia de cuantos avisos hubiera; paginando
@@ -115,7 +116,7 @@ confirmado.
 ## Las pantallas solo componen
 
 Igual que en `auth`. `announcements_screen` eran **1,472 líneas con 35
-`setState`**; hoy son **115** y el único `setState` que queda es el índice de
+`setState`**; hoy son **96** y el único `setState` que queda es el índice de
 pestaña, que es composición -qué se pinta- y no lógica.
 
 | Componente | Qué carga |
@@ -137,6 +138,18 @@ revienta con "dependOnInheritedWidgetOfExactType called before initState
 completed".
 
 ## Deuda conocida
+
+Ninguna de design system ni de estructura: la feature está en **0** de los 11
+patrones de la auditoría y sus dos pantallas solo componen.
+
+Lo que queda es tamaño de componente, no de pantalla:
+
+- `components/announcement_form.dart` son ~565 líneas. Es UN formulario, así que
+  partirlo sería partir por partir -lo que `CLAUDE.md` prohíbe-, pero la cascada
+  de destino (proyecto → modelo → nivel → propiedad) podría vivir en su propio
+  controlador si vuelve a crecer.
+- `screens/select_client_screen.dart` son ~460 líneas con 0 `setState`. Lo que
+  falta ahí es partir en componentes, no sacar estado.
 
 ## Cómo agregar funcionalidad
 

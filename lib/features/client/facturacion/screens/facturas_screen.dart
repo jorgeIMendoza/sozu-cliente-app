@@ -8,7 +8,7 @@ import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/facturacion/components/datos_facturacion_card.dart';
 import 'package:sozu_cliente_app/features/client/facturacion/components/factura_cards.dart';
 import 'package:sozu_cliente_app/features/client/facturacion/providers/documents_providers.dart';
-import 'package:sozu_cliente_app/features/client/layouts/portal_top_bar.dart';
+import 'package:sozu_cliente_app/features/client/layouts/client_top_bar.dart';
 import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
@@ -176,7 +176,7 @@ class _FacturasScreenState extends ConsumerState<FacturasScreen> {
       return Scaffold(backgroundColor: Colors.transparent, body: cuerpo);
     }
     return Scaffold(
-      appBar: const PortalTopBar(title: 'Facturas'),
+      appBar: const ClientTopBar(title: 'Facturas'),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(documentsProvider);

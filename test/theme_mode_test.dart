@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
-import 'package:sozu_cliente_app/main.dart' show AuthAreaLightLock;
+import 'package:sozu_cliente_app/shared/components/light_theme_lock.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 import 'features/auth/fake_auth_port.dart';
@@ -52,7 +52,7 @@ void main() {
           theme: sozuLightTheme(),
           darkTheme: sozuDarkTheme(),
           themeMode: ThemeMode.dark,
-          home: AuthAreaLightLock(
+          home: LightThemeLock(
             child: Builder(
               builder: (context) {
                 visto = Theme.of(context).brightness;
@@ -72,7 +72,7 @@ void main() {
     return visto;
   }
 
-  group('AuthAreaLightLock', () {
+  group('LightThemeLock', () {
     testWidgets('sin sesion el acceso va claro aunque se pida oscuro', (
       tester,
     ) async {
