@@ -1593,8 +1593,9 @@ class _PropiedadDetalleScreenState
   }
 
   /// "Desglose a escrituración": un renglón por complemento con lo que falta
-  /// pagar para escriturar. Cada complemento se cobra en su propia cuenta,
-  /// aparte del departamento. Devuelve vacío si no hay complementos.
+  /// pagar para escriturar y un total con el valor que se escritura. Cada
+  /// complemento se cobra en su propia cuenta, aparte del departamento.
+  /// Devuelve vacío si no hay complementos.
   List<Widget> _portalDesgloseEscrituracion(PropiedadDetalle d) {
     final complementos = d.productos;
     if (complementos.isEmpty) return const [];
@@ -1636,14 +1637,16 @@ class _PropiedadDetalleScreenState
       ),
     );
 
-    Widget listaLabel(double monto) => Text(
-      'Lista ${formatMXN(monto)}',
+    Widget subLabel(String prefijo, double monto) => Text(
+      '$prefijo ${formatMXN(monto)}',
       style: portalText(
         size: 10,
         color: PortalColors.mutedForeground,
         tabular: true,
       ),
     );
+
+    Widget listaLabel(double monto) => subLabel('Lista', monto);
 
     Widget montoGrande(double monto, {bool bold = false}) => Text(
       formatMXN(monto),
@@ -1729,7 +1732,8 @@ class _PropiedadDetalleScreenState
             return row(first: false, concepto: p.nombre, right: right);
           },
         ),
-      // Total a escriturar
+      // Total a escriturar: el valor que se escritura (departamento +
+      // complementos comprados), no el saldo. El restante va abajo, chico.
       row(
         first: false,
         concepto: 'Total a escriturar',
@@ -1738,8 +1742,8 @@ class _PropiedadDetalleScreenState
         right: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            montoGrande(totalEscriturar, bold: true),
-            listaLabel(precioTotal),
+            montoGrande(precioTotal, bold: true),
+            subLabel('Restante', totalEscriturar),
           ],
         ),
       ),
@@ -1770,9 +1774,12 @@ class _PropiedadDetalleScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              'El monto grande es lo que falta pagar (restante) para '
-              'escriturar; "Lista" es el precio total. Cada complemento se '
-              'paga en su propia cuenta, aparte del departamento.',
+              'En cada concepto el monto grande es lo que falta pagar '
+              '(restante) y "Lista" su precio total. El "Total a escriturar" '
+              'es el valor que se escritura (departamento más los '
+              'complementos comprados) y debajo lo que falta pagar. Cada '
+              'complemento se paga en su propia cuenta, aparte del '
+              'departamento.',
               style: portalText(
                 size: 10,
                 color: PortalColors.mutedForeground,
