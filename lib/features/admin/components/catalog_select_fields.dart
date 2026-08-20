@@ -322,7 +322,12 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
                 ),
                 const Spacer(),
                 // Opera sobre los resultados visibles (respeta la búsqueda).
-                TextButton(
+                SButton.ghost(
+                  label:
+                      filtered.isNotEmpty &&
+                          filtered.every((e) => _selection.contains(e.id))
+                      ? 'Deseleccionar todos'
+                      : 'Seleccionar todos',
                   onPressed: filtered.isEmpty
                       ? null
                       : () => setState(() {
@@ -335,13 +340,6 @@ class _MultiSelectDialogState extends State<_MultiSelectDialog> {
                             _selection.addAll(filtered.map((e) => e.id));
                           }
                         }),
-                  child: Text(
-                    filtered.isNotEmpty &&
-                            filtered.every((e) => _selection.contains(e.id))
-                        ? 'Deseleccionar todos'
-                        : 'Seleccionar todos',
-                    style: t.text.caption.copyWith(fontWeight: FontWeight.w600),
-                  ),
                 ),
               ],
             ),

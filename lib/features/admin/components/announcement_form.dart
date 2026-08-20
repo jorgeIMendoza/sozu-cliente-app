@@ -266,26 +266,22 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_schedule ? 'Programar aviso' : 'Enviar aviso ahora'),
-        content: Text(
-          'Destino: $_targetSummary\n'
-          'Canales: ${_channels.join(', ')}'
-          '${_schedule ? '\nEnvío: ${DateFormat('dd/MM/yyyy HH:mm').format(_scheduledAt!)}' : ''}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_schedule ? 'Programar' : 'Enviar'),
-          ),
-        ],
-      ),
+    // Lo que se acepta va como `puntos` y no como un parrafo: en una sola linea
+    // corrida el destino y los canales se leen de pasada, y aqui hay que
+    // revisarlos antes de mandar algo a clientes reales.
+    final confirmed = await showSConfirm(
+      context,
+      titulo: _schedule ? 'Programar aviso' : 'Enviar aviso ahora',
+      puntos: [
+        'Destino: $_targetSummary',
+        'Canales: ${_channels.join(', ')}',
+        if (_schedule)
+          'Envío: ${DateFormat('dd/MM/yyyy HH:mm').format(_scheduledAt!)}',
+      ],
+      etiquetaAceptar: _schedule ? 'Programar' : 'Enviar',
+      // Un envio inmediato no se deshace; uno programado se cancela desde la
+      // lista de recientes, asi que no carga el mismo peso.
+      tono: _schedule ? SConfirmTone.info : SConfirmTone.warning,
     );
     if (confirmed != true || !mounted) return;
 
