@@ -53,17 +53,18 @@ Future<void> offerBiometricSetup(
             style: t.text.bodySmall.copyWith(color: t.color.fgMuted),
           ),
           SizedBox(height: t.space.lg),
-          FilledButton(
+          // `lg` porque es la accion principal de una hoja modal, que es el
+          // caso que ese tamano describe.
+          SButton(
+            label: 'Activar',
+            size: SButtonSize.lg,
             onPressed: () => Navigator.pop(sheetContext, true),
-            child: const Text('Activar'),
           ),
           SizedBox(height: t.space.xs),
-          TextButton(
+          SButton.ghost(
+            label: 'Ahora no',
+            fullWidth: true,
             onPressed: () => Navigator.pop(sheetContext, false),
-            child: Text(
-              'Ahora no',
-              style: t.text.label.copyWith(color: t.color.fgMuted),
-            ),
           ),
         ],
       ),

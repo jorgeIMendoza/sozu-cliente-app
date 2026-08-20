@@ -1,6 +1,6 @@
 # Estado de la migración
 
-Última actualización: 2026-08-18. Rama `dev-eddy`, sincronizada con `dev`.
+Última actualización: 2026-08-20. Rama `dev-eddy`, sincronizada con `dev`.
 
 Documento de traspaso: qué está hecho, qué sigue y qué decisiones esperan a
 Eduardo. El "por qué" de cada cosa está en los mensajes de commit y en
@@ -22,13 +22,16 @@ leerlo no cuadran, gana el grep.
 | Features cerradas | `auth` y `admin` - 0 legacy, auditadas. `auth` es la plantilla |
 | Shell del cliente | UNO solo (`ClientShell`), decide por ancho y no por plataforma |
 | Pantallas de `auth` | las 5 son composición pura: 0 `setState`, ninguna pasa de 100 líneas |
+| Pantallas de `admin` | las 2 tambien: `select_client_screen` paso de 527 a 64 lineas al salir `ClientSelector` |
 | Puertos y adaptadores | 8 features con `ports/` + `adapters/`; 0 fugas de vendor fuera de un adaptador salvo `core/portal_tracking.dart` |
-| Tests | 0 → 493, en 64 archivos. Las 5 pantallas de `auth` y las 2 de `admin` tienen cobertura |
+| Tests | 0 → 507, en 65 archivos. Las 5 pantallas de `auth` y las 2 de `admin` tienen cobertura |
 | Alias eliminados | `SozuColors`, `SozuTone`, `AuthColors`, `widgets/common.dart` - borrados, no deprecados |
 | Pares móvil/web | 5 de 6 fusionados (ver abajo). `AppCard`, `SectionTitle`, `EmptyCard`, `SozuProgressBar`, `StatusBadge`: 0 usos |
 | Imports | 100% `package:` en `lib/`, lint que lo obliga |
 | Guiones largos | 0 en lib, test, docs, yaml |
 | `flutter analyze` | 0 errores, 0 warnings. 674 infos, **todos** `PortalColors` deprecado |
+| Buscador de clientes | busca en el SERVIDOR e ignora acentos (`admin_clientes_buscar`); en produccion desde el 2026-08-19 |
+| Botones de Material | 0 en `auth`; en `admin` solo `AdminHeaderAction` (ver abajo). Patron agregado al grep de cierre |
 | Android en físico | funciona (Temurin 21 + SDK 36 + puente de adb) |
 
 `lib/screens/` y `lib/providers/` ya no existen. `lib/widgets/` es lo que queda
@@ -43,8 +46,8 @@ Conteo por feature de los 6 patrones legacy (`PortalColors`, `isPortalMode`,
 
 | Carpeta | Legacy | Nota |
 |---|---|---|
-| `features/auth` | **0** | cerrada, es la plantilla |
-| `features/admin` | **0** | cerrada |
+| `features/auth` | **0** | CERRADA. Re-auditada el 2026-08-20 contra el codigo, con los 12 patrones |
+| `features/admin` | **0** | CERRADA. Idem; su pantalla grande se partio en pantalla + `ClientSelector` |
 | `features/client/providers` | **0** | |
 | `features/client/facturacion` | 1 | |
 | `features/client/referral` | 1 | |
@@ -57,8 +60,60 @@ Conteo por feature de los 6 patrones legacy (`PortalColors`, `isPortalMode`,
 | `lib/widgets` (legacy) | 83 | |
 | `lib/core` | 3 | `portal_theme` + `portal_tracking` |
 
-Totales absolutos: **`PortalColors` ~580 referencias**, **`isPortalMode` 31
-usos**.
+Totales absolutos (medidos el 2026-08-20): **`PortalColors` 601 referencias**,
+**`isPortalMode` 36 usos**, **`SozuBrand` 63 fuera de `tokens/`**. Subieron
+respecto al 2026-08-18 porque entro codigo por `dev`; el grep manda sobre esta
+tabla.
+
+### Botones de Material, la deuda que nadie contaba
+
+`(Filled|Text|Elevated|Outlined)Button` se salta `SButton` sin escribir un solo
+numero crudo, asi que ningun otro patron del grep lo veia. Medido el 2026-08-20:
+
+| Carpeta | | |
+|---|---|---|
+| `auth` | **0** | corregido el 2026-08-20 |
+| `admin` | 3 | los tres de `AdminHeaderAction`, a proposito (ver abajo) |
+| `client` | 35 | sin tocar |
+
+`AdminHeaderAction` reimplementa lo que `SButton.ghost` y `.danger` ya hacen,
+pero mide 36 px y el design system dice que por debajo de 44 solo en barras
+densas de escritorio; estas pantallas tambien se usan en telefono. Consolidarlo
+exige decidir antes ese alto: pasarlo a `SButtonSize.sm` solo mudaria la
+violacion adentro de la primitiva.
+
+### Lo que hay DETRAS de `auth` y `admin`: que si esta cerrado y que no
+
+Auditado contra el codigo el 2026-08-20, no heredado del documento.
+
+| Capa | Estado |
+|---|---|
+| `lib/shared/` | **limpia**: 0 en los 12 patrones |
+| `lib/data/` | **limpia** |
+| `lib/ui/` (fuera de `tokens/` y `theme/`) | **limpia** salvo un `SizedBox(height: 2)` de ajuste optico en `s_form_sheet` |
+| `lib/core/` | **NO**: `portal_theme.dart` (el shim) y `portal_tracking.dart` (el vendor) |
+| `lib/widgets/` | **NO**: 67 `PortalColors` y 41 de espaciado crudo. Es la carpeta legacy declarada |
+| `lib/router.dart` | **NO**: 1 `isPortalMode` (linea 425, el `WebFrame`) |
+
+Dentro de `lib/ui/tokens/` y `lib/ui/theme/` los patrones de paleta y tipografia
+NO son deuda: ahi es donde la paleta se define. Auditar `ui/` sin excluir esas
+dos carpetas da 65 `Color(0x` que son justamente los tokens.
+
+Lo que queda fuera de `client` esta atado a su migracion y cae con ella:
+`portal_theme` es el shim de `PortalColors`, `lib/widgets/` son los 7 archivos
+legacy declarados, y el `isPortalMode` del router es el modo ancho legacy.
+
+La UNICA pieza independiente que sigue abierta es `core/portal_tracking.dart`
+(ver punto 5): usa `SupabaseClient` directo en `core/`, la unica grieta del
+hexagonal en todo el repo. No depende de `client` y se puede cerrar cuando se
+quiera.
+
+Notas sobre el vendor en `core/`, para no re-auditarlas cada vez:
+`backend_env.dart` nombra `SUPABASE_URL` y `SUPABASE_ANON_KEY` porque son los
+nombres de las variables de entorno, un contrato externo con el `.env` y el CI;
+renombrarlas rompe el deploy. `media_cache.dart` solo lo menciona en un
+comentario. `secure_session_storage.dart` implementa la interfaz de
+almacenamiento del propio SDK, asi que el acoplamiento es su razon de existir.
 
 ### La deuda que la auditoría vieja no contaba
 

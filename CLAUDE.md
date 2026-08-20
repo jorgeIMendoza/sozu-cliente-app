@@ -235,6 +235,7 @@ funcionando y no se tocan salvo para migrarlos**, pero nada nuevo va ahí.
 F=lib/features/auth
 for p in "PortalColors" "isPortalMode" "SozuType\." "SozuBrand\." "Color\(0x" \
          "fontSize:" "circular\([0-9]" \
+         "(Filled|Text|Elevated|Outlined)Button[.(]" \
          "EdgeInsets\.(all|symmetric|only|fromLTRB)\([a-z]*:? ?[0-9]" \
          "SizedBox\((height|width): [0-9]" "^import '\.\./"; do
   # -H es obligatorio: sin el prefijo de archivo (p.ej. al auditar UN archivo)
@@ -255,6 +256,15 @@ declaraba features "cerradas" que no lo estaban.** No son adorno:
   siempre (`context.s.space.gapMd`, `gapLg`).
 - **`EdgeInsets\.(symmetric|only|fromLTRB)`** - el grep viejo solo miraba
   `EdgeInsets.all`, así que `EdgeInsets.symmetric(vertical: 12)` pasaba limpio.
+- **`(Filled|Text|Elevated|Outlined)Button[.(]`** - agregado el 2026-08-20 por
+  lo mismo: un boton de Material **no escribe un solo numero crudo**, asi que
+  ninguno de los otros patrones lo ve, y sin embargo se salta `SButton` entero
+  (radio, alto, foco y color propios de Material, que no responden a los
+  tokens). `auth` y `admin` estaban declaradas cerradas con 7 dentro. El corchete
+  `[.(]` NO sobra: buscar `TextButton(` deja pasar `TextButton.icon(`, y asi se
+  escapo uno de los siete en la primera pasada.
+  Lo mismo aplica a los dialogos: `showDialog` + `AlertDialog` a mano en vez de
+  `showSConfirm`.
 - **`SozuBrand\.`** - es la PALETA CRUDA (`lib/ui/tokens/palette.dart`), la capa
   de debajo de los roles. Usarla en una pantalla es lo mismo que escribir
   `Color(0xFF239F71)` pero con nombre bonito, **y no responde al tema**: los
