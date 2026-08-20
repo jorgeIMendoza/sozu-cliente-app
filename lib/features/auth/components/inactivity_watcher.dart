@@ -47,7 +47,7 @@ class _InactivityWatcherState extends ConsumerState<InactivityWatcher>
     return isPhone ? kPhoneInactivityTimeout : kDesktopInactivityTimeout;
   }
 
-  /// Sesión "usable": con el candado biométrico puesto la sesión de Supabase
+  /// Sesión "usable": con el candado biométrico puesto la sesión del backend
   /// sigue viva pero la app ya está bloqueada - no hay nada que vigilar.
   bool get _hasUsableSession {
     final auth = ref.read(authProvider);
