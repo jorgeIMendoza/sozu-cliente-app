@@ -373,13 +373,13 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                 // del grupo "Canales".
                 _twoColumns(
                   t,
-                  SelectField(
+                  CatalogSelectField(
                     label: 'Tipo',
                     value: _type,
                     options: _types,
                     onChanged: (v) => setState(() => _type = v ?? _type),
                   ),
-                  SelectField(
+                  CatalogSelectField(
                     label: 'Categoría',
                     value: _category,
                     options: _categories,
@@ -408,14 +408,14 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                 const SSectionLabel(text: 'Destinatarios'),
                 _twoColumns(
                   t,
-                  MultiSelectField(
+                  CatalogMultiSelectField(
                     label: 'Proyectos',
                     items: _projects,
                     selected: _selectedProjects,
                     placeholder: 'Todos los clientes',
                     onChanged: _onProjectsChanged,
                   ),
-                  MultiSelectField(
+                  CatalogMultiSelectField(
                     label: 'Modelos',
                     items: _models,
                     selected: _selectedModels,
@@ -431,7 +431,7 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                 SizedBox(height: t.space.xs),
                 _twoColumns(
                   t,
-                  MultiSelectField(
+                  CatalogMultiSelectField(
                     label: 'Niveles',
                     items: _levels,
                     selected: _selectedLevels,
@@ -445,7 +445,7 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                     enabled: _selectedProjects.isNotEmpty && !_loadingLevels,
                     onChanged: _onLevelsChanged,
                   ),
-                  MultiSelectField(
+                  CatalogMultiSelectField(
                     label: 'Propiedades',
                     items: _properties,
                     prefix: 'U-',

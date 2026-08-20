@@ -32,13 +32,13 @@ String capitalizarOpcion(String s) =>
 ///
 /// `DropdownButtonFormField` no sirve: su etiqueta va dentro de su propio
 /// `InputDecoration`, así que solo puede ser flotante.
-class SelectField extends StatefulWidget {
+class CatalogSelectField extends StatefulWidget {
   final String label;
   final String value;
   final List<String> options;
   final ValueChanged<String?> onChanged;
 
-  const SelectField({
+  const CatalogSelectField({
     super.key,
     required this.label,
     required this.value,
@@ -47,10 +47,10 @@ class SelectField extends StatefulWidget {
   });
 
   @override
-  State<SelectField> createState() => _SelectFieldState();
+  State<CatalogSelectField> createState() => _CatalogSelectFieldState();
 }
 
-class _SelectFieldState extends State<SelectField> {
+class _CatalogSelectFieldState extends State<CatalogSelectField> {
   /// [STextField] es un campo de texto real, así que el valor visible vive en un
   /// controller.
   late final TextEditingController _controller = TextEditingController(
@@ -61,7 +61,7 @@ class _SelectFieldState extends State<SelectField> {
   /// dentro de `didUpdateWidget` notifica a sus listeners en plena fase de build
   /// y el `Form` de arriba muere con "setState() called during build".
   @override
-  void didUpdateWidget(covariant SelectField oldWidget) {
+  void didUpdateWidget(covariant CatalogSelectField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_controller.text == capitalizarOpcion(widget.value)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -152,7 +152,7 @@ class _SelectFieldState extends State<SelectField> {
 /// Selector múltiple con buscador en tiempo real: campo de solo lectura con la
 /// etiqueta ARRIBA que resume la selección y abre un diálogo con búsqueda +
 /// casillas.
-class MultiSelectField extends StatefulWidget {
+class CatalogMultiSelectField extends StatefulWidget {
   final String label;
   final List<CatalogoItem> items;
   final Set<int> selected;
@@ -161,7 +161,7 @@ class MultiSelectField extends StatefulWidget {
   final bool enabled;
   final ValueChanged<Set<int>> onChanged;
 
-  const MultiSelectField({
+  const CatalogMultiSelectField({
     super.key,
     required this.label,
     required this.items,
@@ -173,10 +173,11 @@ class MultiSelectField extends StatefulWidget {
   });
 
   @override
-  State<MultiSelectField> createState() => _MultiSelectFieldState();
+  State<CatalogMultiSelectField> createState() =>
+      _CatalogMultiSelectFieldState();
 }
 
-class _MultiSelectFieldState extends State<MultiSelectField> {
+class _CatalogMultiSelectFieldState extends State<CatalogMultiSelectField> {
   late final TextEditingController _summaryController = TextEditingController(
     text: _summary,
   );
@@ -188,7 +189,7 @@ class _MultiSelectFieldState extends State<MultiSelectField> {
   /// listeners del controller en plena fase de build y el `Form` de arriba muere
   /// con "setState() called during build".
   @override
-  void didUpdateWidget(covariant MultiSelectField oldWidget) {
+  void didUpdateWidget(covariant CatalogMultiSelectField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_summaryController.text == _summary) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -236,7 +237,7 @@ class _MultiSelectFieldState extends State<MultiSelectField> {
     return InkWell(
       onTap: canOpen ? _openDialog : null,
       borderRadius: t.radius.mdBorder,
-      // Ver la nota de `SelectField`: el campo no puede quedarse el toque.
+      // Ver la nota de `CatalogSelectField`: el campo no puede quedarse el toque.
       child: IgnorePointer(
         child: STextField(
           controller: _summaryController,
