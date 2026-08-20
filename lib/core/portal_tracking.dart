@@ -3,18 +3,20 @@ import 'dart:io' show Platform;
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ignore: always_use_package_imports -- import condicional: la resolucion por plataforma exige ruta relativa.
-import 'user_agent/user_agent_stub.dart'
-    if (dart.library.js_interop) 'user_agent/user_agent_web.dart';
+import 'browser_ua_stub.dart'
+    if (dart.library.js_interop) 'browser_ua_web.dart';
 import 'package:sozu_cliente_app/core/version.dart';
+import 'package:sozu_cliente_app/shared/ports/tracking_port.dart';
 
 /// Mediciones de uso ("Uso por portal" en Alta Dirección): registra la sesión
-/// del cliente en portal_sesiones (portal `clientes`) vía los mismos RPCs
-/// SECURITY DEFINER que usan los portales web (register/touch/close). Las
-/// donas del tablero clasifican el user_agent: en web se manda el real del
-/// navegador; en móvil uno sintético con marca/modelo reales del dispositivo.
+/// del cliente en portal_sesiones (portal `clientes`). Las donas del tablero
+/// clasifican el user_agent: en web se manda el real del navegador; en móvil
+/// uno sintético con marca/modelo reales del dispositivo.
+///
+/// El puerto llega por parámetro y no por un provider leído aquí: es un
+/// singleton estático y no tiene `ref`. Mismo reparto que [PushService].
 class PortalTracking {
   PortalTracking._();
 
@@ -25,51 +27,36 @@ class PortalTracking {
   static Timer? _heartbeat;
   static bool _iniciando = false;
 
-  static SupabaseClient get _sb => Supabase.instance.client;
-
   /// Abre (o reutiliza) la sesión de medición. Llamar cuando hay sesión de un
   /// Cliente real (no impersonación de admin).
-  static Future<void> iniciar() async {
+  static Future<void> iniciar(TrackingPort port) async {
     if (_sessionId != null || _iniciando) return;
     _iniciando = true;
     try {
-      final ua = await _userAgent();
-      final res = await _sb.rpc(
-        'register_portal_session',
-        params: {'p_portal': _portal, 'p_user_agent': ua},
+      _sessionId = await port.register(
+        portal: _portal,
+        userAgent: await _userAgent(),
       );
-      _sessionId = res as String?;
+      if (_sessionId == null) return;
       _heartbeat?.cancel();
-      _heartbeat = Timer.periodic(_heartbeatCada, (_) => _touch());
-    } catch (e) {
-      debugPrint('PortalTracking: no se pudo registrar la sesión: $e');
+      _heartbeat = Timer.periodic(_heartbeatCada, (_) => _touch(port));
     } finally {
       _iniciando = false;
     }
   }
 
-  static Future<void> _touch() async {
+  static Future<void> _touch(TrackingPort port) async {
     final id = _sessionId;
-    if (id == null) return;
-    try {
-      await _sb.rpc('touch_portal_session', params: {'p_session_id': id});
-    } catch (_) {
-      /* siguiente heartbeat reintenta */
-    }
+    if (id != null) await port.touch(id);
   }
 
   /// Cierra la sesión de medición. Llamar ANTES de signOut (necesita JWT).
-  static Future<void> cerrar() async {
+  static Future<void> cerrar(TrackingPort port) async {
     final id = _sessionId;
     _heartbeat?.cancel();
     _heartbeat = null;
     _sessionId = null;
-    if (id == null) return;
-    try {
-      await _sb.rpc('close_portal_session', params: {'p_session_id': id});
-    } catch (_) {
-      /* la sesión expira sola por inactividad */
-    }
+    if (id != null) await port.close(id);
   }
 
   /// UA para clasificar en las donas: real en web; sintético (pero con los

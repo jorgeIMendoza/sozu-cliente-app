@@ -123,7 +123,9 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
       _sincronizarPolling(activo: auth.session != null);
       // Mediciones "Uso por portal": sesión del portal clientes (solo
       // clientes reales; la impersonación de admin no cuenta).
-      if (esClienteConSesion) PortalTracking.iniciar();
+      if (esClienteConSesion) {
+        PortalTracking.iniciar(ref.read(trackingPortProvider));
+      }
     });
     return widget.child;
   }

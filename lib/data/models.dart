@@ -594,12 +594,18 @@ class ProductoDetalle {
   final double monto;
   final double avance;
 
+  /// Categoría del catálogo (Estacionamiento, Bodega, Condensadora, Paquete de
+  /// muebles). Decide si el complemento entra a la escritura. Null mientras el
+  /// backend no la mande: ahí se deduce del nombre.
+  final String? categoria;
+
   ProductoDetalle.fromJson(Map<String, dynamic> j)
     : id = asInt(j['id']),
       nombre = asString(j['nombre'], 'Producto adicional'),
       estatus = asString(j['estatus'], 'Pendiente'),
       monto = asDouble(j['monto']),
-      avance = asDouble(j['avance']);
+      avance = asDouble(j['avance']),
+      categoria = j['categoria'] as String?;
 }
 
 class RegionNivel {
