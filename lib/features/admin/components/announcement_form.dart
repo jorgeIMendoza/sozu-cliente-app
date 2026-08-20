@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/features/admin/components/catalog_select_fields.dart';
+import 'package:sozu_cliente_app/features/admin/components/catalog_multi_select_field.dart';
+import 'package:sozu_cliente_app/features/admin/components/catalog_select_field.dart';
 import 'package:sozu_cliente_app/features/admin/providers/admin_providers.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
@@ -373,13 +374,13 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                 // del grupo "Canales".
                 _twoColumns(
                   t,
-                  SelectField(
+                  CatalogSelectField(
                     label: 'Tipo',
                     value: _type,
                     options: _types,
                     onChanged: (v) => setState(() => _type = v ?? _type),
                   ),
-                  SelectField(
+                  CatalogSelectField(
                     label: 'Categoría',
                     value: _category,
                     options: _categories,
@@ -408,14 +409,14 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                 const SSectionLabel(text: 'Destinatarios'),
                 _twoColumns(
                   t,
-                  MultiSelectField(
+                  CatalogMultiSelectField(
                     label: 'Proyectos',
                     items: _projects,
                     selected: _selectedProjects,
                     placeholder: 'Todos los clientes',
                     onChanged: _onProjectsChanged,
                   ),
-                  MultiSelectField(
+                  CatalogMultiSelectField(
                     label: 'Modelos',
                     items: _models,
                     selected: _selectedModels,
@@ -431,7 +432,7 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                 SizedBox(height: t.space.xs),
                 _twoColumns(
                   t,
-                  MultiSelectField(
+                  CatalogMultiSelectField(
                     label: 'Niveles',
                     items: _levels,
                     selected: _selectedLevels,
@@ -445,7 +446,7 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                     enabled: _selectedProjects.isNotEmpty && !_loadingLevels,
                     onChanged: _onLevelsChanged,
                   ),
-                  MultiSelectField(
+                  CatalogMultiSelectField(
                     label: 'Propiedades',
                     items: _properties,
                     prefix: 'U-',
