@@ -15,7 +15,6 @@ import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 import 'package:sozu_cliente_app/features/auth/components/biometric_toggle_card.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/expediente_card.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
-import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/features/client/profile/components/perfil_section_card.dart';
 import 'package:sozu_cliente_app/features/client/profile/components/perfil_sheets.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
@@ -825,7 +824,7 @@ class _PerfilAvatar extends StatelessWidget {
             child: SizedBox(
               width: size,
               height: size,
-              child: SozuNetworkImage(
+              child: SNetworkImage(
                 url: fotoUrl,
                 placeholderIcon: Icons.person_outline,
               ),

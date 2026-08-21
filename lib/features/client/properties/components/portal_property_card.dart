@@ -4,7 +4,6 @@ import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
-import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 
 /// Cards de propiedad del "modo portal" web: [PortalPropertyCard] (Inicio),
@@ -241,7 +240,7 @@ class PortalPropertyCard extends StatelessWidget {
                 child: SizedBox(
                   width: 112,
                   height: 96,
-                  child: SozuNetworkImage(url: item.urlImagen),
+                  child: SNetworkImage(url: item.urlImagen),
                 ),
               ),
               const SizedBox(width: 16),
@@ -461,7 +460,7 @@ class PortalAcquisitionCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    SozuNetworkImage(url: item.urlImagen),
+                    SNetworkImage(url: item.urlImagen),
                     // Degradado negro inferior para legibilidad del título.
                     Positioned(
                       left: 0,
@@ -844,7 +843,7 @@ class PortalPatrimonyCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    SozuNetworkImage(url: item.urlImagen),
+                    SNetworkImage(url: item.urlImagen),
                     // Degradado inferior para legibilidad del título.
                     Align(
                       alignment: Alignment.bottomCenter,

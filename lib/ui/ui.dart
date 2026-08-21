@@ -58,6 +58,7 @@ export 'package:sozu_cliente_app/ui/primitives/s_empty_state.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_error_state.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_field_label.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_form_sheet.dart';
+export 'package:sozu_cliente_app/ui/primitives/s_network_image.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_pdf_frame.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_pdf_preview.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_pressable.dart';

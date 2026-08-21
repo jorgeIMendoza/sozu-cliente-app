@@ -16,7 +16,6 @@ import 'package:sozu_cliente_app/features/client/properties/components/credito_h
 import 'package:sozu_cliente_app/features/client/properties/components/cronograma_pagos.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/etapa_actual_stepper.dart';
 import 'package:sozu_cliente_app/widgets/fx.dart';
-import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/payment_method_badge.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/pulsing_pin.dart';
@@ -136,7 +135,7 @@ class _PropiedadDetalleScreenState
               child: SizedBox(
                 height: 200,
                 width: double.infinity,
-                child: SozuNetworkImage(url: d.urlImagen),
+                child: SNetworkImage(url: d.urlImagen),
               ),
             )
           else
@@ -1130,7 +1129,7 @@ class _PropiedadDetalleScreenState
       borderRadius: BorderRadius.circular(kPortalRadiusCard),
       child: AspectRatio(
         aspectRatio: 16 / 9,
-        child: SozuNetworkImage(url: url),
+        child: SNetworkImage(url: url),
       ),
     );
     if (url == null || url.isEmpty) return imagen;
@@ -2096,7 +2095,7 @@ class _PropiedadDetalleScreenState
                     fit: StackFit.expand,
                     children: [
                       if (thumb != null)
-                        SozuNetworkImage(
+                        SNetworkImage(
                           url: thumb,
                           placeholderIcon: Icons.videocam_outlined,
                         )
@@ -2438,7 +2437,7 @@ class _GaleriaCarruselState extends State<_GaleriaCarrusel> {
             controller: _pc,
             itemCount: fotos.length,
             onPageChanged: (i) => setState(() => _idx = i),
-            itemBuilder: (_, i) => SozuNetworkImage(url: fotos[i].url),
+            itemBuilder: (_, i) => SNetworkImage(url: fotos[i].url),
           ),
         ),
 
@@ -2559,7 +2558,7 @@ class _GaleriaCarruselState extends State<_GaleriaCarrusel> {
                         opacity: activa ? 1 : 0.6,
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(6),
-                          child: SozuNetworkImage(url: fotos[i].url),
+                          child: SNetworkImage(url: fotos[i].url),
                         ),
                       ),
                     ),
@@ -3037,7 +3036,7 @@ class _FichaTecnica extends StatelessWidget {
               color: tone.surfaceAlt,
               height: height,
               width: double.infinity,
-              child: SozuNetworkImage(
+              child: SNetworkImage(
                 url: url,
                 fit: BoxFit.contain,
                 placeholderIcon: Icons.image_outlined,
