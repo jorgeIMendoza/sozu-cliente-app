@@ -9,7 +9,6 @@ import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
-import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/features/auth/components/password_rules.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart'
     show showPortalDialog;
@@ -1320,7 +1319,7 @@ class _AvatarSheetState extends ConsumerState<_AvatarSheet> {
               child: SizedBox(
                 width: 96,
                 height: 96,
-                child: SozuNetworkImage(
+                child: SNetworkImage(
                   url: widget.perfil.fotoPerfilUrl,
                   placeholderIcon: Icons.person_outline,
                 ),

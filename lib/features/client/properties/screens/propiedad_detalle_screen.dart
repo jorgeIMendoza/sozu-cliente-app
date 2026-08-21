@@ -6,7 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
-import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/shared/components/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
@@ -15,12 +15,9 @@ import 'package:sozu_cliente_app/features/client/properties/components/copropiet
 import 'package:sozu_cliente_app/features/client/properties/components/credito_hipotecario_drawer.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/cronograma_pagos.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/etapa_actual_stepper.dart';
-import 'package:sozu_cliente_app/widgets/fx.dart';
-import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/payment_method_badge.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/pulsing_pin.dart';
-import 'package:sozu_cliente_app/widgets/whatsapp_icon.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/como_llegar_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/pago_final_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/services/escrituracion.dart';
@@ -136,7 +133,7 @@ class _PropiedadDetalleScreenState
               child: SizedBox(
                 height: 200,
                 width: double.infinity,
-                child: SozuNetworkImage(url: d.urlImagen),
+                child: SNetworkImage(url: d.urlImagen),
               ),
             )
           else
@@ -1130,7 +1127,7 @@ class _PropiedadDetalleScreenState
       borderRadius: BorderRadius.circular(kPortalRadiusCard),
       child: AspectRatio(
         aspectRatio: 16 / 9,
-        child: SozuNetworkImage(url: url),
+        child: SNetworkImage(url: url),
       ),
     );
     if (url == null || url.isEmpty) return imagen;
@@ -1949,7 +1946,7 @@ class _PropiedadDetalleScreenState
                 Expanded(
                   child: _portalAgenteBtn(
                     icon: Icons.chat_outlined,
-                    leading: const WhatsAppIcon(size: 15, color: Colors.white),
+                    leading: const SWhatsAppIcon(size: 15, color: Colors.white),
                     label: 'WA',
                     filled: true,
                     onTap: () => _abrirUrlExterna(
@@ -2096,7 +2093,7 @@ class _PropiedadDetalleScreenState
                     fit: StackFit.expand,
                     children: [
                       if (thumb != null)
-                        SozuNetworkImage(
+                        SNetworkImage(
                           url: thumb,
                           placeholderIcon: Icons.videocam_outlined,
                         )
@@ -2438,7 +2435,7 @@ class _GaleriaCarruselState extends State<_GaleriaCarrusel> {
             controller: _pc,
             itemCount: fotos.length,
             onPageChanged: (i) => setState(() => _idx = i),
-            itemBuilder: (_, i) => SozuNetworkImage(url: fotos[i].url),
+            itemBuilder: (_, i) => SNetworkImage(url: fotos[i].url),
           ),
         ),
 
@@ -2559,7 +2556,7 @@ class _GaleriaCarruselState extends State<_GaleriaCarrusel> {
                         opacity: activa ? 1 : 0.6,
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(6),
-                          child: SozuNetworkImage(url: fotos[i].url),
+                          child: SNetworkImage(url: fotos[i].url),
                         ),
                       ),
                     ),
@@ -2808,7 +2805,7 @@ class _ProductoRow extends StatelessWidget {
       'En curso' => SBadgeTone.neutral,
       _ => SBadgeTone.pending,
     };
-    return PressableScale(
+    return SPressable(
       onTap: () => context.push('/productos/${p.id}'),
       child: SCard(
         child: Row(
@@ -3037,7 +3034,7 @@ class _FichaTecnica extends StatelessWidget {
               color: tone.surfaceAlt,
               height: height,
               width: double.infinity,
-              child: SozuNetworkImage(
+              child: SNetworkImage(
                 url: url,
                 fit: BoxFit.contain,
                 placeholderIcon: Icons.image_outlined,
@@ -3069,7 +3066,7 @@ class _DocRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = context.s.color;
-    return PressableScale(
+    return SPressable(
       onTap: () => openMedia(context, d.urlFirmada, titulo: d.nombre),
       child: SCard(
         child: Row(

@@ -387,10 +387,10 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
 
 ## Estructura lib/
 - ui/: design system (tokens + tema + primitivas). Ver sección anterior.
-  26 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
+  27 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
   SSkeleton · SEmptyState · SErrorState · SSectionLabel · SPressable · SStagger ·
   SSearchField · SAutocompleteField · SLogo · SWebSelectable · SDropZone ·
-  SPdfPreview · SPdfFrame · SDocUpload · SConfirm · SSelectField · SFieldLabel ·
+  SPdfPreview · SPdfFrame · SDocUpload · SNetworkImage · SConfirm · SSelectField · SFieldLabel ·
   SFormSheet · SChoiceChip · STabs.
   `STabs` sustituye al `TabBar` de Material y, sobre todo, **no trae
   `TabBarView`**: pinta solo la fila de etiquetas y el cuerpo lo pone quien la
@@ -416,13 +416,14 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
   que el nombre se leia como algo de ese rol y no como la cabecera HTTP.
 - data/: models (DTOs de las 7 functions)
 - shared/: ports + adapters + providers **y components** que consumen 2+
-  features, api_error. `shared/components/` es para un widget que necesita un
+  features, api_error. Aqui vive el visor de documentos (`doc_viewer`,
+  `open_media`), que estaba en `core/` importando una pantalla de `client`. `shared/components/` es para un widget que necesita un
   provider (por eso no cabe en `ui/`, que no importa riverpod) y que usan dos
   features o más: hoy `theme_mode_button.dart`.
 - router.dart: guards + shell 5 tabs + secundarias
-- widgets/: LEGACY - portal_widgets, fx, network_image, preview_banner,
-  push_registrar, version_gate, whatsapp_icon. La carpeta admin/ salio a
-  features/admin/components/.
+- widgets/: LEGACY - portal_widgets, fx, preview_banner, push_registrar,
+  version_gate, whatsapp_icon. `network_image` salio el 2026-08-20: su widget es
+  `SNetworkImage` en `ui/` y su `ImageProvider` vive en `core/media_cache`.
 - `lib/screens/` y `lib/providers/` YA NO EXISTEN: sus pantallas viven en
   `features/client/*/screens/` y sus providers en la feature que los usa.
 

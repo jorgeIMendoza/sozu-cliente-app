@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
-import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/shared/components/open_media.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/profile/providers/profile_providers.dart';
 import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';

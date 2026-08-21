@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:sozu_cliente_app/core/portal_tracking.dart';
 import 'package:sozu_cliente_app/core/push_service.dart';
@@ -15,9 +14,8 @@ import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 /// - Móvil: registra el dispositivo para push (FCM) y conecta sus handlers
 ///   (foreground → refresca campana; tap → pantalla de notificaciones).
 /// - Todas las plataformas: suscripción Realtime a INSERTs en
-///   notificaciones_cliente del propio email → la campana se actualiza al
-///   instante con la app abierta (requiere la policy de solo-lectura del
-///   dueño y la tabla en la publicación supabase_realtime).
+///   las notificaciones del propio email → la campana se actualiza al instante
+///   con la app abierta. El cómo vive en `LiveNotificationsPort`.
 class PushRegistrar extends ConsumerStatefulWidget {
   final Widget child;
 
@@ -31,8 +29,6 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
   static const _pollIntervalo = Duration(seconds: 30);
 
   bool _handlersListos = false;
-  RealtimeChannel? _canalNotif;
-  String? _emailSuscrito;
   Timer? _pollTimer;
 
   Future<void> _registrar() async {
@@ -49,42 +45,19 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
     });
   }
 
-  void _sincronizarRealtime({required bool activo, String? email}) {
+  /// La idempotencia y el estado de la suscripcion viven en el puerto, no aqui:
+  /// este widget solo dice si debe haber escucha y para quien.
+  void _sincronizarEnVivo({required bool activo, String? email}) {
+    final puerto = ref.read(liveNotificationsPortProvider);
     if (activo && email != null && email.isNotEmpty) {
-      if (_emailSuscrito == email) return;
-      _canalNotif?.unsubscribe();
-      final sb = Supabase.instance.client;
-      // El socket de Realtime debe llevar el JWT del usuario: sin esto la
-      // policy RLS se evalúa como anon y los eventos nunca llegan.
-      final token = sb.auth.currentSession?.accessToken;
-      if (token != null) sb.realtime.setAuth(token);
-      final canal = sb.channel('notificaciones-cliente');
-      canal.onPostgresChanges(
-        event: PostgresChangeEvent.insert,
-        schema: 'public',
-        table: 'notificaciones_cliente',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'email_cliente',
-          value: email,
-        ),
-        callback: (payload) {
-          debugPrint('[realtime] notificación nueva: ${payload.newRecord}');
+      puerto.subscribe(
+        email: email,
+        onNew: () {
           if (mounted) ref.invalidate(notificationsProvider);
         },
       );
-      canal.subscribe((status, error) {
-        debugPrint(
-          '[realtime] canal notificaciones: $status'
-          '${error != null ? ' · $error' : ''} (email=$email)',
-        );
-      });
-      _canalNotif = canal;
-      _emailSuscrito = email;
-    } else if (!activo && _canalNotif != null) {
-      _canalNotif!.unsubscribe();
-      _canalNotif = null;
-      _emailSuscrito = null;
+    } else if (!activo) {
+      puerto.unsubscribe();
     }
   }
 
@@ -105,7 +78,7 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
   @override
   void dispose() {
     _pollTimer?.cancel();
-    _canalNotif?.unsubscribe();
+    ref.read(liveNotificationsPortProvider).unsubscribe();
     super.dispose();
   }
 
@@ -119,7 +92,7 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (esClienteConSesion && PushService.soportado) _registrar();
-      _sincronizarRealtime(activo: esClienteConSesion, email: email);
+      _sincronizarEnVivo(activo: esClienteConSesion, email: email);
       _sincronizarPolling(activo: auth.session != null);
       // Mediciones "Uso por portal": sesión del portal clientes (solo
       // clientes reales; la impersonación de admin no cuenta).

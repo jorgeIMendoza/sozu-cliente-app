@@ -11,7 +11,6 @@ import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
-import 'package:sozu_cliente_app/widgets/whatsapp_icon.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Ancho del drawer lateral en modo portal.
@@ -1426,7 +1425,7 @@ class _CreditoHipotecarioDrawerState
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const WhatsAppIcon(size: 18, color: Colors.white),
+              const SWhatsAppIcon(size: 18, color: Colors.white),
               const SizedBox(width: 8),
               Text(
                 'Contactar por WhatsApp',

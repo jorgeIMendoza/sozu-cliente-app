@@ -12,15 +12,15 @@ import 'package:sozu_cliente_app/core/secure_session_storage.dart';
 import 'package:sozu_cliente_app/core/url_strategy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:sozu_cliente_app/shared/components/light_theme_lock.dart';
+import 'package:sozu_cliente_app/app/light_theme_lock.dart';
 import 'package:sozu_cliente_app/shared/providers/theme_provider.dart';
 import 'package:sozu_cliente_app/shared/providers/update_prompt_provider.dart';
 import 'package:sozu_cliente_app/router.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 import 'package:sozu_cliente_app/features/auth/components/inactivity_watcher.dart';
-import 'package:sozu_cliente_app/widgets/preview_banner.dart';
-import 'package:sozu_cliente_app/widgets/push_registrar.dart';
-import 'package:sozu_cliente_app/widgets/version_gate.dart';
+import 'package:sozu_cliente_app/app/preview_banner.dart';
+import 'package:sozu_cliente_app/app/push_registrar.dart';
+import 'package:sozu_cliente_app/app/version_gate.dart';
 
 /// SOZU - Portal del Cliente (Flutter).
 /// Seguridad: SOLO anon key + JWT; sesión en secure storage; todo dato

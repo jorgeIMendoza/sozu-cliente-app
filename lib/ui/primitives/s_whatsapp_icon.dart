@@ -13,11 +13,14 @@ const Color kWhatsAppGreen = Color(0xFF25D366);
 ///
 /// Uso: blanco sobre el fondo verde de un botón, o [kWhatsAppGreen] si va
 /// suelto.
-class WhatsAppIcon extends StatelessWidget {
+///
+/// El color de marca es una constante y no un token: pertenece a WhatsApp, no
+/// a la paleta de SOZU, y no cambia entre claro y oscuro.
+class SWhatsAppIcon extends StatelessWidget {
   final double size;
   final Color color;
 
-  const WhatsAppIcon({super.key, this.size = 18, this.color = kWhatsAppGreen});
+  const SWhatsAppIcon({super.key, this.size = 18, this.color = kWhatsAppGreen});
 
   @override
   Widget build(BuildContext context) {
