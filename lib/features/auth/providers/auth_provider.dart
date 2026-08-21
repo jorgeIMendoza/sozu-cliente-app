@@ -7,6 +7,8 @@ import 'package:sozu_cliente_app/core/portal_tracking.dart';
 import 'package:sozu_cliente_app/core/push_service.dart';
 import 'package:sozu_cliente_app/features/auth/adapters/auth_adapter.dart';
 import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
+import 'package:sozu_cliente_app/shared/ports/tracking_port.dart';
+import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 import 'package:sozu_cliente_app/features/auth/services/biometric_service.dart';
 import 'package:sozu_cliente_app/features/auth/services/portal_access.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
@@ -58,12 +60,16 @@ String accessBlockMessage(AccessBlock reason) => switch (reason) {
 class AuthController extends ChangeNotifier {
   /// Al construirse inyecta el puerto en [BiometricService]: el singleton no
   /// puede leer providers, y así el doble de un test lo alcanza sin más wiring.
-  AuthController(this._port) {
+  AuthController(this._port, this._tracking) {
     BiometricService.instance.usePort(_port);
     _init();
   }
 
   final AuthPort _port;
+
+  /// Mediciones de uso. Se cierra la sesion ANTES del signOut, que es cuando
+  /// todavia hay JWT.
+  final TrackingPort _tracking;
   StreamSubscription<AuthSession?>? _sub;
 
   AuthSession? session;
@@ -384,7 +390,7 @@ class AuthController extends ChangeNotifier {
     // se olvida el registro local para re-registrar si entra otro cliente.
     PushService.olvidarSesion();
     // Cierra la sesión de mediciones ANTES de perder el JWT.
-    await PortalTracking.cerrar();
+    await PortalTracking.cerrar(_tracking);
     try {
       await _port.signOut();
     } catch (_) {
@@ -412,7 +418,7 @@ class AuthController extends ChangeNotifier {
   Future<void> lockOrSignOut() async {
     if (session != null && await BiometricService.instance.isEnabled()) {
       PushService.olvidarSesion();
-      await PortalTracking.cerrar();
+      await PortalTracking.cerrar(_tracking);
       await BiometricService.instance.lock();
       locked = true;
       profile = null;
@@ -448,7 +454,10 @@ class AuthController extends ChangeNotifier {
 final authPortProvider = Provider<AuthPort>((ref) => AuthAdapter());
 
 final authProvider = ChangeNotifierProvider<AuthController>((ref) {
-  return AuthController(ref.watch(authPortProvider));
+  return AuthController(
+    ref.watch(authPortProvider),
+    ref.watch(trackingPortProvider),
+  );
 });
 
 /// Se enciende cuando InactivityWatcher cierra la sesión por inactividad;
