@@ -149,22 +149,10 @@ class _DocViewerScreenState extends State<DocViewer> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.insert_drive_file_outlined,
-            size: 48,
-            color: Colors.white70,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'No pudimos mostrar este archivo aquí.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: () => openDoc(context, widget.url),
-            icon: const Icon(Icons.open_in_new),
-            label: const Text('Abrir en navegador'),
+          _NoSePudoMostrar(
+            icono: Icons.insert_drive_file_outlined,
+            mensaje: 'No pudimos mostrar este archivo aquí.',
+            onAbrir: () => openDoc(context, widget.url),
           ),
         ],
       ),
@@ -229,22 +217,10 @@ class _PdfViewState extends State<_PdfView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.picture_as_pdf_outlined,
-                size: 48,
-                color: Colors.white70,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'No pudimos mostrar el PDF aquí.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => openDoc(context, widget.url),
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Abrir en navegador'),
+              _NoSePudoMostrar(
+                icono: Icons.picture_as_pdf_outlined,
+                mensaje: 'No pudimos mostrar el PDF aquí.',
+                onAbrir: () => openDoc(context, widget.url),
               ),
             ],
           ),
@@ -309,6 +285,48 @@ class _XmlViewState extends State<_XmlView> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Respaldo cuando el visor no puede pintar el archivo: se ofrece abrirlo
+/// fuera. Estaba escrito dos veces, una por tipo de archivo.
+///
+/// Los blancos NO son tokens a proposito: el visor se pinta sobre un fondo
+/// oscuro fijo, no sobre la superficie del tema, asi que `fg` cambiaria con el
+/// modo claro y aqui el fondo no cambia.
+class _NoSePudoMostrar extends StatelessWidget {
+  final IconData icono;
+  final String mensaje;
+  final VoidCallback onAbrir;
+
+  const _NoSePudoMostrar({
+    required this.icono,
+    required this.mensaje,
+    required this.onAbrir,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icono, size: 48, color: Colors.white70),
+        SizedBox(height: t.space.md),
+        Text(
+          mensaje,
+          textAlign: TextAlign.center,
+          style: t.text.body.copyWith(color: Colors.white),
+        ),
+        SizedBox(height: t.space.md),
+        SButton(
+          label: 'Abrir en navegador',
+          icon: Icons.open_in_new,
+          fullWidth: false,
+          onPressed: onAbrir,
+        ),
+      ],
     );
   }
 }
