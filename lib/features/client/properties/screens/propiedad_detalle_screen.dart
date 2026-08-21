@@ -15,11 +15,9 @@ import 'package:sozu_cliente_app/features/client/properties/components/copropiet
 import 'package:sozu_cliente_app/features/client/properties/components/credito_hipotecario_drawer.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/cronograma_pagos.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/etapa_actual_stepper.dart';
-import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/payment_method_badge.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/pulsing_pin.dart';
-import 'package:sozu_cliente_app/widgets/whatsapp_icon.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/como_llegar_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/pago_final_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/services/escrituracion.dart';
@@ -1948,7 +1946,7 @@ class _PropiedadDetalleScreenState
                 Expanded(
                   child: _portalAgenteBtn(
                     icon: Icons.chat_outlined,
-                    leading: const WhatsAppIcon(size: 15, color: Colors.white),
+                    leading: const SWhatsAppIcon(size: 15, color: Colors.white),
                     label: 'WA',
                     filled: true,
                     onTap: () => _abrirUrlExterna(
@@ -2807,7 +2805,7 @@ class _ProductoRow extends StatelessWidget {
       'En curso' => SBadgeTone.neutral,
       _ => SBadgeTone.pending,
     };
-    return PressableScale(
+    return SPressable(
       onTap: () => context.push('/productos/${p.id}'),
       child: SCard(
         child: Row(
@@ -3068,7 +3066,7 @@ class _DocRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = context.s.color;
-    return PressableScale(
+    return SPressable(
       onTap: () => openMedia(context, d.urlFirmada, titulo: d.nombre),
       child: SCard(
         child: Row(

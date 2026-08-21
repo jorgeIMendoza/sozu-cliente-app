@@ -4,50 +4,6 @@ import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Efectos visuales sutiles del portal (animaciones de marca SOZU).
 
-/// Feedback táctil: la tarjeta se encoge ligeramente al presionar.
-class PressableScale extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
-
-  const PressableScale({super.key, required this.child, this.onTap});
-
-  @override
-  State<PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<PressableScale> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = context.s.motion;
-    return GestureDetector(
-      onTap: widget.onTap,
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
-      // `motion.pressScale` y no el 0.97 que traía cocido: con dos valores
-      // distintos, un `SButton` y una card envuelta aquí se hundían diferente en
-      // la misma pantalla, y esa incoherencia es justo lo que se lee como
-      // interfaz armada por manos distintas. De paso el hundido desaparece solo
-      // con movimiento reducido, donde el token vale 1.0.
-      //
-      // La curva es `emphasized` por lo mismo que en el press de `SPressable`:
-      // la escala recorre distancia, y es el mismo gesto en las dos primitivas.
-      child: AnimatedScale(
-        scale: _pressed ? m.pressScale : 1,
-        duration: m.fast,
-        curve: m.emphasized,
-        child: widget.child,
-      ),
-    );
-  }
-}
-
-/// Breakpoint de escritorio.
-bool isDesktop(BuildContext context) =>
-    MediaQuery.sizeOf(context).width >= 1024;
-
 /// Contenedor responsive para pantallas secundarias: limita el ancho de
 /// lectura en desktop; en móvil no altera nada.
 ///

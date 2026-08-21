@@ -72,6 +72,7 @@ export 'package:sozu_cliente_app/ui/primitives/s_tabs.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_text_field.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_logo.dart';
 export 'package:sozu_cliente_app/ui/primitives/s_web_selectable.dart';
+export 'package:sozu_cliente_app/ui/primitives/s_whatsapp_icon.dart';
 
 // Tema
 export 'package:sozu_cliente_app/ui/theme/breakpoints.dart';

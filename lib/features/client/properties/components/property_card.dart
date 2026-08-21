@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
 import 'package:sozu_cliente_app/data/models.dart';
-import 'package:sozu_cliente_app/widgets/fx.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Tarjeta de propiedad: imagen, proyecto, ubicación, métricas (valor
@@ -41,7 +40,7 @@ class PropertyCardWidget extends StatelessWidget {
         ),
     ];
 
-    return PressableScale(
+    return SPressable(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
