@@ -19,17 +19,17 @@ const _imageExts = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic'};
 /// Visor in-app de imágenes (zoom/pan) y PDFs (scroll de páginas), con cache.
 /// El tipo se infiere por la extensión del path; si no hay, se consulta el
 /// header Content-Type. Si aun así no se reconoce, se ofrece abrir externo.
-class DocViewerScreen extends StatefulWidget {
+class DocViewer extends StatefulWidget {
   final String url;
   final String titulo;
 
-  const DocViewerScreen({super.key, required this.url, required this.titulo});
+  const DocViewer({super.key, required this.url, required this.titulo});
 
   @override
-  State<DocViewerScreen> createState() => _DocViewerScreenState();
+  State<DocViewer> createState() => _DocViewerScreenState();
 }
 
-class _DocViewerScreenState extends State<DocViewerScreen> {
+class _DocViewerScreenState extends State<DocViewer> {
   late Future<_MediaKind> _kind;
 
   @override

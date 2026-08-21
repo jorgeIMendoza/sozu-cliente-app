@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:sozu_cliente_app/features/client/facturacion/screens/doc_viewer_screen.dart';
+import 'package:sozu_cliente_app/shared/components/doc_viewer.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Abre un documento o imagen.
@@ -42,7 +42,7 @@ Future<void> openMedia(
             maxWidth: 900,
             maxHeight: MediaQuery.sizeOf(ctx).height * 0.85,
           ),
-          child: DocViewerScreen(url: url, titulo: titulo ?? 'Documento'),
+          child: DocViewer(url: url, titulo: titulo ?? 'Documento'),
         ),
       ),
     );
@@ -50,7 +50,7 @@ Future<void> openMedia(
   }
   await Navigator.of(context, rootNavigator: true).push(
     MaterialPageRoute(
-      builder: (_) => DocViewerScreen(url: url, titulo: titulo ?? 'Documento'),
+      builder: (_) => DocViewer(url: url, titulo: titulo ?? 'Documento'),
       fullscreenDialog: true,
     ),
   );
