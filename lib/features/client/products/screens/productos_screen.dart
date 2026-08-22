@@ -639,7 +639,7 @@ class _ProductoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = context.s.color;
     final descripcion = p.descripcion?.trim();
-    return PressableScale(
+    return SPressable(
       onTap: () => context.push('/productos/${p.cuentaId}'),
       child: SCard(
         child: Column(

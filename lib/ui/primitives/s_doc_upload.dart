@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:sozu_cliente_app/ui/primitives/s_button.dart';
 import 'package:sozu_cliente_app/ui/primitives/s_confirm_dialog.dart';
 import 'package:sozu_cliente_app/ui/primitives/s_drop_zone.dart';
 import 'package:sozu_cliente_app/ui/primitives/s_field_label.dart';
@@ -11,6 +12,11 @@ import 'package:sozu_cliente_app/ui/primitives/s_text_field.dart';
 import 'package:sozu_cliente_app/ui/theme/breakpoints.dart';
 import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
 import 'package:sozu_cliente_app/ui/tokens/color_roles.dart';
+
+/// Alto de la previsualización del documento. No es espaciado: es la ventana
+/// por la que se mira el PDF, y fija para que la hoja no cambie de alto al
+/// pasar de un documento a otro.
+const double _kAlturaPrevisualizacion = 280;
 
 /// Naturaleza de un campo a capturar. Gobierna teclado, formato y validación.
 enum SDocFieldKind {
@@ -622,9 +628,9 @@ class _SDocUploadBodyState extends State<_SDocUploadBody> {
             ),
           ),
         ),
-        TextButton(
+        SButton.ghost(
+          label: 'Cambiar',
           onPressed: _analizando ? null : _quitarArchivo,
-          child: const Text('Cambiar'),
         ),
       ],
     ),
@@ -759,7 +765,7 @@ class SDocUploadLayout extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (preview != null) ...[
-                    SizedBox(height: 280, child: preview),
+                    SizedBox(height: _kAlturaPrevisualizacion, child: preview),
                     SizedBox(height: t.space.md),
                   ],
                   izquierda,

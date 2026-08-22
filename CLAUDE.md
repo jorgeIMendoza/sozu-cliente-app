@@ -235,6 +235,7 @@ funcionando y no se tocan salvo para migrarlos**, pero nada nuevo va ahí.
 F=lib/features/auth
 for p in "PortalColors" "isPortalMode" "SozuType\." "SozuBrand\." "Color\(0x" \
          "fontSize:" "circular\([0-9]" \
+         "(Filled|Text|Elevated|Outlined)Button[.(]" \
          "EdgeInsets\.(all|symmetric|only|fromLTRB)\([a-z]*:? ?[0-9]" \
          "SizedBox\((height|width): [0-9]" "^import '\.\./"; do
   # -H es obligatorio: sin el prefijo de archivo (p.ej. al auditar UN archivo)
@@ -255,6 +256,15 @@ declaraba features "cerradas" que no lo estaban.** No son adorno:
   siempre (`context.s.space.gapMd`, `gapLg`).
 - **`EdgeInsets\.(symmetric|only|fromLTRB)`** - el grep viejo solo miraba
   `EdgeInsets.all`, así que `EdgeInsets.symmetric(vertical: 12)` pasaba limpio.
+- **`(Filled|Text|Elevated|Outlined)Button[.(]`** - agregado el 2026-08-20 por
+  lo mismo: un boton de Material **no escribe un solo numero crudo**, asi que
+  ninguno de los otros patrones lo ve, y sin embargo se salta `SButton` entero
+  (radio, alto, foco y color propios de Material, que no responden a los
+  tokens). `auth` y `admin` estaban declaradas cerradas con 7 dentro. El corchete
+  `[.(]` NO sobra: buscar `TextButton(` deja pasar `TextButton.icon(`, y asi se
+  escapo uno de los siete en la primera pasada.
+  Lo mismo aplica a los dialogos: `showDialog` + `AlertDialog` a mano en vez de
+  `showSConfirm`.
 - **`SozuBrand\.`** - es la PALETA CRUDA (`lib/ui/tokens/palette.dart`), la capa
   de debajo de los roles. Usarla en una pantalla es lo mismo que escribir
   `Color(0xFF239F71)` pero con nombre bonito, **y no responde al tema**: los
@@ -377,10 +387,10 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
 
 ## Estructura lib/
 - ui/: design system (tokens + tema + primitivas). Ver sección anterior.
-  26 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
+  27 primitivas: SButton · STextField · SCard · SBadge · SAvatar · SProgressBar ·
   SSkeleton · SEmptyState · SErrorState · SSectionLabel · SPressable · SStagger ·
   SSearchField · SAutocompleteField · SLogo · SWebSelectable · SDropZone ·
-  SPdfPreview · SPdfFrame · SDocUpload · SConfirm · SSelectField · SFieldLabel ·
+  SPdfPreview · SPdfFrame · SDocUpload · SNetworkImage · SConfirm · SSelectField · SFieldLabel ·
   SFormSheet · SChoiceChip · STabs.
   `STabs` sustituye al `TabBar` de Material y, sobre todo, **no trae
   `TabBarView`**: pinta solo la fila de etiquetas y el cuerpo lo pone quien la
@@ -397,20 +407,23 @@ Los dos ultimos compilan con `APP_ENV=prod`, asi que no sale la franja de PREVIE
   `admin/` (cerrada), `client/` (expediente, facturacion, home, layouts,
   products, profile, properties, referral, providers), `app_download/` (la
   landing de descarga del APK, un solo componente).
-- core/: backend_env, format, secure_session_storage, open_document, open_media,
-  media_cache, file_download, file_drop, url_strategy, user_agent/, version,
-  push_service, portal_tracking, portal_theme (legacy). La biometría salió a
-  `features/auth/`. Los pares `*_stub.dart` / `*_web.dart` son los imports
-  condicionales por plataforma.
+- core/: infraestructura transversal. **Inventario agrupado y por que cada cosa
+  esta ahi: `lib/core/README.md`.** 21 archivos que son 10 conceptos, porque
+  cuatro son tercias `x` + `x_stub` + `x_web` (imports condicionales por
+  plataforma, no duplicacion). El unico legacy es `portal_theme`.
+  WARN: `browser_ua_*` se llamaba `user_agent/` y se renombro el 2026-08-20: en
+  este sistema "agente" es un ROL de negocio (portal agentes, `authAgente`), asi
+  que el nombre se leia como algo de ese rol y no como la cabecera HTTP.
 - data/: models (DTOs de las 7 functions)
 - shared/: ports + adapters + providers **y components** que consumen 2+
-  features, api_error. `shared/components/` es para un widget que necesita un
+  features, api_error. Aqui vive el visor de documentos (`doc_viewer`,
+  `open_media`), que estaba en `core/` importando una pantalla de `client`. `shared/components/` es para un widget que necesita un
   provider (por eso no cabe en `ui/`, que no importa riverpod) y que usan dos
   features o más: hoy `theme_mode_button.dart`.
 - router.dart: guards + shell 5 tabs + secundarias
-- widgets/: LEGACY - portal_widgets, fx, network_image, preview_banner,
-  push_registrar, version_gate, whatsapp_icon. La carpeta admin/ salio a
-  features/admin/components/.
+- widgets/: LEGACY - portal_widgets, fx, preview_banner, push_registrar,
+  version_gate, whatsapp_icon. `network_image` salio el 2026-08-20: su widget es
+  `SNetworkImage` en `ui/` y su `ImageProvider` vive en `core/media_cache`.
 - `lib/screens/` y `lib/providers/` YA NO EXISTEN: sus pantallas viven en
   `features/client/*/screens/` y sus providers en la feature que los usa.
 

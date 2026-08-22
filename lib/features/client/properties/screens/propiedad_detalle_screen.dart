@@ -6,7 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
-import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/shared/components/open_media.dart';
 import 'package:sozu_cliente_app/core/portal_theme.dart';
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/properties/providers/properties_providers.dart';
@@ -15,14 +15,12 @@ import 'package:sozu_cliente_app/features/client/properties/components/copropiet
 import 'package:sozu_cliente_app/features/client/properties/components/credito_hipotecario_drawer.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/cronograma_pagos.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/etapa_actual_stepper.dart';
-import 'package:sozu_cliente_app/widgets/fx.dart';
-import 'package:sozu_cliente_app/widgets/network_image.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/payment_method_badge.dart';
 import 'package:sozu_cliente_app/widgets/portal_widgets.dart';
 import 'package:sozu_cliente_app/features/client/properties/components/pulsing_pin.dart';
-import 'package:sozu_cliente_app/widgets/whatsapp_icon.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/como_llegar_screen.dart';
 import 'package:sozu_cliente_app/features/client/properties/screens/pago_final_screen.dart';
+import 'package:sozu_cliente_app/features/client/properties/services/escrituracion.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
 
 /// Pestañas del detalle en modo portal.
@@ -135,7 +133,7 @@ class _PropiedadDetalleScreenState
               child: SizedBox(
                 height: 200,
                 width: double.infinity,
-                child: SozuNetworkImage(url: d.urlImagen),
+                child: SNetworkImage(url: d.urlImagen),
               ),
             )
           else
@@ -1129,7 +1127,7 @@ class _PropiedadDetalleScreenState
       borderRadius: BorderRadius.circular(kPortalRadiusCard),
       child: AspectRatio(
         aspectRatio: 16 / 9,
-        child: SozuNetworkImage(url: url),
+        child: SNetworkImage(url: url),
       ),
     );
     if (url == null || url.isEmpty) return imagen;
@@ -1592,32 +1590,12 @@ class _PropiedadDetalleScreenState
     );
   }
 
-  /// "Desglose a escrituración": un renglón por complemento con lo que falta
-  /// pagar para escriturar. Cada complemento se cobra en su propia cuenta,
-  /// aparte del departamento. Devuelve vacío si no hay complementos.
+  /// "Desglose a escrituración": el valor que se escritura (departamento más
+  /// estacionamiento y bodega) y, aparte, los complementos que no entran a la
+  /// escritura. Devuelve vacío si la propiedad no tiene complementos.
   List<Widget> _portalDesgloseEscrituracion(PropiedadDetalle d) {
-    final complementos = d.productos;
-    if (complementos.isEmpty) return const [];
-
-    double nonNeg(double v) => v < 0 ? 0.0 : v;
-    // Restante por producto = precio total × (1 − avance%); el modelo del
-    // detalle no expone saldo_pendiente por producto, se deriva de avance.
-    double restanteDe(ProductoDetalle p) => (p.monto * (1 - (p.avance / 100)))
-        .clamp(0.0, nonNeg(p.monto))
-        .toDouble();
-
-    final precioDepto = nonNeg(d.montoEfectivo);
-    final restanteDepto = nonNeg(d.saldoPendienteEfectivo);
-    final precioComplementos = complementos.fold<double>(
-      0,
-      (s, p) => s + nonNeg(p.monto),
-    );
-    final restanteComplementos = complementos.fold<double>(
-      0,
-      (s, p) => s + restanteDe(p),
-    );
-    final precioTotal = precioDepto + precioComplementos;
-    final totalEscriturar = restanteDepto + restanteComplementos;
+    if (d.productos.isEmpty) return const [];
+    final e = Escrituracion.de(d);
 
     Widget badge(String text) => Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1636,14 +1614,16 @@ class _PropiedadDetalleScreenState
       ),
     );
 
-    Widget listaLabel(double monto) => Text(
-      'Lista ${formatMXN(monto)}',
+    Widget subLabel(String prefijo, double monto) => Text(
+      '$prefijo ${formatMXN(monto)}',
       style: portalText(
         size: 10,
         color: PortalColors.mutedForeground,
         tabular: true,
       ),
     );
+
+    Widget listaLabel(double monto) => subLabel('Lista', monto);
 
     Widget montoGrande(double monto, {bool bold = false}) => Text(
       formatMXN(monto),
@@ -1692,6 +1672,31 @@ class _PropiedadDetalleScreenState
       );
     }
 
+    Widget complementoRow(ProductoDetalle p, {required bool first}) {
+      final restante = Escrituracion.restanteDe(p);
+      final incluido = p.monto <= 0.01;
+      final pagado = !incluido && restante <= 0.01;
+      final Widget right;
+      if (incluido) {
+        right = badge('Incluido');
+      } else if (pagado) {
+        right = Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            badge('Pagado'),
+            const SizedBox(height: 2),
+            listaLabel(p.monto),
+          ],
+        );
+      } else {
+        right = Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [montoGrande(restante), listaLabel(p.monto)],
+        );
+      }
+      return row(first: first, concepto: p.nombre, right: right);
+    }
+
     final rows = <Widget>[
       // Departamento
       row(
@@ -1699,50 +1704,47 @@ class _PropiedadDetalleScreenState
         concepto: 'Departamento',
         right: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
-          children: [montoGrande(restanteDepto), listaLabel(precioDepto)],
+          children: [
+            montoGrande(e.restanteDepartamento),
+            listaLabel(e.precioDepartamento),
+          ],
         ),
       ),
-      // Complementos (estacionamiento / bodega / etc.)
-      for (final p in complementos)
-        Builder(
-          builder: (_) {
-            final incluido = p.monto <= 0.01;
-            final pagado = !incluido && restanteDe(p) <= 0.01;
-            final Widget right;
-            if (incluido) {
-              right = badge('Incluido');
-            } else if (pagado) {
-              right = Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  badge('Pagado'),
-                  const SizedBox(height: 2),
-                  listaLabel(p.monto),
-                ],
-              );
-            } else {
-              right = Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [montoGrande(restanteDe(p)), listaLabel(p.monto)],
-              );
-            }
-            return row(first: false, concepto: p.nombre, right: right);
-          },
-        ),
-      // Total a escriturar
+      // Estacionamiento y bodega: los únicos complementos que se escrituran.
+      for (final p in e.escriturables) complementoRow(p, first: false),
+      // Total: el valor que se escritura, que es lo que se cubre con recursos
+      // propios o con crédito. El saldo va abajo, chico.
       row(
         first: false,
-        concepto: 'Total a escriturar',
+        concepto: 'Total a pagar para escriturar',
         conceptoBold: true,
         background: PortalColors.primary.withValues(alpha: .04),
         right: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            montoGrande(totalEscriturar, bold: true),
-            listaLabel(precioTotal),
+            montoGrande(e.precioTotal, bold: true),
+            subLabel('Restante', e.restanteTotal),
           ],
         ),
       ),
+      if (e.noEscriturables.isNotEmpty) ...[
+        Container(
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: PortalColors.borderSoft)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(
+            'No entra a la escritura - se paga aparte',
+            style: portalText(
+              size: 10,
+              weight: FontWeight.w600,
+              color: PortalColors.mutedForeground,
+            ),
+          ),
+        ),
+        for (var i = 0; i < e.noEscriturables.length; i++)
+          complementoRow(e.noEscriturables[i], first: i == 0),
+      ],
     ];
 
     return [
@@ -1770,9 +1772,11 @@ class _PropiedadDetalleScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              'El monto grande es lo que falta pagar (restante) para '
-              'escriturar; "Lista" es el precio total. Cada complemento se '
-              'paga en su propia cuenta, aparte del departamento.',
+              'El "Total a pagar para escriturar" es el valor que se escritura: '
+              'el departamento más el estacionamiento y la bodega que se hayan '
+              'comprado. Es lo que se cubre con recursos propios o con crédito. '
+              'En cada renglón el monto grande es lo que falta pagar y "Lista" '
+              'el precio total; cada complemento se paga en su propia cuenta.',
               style: portalText(
                 size: 10,
                 color: PortalColors.mutedForeground,
@@ -1942,7 +1946,7 @@ class _PropiedadDetalleScreenState
                 Expanded(
                   child: _portalAgenteBtn(
                     icon: Icons.chat_outlined,
-                    leading: const WhatsAppIcon(size: 15, color: Colors.white),
+                    leading: const SWhatsAppIcon(size: 15, color: Colors.white),
                     label: 'WA',
                     filled: true,
                     onTap: () => _abrirUrlExterna(
@@ -2089,7 +2093,7 @@ class _PropiedadDetalleScreenState
                     fit: StackFit.expand,
                     children: [
                       if (thumb != null)
-                        SozuNetworkImage(
+                        SNetworkImage(
                           url: thumb,
                           placeholderIcon: Icons.videocam_outlined,
                         )
@@ -2431,7 +2435,7 @@ class _GaleriaCarruselState extends State<_GaleriaCarrusel> {
             controller: _pc,
             itemCount: fotos.length,
             onPageChanged: (i) => setState(() => _idx = i),
-            itemBuilder: (_, i) => SozuNetworkImage(url: fotos[i].url),
+            itemBuilder: (_, i) => SNetworkImage(url: fotos[i].url),
           ),
         ),
 
@@ -2552,7 +2556,7 @@ class _GaleriaCarruselState extends State<_GaleriaCarrusel> {
                         opacity: activa ? 1 : 0.6,
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(6),
-                          child: SozuNetworkImage(url: fotos[i].url),
+                          child: SNetworkImage(url: fotos[i].url),
                         ),
                       ),
                     ),
@@ -2801,7 +2805,7 @@ class _ProductoRow extends StatelessWidget {
       'En curso' => SBadgeTone.neutral,
       _ => SBadgeTone.pending,
     };
-    return PressableScale(
+    return SPressable(
       onTap: () => context.push('/productos/${p.id}'),
       child: SCard(
         child: Row(
@@ -3030,7 +3034,7 @@ class _FichaTecnica extends StatelessWidget {
               color: tone.surfaceAlt,
               height: height,
               width: double.infinity,
-              child: SozuNetworkImage(
+              child: SNetworkImage(
                 url: url,
                 fit: BoxFit.contain,
                 placeholderIcon: Icons.image_outlined,
@@ -3062,7 +3066,7 @@ class _DocRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = context.s.color;
-    return PressableScale(
+    return SPressable(
       onTap: () => openMedia(context, d.urlFirmada, titulo: d.nombre),
       child: SCard(
         child: Row(

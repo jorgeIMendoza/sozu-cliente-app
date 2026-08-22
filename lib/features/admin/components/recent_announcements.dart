@@ -153,12 +153,10 @@ class _AnnouncementRow extends StatelessWidget {
           if (a.estado == 'pendiente')
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
+              child: SButton.ghost(
+                label: 'Cancelar envío',
+                color: tone.danger,
                 onPressed: onCancel,
-                child: Text(
-                  'Cancelar envío',
-                  style: t.text.button.copyWith(color: tone.danger),
-                ),
               ),
             ),
         ],

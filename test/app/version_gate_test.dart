@@ -8,7 +8,7 @@ import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/shared/providers/shared_providers.dart';
 import 'package:sozu_cliente_app/shared/providers/update_prompt_provider.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
-import 'package:sozu_cliente_app/widgets/version_gate.dart';
+import 'package:sozu_cliente_app/app/version_gate.dart';
 
 /// Los dos niveles del gate son deliberadamente distintos:
 ///

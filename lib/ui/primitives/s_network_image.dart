@@ -2,25 +2,19 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'package:sozu_cliente_app/core/media_cache.dart';
-import 'package:sozu_cliente_app/ui/ui.dart';
+import 'package:sozu_cliente_app/ui/primitives/s_skeleton.dart';
+import 'package:sozu_cliente_app/ui/theme/sozu_theme.dart';
+import 'package:sozu_cliente_app/ui/tokens/color_roles.dart';
 
-/// ImageProvider cacheado (misma clave estable y cache manager). Para usar en
-/// widgets que reciben un ImageProvider, ej. PhotoView del visor.
-ImageProvider cachedImageProvider(String url) => CachedNetworkImageProvider(
-  url,
-  cacheKey: cacheKeyFor(url),
-  cacheManager: SozuCacheManager.instance,
-);
-
-/// Imagen de red con cache en disco (7 días) y clave estable (ignora el token
-/// de las URLs firmadas de Supabase). Placeholder de carga + fallback de error.
-/// Reemplaza los `Image.network` sueltos de la app.
-class SozuNetworkImage extends StatelessWidget {
+/// Imagen de red con cache en disco (7 dias) y clave estable, que ignora el
+/// token de las URLs firmadas. Trae su propio esqueleto de carga y su respaldo
+/// de error, asi que sustituye a un `Image.network` suelto.
+class SNetworkImage extends StatelessWidget {
   final String? url;
   final BoxFit fit;
   final IconData placeholderIcon;
 
-  const SozuNetworkImage({
+  const SNetworkImage({
     super.key,
     required this.url,
     this.fit = BoxFit.cover,
@@ -36,7 +30,7 @@ class SozuNetworkImage extends StatelessWidget {
       cacheKey: cacheKeyFor(url!),
       cacheManager: SozuCacheManager.instance,
       fit: fit,
-      // El cruce skeleton -> foto es la entrada de un elemento: `normal`, el
+      // El cruce esqueleto -> foto es la entrada de un elemento: `normal`, el
       // mismo token que usan las cards al aparecer.
       fadeInDuration: context.s.motion.normal,
       placeholder: (_, __) => const SSkeleton(height: double.infinity),

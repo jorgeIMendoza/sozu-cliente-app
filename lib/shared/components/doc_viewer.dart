@@ -10,7 +10,6 @@ import 'package:sozu_cliente_app/core/file_download.dart';
 import 'package:sozu_cliente_app/core/media_cache.dart';
 import 'package:sozu_cliente_app/core/open_document.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
-import 'package:sozu_cliente_app/widgets/network_image.dart';
 
 enum _MediaKind { image, pdf, xml, unknown }
 
@@ -19,17 +18,17 @@ const _imageExts = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic'};
 /// Visor in-app de imágenes (zoom/pan) y PDFs (scroll de páginas), con cache.
 /// El tipo se infiere por la extensión del path; si no hay, se consulta el
 /// header Content-Type. Si aun así no se reconoce, se ofrece abrir externo.
-class DocViewerScreen extends StatefulWidget {
+class DocViewer extends StatefulWidget {
   final String url;
   final String titulo;
 
-  const DocViewerScreen({super.key, required this.url, required this.titulo});
+  const DocViewer({super.key, required this.url, required this.titulo});
 
   @override
-  State<DocViewerScreen> createState() => _DocViewerScreenState();
+  State<DocViewer> createState() => _DocViewerScreenState();
 }
 
-class _DocViewerScreenState extends State<DocViewerScreen> {
+class _DocViewerScreenState extends State<DocViewer> {
   late Future<_MediaKind> _kind;
 
   @override
@@ -150,22 +149,10 @@ class _DocViewerScreenState extends State<DocViewerScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.insert_drive_file_outlined,
-            size: 48,
-            color: Colors.white70,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'No pudimos mostrar este archivo aquí.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: () => openDoc(context, widget.url),
-            icon: const Icon(Icons.open_in_new),
-            label: const Text('Abrir en navegador'),
+          _NoSePudoMostrar(
+            icono: Icons.insert_drive_file_outlined,
+            mensaje: 'No pudimos mostrar este archivo aquí.',
+            onAbrir: () => openDoc(context, widget.url),
           ),
         ],
       ),
@@ -230,22 +217,10 @@ class _PdfViewState extends State<_PdfView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.picture_as_pdf_outlined,
-                size: 48,
-                color: Colors.white70,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'No pudimos mostrar el PDF aquí.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => openDoc(context, widget.url),
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Abrir en navegador'),
+              _NoSePudoMostrar(
+                icono: Icons.picture_as_pdf_outlined,
+                mensaje: 'No pudimos mostrar el PDF aquí.',
+                onAbrir: () => openDoc(context, widget.url),
               ),
             ],
           ),
@@ -310,6 +285,48 @@ class _XmlViewState extends State<_XmlView> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Respaldo cuando el visor no puede pintar el archivo: se ofrece abrirlo
+/// fuera. Estaba escrito dos veces, una por tipo de archivo.
+///
+/// Los blancos NO son tokens a proposito: el visor se pinta sobre un fondo
+/// oscuro fijo, no sobre la superficie del tema, asi que `fg` cambiaria con el
+/// modo claro y aqui el fondo no cambia.
+class _NoSePudoMostrar extends StatelessWidget {
+  final IconData icono;
+  final String mensaje;
+  final VoidCallback onAbrir;
+
+  const _NoSePudoMostrar({
+    required this.icono,
+    required this.mensaje,
+    required this.onAbrir,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.s;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icono, size: 48, color: Colors.white70),
+        SizedBox(height: t.space.md),
+        Text(
+          mensaje,
+          textAlign: TextAlign.center,
+          style: t.text.body.copyWith(color: Colors.white),
+        ),
+        SizedBox(height: t.space.md),
+        SButton(
+          label: 'Abrir en navegador',
+          icon: Icons.open_in_new,
+          fullWidth: false,
+          onPressed: onAbrir,
+        ),
+      ],
     );
   }
 }

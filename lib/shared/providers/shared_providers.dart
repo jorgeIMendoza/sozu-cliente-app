@@ -6,7 +6,11 @@ import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/shared/adapters/app_version_adapter.dart';
 import 'package:sozu_cliente_app/shared/adapters/push_adapter.dart';
 import 'package:sozu_cliente_app/shared/ports/app_version_port.dart';
+import 'package:sozu_cliente_app/shared/adapters/live_notifications_adapter.dart';
+import 'package:sozu_cliente_app/shared/adapters/tracking_adapter.dart';
 import 'package:sozu_cliente_app/shared/ports/push_port.dart';
+import 'package:sozu_cliente_app/shared/ports/live_notifications_port.dart';
+import 'package:sozu_cliente_app/shared/ports/tracking_port.dart';
 
 /// Providers transversales (no atados a una hoja de `client`): identidad de la
 /// sesion, push y version gate. Los datos del cliente viven en
@@ -23,6 +27,15 @@ final authUserIdProvider = Provider<String?>((ref) {
 /// existe en produccion; los tests lo sobreescriben con un doble.
 /// No se reconstruye con la impersonacion: el token es del dispositivo.
 final pushPortProvider = Provider<PushPort>((ref) => PushAdapter());
+
+/// Puerto del aviso en vivo de notificaciones. Lo consume `PushRegistrar`.
+final liveNotificationsPortProvider = Provider<LiveNotificationsPort>(
+  (ref) => LiveNotificationsAdapter(),
+);
+
+/// Puerto de las mediciones de uso. Lo consumen `push_registrar` (abre) y
+/// `AuthController` (cierra antes del signOut).
+final trackingPortProvider = Provider<TrackingPort>((ref) => TrackingAdapter());
 
 /// Puerto del version gate. No depende de la sesion (llave anonima).
 final appVersionPortProvider = Provider<AppVersionPort>(

@@ -4,6 +4,9 @@ import 'package:sozu_cliente_app/features/auth/ports/auth_port.dart';
 import 'package:sozu_cliente_app/features/auth/providers/auth_provider.dart';
 import 'package:sozu_cliente_app/shared/api_error.dart';
 
+import 'package:sozu_cliente_app/core/portal_tracking.dart';
+
+import '../../shared/fake_tracking_port.dart';
 import 'fake_auth_port.dart';
 
 /// Lo que fija este archivo es que `AuthController` funciona contra el PUERTO,
@@ -30,8 +33,11 @@ void main() {
   });
 
   /// Construye el controller y deja terminar el `_init` asíncrono.
-  Future<AuthController> makeController(FakeAuthPort port) async {
-    final controller = AuthController(port);
+  Future<AuthController> makeController(
+    FakeAuthPort port, {
+    FakeTrackingPort? tracking,
+  }) async {
+    final controller = AuthController(port, tracking ?? FakeTrackingPort());
     await pumpEventQueue();
     return controller;
   }
@@ -329,5 +335,39 @@ void main() {
     expect(controller.session, isNull);
     expect(controller.profile, isNull);
     expect(controller.locked, isFalse);
+  });
+
+  test(
+    'la medicion se cierra ANTES del signOut, que es cuando hay JWT',
+    () async {
+      // `close_portal_session` es un RPC que exige JWT. Si el signOut corre
+      // primero, el token ya esta revocado y la sesion de medicion queda abierta
+      // hasta que caduca por inactividad, inflando el "Uso por portal".
+      final port = FakeAuthPort(profileRow: clientProfile);
+      final tracking = FakeTrackingPort();
+      final controller = await makeController(port, tracking: tracking);
+      await controller.signIn('cliente@sozu.com', 'secreta123');
+      await pumpEventQueue();
+
+      await PortalTracking.iniciar(tracking);
+      expect(tracking.log, contains('register'));
+
+      await controller.signOut();
+      await pumpEventQueue();
+
+      expect(tracking.log, contains('close:sesion-1'));
+      expect(
+        tracking.log.indexOf('close:sesion-1') < port.log.indexOf('signOut'),
+        isTrue,
+        reason: 'cerrar la medicion despues del signOut ya no tiene JWT',
+      );
+    },
+  );
+
+  test('sin sesion de medicion abierta, cerrar no llama al puerto', () async {
+    // El caso normal de un admin impersonando: nunca se abrio medicion.
+    final tracking = FakeTrackingPort();
+    await PortalTracking.cerrar(tracking);
+    expect(tracking.log, isEmpty);
   });
 }

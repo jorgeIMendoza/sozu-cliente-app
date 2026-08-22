@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sozu_cliente_app/core/format.dart';
-import 'package:sozu_cliente_app/core/open_media.dart';
+import 'package:sozu_cliente_app/shared/components/open_media.dart';
 import 'package:sozu_cliente_app/core/version.dart' show isPreviewBuild;
 import 'package:sozu_cliente_app/data/models.dart';
 import 'package:sozu_cliente_app/features/client/expediente/components/cuenta_bancaria_row.dart';

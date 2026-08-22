@@ -266,26 +266,22 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_schedule ? 'Programar aviso' : 'Enviar aviso ahora'),
-        content: Text(
-          'Destino: $_targetSummary\n'
-          'Canales: ${_channels.join(', ')}'
-          '${_schedule ? '\nEnvío: ${DateFormat('dd/MM/yyyy HH:mm').format(_scheduledAt!)}' : ''}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_schedule ? 'Programar' : 'Enviar'),
-          ),
-        ],
-      ),
+    // Lo que se acepta va como `puntos` y no como un parrafo: en una sola linea
+    // corrida el destino y los canales se leen de pasada, y aqui hay que
+    // revisarlos antes de mandar algo a clientes reales.
+    final confirmed = await showSConfirm(
+      context,
+      titulo: _schedule ? 'Programar aviso' : 'Enviar aviso ahora',
+      puntos: [
+        'Destino: $_targetSummary',
+        'Canales: ${_channels.join(', ')}',
+        if (_schedule)
+          'Envío: ${DateFormat('dd/MM/yyyy HH:mm').format(_scheduledAt!)}',
+      ],
+      etiquetaAceptar: _schedule ? 'Programar' : 'Enviar',
+      // Un envio inmediato no se deshace; uno programado se cancela desde la
+      // lista de recientes, asi que no carga el mismo peso.
+      tono: _schedule ? SConfirmTone.info : SConfirmTone.warning,
     );
     if (confirmed != true || !mounted) return;
 
@@ -373,13 +369,13 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                 // del grupo "Canales".
                 _twoColumns(
                   t,
-                  SelectField(
+                  CatalogSelectField(
                     label: 'Tipo',
                     value: _type,
                     options: _types,
                     onChanged: (v) => setState(() => _type = v ?? _type),
                   ),
-                  SelectField(
+                  CatalogSelectField(
                     label: 'Categoría',
                     value: _category,
                     options: _categories,
@@ -408,14 +404,14 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                 const SSectionLabel(text: 'Destinatarios'),
                 _twoColumns(
                   t,
-                  MultiSelectField(
+                  CatalogMultiSelectField(
                     label: 'Proyectos',
                     items: _projects,
                     selected: _selectedProjects,
                     placeholder: 'Todos los clientes',
                     onChanged: _onProjectsChanged,
                   ),
-                  MultiSelectField(
+                  CatalogMultiSelectField(
                     label: 'Modelos',
                     items: _models,
                     selected: _selectedModels,
@@ -431,7 +427,7 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                 SizedBox(height: t.space.xs),
                 _twoColumns(
                   t,
-                  MultiSelectField(
+                  CatalogMultiSelectField(
                     label: 'Niveles',
                     items: _levels,
                     selected: _selectedLevels,
@@ -445,7 +441,7 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                     enabled: _selectedProjects.isNotEmpty && !_loadingLevels,
                     onChanged: _onLevelsChanged,
                   ),
-                  MultiSelectField(
+                  CatalogMultiSelectField(
                     label: 'Propiedades',
                     items: _properties,
                     prefix: 'U-',
@@ -492,10 +488,10 @@ class _AnnouncementFormState extends ConsumerState<AnnouncementForm> {
                       ),
                     ),
                     if (_schedule)
-                      TextButton.icon(
+                      SButton.ghost(
+                        label: 'Fecha y hora',
+                        icon: Icons.event_outlined,
                         onPressed: _pickDateTime,
-                        icon: const Icon(Icons.event_outlined, size: 18),
-                        label: const Text('Fecha y hora'),
                       ),
                   ],
                 ),

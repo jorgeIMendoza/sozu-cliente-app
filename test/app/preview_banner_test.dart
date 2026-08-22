@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sozu_cliente_app/core/version.dart';
 import 'package:sozu_cliente_app/ui/ui.dart';
-import 'package:sozu_cliente_app/widgets/preview_banner.dart';
+import 'package:sozu_cliente_app/app/preview_banner.dart';
 
 void main() {
   // isPreviewBuild es true por defecto (APP_ENV cae a 'preview' sin dart-define),
